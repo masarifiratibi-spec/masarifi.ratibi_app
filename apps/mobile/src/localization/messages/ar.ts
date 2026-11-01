@@ -2774,6 +2774,7 @@ const ar: MessageCatalog = {
   'recentAuth.failed':
     'تعذّر إكمال التحقق. تأكد من الرمز أو كلمة المرور والاتصال. يجب أن يدعم حسابك التحقق بالرمز أو كلمة المرور.',
   'logout.pendingTitle': 'إكمال تسجيل الخروج',
+  'logout.progress': 'جارٍ تسجيل الخروج…',
   'logout.pendingBody':
     'لم يكتمل تسجيل الخروج. يظل الوصول المحلي متوقفًا حتى يكتمل حذف البيانات بأمان.',
   'logout.originalSessionUnavailable':

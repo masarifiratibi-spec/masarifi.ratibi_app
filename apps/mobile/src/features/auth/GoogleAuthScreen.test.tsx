@@ -4,6 +4,7 @@ import AuthPendingRoute from '@app/(public)/auth-pending';
 import WelcomeRoute from '@app/(public)/welcome';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
+import { getLegalDocument, legalReviewCopy } from '@/features/legal/legal-documents';
 
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
 
@@ -38,4 +39,14 @@ test('fresh Welcome offers the same Google action directly', () => {
   expect(
     screen.getByRole('button', { name: 'Continue with Google' })
   ).toBeOnTheScreen();
+  expect(screen.getByText(legalReviewCopy.en.preview)).toBeOnTheScreen();
+});
+
+test.each(['ar','en'] as const)('returning sign-in keeps document links without registration preview messages in %s', locale => {
+  changeLocale(locale);
+  renderWithProviders(<AuthPendingRoute />);
+  expect(screen.queryByText(legalReviewCopy[locale].preview)).toBeNull();
+  expect(screen.queryByText(legalReviewCopy[locale].checkbox)).toBeNull();
+  expect(screen.getByRole('button',{name:getLegalDocument(locale,'terms').title})).toBeOnTheScreen();
+  expect(screen.getByRole('button',{name:getLegalDocument(locale,'privacy').title})).toBeOnTheScreen();
 });

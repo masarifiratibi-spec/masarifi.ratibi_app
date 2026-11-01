@@ -1,6 +1,6 @@
 const resets = new Set<() => void | Promise<void>>();
 export type IdentityResetContext =
-  { restoringOwnerId: string } | { kind: 'restore-unavailable' };
+  { restoringOwnerId: string } | { kind: 'restore-unavailable' | 'signed-out-preserve' };
 const identityResets = new Set<
   (context?: IdentityResetContext) => void | Promise<void>
 >();

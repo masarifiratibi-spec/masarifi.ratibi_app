@@ -20,7 +20,7 @@ import type {
 import { useTheme } from '@/state/theme-context';
 
 export default function AuthPendingRoute() {
-  return <GoogleAuthScreen />;
+  return <GoogleAuthScreen mode="sign-in" />;
 }
 
 export function AuthPendingScreen({

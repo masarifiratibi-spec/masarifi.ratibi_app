@@ -19,6 +19,7 @@ import { CoreFinanceSyncAdapter } from './core-finance-sync-adapter';
 import { normalizeMutationBatch } from '../../../api/src/sync/sync.dto';
 import { syncFirstLogout } from '@/services/sync-first-logout';
 import { settleTransactionDraftWrites } from './transaction-draft-snapshots';
+import { pendingOwnerWork } from './pending-owner-work';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: async () => null, setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 
@@ -39,6 +40,7 @@ let mockDatabase: SQLiteDatabase;
 let mockExclusive = false;
 let mockOwner = 'user_offline';
 jest.mock('./database', () => ({
+  hasQuarantinedOwnerDatabase: async () => false,
   openDatabase: async (owner?: string) => {
     if (mockExclusive) throw new Error('nested database lifecycle');
     if (owner && owner !== mockOwner) throw new Error('stale database owner');
@@ -180,6 +182,13 @@ beforeEach(async () => {
 afterEach(() => {
   native.close();
   useAppShellStore.setState({ session: null });
+});
+
+it('counts an editing planning draft as pending logout work without counting already saved drafts', async () => {
+  native.prepare("INSERT INTO planning_drafts(id,payload,kind,status,updated_at) VALUES(?,?,?,?,?)").run('2026-13','{}','budget','editing',1);
+  native.prepare("INSERT INTO planning_drafts(id,payload,kind,status,updated_at) VALUES(?,?,?,?,?)").run('saved','{}','budget','saved',1);
+  await expect(pendingOwnerWork(mockOwner)).resolves.toBe(1);
+  expect(native.prepare('SELECT id FROM planning_drafts ORDER BY id').all()).toEqual([{id:'2026-13'},{id:'saved'}]);
 });
 
 it('T04 logout settles an admitted draft write before disposition and cancels without losing that draft', async () => {

@@ -45,6 +45,7 @@ import {
 import { createQueryReadCache } from '@/storage/query-read-cache';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { isAppLockEnabled } from '@/config/client-runtime';
+import { LogoutProgressOverlay } from '@/features/auth/LogoutProgressOverlay';
 
 initI18n();
 
@@ -280,6 +281,7 @@ export function FoundationProviders({
               }}
             >
               {children}
+              <LogoutProgressOverlay />
               {obligationHeroVisible ? (
                 <View
                   pointerEvents="none"

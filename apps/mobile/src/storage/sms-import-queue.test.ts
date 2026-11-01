@@ -417,6 +417,21 @@ describe('SMS import queue', () => {
     expect(await new SmsImportQueue(storage).load('owner-1')).toEqual(state);
   });
 
+  it('preserves distinct legacy pending work alongside an existing encrypted pending entry', async () => {
+    const storage = memoryStorage();
+    const queue = new SmsImportQueue(storage);
+    await queue.enqueue('owner-1', {
+      idempotencyKey:'sms:encrypted',
+      submission:{...submission,events:submission.events.map(event=>({...event,sourceItemKey:'sha256:encrypted'}))},
+      cursor:42,
+      fingerprints:['sha256:encrypted']
+    });
+    storage.values.set(legacyKey,JSON.stringify(legacy()));
+    const merged = await queue.load('owner-1');
+    expect(merged.pending.map(entry=>entry.idempotencyKey).sort()).toEqual(['sms:encrypted',legacy().pending[0]!.idempotencyKey].sort());
+    expect(storage.values.has(legacyKey)).toBe(false);
+  });
+
   it('retains legacy data on failed encrypted commit and retries cleanup without overwriting encrypted state', async () => {
     const storage = memoryStorage();
     storage.values.set(legacyKey, JSON.stringify(legacy()));
@@ -431,6 +446,23 @@ describe('SMS import queue', () => {
     storage.values.set(legacyKey, JSON.stringify(legacy()));
     expect((await queue.load('owner-1')).pending).toEqual([]);
     expect(storage.values.has(legacyKey)).toBe(false);
+  });
+
+  it('retains both copies when one idempotency key has conflicting financial data', async () => {
+    const storage = memoryStorage();
+    const queue = new SmsImportQueue(storage);
+    await queue.enqueue('owner-1', {
+      idempotencyKey:legacy().pending[0]!.idempotencyKey,
+      submission:{...submission,events:submission.events.map(event=>({...event,amountMinor:-2500}))},
+      cursor:42,
+      fingerprints:['sha256:one']
+    });
+    const before = mockDatabase.read('sms_import_queue');
+    const raw = JSON.stringify(legacy());
+    storage.values.set(legacyKey,raw);
+    await expect(queue.load('owner-1')).rejects.toThrow('legacy queue conflict');
+    expect(mockDatabase.read('sms_import_queue')).toEqual(before);
+    expect(storage.values.get(legacyKey)).toBe(raw);
   });
 
   it.each([

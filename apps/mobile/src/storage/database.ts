@@ -176,7 +176,8 @@ function ownerDatabaseName(ownerHash: string): string {
 
 /** Explicit sign-out discards ephemeral imports before releasing the owner. */
 export async function clearDatabaseOwner(
-  discardSmsQueueFor?: string
+  discardSmsQueueFor?: string,
+  options: { preservePendingWork?: boolean } = {}
 ): Promise<void> {
   return withTransactionDraftWrite(async () => {
     await enqueueDatabaseLifecycle(async () => {
@@ -190,7 +191,7 @@ export async function clearDatabaseOwner(
       )
         throw new Error('stale database owner');
       try {
-        if (discardSmsQueueFor !== undefined) {
+        if (discardSmsQueueFor !== undefined && !options.preservePendingWork) {
           databasePromise ??= createAndMigrate();
           activeDatabase = await databasePromise;
           await withKeyedTransaction(

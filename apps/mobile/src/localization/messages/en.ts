@@ -2889,6 +2889,7 @@ const en = {
   'recentAuth.failed':
     'Verification could not finish. Check your code or password and connection. Your account must support code or password verification.',
   'logout.pendingTitle': 'Finish signing out',
+  'logout.progress': 'Signing out…',
   'logout.pendingBody':
     'Sign-out is incomplete. Local access stays paused until safe cleanup finishes.',
   'logout.originalSessionUnavailable':

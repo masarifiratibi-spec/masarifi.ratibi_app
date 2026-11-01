@@ -59,6 +59,13 @@ const rules = {
   senders: [{ normalizedSender: 'com.bank.app', trusted: true, enabled: true }]
 };
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+test('preserved sign-out suspends native intake without clearing retained owner notifications', async () => {
+  mockNativeNotifications = ['retained'];
+  await resetRuntimeIdentityData({kind:'signed-out-preserve'});
+  expect(MasarifiSmsInbox?.suspendTrackingOwner).toHaveBeenCalledTimes(1);
+  expect(MasarifiSmsInbox?.clearTrackingOwner).not.toHaveBeenCalled();
+  expect(mockNativeNotifications).toEqual(['retained']);
+});
 const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 beforeEach(async () => {
   process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';

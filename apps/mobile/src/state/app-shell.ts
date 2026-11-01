@@ -48,6 +48,7 @@ import { clearDatabaseOwner, configureDatabaseOwner } from '@/storage/database';
 import { clearLegacySmsImportQueue } from '@/storage/sms-import-queue';
 
 interface AppShellState {
+  logoutInProgressOwnerId: string | null;
   logoutQuiescingOwnerId: string | null;
   logoutRecoveryOwnerId: string | null;
   fenceLogoutOwner: (ownerId: string) => void;
@@ -108,6 +109,7 @@ const signedOutSession: AuthenticationSession = {
 };
 
 const initialState = {
+  logoutInProgressOwnerId: null,
   logoutQuiescingOwnerId: null,
   logoutRecoveryOwnerId: null,
   hydrated: false,
@@ -127,7 +129,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   fenceLogoutOwner: (ownerId) => {
     const current = get().session?.userId;
     if (current && current !== ownerId) return;
-    set({ ...initialState, hydrated: true, session: signedOutSession, logoutRecoveryOwnerId: ownerId });
+    set({ ...initialState, logoutInProgressOwnerId: get().logoutInProgressOwnerId, hydrated: true, session: signedOutSession, logoutRecoveryOwnerId: ownerId });
   },
   retryBootstrap: () => {
     if (get().profileSetupStatus === 'loading') return;

@@ -215,12 +215,13 @@ export class SmsImportQueue {
         'singleton'
       );
       legacy = await this.storage.getItem(storageKey);
-      const stored = row
-        ? parseState(row.payload, ownerId)
-        : parseLegacyState(legacy, ownerId);
+      const encrypted = row ? parseState(row.payload, ownerId) : null;
+      const legacyState = parseLegacyState(legacy, ownerId);
+      if (row && !encrypted && legacyState) throw new Error('encrypted queue unavailable');
+      const stored = mergePreservedQueue(encrypted, legacyState);
       state = stored ?? empty(ownerId);
       if (mutate) mutate(state);
-      if (mutate || (!row && stored)) {
+      if (mutate || (!row && stored) || (stored && legacyState)) {
         state = queueSchema.parse(state);
         state.pending = state.pending.map((entry) => ({
           ...entry,
@@ -236,13 +237,38 @@ export class SmsImportQueue {
       }
     });
     // Only remove a valid legacy copy after the encrypted transaction commits.
-    if (legacy !== null) await this.storage.removeItem(storageKey);
+    if (legacy !== null && await this.storage.getItem(storageKey) === legacy)
+      await this.storage.removeItem(storageKey);
     return state;
   }
 }
 
 export function clearLegacySmsImportQueue(): Promise<void> {
   return AsyncStorage.removeItem(storageKey);
+}
+
+export async function preserveLegacySmsImportQueue(ownerId: string): Promise<void> {
+  const raw = await AsyncStorage.getItem(storageKey);
+  if (raw !== null && parseLegacyState(raw, ownerId))
+    await new SmsImportQueue().load(ownerId);
+}
+
+function mergePreservedQueue(current: SmsImportQueueState | null, legacy: SmsImportQueueState | null): SmsImportQueueState | null {
+  if (!current) return legacy;
+  if (!legacy) return current;
+  const pending = new Map(current.pending.map(entry => [entry.idempotencyKey,entry]));
+  const known = new Set(current.fingerprints);
+  for (const entry of legacy.pending) {
+    const existing = pending.get(entry.idempotencyKey);
+    if (existing) {
+      if (JSON.stringify(minimize(existing.submission)) !== JSON.stringify(minimize(entry.submission)))
+        throw new Error('legacy queue conflict');
+      continue;
+    }
+    if (entry.submission.events.length > 0 && entry.submission.events.every(event => known.has(event.sourceItemKey))) continue;
+    pending.set(entry.idempotencyKey,entry);
+  }
+  return {...current,pending:[...pending.values()],fingerprints:[...new Set([...current.fingerprints,...legacy.fingerprints])]};
 }
 
 const boundedText = z.string().min(1).max(200);

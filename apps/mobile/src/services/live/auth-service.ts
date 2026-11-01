@@ -215,6 +215,7 @@ async function assertPreparedLogout(
     stored.phase !== 'prepared' ||
     stored.sessionId !== record.sessionId ||
     stored.scope !== record.scope ||
+    stored.dataDisposition !== record.dataDisposition ||
     session?.userId !== record.ownerId ||
     session.id !== record.sessionId ||
     (shellOwner && shellOwner !== record.ownerId)

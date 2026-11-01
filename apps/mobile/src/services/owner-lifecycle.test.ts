@@ -12,6 +12,10 @@ import * as phoneNotifications from '@/services/platform/phone-notification-serv
 import { usePreferenceStore } from '@/state/preferences';
 import { captureLiveClerkIdentity, terminatePinnedLogout } from './live/auth-service';
 import { configureDatabaseOwner } from '@/storage/database';
+import * as financeSync from '@/services/live/core-finance-service';
+import * as trackingSync from '@/services/automatic-tracking-coordinator';
+import { bankNotificationService } from '@/services/platform/bank-notification-service';
+import { clearDatabaseOwner } from '@/storage/database';
 
 const mockSecure = new Map<string, string>();
 const mockRows = new Map<string, number>();
@@ -20,6 +24,7 @@ let mockStorageFailure: 'prepare' | 'ready' | null = null;
 let mockPurgeFailure = false;
 let mockAfterPurge: (() => Promise<void>) | null = null;
 let mockSelectedDatabaseOwner: string | null = null;
+let mockPendingCount = 1;
 const mockDatabaseSelections: string[] = [];
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async (key: string) => mockSecure.get(key) ?? null),
@@ -37,10 +42,10 @@ jest.mock('expo-crypto', () => ({
 // Native database erasure is the I/O boundary; protected admission storage is real.
 jest.mock('@/storage/database', () => ({
   configureDatabaseOwner: async (ownerId: string) => { mockSelectedDatabaseOwner = ownerId; mockDatabaseSelections.push(ownerId); },
-  clearDatabaseOwner: async () => undefined,
+  clearDatabaseOwner: jest.fn(async () => undefined),
   hasQuarantinedOwnerDatabase: async () => false,
   openDatabase: async () => ({
-    getFirstAsync: async (sql: string) => sql.includes('AS count') ? { count: 1 } : null,
+    getFirstAsync: async (sql: string) => sql.includes('AS count') ? { count: mockPendingCount } : null,
     getAllAsync: async () => [],
     runAsync: async () => undefined
   }),
@@ -91,6 +96,8 @@ beforeEach(async () => {
   mockStorageFailure = null; mockPurgeFailure = false; mockAfterPurge = null; mockProviderFailure = false; mockProviderGate = null;
   mockSelectedDatabaseOwner = owner; mockDatabaseSelections.length = 0;
   mockSession = { ...originalSession }; sdkSignOut.mockClear(); useAppShellStore.getState().reset();
+  jest.mocked(clearDatabaseOwner).mockClear();
+  mockPendingCount = 1;
   jest.spyOn(global, 'fetch').mockRejectedValue(new TypeError('offline'));
   registerLiveClerkBridge({ getSession: async () => mockSession, getToken: async () => 'boundary-token', signOut: sdkSignOut, startPhone: jest.fn(), verifyPhone: jest.fn(), resendPhone: jest.fn(), signInWithGoogle: jest.fn(), reverifyConflict: jest.fn() });
   await seed();
@@ -103,6 +110,109 @@ afterAll(() => {
   if (previousApi === undefined) delete process.env.EXPO_PUBLIC_API_URL; else process.env.EXPO_PUBLIC_API_URL = previousApi;
 });
 const logout = (accept = true, scope: 'local' | 'all' = 'local') => signOutAppShellSession({} as never, scope, { confirmRemoval: async () => accept });
+
+it('ordinary sign-out keeps owner data and pending work without sync or a removal question', async () => {
+  const finance = jest.spyOn(financeSync, 'synchronizeLiveCoreFinance').mockResolvedValue(undefined);
+  const tracking = jest.spyOn(trackingSync, 'syncAutomaticTracking').mockResolvedValue({status:'idle',sessionId:null,reviewId:null,duplicateId:null,errorCode:null});
+  const nativeRead = jest.spyOn(bankNotificationService, 'readRecent');
+  await expect(signOutAppShellSession({} as never,'local')).resolves.toBe(true);
+  expect(mockRows.get(owner)).toBe(1);
+  expect(mockRows.get(other)).toBe(1);
+  expect(mockPurges).toEqual([]);
+  expect(clearDatabaseOwner).toHaveBeenCalledWith(owner,{preservePendingWork:true});
+  expect(finance).not.toHaveBeenCalled();
+  expect(tracking).not.toHaveBeenCalled();
+  expect(nativeRead).not.toHaveBeenCalled();
+  expect(await loadLocalOwnerAccess()).toBeNull();
+  expect(await loadLogoutDisposition(owner)).toBeNull();
+  expect(useAppShellStore.getState().session?.status).toBe('signed_out');
+  expect(useAppShellStore.getState().logoutRecoveryOwnerId).toBeNull();
+  expect(sdkSignOut).toHaveBeenCalledTimes(1);
+});
+
+it.each([false,true])('reconstructs a preserving cleanup without erasing data or terminating the session twice (legacy=%s)', async (legacy) => {
+  jest.mocked(clearDatabaseOwner).mockRejectedValueOnce(new Error('CLOSE_INTERRUPTED'));
+  await expect(signOutAppShellSession({} as never,'local')).rejects.toThrow('CLOSE_INTERRUPTED');
+  expect(await loadLogoutDisposition(owner)).toMatchObject({phase:'cleanup-ready',dataDisposition:'preserve'});
+  if (legacy) for (const [key,value] of mockSecure) {
+    if (!key.includes('logoutDisposition')) continue;
+    const raw = JSON.parse(value);
+    delete raw.dataDisposition;
+    mockSecure.set(key,JSON.stringify(raw));
+  }
+  useAppShellStore.getState().reset();
+  await useAppShellStore.getState().hydrate();
+  expect(useAppShellStore.getState().logoutRecoveryOwnerId).toBe(owner);
+  await retryPendingLogout(owner);
+  expect(mockRows.get(owner)).toBe(1);
+  expect(mockPurges).toEqual([]);
+  expect(sdkSignOut).toHaveBeenCalledTimes(1);
+  expect(await loadLogoutDisposition(owner)).toBeNull();
+});
+
+it('keeps preserving recovery discoverable after marker removal fails following session cleanup', async () => {
+  let fail = true;
+  jest.mocked(SecureStore.deleteItemAsync).mockImplementation(async key => {
+    if (fail && key.includes('logoutDisposition')) { fail = false; throw new Error('MARKER_REMOVE_INTERRUPTED'); }
+    mockSecure.delete(key);
+  });
+  await expect(signOutAppShellSession({} as never,'local')).rejects.toThrow('MARKER_REMOVE_INTERRUPTED');
+  useAppShellStore.getState().reset();
+  await useAppShellStore.getState().hydrate();
+  expect(useAppShellStore.getState().logoutRecoveryOwnerId).toBe(owner);
+  expect(await loadLocalOwnerAccess()).toBeNull();
+  await retryPendingLogout(owner);
+  expect(sdkSignOut).toHaveBeenCalledTimes(1);
+  expect(mockRows.get(owner)).toBe(1);
+  expect(await loadLogoutDisposition(owner)).toBeNull();
+});
+
+it('does not wait for network synchronization when the owner has no pending work', async () => {
+  mockPendingCount = 0;
+  const finance = jest.spyOn(financeSync, 'synchronizeLiveCoreFinance').mockResolvedValue(undefined);
+  const tracking = jest.spyOn(trackingSync, 'syncAutomaticTracking').mockResolvedValue({status:'idle',sessionId:null,reviewId:null,duplicateId:null,errorCode:null});
+  await expect(logout()).resolves.toBe(true);
+  expect(finance).not.toHaveBeenCalled();
+  expect(tracking).not.toHaveBeenCalled();
+  expect(sdkSignOut).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a single visible progress state through provider termination and clears it on completion', async () => {
+  let release!: () => void;
+  mockProviderGate = new Promise<void>(resolve => { release = resolve; });
+  const progress: (string | null | undefined)[] = [];
+  const unsubscribe = useAppShellStore.subscribe(state => progress.push(state.logoutInProgressOwnerId));
+  try {
+    const operation = logout();
+    expect(useAppShellStore.getState().logoutInProgressOwnerId).toBe(owner);
+    for (let attempt = 0; attempt < 100 && !sdkSignOut.mock.calls.length; attempt++) await new Promise(resolve => setTimeout(resolve, 0));
+    expect(sdkSignOut).toHaveBeenCalledTimes(1);
+    expect(useAppShellStore.getState().logoutInProgressOwnerId).toBe(owner);
+    const active = progress.indexOf(owner);
+    expect(active).toBeGreaterThanOrEqual(0);
+    expect(progress.slice(active).every(value => value === owner)).toBe(true);
+    release();
+    await operation;
+    expect(useAppShellStore.getState().logoutInProgressOwnerId).toBeNull();
+    expect(useAppShellStore.getState().logoutRecoveryOwnerId).toBeNull();
+  } finally { release(); unsubscribe(); }
+});
+
+it('does not synchronize a replacement owner during the logout preflight', async () => {
+  const finance = jest.spyOn(financeSync, 'synchronizeLiveCoreFinance').mockResolvedValue(undefined);
+  const tracking = jest.spyOn(trackingSync, 'syncAutomaticTracking').mockResolvedValue({status:'idle',sessionId:null,reviewId:null,duplicateId:null,errorCode:null});
+  jest.spyOn(bankNotificationService, 'readRecent').mockImplementationOnce(async () => {
+    mockSession = {...originalSession,id:'replacement-session',userId:other};
+    await seed(other);
+    return [];
+  });
+  await expect(logout()).rejects.toMatchObject({code:'session_expired'});
+  expect(finance).not.toHaveBeenCalled();
+  expect(tracking).not.toHaveBeenCalled();
+  expect(sdkSignOut).not.toHaveBeenCalled();
+  expect(mockPurges).toEqual([]);
+  expect(mockRows.get(other)).toBe(1);
+});
 
 it('keeps data and admission when cancellation precedes disposition', async () => {
   await expect(logout(false)).resolves.toBe(false);
@@ -170,6 +280,7 @@ it('does not authorize an altered logout disposition or expose its cleanup token
   jest.spyOn(automationPolicy, 'isMobileAutomationEnabled').mockReturnValue(true);
   const record = await prepareLogoutDisposition({ ownerId: owner, sessionId: originalSession.id, scope: 'local' });
   await expect(terminatePinnedLogout({ ...record, id: '22222222-2222-4222-8222-222222222222' })).rejects.toMatchObject({ domainCode: 'LOGOUT_SESSION_UNVERIFIED' });
+  await expect(terminatePinnedLogout({...record,dataDisposition:'remove'})).rejects.toMatchObject({domainCode:'LOGOUT_SESSION_UNVERIFIED'});
   await expect(captureLiveClerkIdentity()).rejects.toMatchObject({ domainCode: 'LOGOUT_PENDING' });
   expect(global.fetch).not.toHaveBeenCalled(); expect(sdkSignOut).not.toHaveBeenCalled();
 });

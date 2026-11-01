@@ -8,6 +8,7 @@ export async function pendingOwnerWork(ownerId: string): Promise<number> {
     SELECT
       (SELECT count(*) FROM sync_mutation_queue WHERE status!='applied') +
       (SELECT count(*) FROM finance_drafts) +
+      (SELECT count(*) FROM planning_drafts WHERE status!='saved') +
       (SELECT count(*) FROM voice_operation_journal WHERE
         json_extract(payload,'$.phase') NOT IN ('saved','cancelled','terminal') OR
         json_extract(payload,'$.audioReference') IS NOT NULL) +

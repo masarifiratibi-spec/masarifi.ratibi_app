@@ -38,31 +38,11 @@ export default function MoreRoute() {
     if (loggingOut.current) return;
     loggingOut.current = true;
     try {
-      const completed = await signOutAppShellSession(authService, 'local', {
-        confirmRemoval: () =>
-          new Promise<boolean>((resolve) =>
-            Alert.alert(
-              translate('logout.unsyncedTitle'),
-              translate('logout.unsyncedBody'),
-              [
-                {
-                  text: translate('logout.wait'),
-                  style: 'cancel',
-                  onPress: () => resolve(false)
-                },
-                {
-                  text: translate('logout.remove'),
-                  style: 'destructive',
-                  onPress: () => resolve(true)
-                }
-              ],
-              { cancelable: true, onDismiss: () => resolve(false) }
-            )
-          )
-      });
+      const completed = await signOutAppShellSession(authService, 'local');
       if (completed !== false) router.replace('/(public)/auth-pending');
     } catch {
-      Alert.alert(translate('logout.failed'));
+      if (!useAppShellStore.getState().logoutRecoveryOwnerId)
+        Alert.alert(translate('logout.failed'));
     } finally {
       loggingOut.current = false;
     }

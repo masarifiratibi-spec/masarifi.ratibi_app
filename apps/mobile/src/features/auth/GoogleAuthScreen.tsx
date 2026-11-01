@@ -13,8 +13,9 @@ import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { LogoutRecoveryPanel } from './LogoutRecoveryPanel';
 import { RegistrationLegalPreview } from '@/features/legal/RegistrationLegalPreview';
+import { LegalDocumentLinks } from '@/features/legal/LegalDocumentLinks';
 
-export function GoogleAuthScreen() {
+export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sign-in' } = {}) {
   const identity = useLiveIdentityStatus();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
@@ -91,7 +92,7 @@ export function GoogleAuthScreen() {
         <View
           style={{ gap: theme.spacing.md, paddingBottom: theme.spacing.xl }}
         >
-          <RegistrationLegalPreview />
+          {mode === 'welcome' ? <RegistrationLegalPreview /> : <LegalDocumentLinks />}
           <GoogleAccountSelector
             label={translate('googleAuth.continue')}
             signIn={() => authService.signInWithGoogle()}

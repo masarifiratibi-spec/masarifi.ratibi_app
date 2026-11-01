@@ -298,7 +298,7 @@ registerRuntimeIdentityReset((context) => {
   if (context && 'restoringOwnerId' in context)
     return restoreTrackingBackground(context.restoringOwnerId);
   restorationBlocked = true;
-  if (context?.kind === 'restore-unavailable') {
+  if (context?.kind === 'restore-unavailable' || context?.kind === 'signed-out-preserve') {
     nativeGeneration++;
     return serializeNative(async () => {
       if (Platform.OS !== 'android') return;

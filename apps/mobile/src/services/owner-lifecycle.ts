@@ -16,10 +16,14 @@ import {
   loadLogoutDisposition,
   markLogoutCleanupReady,
   completeLogoutDisposition,
+  createAppShellStorage,
+  clearAppShellStorageOwner,
   type LogoutDisposition
 } from '@/storage/app-shell-storage';
 import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
-import { purgeAccountDatabase, configureDatabaseOwner } from '@/storage/database';
+import { purgeAccountDatabase, configureDatabaseOwner, clearDatabaseOwner } from '@/storage/database';
+import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import { preserveLegacySmsImportQueue } from '@/storage/sms-import-queue';
 import { readLogoutSessionAnchor, terminatePinnedLogout } from '@/services/live/auth-service';
 import {
   pendingOwnerWork,
@@ -42,7 +46,12 @@ function runLogoutOperation(ownerId: string, action: () => Promise<boolean | voi
   }
   const operation = { ownerId, promise: Promise.resolve().then(action) };
   activeLogout = operation;
-  operation.promise = operation.promise.finally(() => { if (activeLogout === operation) activeLogout = null; });
+  useAppShellStore.setState({ logoutInProgressOwnerId: ownerId });
+  operation.promise = operation.promise.finally(() => {
+    if (activeLogout === operation) activeLogout = null;
+    if (useAppShellStore.getState().logoutInProgressOwnerId === ownerId)
+      useAppShellStore.setState({ logoutInProgressOwnerId: null });
+  });
   return operation.promise;
 }
 
@@ -66,6 +75,20 @@ export async function signOutAppShellSession(
   options: { confirmRemoval?: (count: number | null) => Promise<boolean> } = {}
 ): Promise<boolean | void> {
   const ownerId = useAppShellStore.getState().session?.userId;
+  if (!ownerId) return performSignOutAppShellSession(authService, scope, options);
+  return runLogoutOperation(ownerId, () => {
+    if (useAppShellStore.getState().session?.userId !== ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    return performSignOutAppShellSession(authService, scope, options);
+  });
+}
+
+async function performSignOutAppShellSession(
+  authService: AuthService,
+  scope: 'local' | 'all',
+  options: { confirmRemoval?: (count: number | null) => Promise<boolean> }
+): Promise<boolean | void> {
+  const ownerId = useAppShellStore.getState().session?.userId;
   if (
     resolveClientMode() === 'live' &&
     ownerId &&
@@ -78,9 +101,20 @@ export async function signOutAppShellSession(
       if (current && current !== ownerId)
         throw new HttpError('session_expired', 401);
     };
-    return runLogoutOperation(ownerId, async () => syncFirstLogout({
-      logout: { ownerId, scope, sessionId: await readLogoutSessionAnchor(ownerId) },
+    return syncFirstLogout({
+      logout: { ownerId, scope, sessionId: await readLogoutSessionAnchor(ownerId), dataDisposition: options.confirmRemoval ? 'remove' : 'preserve' },
       synchronize: async () => {
+        let nothingPending = false;
+        try {
+          const [pending, native] = await Promise.all([
+            pendingOwnerWork(ownerId),
+            bankNotificationService.readRecent(100)
+          ]);
+          nothingPending = pending === 0 && native.length === 0;
+        } catch { /* Unknown pending work retains the existing sync-first path. */ }
+        assertCurrent();
+        // The quiesced check below still catches work arriving after this fast path.
+        if (nothingPending) return;
         await Promise.allSettled([
           synchronizeLiveCoreFinance(),
           syncAutomaticTracking()
@@ -112,7 +146,7 @@ export async function signOutAppShellSession(
       confirmRemoval: options.confirmRemoval ?? (async () => false),
       assertCurrent,
       signOut: async (record) => {
-        if (!audioKnown) {
+        if (record.dataDisposition === 'remove' && !audioKnown) {
           audio = await ownerVoiceAudioReferences(ownerId);
           audioKnown = true;
         }
@@ -120,7 +154,7 @@ export async function signOutAppShellSession(
         await terminatePinnedLogout(record);
       },
       purge: record => purgeLogoutOwner(record, audio)
-    }));
+    });
   }
   if (isMobileAutomationEnabled()) {
     await authService.signOut(scope);
@@ -143,6 +177,7 @@ export async function signOutAppShellSession(
 }
 
 async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: string[]): Promise<void> {
+  if (record.dataDisposition === 'preserve') return releaseLogoutOwner(record);
   const ownerId = record.ownerId;
   const assertOwner = async () => {
     const current = useAppShellStore.getState().session?.userId;
@@ -151,7 +186,7 @@ async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: strin
     const after = useAppShellStore.getState().session?.userId;
     if (after && after !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     const stored = await loadLogoutDisposition(ownerId);
-    if (stored?.id !== record.id || stored.phase !== 'cleanup-ready') throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+    if (stored?.id !== record.id || stored.phase !== 'cleanup-ready' || stored.dataDisposition !== record.dataDisposition) throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
     await readLogoutSessionAnchor(ownerId);
     const latest = useAppShellStore.getState().session?.userId;
     if (latest && latest !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
@@ -168,6 +203,31 @@ async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: strin
   await assertOwner(); await purgeAppShellOwnerData(ownerId);
   await assertOwner();
   useAppShellStore.getState().fenceLogoutOwner(ownerId);
+}
+
+async function releaseLogoutOwner(record: LogoutDisposition): Promise<void> {
+  const assertOwner = async () => {
+    const current = useAppShellStore.getState().session?.userId;
+    if (current && current !== record.ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    await readLogoutSessionAnchor(record.ownerId);
+    const stored = await loadLogoutDisposition(record.ownerId);
+    if (stored?.id !== record.id || stored.phase !== 'cleanup-ready' || stored.dataDisposition !== 'preserve') throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+    const latest = useAppShellStore.getState().session?.userId;
+    if (latest && latest !== record.ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+  };
+  await assertOwner();
+  await configureDatabaseOwner(record.ownerId);
+  await assertOwner();
+  await preserveLegacySmsImportQueue(record.ownerId);
+  await assertOwner();
+  await clearDatabaseOwner(record.ownerId, {preservePendingWork: true});
+  await assertOwner();
+  await resetRuntimeIdentityData({kind: 'signed-out-preserve'});
+  await assertOwner();
+  await createAppShellStorage().clearSession();
+  await assertOwner();
+  clearAppShellStorageOwner();
+  useAppShellStore.getState().fenceLogoutOwner(record.ownerId);
 }
 
 export async function retryPendingLogout(ownerId: string): Promise<void> {

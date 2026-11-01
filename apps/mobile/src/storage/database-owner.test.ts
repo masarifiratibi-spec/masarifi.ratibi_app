@@ -380,11 +380,25 @@ test('discards the SMS queue and closes its owner before any waiting access can 
   expect(mockDatabase.closeAsync).toHaveBeenCalledTimes(1);
 });
 
-test('refuses a stale sign-out without deleting or closing the new owner database', async () => {
+test('releases an owner for preserved sign-out without erasing pending SMS or the database key', async () => {
+  await configureDatabaseOwner('user_owner-a');
+  await openDatabase('user_owner-a');
+  const writesBefore = jest.mocked(mockDatabase.runAsync).mock.calls.length;
+  const deletedBefore = [...mockDeletedFiles];
+  const keysBefore = new Map(mockSecureValues);
+  await clearDatabaseOwner('user_owner-a',{preservePendingWork:true});
+  expect(mockDatabase.runAsync).toHaveBeenCalledTimes(writesBefore);
+  expect(mockSecureValues).toEqual(keysBefore);
+  expect(mockDeletedFiles).toEqual(deletedBefore);
+  await configureDatabaseOwner('user_owner-a');
+  await expect(openDatabase('user_owner-a')).resolves.toBeTruthy();
+});
+
+test.each([false,true])('refuses a stale sign-out without deleting or closing the new owner database (preserve=%s)', async (preservePendingWork) => {
   await configureDatabaseOwner('user_owner-b');
   const current = await openDatabase('user_owner-b');
   jest.mocked(mockDatabase.runAsync).mockClear();
-  await expect(clearDatabaseOwner('user_owner-a')).rejects.toThrow(
+  await expect(clearDatabaseOwner('user_owner-a',{preservePendingWork})).rejects.toThrow(
     'stale database owner'
   );
   expect(mockDatabase.runAsync).not.toHaveBeenCalled();

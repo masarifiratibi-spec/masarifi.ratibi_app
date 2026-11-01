@@ -56,11 +56,14 @@ let activeOwnerHash: string | null = null;
 let ownerGeneration = 0;
 
 const localOwnerKey = 'masarifi.appShell.localOwner.v1';
+const logoutRecoveryKey = 'masarifi.appShell.logoutRecovery.v1';
+const logoutRecoverySchema = z.object({ownerId:z.string().min(1),id:z.string().uuid()}).strict();
 let localOwnerMutation: Promise<void> = Promise.resolve();
 let logoutAdmissionRevision = 0;
 const logoutDispositionSchema = z.object({
   id: z.string().uuid(), ownerId: z.string().min(1), sessionId: z.string().min(1).nullable(),
-  scope: z.enum(['local', 'all']), phase: z.enum(['prepared', 'cleanup-ready'])
+  scope: z.enum(['local', 'all']), phase: z.enum(['prepared', 'cleanup-ready']),
+  dataDisposition: z.enum(['preserve', 'remove']).default('preserve')
 }).strict();
 export type LogoutDisposition = z.infer<typeof logoutDispositionSchema>;
 export const currentLogoutAdmissionRevision = () => logoutAdmissionRevision;
@@ -90,16 +93,23 @@ export async function isLogoutOwnerFenced(ownerId: string): Promise<boolean> {
 
 export async function loadCachedLogoutDisposition(): Promise<LogoutDisposition | null> {
   const cached = await readSensitive(localOwnerKey, authSessionSchema);
-  return cached?.userId ? loadLogoutDisposition(cached.userId) : null;
+  if (cached?.userId) return loadLogoutDisposition(cached.userId);
+  const recovery = await readSensitive(logoutRecoveryKey, logoutRecoverySchema);
+  if (recovery) {
+    const record = await loadLogoutDisposition(recovery.ownerId);
+    if (record) return record;
+  }
+  return null;
 }
 
-export async function prepareLogoutDisposition(input: Pick<LogoutDisposition, 'ownerId' | 'sessionId' | 'scope'>): Promise<LogoutDisposition> {
+export async function prepareLogoutDisposition(input: Pick<LogoutDisposition, 'ownerId' | 'sessionId' | 'scope'> & Partial<Pick<LogoutDisposition, 'dataDisposition'>>): Promise<LogoutDisposition> {
   logoutAdmissionRevision++;
   let prepared!: LogoutDisposition;
   await serializeLocalOwner(async () => {
     const existing = await loadLogoutDisposition(input.ownerId);
-    if (existing) { prepared = existing; return; }
-    prepared = logoutDispositionSchema.parse({ ...input, id: Crypto.randomUUID(), phase: 'prepared' });
+    prepared = existing ?? logoutDispositionSchema.parse({ ...input, id: Crypto.randomUUID(), phase: 'prepared' });
+    await writeSensitive(logoutRecoveryKey,{ownerId:prepared.ownerId,id:prepared.id});
+    if (existing) return;
     await writeSensitive(await logoutDispositionKey(input.ownerId), prepared);
     if ((await loadLogoutDisposition(input.ownerId))?.id !== prepared.id) throw new Error('LOGOUT_PERSISTENCE_UNCONFIRMED');
   });
@@ -110,7 +120,7 @@ export async function markLogoutCleanupReady(record: LogoutDisposition): Promise
   const ready = { ...record, phase: 'cleanup-ready' as const };
   await serializeLocalOwner(async () => {
     const current = await loadLogoutDisposition(record.ownerId);
-    if (current?.id !== record.id) throw new Error('LOGOUT_DISPOSITION_CHANGED');
+    if (current?.id !== record.id || current.dataDisposition !== record.dataDisposition) throw new Error('LOGOUT_DISPOSITION_CHANGED');
     await writeSensitive(await logoutDispositionKey(record.ownerId), ready);
     if ((await loadLogoutDisposition(record.ownerId))?.phase !== 'cleanup-ready') throw new Error('LOGOUT_PERSISTENCE_UNCONFIRMED');
   });
@@ -120,11 +130,16 @@ export async function markLogoutCleanupReady(record: LogoutDisposition): Promise
 export async function completeLogoutDisposition(record: LogoutDisposition): Promise<void> {
   await serializeLocalOwner(async () => {
     const current = await loadLogoutDisposition(record.ownerId);
-    if (current?.id !== record.id || current.phase !== 'cleanup-ready') throw new Error('LOGOUT_DISPOSITION_CHANGED');
+    if (current?.id !== record.id || current.phase !== 'cleanup-ready' || current.dataDisposition !== record.dataDisposition) throw new Error('LOGOUT_DISPOSITION_CHANGED');
+    // This anchor discovers recovery but can never admit a signed-out owner.
+    await writeSensitive(logoutRecoveryKey,{ownerId:record.ownerId,id:record.id});
+    const recovery = await readSensitive(logoutRecoveryKey,logoutRecoverySchema);
+    if (recovery?.ownerId !== record.ownerId || recovery.id !== record.id) throw new Error('LOGOUT_PERSISTENCE_UNCONFIRMED');
     const cached = await readSensitive(localOwnerKey, authSessionSchema);
     if (cached?.userId === record.ownerId) await removeSensitive(localOwnerKey);
     await removeSensitive(await logoutDispositionKey(record.ownerId));
     if (await loadLogoutDisposition(record.ownerId)) throw new Error('LOGOUT_PERSISTENCE_UNCONFIRMED');
+    await removeSensitive(logoutRecoveryKey).catch(() => undefined);
     logoutAdmissionRevision++;
   });
 }
