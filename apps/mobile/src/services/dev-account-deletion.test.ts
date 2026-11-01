@@ -610,7 +610,8 @@ test.each(['ar', 'en'] as const)('deletion loading modal supports %s through pro
     const accept = confirmation.mock.calls[0]?.[2]?.find((action) => action.style === 'destructive');
     await act(async () => { accept?.onPress?.(); });
     expect(screen.getByRole('progressbar')).toHaveProp('accessibilityState', { busy: true });
-    expect(screen.getByText(locale === 'ar' ? 'جاري التحميل' : 'Loading')).toBeOnTheScreen();
+    expect(screen.getByText(locale === 'ar' ? 'جارٍ حذف الحساب…' : 'Deleting account…')).toBeOnTheScreen();
+    expect(screen.queryByText(t('settings.deletion.dev.loadingDescription'), { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByText(t('settings.deletion.dev.deleting'), { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByText(t('settings.deletion.dev.description'), { includeHiddenElements: true })).toBeNull();
     expect(screen.getByRole('progressbar')).toHaveStyle({ direction: locale === 'ar' ? 'rtl' : 'ltr' });
@@ -639,4 +640,37 @@ test('a failed deletion response releases the loading modal and keeps recovery a
   await screen.findByRole('button', { name: t('settings.deletion.refresh') });
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(snapshot()?.phase).toBe('unavailable');
+});
+
+test('keeps processing behind one loading message beyond the initial polling window without another POST', async () => {
+  jest.useFakeTimers();
+  const ownerId = 'user_long_deletion_processing';
+  activeOwner = ownerId;
+  shellOwner(ownerId);
+  seedDeletedOwner(ownerId);
+  const pending = { ...fullRequest, status: 'processing', completedAt: null };
+  http.mockResolvedValueOnce(response(pending, 202)).mockResolvedValue(
+    response({ ...completedReceipt, status: 'processing', completedAt: null })
+  );
+  try {
+    await submitDevAccountDeletion(ownerId);
+    for (let attempt = 0; attempt < 7; attempt++) {
+      await jest.advanceTimersByTimeAsync(60_000);
+      await reconcileDevAccountDeletions();
+    }
+    expect(http).toHaveBeenCalledTimes(8);
+    expect(getDevDeletionSnapshots().find(entry => entry.ownerId === ownerId)).toMatchObject({ phase: 'pending', automaticRetries: true });
+    renderWithProviders(React.createElement(DevAccountDeletionPanel, { ownerId }));
+    expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
+    http.mockResolvedValueOnce(response(completedReceipt));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(60_000);
+      await reconcileDevAccountDeletions();
+    });
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(http.mock.calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });

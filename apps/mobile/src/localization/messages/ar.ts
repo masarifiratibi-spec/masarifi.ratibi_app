@@ -122,7 +122,7 @@ const ar: MessageCatalog = {
   'settings.deletion.dev.deleting':
     'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
   'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
-  'settings.deletion.dev.loadingTitle': 'جاري التحميل',
+  'settings.deletion.dev.loadingTitle': 'جارٍ حذف الحساب…',
   'settings.deletion.dev.loadingDescription':
     'جارٍ حذف حسابك بأمان\nيرجى الانتظار حتى اكتمال العملية',
   'settings.deletion.dev.localRetry':
@@ -256,7 +256,7 @@ const ar: MessageCatalog = {
   'googleAuth.brand': 'مصاريفي وراتبي',
   'googleAuth.incomplete':
     'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
-  'googleAuth.welcome': 'حيّاك في مصاريفي',
+  'googleAuth.welcome': 'حيّاك في مصاريفي وراتبي',
   'googleAuth.supporting':
     'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
   'googleAuth.continue': 'المتابعة باستخدام Google',

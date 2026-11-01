@@ -3,7 +3,6 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
-import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import {
@@ -174,9 +173,6 @@ export default function SecuritySettingsRoute() {
         />
       </GroupedList>
 
-      <View style={styles.dangerZone}>
-        <AccountDeletionPanel />
-      </View>
     </ScrollView>
   );
 }
@@ -188,9 +184,5 @@ const styles = StyleSheet.create({
   },
   insetRow: {
     paddingHorizontal: spacing.lg
-  },
-  dangerZone: {
-    gap: spacing.sm,
-    marginTop: spacing.md
   }
 });

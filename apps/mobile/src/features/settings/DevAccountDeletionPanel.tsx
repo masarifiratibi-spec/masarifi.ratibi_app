@@ -9,7 +9,7 @@ import {
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
-import { elevation, radius, spacing } from '@/design-system/tokens';
+import { spacing } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { translateDynamic as t } from '@/localization/i18n';
@@ -84,8 +84,7 @@ export function DevAccountDeletionPanel({
 
   const deleting = busy || snapshot?.phase === 'deleting';
   const phase = snapshot?.phase;
-  const loading =
-    deleting || (phase === 'pending' && snapshot?.automaticRetries === true);
+  const loading = deleting || phase === 'pending';
   if (phase === 'completed') return null;
   const message =
     phase === 'rejected'
@@ -121,27 +120,16 @@ export function DevAccountDeletionPanel({
             accessibilityRole="progressbar"
             accessibilityState={{ busy: true }}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={`${t('settings.deletion.dev.loadingTitle')}. ${t('settings.deletion.dev.loadingDescription')}`}
-            style={[
-              styles.loadingCard,
-              { backgroundColor: theme.colors.surfaces.overlay, direction }
-            ]}
+            accessibilityLabel={t('settings.deletion.dev.loadingTitle')}
+            style={[styles.loadingContent, { direction }]}
           >
             <ActivityIndicator
               size="large"
               color={theme.colors.primary}
               accessible={false}
             />
-            <StyledText variant="title" style={styles.centered}>
+            <StyledText style={styles.centered}>
               settings.deletion.dev.loadingTitle
-            </StyledText>
-            <StyledText
-              style={[
-                styles.centered,
-                { color: theme.colors.content.secondary }
-              ]}
-            >
-              settings.deletion.dev.loadingDescription
             </StyledText>
           </View>
         </View>
@@ -209,14 +197,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.xl
   },
-  loadingCard: {
-    ...elevation.card,
-    width: '100%',
-    maxWidth: 360,
+  loadingContent: {
     alignItems: 'center',
-    borderRadius: radius.overlay,
-    padding: spacing.xxl,
-    gap: spacing.xl
+    gap: spacing.md
   },
   centered: { textAlign: 'center' }
 });

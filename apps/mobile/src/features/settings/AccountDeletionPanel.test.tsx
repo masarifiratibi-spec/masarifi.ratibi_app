@@ -17,7 +17,6 @@ import {
   resetAsyncStorageForTest
 } from '@/test-utils/async-storage';
 import { renderWithProviders } from '@/test-utils/render';
-import SecuritySettingsRoute from '@app/security/settings';
 import { PrivacySettingsScreen } from './PrivacySettingsScreen';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 
@@ -383,7 +382,6 @@ test('a rejected cancellation retains the actual scheduled state and displays an
 });
 
 test.each([
-  ['security', SecuritySettingsRoute],
   ['privacy', PrivacySettingsScreen]
 ])('%s settings exposes the governed deletion panel', async (_name, Screen) => {
   mockRequest.mockResolvedValueOnce(deletion);

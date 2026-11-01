@@ -64,7 +64,7 @@ test.each(['ar', 'en'] as const)(
     ).toBeNull();
     expect(
       screen.getByText(
-        locale === 'ar' ? 'حيّاك في مصاريفي' : 'Welcome to Masarifi'
+        locale === 'ar' ? 'حيّاك في مصاريفي وراتبي' : 'Welcome to Masarifi & Ratibi'
       )
     ).toBeOnTheScreen();
     expect(screen.getByTestId('sign-in-documents')).toBeOnTheScreen();

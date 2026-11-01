@@ -136,7 +136,7 @@ const en = {
     'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
   'settings.deletion.dev.completed':
     'Your account and its stored data have been deleted.',
-  'settings.deletion.dev.loadingTitle': 'Loading',
+  'settings.deletion.dev.loadingTitle': 'Deleting account…',
   'settings.deletion.dev.loadingDescription':
     'Deleting your account securely\nPlease wait until the process is complete',
   'settings.deletion.dev.localRetry':
@@ -286,7 +286,7 @@ const en = {
   'googleAuth.brand': 'Masarifi & Ratibi',
   'googleAuth.incomplete':
     'Google registration needs additional account information. Please try another Google account or contact support.',
-  'googleAuth.welcome': 'Welcome to Masarifi',
+  'googleAuth.welcome': 'Welcome to Masarifi & Ratibi',
   'googleAuth.supporting':
     'Your finances, together in one place. Continue with your Google account to get started.',
   'googleAuth.continue': 'Continue with Google',

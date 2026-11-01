@@ -285,7 +285,8 @@ async function acceptReceipt(
     await finishLocalErasure(completed);
     return;
   }
-  const attempts = journal.attempts + 1;
+  // A valid processing receipt is progress, not an exhausted transport retry.
+  const attempts = Math.min(journal.attempts + 1, backoff.length - 1);
   const next = {
     ...journal,
     requestId: receipt.id,

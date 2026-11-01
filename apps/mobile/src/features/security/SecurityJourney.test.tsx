@@ -171,7 +171,7 @@ describe('security journey', () => {
     expect(useAppShellStore.getState().privacyLock?.enabled).toBe(false);
   });
 
-  it('confirms account deletion without navigating to privacy settings', async () => {
+  it('keeps security navigation without a duplicate account deletion action', async () => {
     hasHardware.mockResolvedValue(false);
     useAppShellStore.setState({ session: authenticatedSession });
     mockRequestAccountDeletion.mockResolvedValue({
@@ -185,9 +185,7 @@ describe('security journey', () => {
     });
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     renderWithProviders(<SecuritySettingsRoute />);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'حذف الحساب' })).toBeEnabled()
-    );
+    expect(screen.queryByRole('button', { name: 'حذف الحساب' })).toBeNull();
 
     expect(
       screen.getByText(translate('appShell.security.nativeLock'))
@@ -197,24 +195,10 @@ describe('security journey', () => {
     ).toBeTruthy();
 
     fireEvent.press(screen.getByText(translate('appShell.security.sessions')));
-    fireEvent.press(screen.getByText('حذف الحساب'));
 
     expect(router.push).toHaveBeenCalledWith('/security/sessions');
-    expect(alert).toHaveBeenCalledWith(
-      'حذف الحساب',
-      'هل أنت متأكد من حذف الحساب؟',
-      expect.any(Array)
-    );
-
-    const actions = alert.mock.calls[0]?.[2] ?? [];
-    await act(async () => {
-      actions[1]?.onPress?.();
-    });
-    await screen.findByText(translate('settings.deletion.status.verified'));
-    expect(mockRequestAccountDeletion).toHaveBeenCalledWith(
-      '/api/v1/me/deletion-requests',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalledWith('/profile/privacy');
     alert.mockRestore();
   });
