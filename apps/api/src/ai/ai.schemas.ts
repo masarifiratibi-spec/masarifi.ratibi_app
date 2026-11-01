@@ -315,6 +315,51 @@ export const ASSISTANT_ADVICE_OUTPUT_SCHEMA = {
   },
 } as const;
 
+// Azure's strict subset is transport-only; the existing parser still validates every value.
+export const ASSISTANT_TRANSACTION_OUTPUT_SCHEMA = {
+  ...ASSISTANT_ADVICE_OUTPUT_SCHEMA,
+  properties: {
+    ...ASSISTANT_ADVICE_OUTPUT_SCHEMA.properties,
+    actionPreview: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['schemaVersion', 'actionType', 'payload', 'evidenceIds'],
+          properties: {
+            schemaVersion: { type: 'integer', enum: [1] },
+            actionType: { type: 'string', enum: ['transaction.create'] },
+            evidenceIds: ASSISTANT_ADVICE_OUTPUT_SCHEMA.properties.evidenceIds,
+            payload: {
+              type: 'object',
+              additionalProperties: false,
+              required: [
+                'amountMinor',
+                'currency',
+                'accountId',
+                'categoryId',
+                'date',
+                'merchant',
+                'note',
+              ],
+              properties: {
+                amountMinor: { type: 'string' },
+                currency: { type: 'string' },
+                accountId: { type: 'string' },
+                categoryId: { type: ['string', 'null'] },
+                date: { type: 'string' },
+                merchant: { type: ['string', 'null'] },
+                note: { type: ['string', 'null'] },
+              },
+            },
+          },
+        },
+      ],
+    },
+  },
+} as const;
+
 function invalid(): never {
   throw new Error('AI_SCHEMA_INVALID');
 }

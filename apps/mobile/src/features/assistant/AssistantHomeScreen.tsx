@@ -3,6 +3,7 @@ import { View, StyleSheet, AppState } from 'react-native';
 import { router } from 'expo-router';
 import { AssistantLanding } from './AssistantLanding';
 import { AssistantConversationView } from './AssistantConversationView';
+import { AssistantActionPreviewScreen } from './AssistantActionPreviewScreen';
 import { StyledText } from '@/components/StyledText';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -569,6 +570,7 @@ function AssistantConversationContent({
         }
         onSendMessage={handleSendMessage}
         onReviewAction={handleReviewAction}
+        renderAction={(previewId, fallback) => <AssistantActionPreviewScreen conversationId={conversationId ?? ''} previewId={previewId} inline fallback={fallback} onReviewAction={handleReviewAction} />}
         onViewReport={handleViewReport}
         onFeedback={handleFeedback}
         isSending={

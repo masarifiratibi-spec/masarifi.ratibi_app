@@ -299,10 +299,9 @@ function mapPreview(
     responseId,
     ...action,
     effect: row.payload,
-    confirmationAllowed: hasCompleteAssistantEffect(
-      row.actionType,
-      row.payload
-    ),
+    confirmationAllowed:
+      evidence.length > 0 &&
+      hasCompleteAssistantEffect(row.actionType, row.payload),
     sourceVersions: evidence.map(({ alias: id, version }) => ({ id, version })),
     status,
     operationId: row.confirmationOperationId,
@@ -1479,6 +1478,8 @@ export function createLiveAssistantApiService(
         send('GET', `/api/v1/${path}`, undefined, undefined, actor.userId);
       const effect = value.effect;
       try {
+        if (value.kind === 'create_transaction' && typeof effect.accountId === 'string')
+          context.account = parse(z.record(z.unknown()), await read(`accounts/${encodeURIComponent(String(effect.accountId))}`));
         if (value.confirmationAllowed) {
           if (value.kind === 'update_transaction')
             context.target = parse(
@@ -1661,22 +1662,16 @@ export function createLiveAssistantApiService(
         { previewId: id, expectedVersion },
         operationId
       );
-      const row = await send(
+      await send(
         'POST',
         `/api/v1/assistant/previews/${encodeURIComponent(id)}/reject`,
         { expectedVersion, reason: 'Cancelled by user' },
         operation.operationId,
         actor.userId
       );
-      const next = mapPreview(
-        row,
-        current.responseId,
-        current.sourceVersions.map(({ id: alias, version }) => ({
-          kind: 'report' as const,
-          alias,
-          version
-        }))
-      );
+      const next = (await findCold('preview', id)) as AssistantActionPreview;
+      if (next.status !== 'cancelled')
+        throw new AssistantApiError('outcome_unknown');
       previewCache.set(id, next);
       await actor.assertCurrent();
       await journal.update(actor.userId, slot, operation.operationId, {

@@ -7,6 +7,7 @@ import type { AssistantResponse } from '@/domain/assistant';
 import { AssistantMessageBubble } from './AssistantMessageBubble';
 import { spendingPresentationFixture } from '@/test-utils/assistant-spending-presentation-fixture';
 import { ThemeContext } from '@/state/theme-context';
+import { StyledText } from '@/components/StyledText';
 import { resolveTheme } from '@/design-system/theme';
 
 function answer(content: string): AssistantResponse {
@@ -39,6 +40,16 @@ function answer(content: string): AssistantResponse {
 beforeEach(() => {
   changeLocale('ar');
   usePreferenceStore.setState({ hideBalances: false });
+});
+
+it('replaces model action text with the guarded inline review without duplicate review controls', () => {
+  const response = {...answer('Premature model success'),proposedActionIds:['preview-1']};
+  const renderAction = jest.fn((_id: string, _fallback: React.ReactNode) => <StyledText>Actual transaction review</StyledText>);
+  renderWithProviders(<AssistantMessageBubble response={response} renderAction={renderAction} onFeedback={jest.fn()} />);
+  expect(screen.getByText('Actual transaction review')).toBeTruthy();
+  expect(screen.queryByText('Premature model success')).toBeNull();
+  expect(screen.queryByText(translateDynamic('assistant.proposal.review'))).toBeNull();
+  expect(renderAction.mock.calls[0]?.[0]).toBe('preview-1');
 });
 
 it('answers directly without automatic sections even when legacy card metadata is present', () => {

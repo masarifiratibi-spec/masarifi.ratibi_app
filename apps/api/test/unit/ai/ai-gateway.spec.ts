@@ -369,6 +369,19 @@ describe('AiGateway', () => {
         expected: 'AI_SCHEMA_INVALID',
       },
       {
+        name: 'different allowed financial action',
+        answer: {
+          ...output,
+          actionPreview: {
+            schemaVersion: 1,
+            actionType: 'savings_goal.create',
+            payload: { name: 'Sample goal', targetMinor: '10000', currencyCode: 'SAR' },
+            evidenceIds: [],
+          },
+        },
+        expected: 'AI_SCHEMA_INVALID',
+      },
+      {
         name: 'unverified citation',
         answer: { ...output, evidenceIds: ['REPORT-99'] },
         expected: 'AI_SCHEMA_INVALID',
@@ -379,9 +392,13 @@ describe('AiGateway', () => {
         expected: 'AI_SCHEMA_INVALID',
       },
     ].flatMap((testCase) =>
-      ['financial_advice', 'general_finance'].map((intent) => ({
+      ['financial_advice', 'general_finance', 'create_transaction'].map((intent) => ({
         expectedContent: 'Safe answer',
         ...testCase,
+        expected:
+          intent === 'create_transaction' && testCase.name === 'unsolicited financial action'
+            ? null
+            : testCase.expected,
         intent,
       })),
     ),
@@ -453,11 +470,32 @@ describe('AiGateway', () => {
             intent,
             operationId: 'sample-operation',
             content: 'Sample data: how can I reduce spending?',
-            aliases: [],
+            aliases:
+              intent === 'create_transaction'
+                ? [
+                    {
+                      alias: 'ACCOUNT-1',
+                      kind: 'account',
+                      id: '11111111-1111-4111-8111-111111111111',
+                      version: 1,
+                    },
+                  ]
+                : [],
             contextPayload: { responseLocale: 'en' },
             evidence: [{ kind: 'report', alias: 'REPORT-1', version: 19 }],
           }),
-        getRoute: () => Promise.resolve(route),
+        getRoute: () =>
+          Promise.resolve({
+            ...route,
+            safetyRules: route.safetyRules.map((rule) =>
+              rule.type === 'action_allowlist'
+                ? {
+                    ...rule,
+                    configuration: { values: ['transaction.create', 'savings_goal.create'] },
+                  }
+                : rule,
+            ),
+          }),
         recordUsage: () => Promise.resolve(undefined),
         saveAssistantResult: (_id: string, _fence: string, value: unknown) => {
           saved.push(value);
@@ -483,8 +521,18 @@ describe('AiGateway', () => {
         expect(saved).toEqual([]);
         expect(failures).toEqual([expected]);
       } else {
+        const preview =
+          intent === 'create_transaction' && answer.actionPreview
+            ? {
+                ...answer.actionPreview,
+                payload: {
+                  ...answer.actionPreview.payload,
+                  accountId: '11111111-1111-4111-8111-111111111111',
+                },
+              }
+            : null;
         expect(saved).toEqual([
-          expect.objectContaining({ content: expectedContent, preview: null, provider: 'azure' }),
+          expect.objectContaining({ content: expectedContent, preview, provider: 'azure' }),
         ]);
         expect(failures).toEqual([]);
       }

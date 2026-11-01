@@ -21,6 +21,7 @@ export interface AssistantActionDisclosureContext {
   transaction?: Record<string, unknown>;
   schedule?: readonly Record<string, unknown>[];
   timezone?: string;
+  account?: Record<string, unknown>;
 }
 
 const actions: Record<string, string> = {
@@ -134,6 +135,9 @@ export function buildAssistantActionDisclosure(
       new Intl.DateTimeFormat('en', { timeZone: timezone }).format(0);
       scopeKey = 'assistant.actionPreview.scope.createTransaction';
       add('kind', minor(payload.amountMinor) < 0n ? 'income' : 'expense');
+      if (context.account && context.account.id === payload.accountId && context.account.currencyCode === payload.currency && context.account.deletedAt == null && typeof context.account.name === 'string' && context.account.name.trim()) {
+        fields.push({key: 'accountName', labelKey: 'assistant.actionPreview.field.accountId', value: context.account.name});
+      }
       add(
         'amountMinor',
         (minor(payload.amountMinor) < 0n

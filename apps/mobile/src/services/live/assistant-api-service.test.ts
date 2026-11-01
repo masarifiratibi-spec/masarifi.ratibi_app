@@ -449,6 +449,93 @@ it('preserves the original action timezone through the real message/preview mapp
   });
 });
 
+it.each(['matching','wrongAccount','wrongCurrency'] as const)('uses only an owner-authorized matching account name for the compact review: %s', async (mode) => {
+  const action = {...preview(), actionType:'transaction.create', payload:{...samples[0].effect,accountId:id(8)}};
+  const rows = messages(action);
+  Object.assign(rows.items[1]!, {actionTimezone:'Asia/Riyadh'});
+  const account = {id:mode === 'wrongAccount' ? id(9) : id(8),name:'Actual cash',currencyCode:mode === 'wrongCurrency' ? 'USD' : 'SAR',deletedAt:null};
+  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations)).mockResolvedValueOnce(json(rows)).mockResolvedValueOnce(json(account));
+  const value = await createLiveAssistantApiService({baseUrl:'https://api.test',token:async ()=>'owner',request}).getActionPreview(id(5));
+  expect(request.mock.calls[2]?.[0]).toBe(`https://api.test/api/v1/accounts/${id(8)}`);
+  expect(request.mock.calls.every(([,init])=>init?.method === 'GET')).toBe(true);
+  expect(value.disclosure?.fields.find(field=>field.key === 'accountName')?.value).toBe(mode === 'matching' ? 'Actual cash' : undefined);
+});
+
+it('shows a completed reply with an unconfirmable preview when source versions are missing', async () => {
+  const action = {
+    ...preview(),
+    actionType: 'transaction.create',
+    payload: {
+      amountMinor: '100',
+      currency: 'SAR',
+      accountId: id(8),
+      categoryId: null,
+      date: '2026-09-03',
+      merchant: null,
+      note: null
+    }
+  };
+  const rows = messages(action);
+  rows.items[0]!.snapshot!.evidenceRefs = [];
+  const request = jest.fn(
+    async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method !== 'GET')
+        throw new Error('Financial mutation must remain blocked');
+      return json(String(url).includes('/messages?') ? rows : conversations);
+    }
+  );
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request,
+    now: () => Date.parse(at) + 1000
+  });
+  await expect(service.getResponse(id(3))).resolves.toMatchObject({
+    blocks: [{ key: 'Safe answer' }],
+    proposedActionIds: [id(5)]
+  });
+  await expect(service.getActionPreview(id(5))).resolves.toMatchObject({
+    status: 'ready',
+    sourceVersions: [],
+    confirmationAllowed: false
+  });
+  await expect(
+    service.confirmAction(id(5), 3, 'sample-unversioned-confirmation')
+  ).rejects.toMatchObject({ code: 'conflict' });
+  expect(request.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
+    true
+  );
+});
+
+it('reads authoritative cancellation after an accepted legacy response and never posts it twice', async () => {
+  const before = messages(preview());
+  const after = messages(preview('rejected', 4));
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json(conversations))
+    .mockResolvedValueOnce(json(before))
+    .mockResolvedValueOnce(json(before))
+    .mockResolvedValueOnce(json({ ...preview('rejected', 4), deletedAt: null }))
+    .mockImplementation(async () => json(after));
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request,
+    now: () => Date.parse(at) + 1000
+  });
+  await service.getActionPreview(id(5));
+  await expect(
+    service.cancelAction(id(5), 3, 'sample-cancel-legacy-response')
+  ).resolves.toMatchObject({ value: { status: 'cancelled', version: 4 } });
+  await expect(
+    service.cancelAction(id(5), 3, 'sample-cancel-legacy-response')
+  ).resolves.toMatchObject({ value: { status: 'cancelled', version: 4 } });
+  expect(
+    request.mock.calls.filter(([, init]) => init?.method === 'POST')
+  ).toHaveLength(1);
+});
+
 it('backs off assistant polling without exceeding two seconds', () => {
   expect([0, 5, 10, 20, 40].map(assistantPollDelay)).toEqual([
     250, 500, 1000, 2000, 2000

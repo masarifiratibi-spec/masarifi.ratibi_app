@@ -37,6 +37,7 @@ export interface AssistantConversationViewProps {
   responses: readonly AssistantResponse[];
   onSendMessage: AssistantComposerProps['onSendMessage'];
   onReviewAction?: (previewId: string) => void;
+  renderAction?: (previewId: string, fallback: React.ReactNode) => React.ReactNode;
   onViewReport?: () => void;
   onFeedback?: (
     responseId: string,
@@ -58,6 +59,7 @@ export function AssistantConversationView({
   responses,
   onSendMessage,
   onReviewAction,
+  renderAction,
   onViewReport,
   onFeedback,
   userTurns = [],
@@ -174,6 +176,7 @@ export function AssistantConversationView({
           response={item.response}
           conversationId={conversationId}
           onReviewAction={onReviewAction}
+          renderAction={renderAction}
           onViewReport={onViewReport}
           onFeedback={(feedback) => onFeedback?.(item.response!.id, feedback)}
           timestamp={new Date(item.response.createdAt).toLocaleTimeString(
@@ -238,7 +241,7 @@ export function AssistantConversationView({
       />
 
       {/* 3. Follow-up suggestions */}
-      {!isSending && responses.length > 0 && (
+      {!isSending && responses.length > 0 && !responses.at(-1)?.proposedActionIds?.length && (
         <AssistantFollowUpSuggestions
           onSelectSuggestion={onSendMessage}
           disabled={isSending}

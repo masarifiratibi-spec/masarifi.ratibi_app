@@ -20,6 +20,7 @@ import { AiRepository, type AiWorkClaim } from './ai.repository';
 import {
   ASSISTANT_OUTPUT_SCHEMA,
   ASSISTANT_ADVICE_OUTPUT_SCHEMA,
+  ASSISTANT_TRANSACTION_OUTPUT_SCHEMA,
   VOICE_OUTPUT_SCHEMA,
   assertSafeAiInput,
   parseAssistantOutput,
@@ -883,12 +884,22 @@ export class AiWorker implements OnModuleDestroy {
         },
       },
       userContent: encodeAssistantProviderPayload(input, inputLimit(route)),
-      schema: readOnlyAdvice ? ASSISTANT_ADVICE_OUTPUT_SCHEMA : ASSISTANT_OUTPUT_SCHEMA,
+      schema: readOnlyAdvice
+        ? ASSISTANT_ADVICE_OUTPUT_SCHEMA
+        : input.intent === 'create_transaction'
+          ? ASSISTANT_TRANSACTION_OUTPUT_SCHEMA
+          : ASSISTANT_OUTPUT_SCHEMA,
       parse: readOnlyAdvice ? parseAssistantAdviceWorkerOutput : parseAssistantWorkerOutput,
       requestId: String(input.operationId),
       signal,
     });
     signal.throwIfAborted();
+    if (
+      input.intent === 'create_transaction' &&
+      completion.value.actionPreview &&
+      completion.value.actionPreview.actionType !== 'transaction.create'
+    )
+      throw new AiGatewayError('AI_SCHEMA_INVALID');
     const allowed = new Set([
       ...evidence.map((item) => String(object(item).alias)),
       ...references.map(({ alias }) => alias),

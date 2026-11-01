@@ -21,6 +21,7 @@ export interface AssistantMessageBubbleProps {
   response: AssistantResponse;
   conversationId?: string;
   onReviewAction?: (previewId: string) => void;
+  renderAction?: (previewId: string, fallback: React.ReactNode) => React.ReactNode;
   onViewReport?: () => void;
   onFeedback?: (feedback: 'helpful' | 'not_helpful' | 'reported') => void;
   timestamp?: string;
@@ -31,6 +32,7 @@ export function AssistantMessageBubble({
   response,
   conversationId: _conversationId,
   onReviewAction,
+  renderAction,
   onViewReport,
   onFeedback,
   timestamp,
@@ -40,6 +42,7 @@ export function AssistantMessageBubble({
   const isRtl = direction === 'rtl';
   const { hidden, reveal } = useAssistantFinancialVisibility(response.id);
   const { colors, typography } = useTheme();
+  const inlineActions = Boolean(renderAction && response.proposedActionIds?.length);
   const numberParts = (text: string, prefix: string) =>
     text
       .split(/([+\-−]?\p{N}+(?:[.,٫٬]\p{N}+)*(?:[%٪])?)/gu)
@@ -136,7 +139,7 @@ export function AssistantMessageBubble({
         ]}
       >
         {/* Response Blocks */}
-        {textBlocks}
+        {!inlineActions ? textBlocks : null}
 
         {/* Evidence Report Link */}
         {response.snapshot?.reportReference && onViewReport && !hidden && (
@@ -147,7 +150,7 @@ export function AssistantMessageBubble({
           />
         )}
 
-        {hidden ? (
+        {hidden && !inlineActions ? (
           <ActionButton
             label="assistant.action.revealFinancial"
             variant="secondary"
@@ -156,7 +159,7 @@ export function AssistantMessageBubble({
         ) : null}
 
         {/* Proposed Actions */}
-        {(response.proposedActionIds ?? []).map((previewId) => (
+        {(response.proposedActionIds ?? []).map((previewId) => renderAction ? <React.Fragment key={previewId}>{renderAction(previewId, textBlocks)}</React.Fragment> : (
           <ActionButton
             key={previewId}
             label={translate('assistant.proposal.review')}
@@ -166,7 +169,7 @@ export function AssistantMessageBubble({
         ))}
 
         {/* Limitations Notice */}
-        {(response.limitations ?? []).map((item) => (
+        {!inlineActions && (response.limitations ?? []).map((item) => (
           <StyledText key={item} style={styles.limitationText}>
             {item === 'review_required_excluded'
               ? translate('assistant.limitation.reviewExcluded')
@@ -188,7 +191,7 @@ export function AssistantMessageBubble({
             <StyledText style={styles.timestamp}>{timestamp}</StyledText>
           )}
 
-          {onFeedback && (
+          {onFeedback && !inlineActions && (
             <View
               style={[
                 styles.feedbackRow,
