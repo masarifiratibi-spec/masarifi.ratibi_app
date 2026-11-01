@@ -3,7 +3,6 @@ import {
   AccessibilityInfo,
   Animated,
   Easing,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,7 +39,6 @@ export function StartupLoading({
     fontFamily: isLoaded(family) ? family : undefined,
     writingDirection: locale === 'ar' ? ('rtl' as const) : ('ltr' as const)
   };
-  const brand = translate('googleAuth.brand', locale);
   const message = translate('appShell.startup.preparing', locale);
 
   useEffect(() => {
@@ -93,7 +91,7 @@ export function StartupLoading({
         <View
           accessible
           accessibilityRole="progressbar"
-          accessibilityLabel={`${brand}. ${message}`}
+          accessibilityLabel={message}
           accessibilityLiveRegion="none"
           style={styles.identity}
         >
@@ -102,13 +100,6 @@ export function StartupLoading({
             importantForAccessibility="no-hide-descendants"
             style={styles.identity}
           >
-            <Image
-              source={require('../../../../assets/icon.png')}
-              style={styles.logo}
-            />
-            <Text style={[styles.brand, textStyle, { color: colors.text }]}>
-              {brand}
-            </Text>
             <View style={[styles.indicator, { borderColor: colors.track }]}>
               <Animated.View
                 style={[
@@ -148,23 +139,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl
   },
   identity: { alignItems: 'center', width: '100%' },
-  logo: {
-    width: startupLoading.logoSize,
-    height: startupLoading.logoSize,
-    borderRadius: startupLoading.logoRadius
-  },
-  brand: {
-    ...typography.title,
-    fontWeight: '400',
-    textAlign: 'center',
-    marginTop: spacing.xxl
-  },
   indicator: {
     width: startupLoading.indicatorSize,
     height: startupLoading.indicatorSize,
     borderRadius: startupLoading.indicatorSize / 2,
-    borderWidth: startupLoading.indicatorWidth,
-    marginTop: spacing.xxl + spacing.lg
+    borderWidth: startupLoading.indicatorWidth
   },
   arc: {
     position: 'absolute',

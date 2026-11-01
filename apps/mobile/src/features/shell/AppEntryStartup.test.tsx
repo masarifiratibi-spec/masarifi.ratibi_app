@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 it.each(['loading', 'sso'] as const)(
-  'replaces identity %s with the branded wait and releases the ready destination immediately',
+  'replaces identity %s with the simple wait and releases the ready destination immediately',
   (status) => {
     const retry = jest.fn();
     const entry = (identityStatus: IdentityStatus) => (
@@ -44,7 +44,7 @@ it.each(['loading', 'sso'] as const)(
     );
     const screen = render(entry(status));
     expect(
-      screen.getByRole('progressbar', { name: /مصاريفي وراتبي/ })
+      screen.getByRole('progressbar', { name: 'جارٍ تجهيز بياناتك…' })
     ).toBeOnTheScreen();
     expect(mockRedirect).not.toHaveBeenCalled();
     screen.rerender(entry('ready'));

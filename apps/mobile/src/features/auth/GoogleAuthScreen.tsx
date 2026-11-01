@@ -1,5 +1,12 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyledText } from '@/components/StyledText';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
@@ -13,13 +20,17 @@ import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { LogoutRecoveryPanel } from './LogoutRecoveryPanel';
 import { RegistrationLegalPreview } from '@/features/legal/RegistrationLegalPreview';
-import { LegalDocumentLinks } from '@/features/legal/LegalDocumentLinks';
+import { getLegalDocument } from '@/features/legal/legal-documents';
+import { editorialFontFamilyForLocale } from '@/design-system/typography';
 
-export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sign-in' } = {}) {
+export function GoogleAuthScreen({
+  mode = 'welcome'
+}: { mode?: 'welcome' | 'sign-in' } = {}) {
   const identity = useLiveIdentityStatus();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
+  const { height } = useWindowDimensions();
   return (
     <SafeAreaView
       style={[styles.fill, { backgroundColor: theme.colors.surfaces.page }]}
@@ -27,39 +38,18 @@ export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sig
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { padding: theme.spacing.lg, direction }
+          { padding: theme.spacing.xl, direction }
         ]}
       >
         <LogoutRecoveryPanel />
-        <View style={[styles.languages, { gap: theme.spacing.sm }]}>
-          {(['ar', 'en'] as const).map((option) => (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              accessibilityState={{ selected: locale === option }}
-              onPress={() => {
-                void usePreferenceStore.getState().setLocale(option);
-              }}
-              style={{
-                minHeight: theme.minTouchTarget,
-                justifyContent: 'center',
-                paddingHorizontal: theme.spacing.md
-              }}
-            >
-              <StyledText
-                style={{
-                  color:
-                    locale === option
-                      ? theme.colors.primary
-                      : theme.colors.content.secondary
-                }}
-              >
-                {translate(`firstLaunch.language.${option}`)}
-              </StyledText>
-            </Pressable>
-          ))}
-        </View>
-        <View style={[styles.intro, { gap: theme.spacing.md }]}>
+        <View
+          style={[
+            styles.intro,
+            {
+              paddingTop: height < 740 ? 0 : theme.spacing.lg
+            }
+          ]}
+        >
           <Image
             accessible
             source={require('../../../assets/icon.png')}
@@ -69,13 +59,13 @@ export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sig
           />
           <StyledText
             variant="headline"
-            style={{ textAlign: 'center', writingDirection: direction }}
-          >
-            {translate('googleAuth.brand')}
-          </StyledText>
-          <StyledText
-            variant="subtitle"
-            style={{ textAlign: 'center', writingDirection: direction }}
+            style={{
+              textAlign: 'center',
+              writingDirection: direction,
+              marginTop: theme.spacing.xxl,
+              fontFamily: editorialFontFamilyForLocale(locale, 600),
+              fontWeight: '600'
+            }}
           >
             {translate('googleAuth.welcome')}
           </StyledText>
@@ -83,16 +73,21 @@ export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sig
             style={{
               textAlign: 'center',
               writingDirection: direction,
-              color: theme.colors.content.secondary
+              color: theme.colors.content.secondary,
+              fontFamily: editorialFontFamilyForLocale(locale, 400),
+              marginTop: theme.spacing.sm
             }}
           >
             {translate('googleAuth.supporting')}
           </StyledText>
         </View>
         <View
-          style={{ gap: theme.spacing.md, paddingBottom: theme.spacing.xl }}
+          style={{
+            gap: theme.spacing.md,
+            marginTop: theme.spacing.xxl + theme.spacing.lg
+          }}
         >
-          {mode === 'welcome' ? <RegistrationLegalPreview /> : <LegalDocumentLinks />}
+          {mode === 'welcome' ? <RegistrationLegalPreview /> : null}
           <GoogleAccountSelector
             label={translate('googleAuth.continue')}
             signIn={() => authService.signInWithGoogle()}
@@ -134,12 +129,46 @@ export function GoogleAuthScreen({ mode = 'welcome' }: { mode?: 'welcome' | 'sig
             style={{
               textAlign: 'center',
               writingDirection: direction,
-              color: theme.colors.content.secondary
+              color: theme.colors.content.secondary,
+              fontFamily: editorialFontFamilyForLocale(locale, 400)
             }}
           >
             {translate('googleAuth.footer')}
           </StyledText>
         </View>
+        {mode === 'sign-in' ? (
+          <View
+            testID="sign-in-documents"
+            style={[
+              styles.documents,
+              { paddingTop: theme.spacing.xxl, paddingBottom: theme.spacing.xl }
+            ]}
+          >
+            {(['terms', 'privacy'] as const).map((document) => (
+              <Pressable
+                key={document}
+                accessibilityRole="button"
+                accessibilityLabel={getLegalDocument(locale, document).title}
+                onPress={() => router.push(`/legal?document=${document}`)}
+                style={{
+                  minHeight: theme.minTouchTarget,
+                  justifyContent: 'center'
+                }}
+              >
+                <StyledText
+                  variant="caption"
+                  style={{
+                    color: theme.colors.content.link,
+                    fontFamily: editorialFontFamilyForLocale(locale, 400),
+                    textDecorationLine: 'underline'
+                  }}
+                >
+                  {getLegalDocument(locale, document).title}
+                </StyledText>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -152,10 +181,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
-    justifyContent: 'space-between',
-    gap: 32
+    justifyContent: 'center',
+    gap: 0
   },
-  languages: { flexDirection: 'row', alignSelf: 'flex-end' },
-  intro: { alignItems: 'center', paddingVertical: 32 },
-  mark: { width: 88, height: 88, borderRadius: 24 }
+  intro: { alignItems: 'center' },
+  mark: { width: 80, height: 80, borderRadius: 24 },
+  documents: {
+    marginTop: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    columnGap: 24
+  }
 });

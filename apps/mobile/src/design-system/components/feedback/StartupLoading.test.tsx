@@ -1,5 +1,5 @@
 import React from 'react';
-import { AccessibilityInfo, Animated } from 'react-native';
+import { AccessibilityInfo, Animated, Image } from 'react-native';
 import { act, render } from '@testing-library/react-native';
 
 import { StartupLoading } from './StartupLoading';
@@ -22,14 +22,15 @@ it.each([
   async (locale, brand, message, direction) => {
     const screen = render(<StartupLoading locale={locale} reducedMotion />);
     expect(
-      screen.getByRole('progressbar', { name: `${brand}. ${message}` })
+      screen.getByRole('progressbar', { name: message })
     ).toHaveProp('accessibilityLiveRegion', 'none');
     expect(
       screen.getByText(message, { includeHiddenElements: true })
     ).toHaveStyle({ writingDirection: direction });
     expect(
-      screen.getByText(brand, { includeHiddenElements: true })
-    ).toBeTruthy();
+      screen.queryByText(brand, { includeHiddenElements: true })
+    ).toBeNull();
+    expect(screen.UNSAFE_queryAllByType(Image)).toHaveLength(0);
     await act(async () => {});
   }
 );

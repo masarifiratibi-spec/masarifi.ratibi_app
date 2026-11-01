@@ -256,11 +256,11 @@ const ar: MessageCatalog = {
   'googleAuth.brand': 'مصاريفي وراتبي',
   'googleAuth.incomplete':
     'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
-  'googleAuth.welcome': 'مرحبًا بك في مصاريفي وراتبي',
+  'googleAuth.welcome': 'حيّاك في مصاريفي',
   'googleAuth.supporting':
-    'أموالك في مكان واحد. تابع باستخدام حساب Google للبدء.',
+    'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
-  'googleAuth.footer': 'استخدم حساب Google نفسه للعودة إلى بياناتك المالية.',
+  'googleAuth.footer': 'ارجع بنفس حساب Google،\nوتلقى بياناتك مثل ما تركتها.',
   'appShell.security.stagingDisabled':
     '\u0645\u0637\u0627\u0644\u0628\u0627\u062A \u0642\u0641\u0644 \u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0645\u0639\u0637\u0644\u0629 \u0641\u064A \u0646\u0633\u062E\u0629 \u0627\u0644\u062A\u0637\u0648\u064A\u0631 \u0647\u0630\u0647.',
   'app.title': 'مصاريفي وراتبي',

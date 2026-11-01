@@ -2,8 +2,7 @@ import React from 'react';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { FirstLaunchOnboardingScreen } from './FirstLaunchOnboardingScreen';
-import { firstLaunchDestination } from './first-launch-navigation';
+import WelcomeRoute from '@app/(public)/welcome';
 import { colorTokens } from '@/design-system/tokens';
 import { buildPreferences } from '@/domain/foundation';
 import { changeLocale } from '@/localization/i18n';
@@ -13,24 +12,13 @@ import { savePreferences } from '@/storage/secure-preferences';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('expo-router', () => ({
-  router: { replace: jest.fn() }
+  router: { replace: jest.fn(), push: jest.fn() }
 }));
 jest.mock('@/storage/secure-preferences', () => ({
   loadPreferences: jest.fn(),
   savePreferences: jest.fn().mockResolvedValue(undefined)
 }));
 const mockSavePreferences = jest.mocked(savePreferences);
-
-function WelcomeRoute() {
-  return (
-    <FirstLaunchOnboardingScreen
-      onStart={async () => {
-        await usePreferenceStore.getState().completeFirstLaunchOnboarding();
-        router.replace(firstLaunchDestination);
-      }}
-    />
-  );
-}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -179,4 +167,38 @@ it('keeps transaction examples presentation-only', () => {
     pendingDestination: shellBefore.pendingDestination
   });
   expect(screen.getAllByLabelText('تسجيل تلقائيًا')).toHaveLength(3);
+});
+
+it('keeps onboarding free of legal controls and opens the existing sign-in screen from Start', async () => {
+  renderWithProviders(<WelcomeRoute />);
+  const start = screen.getByRole('button', { name: 'ابدأ الحين' });
+  expect(screen.queryByRole('checkbox')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'الشروط والأحكام' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'سياسة الخصوصية' })).toBeNull();
+  expect(router.replace).not.toHaveBeenCalled();
+  expect(start).toBeEnabled();
+  expect(start).toHaveStyle({ backgroundColor: '#2D7264' });
+  await act(async () => {
+    fireEvent.press(start);
+  });
+  expect(router.replace).toHaveBeenCalledWith('/(public)/auth-pending');
+});
+
+it('does not navigate or persist twice while Start is pending', async () => {
+  let finish!: () => void;
+  mockSavePreferences.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+  );
+  renderWithProviders(<WelcomeRoute />);
+  const start = screen.getByRole('button', { name: 'ابدأ الحين' });
+  fireEvent.press(start);
+  fireEvent.press(start);
+  expect(mockSavePreferences).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    finish();
+  });
+  expect(router.replace).toHaveBeenCalledTimes(1);
 });
