@@ -3,9 +3,9 @@
   "observedDate": "2026-11-02",
   "branch": "codex/voice-promoted-operating-2026-10-13",
   "baselineCommit": "f957cb3df1c1e8b096561fc3114cf16d97379270",
-  "qualificationCommit": "721a943b72837d3f43a4e4b61bc3ab4cd83738d8",
-  "benchmarkSourceCommit": "815a029ccb562164be60447ecd1e69017b222507",
-  "sourceArchiveSha256": "f217780cab8838122e9761504c16a5035d24a5c3b17f766c7b2daf9147e50a88",
+  "qualificationCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+  "benchmarkSourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+  "sourceArchiveSha256": "5481204439c244b68091f152d19e3e104d09c8f8c78da585d2fed7445fbe51ed",
   "mobileLockSha256": "cffb75b06fff1b279dd7788f6aa5d15af2d601591947598cb6d73d01c993fe7e",
   "mobile": {
     "package": "com.masarifi.mobile.benchmark",
@@ -13,10 +13,10 @@
     "buildType": "Release",
     "apiEnvironment": "Staging",
     "javascriptBundled": true,
-    "apkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+    "apkSha256": "13579a24b27c8bb8e145be74f063b1215f1fb3677ec7183a28fcd52c37d6dcac",
     "certificateSha256": "68fd00ac6ef649e053a2bfcd571b4316fda0f484cf23460e3fcac8dcd8122e8a",
-    "deviceAcceptance": "Exact815a029c installed; existing owner admitted;40 authenticated process-cold launches and40 separate native HOT resumes; current empty-account layouts/read screens inspected; no financial mutation",
-    "apkBytes": 49420701,
+    "deviceAcceptance": "Exact2236b1bb signed independent Benchmark installed after reversible A/B/A control; existing owner Home ready; original2applicationbytes preserved; targetlatencyNOTMET",
+    "apkBytes": 49418785,
     "temporarySourceInstallPermission": "revoked; appops deny and UI switch off verified",
     "originalInstalledAppsPreserved": true,
     "guestSmoke": {
@@ -26,7 +26,7 @@
       "androidWaitTimeMs": 518,
       "acceptedAuthenticatedStartupSamples": 0
     },
-    "lastOwnerPreflight": "2026-11-02T08:27:55Z:existing active owner and ready default account verified before admission",
+    "lastOwnerPreflight": "2026-11-02T09:31:24.426184Z:existing active owner and ready default account verified before candidate admission",
     "storageDiagnostic": {
       "read": "success",
       "write": "success on native fix26511585; persisted into815a029c",
@@ -49,6 +49,51 @@
       "completeWarmDataReadinessQualified": false,
       "coldTargetPassed": false,
       "beforeAfterSpeedupClaimed": false
+    },
+    "baselineApk": {
+      "sourceCommit": "815a029ccb562164be60447ecd1e69017b222507",
+      "sha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+      "retainedOffHost": true,
+      "sourceArchiveSha256": "f217780cab8838122e9761504c16a5035d24a5c3b17f766c7b2daf9147e50a88"
+    },
+    "currentInstalledSourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+    "currentLanguage": "en",
+    "resourceComparison": {
+      "report": "../2026-11-02/mobile-resource-comparison-report.md",
+      "evidence": "../2026-11-02/mobile-resource-comparison-evidence.json",
+      "qualificationEvidence": "../2026-11-02/mobile-resource-qualification-evidence.json",
+      "coldCandidateSamplesPerLanguage": 20,
+      "all360CandidateGetResponses200": true,
+      "preferenceWritesBefore": 3,
+      "preferenceWritesAfter": 1,
+      "referenceCrossoverSamples": 20,
+      "latencySpeedupProven": false,
+      "coldTargetPassed": false
+    },
+    "originReadAttribution": {
+      "report": "../2026-11-02/origin-read-attribution-report.md",
+      "evidence": "../2026-11-02/origin-read-attribution-evidence.json",
+      "locale": "en",
+      "coldSamples": 20,
+      "cohortConsistentReads": 180,
+      "clientStatus200Responses": 180,
+      "originStatusCounts": {
+        "304": 139,
+        "200": 41
+      },
+      "expectedRoutesPerLaunch": 9,
+      "upstreamRouteP95RangeMs": [
+        27,
+        50
+      ],
+      "homeReadyActivityCreateMedianMs": 3675.5015,
+      "homeReadyActivityCreateP95Ms": 4754.616,
+      "activityCreateToFirstFetchMedianMs": 1984.7,
+      "activityCreateToFirstFetchP95Ms": 2472.5,
+      "temporaryDiagnosticConfigurationRestored": true,
+      "dedicatedDiagnosticLogExportedVerifiedAndPurged": true,
+      "databaseExecutionSeparatelyQualified": false,
+      "latencySpeedupClaimed": false
     }
   },
   "canonicalBackendImageDigest": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
@@ -86,7 +131,8 @@
     "allFiveAdminBrowserProjectsPassed": true,
     "configuredSecurityScanPassed": true,
     "productionSigning": "skipped",
-    "checkoutIsExactCandidate": true
+    "checkoutIsExactCandidate": true,
+    "scope": "historical_721a_canonical_admin_runtime_qualification"
   },
   "reportParentCommit": "b11ec51ec7a8a01624c446ab64936c477ce13572",
   "completeSecretScan": {
@@ -137,7 +183,7 @@
     "networkCalls": false,
     "applicationModulesExecuted": false
   },
-  "currentBranchApplicationTreesEqualQualifiedCandidate": false,
+  "currentBranchApplicationTreesEqualQualifiedCandidate": true,
   "canonicalBackendImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
   "adminObservationResumedAfterApprovedHostRestartAt": "2026-11-01T22:01:42.804184+00:00",
   "serverHealthFollowUp": {
@@ -151,14 +197,14 @@
     "originalDiscardDeviceLimitsRestored": true,
     "memoryLeakProven": false
   },
-  "currentBranchApiAdminPackageAndDockerTreesEqualQualifiedCandidate": false,
+  "currentBranchApiAdminPackageAndDockerTreesEqualQualifiedCandidate": true,
   "pendingDatabaseOptimization": {
     "sourceMigration": "supabase/migrations/20261101223723_outbox_voice_confirmation_lookup_index.sql",
     "sha256": "f3cfc33fb1f267572bf7d1eaee67cc544f24583b0998b07c3c1b3784dea0edbb",
     "liveApplied": true,
     "lastLiveReconciliationAtUtc": "2026-11-02T07:23:09.541950Z",
     "report": "../2026-11-02/supabase-optimization-report.md",
-    "fullBranchQualificationPassed": false
+    "fullBranchQualificationPassed": true
   },
   "pendingRuntimeOptimization": {
     "baseCommit": "d1eaa7bef0cc2e4203f29884696a411f6d34423f",
@@ -166,7 +212,8 @@
     "roleDefaultsApplied": true,
     "report": "../2026-11-02/runtime-query-deadline-report.md",
     "evidence": "../2026-11-02/runtime-query-deadline-evidence.json",
-    "qualifiedImageMustBeRebuilt": true
+    "qualifiedImageMustBeRebuilt": false,
+    "qualifiedCandidateSourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2"
   },
   "supabaseLiveRecovery": {
     "evidence": "../2026-11-02/supabase-live-recovery-evidence.json",
@@ -193,17 +240,28 @@
     "physicalCompactionPerformed": false
   },
   "latestBranchQualification": {
-    "candidateCommit": "ea30c3a3efa5038b017ac89be69504a2041bcce2",
-    "run": 41408486741,
+    "candidateCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+    "run": 41420035868,
     "status": "success",
     "applicationDatabaseMobilePassed": true,
     "fullRequiredChecksPassed": true,
     "productionReadiness": "NOT READY",
     "productionSigning": "skipped",
-    "imageDigest": "sha256:6c94ac56656142a65cee4f09512f8db8e2f89c2dc4285cd0bd897b4c2766e348",
-    "sourceFixesDeployed": false
+    "imageDigest": "sha256:5e1f051a8f5ff95e403ed34c3a6e6bffc14c603fd5d35ab8d3bd93f0334b5b59",
+    "backendSourceFixesDeployed": false,
+    "benchmarkCandidateInstalled": true
   },
   "latestQualifiedBackendCandidate": {
+    "sourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+    "imageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:5e1f051a8f5ff95e403ed34c3a6e6bffc14c603fd5d35ab8d3bd93f0334b5b59",
+    "foundationRun": 41420035868,
+    "configuredSecurityScanPassed": true,
+    "imageContractsPassed": true,
+    "published": true,
+    "deployed": false,
+    "hostedCompatibilityGate": "blocked_pending_reviewed_schema_and_history_reconciliation"
+  },
+  "previousQualifiedBackendCandidate": {
     "sourceCommit": "ea30c3a3efa5038b017ac89be69504a2041bcce2",
     "imageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:6c94ac56656142a65cee4f09512f8db8e2f89c2dc4285cd0bd897b4c2766e348",
     "foundationRun": 41408486741,
@@ -212,5 +270,17 @@
     "published": true,
     "deployed": false,
     "hostedCompatibilityGate": "blocked_pending_reviewed_schema_and_history_reconciliation"
-  }
+  },
+  "canonicalBackendCutoverPerformed": false,
+  "compatibilityRestoreWitness": {
+    "source": "historical_protected_20261101_restore",
+    "postgresVersion": "17.6",
+    "ownedCloneCreatedAndStopped": true,
+    "protectedOriginalVolumesUnchanged": true,
+    "fullCurrentLiveParityQualified": false,
+    "boundedMetadataDifference": "one_table_explicit_owner_ACL_vs_NULL_default_owner_ACL",
+    "liveDatabaseModified": false
+  },
+  "canonicalBackendImageScope": "previously_prepared_721a_runtime_used_by_scoped_admin_not_latest_branch_candidate",
+  "continuationHandoff": "../../handoffs/2026-11-02-performance-supabase-server-full-handoff-en.md"
 }
