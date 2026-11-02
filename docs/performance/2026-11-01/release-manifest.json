@@ -94,6 +94,26 @@
       "dedicatedDiagnosticLogExportedVerifiedAndPurged": true,
       "databaseExecutionSeparatelyQualified": false,
       "latencySpeedupClaimed": false
+    },
+    "nativeTransportDiagnostic": {
+      "baseSourceCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+      "privateNativeOverlaySha256": "32019461eed9c1508cf654ed3112aab0ffdb3fd3f235c55fb7ef9a21aa337b96",
+      "apkSha256": "77264879b13cfde62127d1425afbf29c9e8e1d5fbcc2a97c440cfdab8b238751",
+      "exactQualifiedSourceOnly": false,
+      "launches": 3,
+      "nativeCalls": 27,
+      "observedClient": "rn",
+      "nativeStatusCounts": {
+        "200": 7,
+        "304": 20
+      },
+      "js200Responses": 27,
+      "p95Qualified": false,
+      "latencySpeedupProven": false,
+      "currentlyInstalled": false,
+      "qualified2236Restored": true,
+      "originalTwoApplicationBindingsUnchanged": true,
+      "evidence": "../2026-11-02/native-transport-diagnostic-evidence.json"
     }
   },
   "canonicalBackendImageDigest": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
@@ -183,7 +203,7 @@
     "networkCalls": false,
     "applicationModulesExecuted": false
   },
-  "currentBranchApplicationTreesEqualQualifiedCandidate": true,
+  "currentBranchApplicationTreesEqualQualifiedCandidate": false,
   "canonicalBackendImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
   "adminObservationResumedAfterApprovedHostRestartAt": "2026-11-01T22:01:42.804184+00:00",
   "serverHealthFollowUp": {
@@ -240,16 +260,24 @@
     "physicalCompactionPerformed": false
   },
   "latestBranchQualification": {
-    "candidateCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
-    "run": 41420035868,
+    "candidateCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+    "run": 41440130996,
     "status": "success",
+    "event": "pull_request",
+    "actualTestedCheckout": "c91cf8c5d8e9c88006c2445462a6f7c4750c3666",
+    "testedFullTreeSha": "b240871d10d3e45cda5ab13c4336f23ac99b28fe",
+    "fullTestedTreeEqualsCandidate": true,
+    "directHeadCheckout": false,
     "applicationDatabaseMobilePassed": true,
     "fullRequiredChecksPassed": true,
     "productionReadiness": "NOT READY",
     "productionSigning": "skipped",
-    "imageDigest": "sha256:5e1f051a8f5ff95e403ed34c3a6e6bffc14c603fd5d35ab8d3bd93f0334b5b59",
+    "imageDigest": null,
+    "backendImagePublishedByThisRun": false,
     "backendSourceFixesDeployed": false,
-    "benchmarkCandidateInstalled": true
+    "benchmarkCandidateInstalled": false,
+    "currentInstalledBenchmarkSourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+    "scope": "d378_source_with_identical_full_PR_merge_tree_qualification_not_published_or_deployed_artifact"
   },
   "latestQualifiedBackendCandidate": {
     "sourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
@@ -278,9 +306,58 @@
     "ownedCloneCreatedAndStopped": true,
     "protectedOriginalVolumesUnchanged": true,
     "fullCurrentLiveParityQualified": false,
-    "boundedMetadataDifference": "one_table_explicit_owner_ACL_vs_NULL_default_owner_ACL",
-    "liveDatabaseModified": false
+    "boundedMetadataDifference": "original_bounded_prerequisites_equal_after_exact_trigger_guarded_owner_ACL_materialization_before_three_helper_additions",
+    "liveDatabaseModified": false,
+    "threeHelperAdditionsCommittedOnlyOnOwnedClone": true,
+    "syntheticHelperAndOperatorProofPassed": true,
+    "hostedHelpersApplied": false,
+    "hostedHistoryRepaired": false,
+    "historicalCloneHistoryRows": 171,
+    "liveHistoryRows": 174,
+    "report": "../2026-11-02/isolated-helper-compatibility-report.md",
+    "evidence": "../2026-11-02/isolated-helper-compatibility-evidence.json"
   },
   "canonicalBackendImageScope": "previously_prepared_721a_runtime_used_by_scoped_admin_not_latest_branch_candidate",
-  "continuationHandoff": "../../handoffs/2026-11-02-performance-supabase-server-full-handoff-en.md"
+  "continuationHandoff": "../../handoffs/2026-11-02-startup-native-helper-proof-continuation-en.md",
+  "currentApplicationSourceCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+  "latestMobileTransportCandidate": {
+    "sourceCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+    "sourceArchiveSha256": "71d46888e5e923f25844ed75fc071edbdd75c6494aa068fda801a6f03f6edf4f",
+    "requiredChecksPassed": true,
+    "foundationRun": 41440130996,
+    "event": "pull_request",
+    "actualTestedCheckout": "c91cf8c5d8e9c88006c2445462a6f7c4750c3666",
+    "fullTreeSha": "b240871d10d3e45cda5ab13c4336f23ac99b28fe",
+    "fullTestedTreeEqualsSourceHead": true,
+    "directHeadCheckout": false,
+    "mobileSuites": 597,
+    "mobileTests": 4669,
+    "localFullSerialPassed": true,
+    "productionSigning": "skipped",
+    "backendImagePublishedByThisRun": false,
+    "backendDeployed": false,
+    "plainApkSha256": "9074d5bb3be321708e5906a89e20579d26fb3580debb5d6966d5ecee61ec60ef",
+    "currentlyInstalled": false,
+    "qualified2236Restored": true,
+    "bracketedSamplesPerArm": 6,
+    "all162ReadResponses200": true,
+    "latencySpeedupProven": false,
+    "p95Qualified": false,
+    "report": "../2026-11-02/mobile-startup-initialization-investigation.md",
+    "evidence": "../2026-11-02/cookie-transport-mechanism-evidence.json"
+  },
+  "originalContinuationHandoff": "../../handoffs/2026-11-02-performance-supabase-server-full-handoff-en.md",
+  "latestDirectHeadBranchQualification": {
+    "candidateCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+    "run": 41420035868,
+    "status": "success",
+    "applicationDatabaseMobilePassed": true,
+    "fullRequiredChecksPassed": true,
+    "productionReadiness": "NOT READY",
+    "productionSigning": "skipped",
+    "imageDigest": "sha256:5e1f051a8f5ff95e403ed34c3a6e6bffc14c603fd5d35ab8d3bd93f0334b5b59",
+    "backendSourceFixesDeployed": false,
+    "benchmarkCandidateInstalled": true,
+    "scope": "historical_direct_head_2236_qualification_and_published_backend_artifact"
+  }
 }
