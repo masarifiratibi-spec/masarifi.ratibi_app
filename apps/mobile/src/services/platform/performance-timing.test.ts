@@ -29,7 +29,11 @@ it('exposes bounded chronological spans without retaining action payloads', () =
     for (let i = 0; i < 210; i++) recordPerformanceTiming('planning.read', 25);
     const spans = readPerformanceSpans();
     expect(spans).toHaveLength(200);
-    expect(spans[199]).toEqual({ stage: 'planning.read', startedAt: 75, endedAt: 100 });
+    expect(spans[199]).toEqual({
+      stage: 'planning.read',
+      startedAt: 75,
+      endedAt: 100
+    });
     (spans as unknown[]).pop();
     expect(readPerformanceSpans()).toHaveLength(200);
   } finally {
@@ -41,8 +45,7 @@ jest.mock('expo', () =>
   jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
 );
 it('exposes benchmark stage duration and process-relative event time', () => {
-  const restore =
-    installBenchmarkEnvironment();
+  const restore = installBenchmarkEnvironment();
   const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
   const clock = jest.spyOn(performance, 'now').mockReturnValue(100);
   try {
@@ -52,7 +55,13 @@ it('exposes benchmark stage duration and process-relative event time', () => {
         .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
         .map(([, json]) => JSON.parse(json as string))
     ).toEqual([
-      { kind: 'timing', stage: 'startup.fonts', elapsedMs: 25, atMs: 100 }
+      {
+        kind: 'timing',
+        stage: 'startup.fonts',
+        elapsedMs: 25,
+        atMs: 100,
+        emissionSequence: 1
+      }
     ]);
   } finally {
     clock.mockRestore();

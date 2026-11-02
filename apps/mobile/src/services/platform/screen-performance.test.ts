@@ -38,6 +38,7 @@ it('correlates a measured tap with only fixed route and readiness fields', () =>
     expect(Object.keys(events[3]).sort()).toEqual([
       'atMs',
       'elapsedMs',
+      'emissionSequence',
       'freshness',
       'kind',
       'navigationSequence',

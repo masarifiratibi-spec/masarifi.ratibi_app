@@ -125,19 +125,24 @@ describe('protected navigation', () => {
       try {
         render(<RootLayout />);
         if (allowed) {
-          await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith({ href: '/security/unlock' }));
-          expect(mockExecuteAction).not.toHaveBeenCalled();
-        }
-        else {
           await waitFor(() =>
-            expect(mockGetLastResponse).toHaveBeenCalled()
+            expect(mockRedirect).toHaveBeenCalledWith({
+              href: '/security/unlock'
+            })
           );
-          expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+          expect(mockExecuteAction).not.toHaveBeenCalled();
+        } else {
+          await waitFor(() => expect(mockGetLastResponse).toHaveBeenCalled());
+          expect(mockRedirect).toHaveBeenCalledWith({
+            href: '/(public)/auth-pending'
+          });
           expect(mockResolveTarget).not.toHaveBeenCalled();
           expect(mockExecuteAction).not.toHaveBeenCalled();
         }
-        if (allowed) expect(mockRouterPush).toHaveBeenCalledWith('/security/unlock');
-        else expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
+        if (allowed)
+          expect(mockRouterPush).toHaveBeenCalledWith('/security/unlock');
+        else
+          expect(mockRouterPush).not.toHaveBeenCalledWith('/security/unlock');
       } finally {
         delete process.env.EXPO_PUBLIC_APP_LOCK_ENABLED;
         delete process.env.EXPO_PUBLIC_API_URL;
@@ -446,10 +451,10 @@ describe('protected navigation', () => {
 
     render(<RootLayout />);
 
-    await waitFor(() =>
-      expect(mockGetLastResponse).toHaveBeenCalled()
-    );
-    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    await waitFor(() => expect(mockGetLastResponse).toHaveBeenCalled());
+    expect(mockRedirect).toHaveBeenCalledWith({
+      href: '/(public)/auth-pending'
+    });
     expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
@@ -468,10 +473,10 @@ describe('protected navigation', () => {
 
     render(<RootLayout />);
 
-    await waitFor(() =>
-      expect(mockGetLastResponse).toHaveBeenCalled()
-    );
-    expect(mockRedirect).toHaveBeenCalledWith({ href: '/(public)/auth-pending' });
+    await waitFor(() => expect(mockGetLastResponse).toHaveBeenCalled());
+    expect(mockRedirect).toHaveBeenCalledWith({
+      href: '/(public)/auth-pending'
+    });
     expect(mockResolveTarget).not.toHaveBeenCalled();
     expect(mockExecuteAction).not.toHaveBeenCalled();
   });
@@ -746,7 +751,12 @@ it('records the first usable PIN route after cold root hydration, restoration an
     mockPathname = '/security/unlock';
     view.rerender(<RootLayout />);
     expect(events()).toEqual([
-      { kind: 'protected_route', category: 'unlock', atMs: expect.any(Number) }
+      {
+        kind: 'protected_route',
+        category: 'unlock',
+        emissionSequence: expect.any(Number),
+        atMs: expect.any(Number)
+      }
     ]);
     act(() => useAppShellStore.setState({ privacyLock: null }));
     mockPathname = '/home';

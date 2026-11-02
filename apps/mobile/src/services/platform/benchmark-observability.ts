@@ -1,4 +1,5 @@
 import { isBenchmarkReadOnly } from '@/config/client-runtime';
+import { BenchmarkEmissionAudit } from './benchmark-emission-audit';
 
 export const performanceStages = [
   'planning.auth',
@@ -118,6 +119,9 @@ type BenchmarkEvent =
 let eventCount = 0;
 let requestSequence = 0;
 let protectedRouteRecorded = false;
+let emissionAudit: BenchmarkEmissionAudit | undefined;
+let auditSnapshotScheduled = false;
+let auditSnapshotAttempted = false;
 const startupBoundaries = new Set<string>();
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 const nullableInteger = (value: number | null) =>
@@ -125,18 +129,20 @@ const nullableInteger = (value: number | null) =>
 
 /** Reconstruct every field; never serialize callers' objects or free-form strings. */
 export function recordBenchmarkEvent(event: BenchmarkEvent): void {
+  let rejection: 'runtime' | 'metadata' | 'clock' = 'runtime';
   try {
-    if (!isBenchmarkReadOnly() || eventCount >= 400) return;
+    if (!isBenchmarkReadOnly()) return;
+    rejection = 'metadata';
+    emissionAudit ??= new BenchmarkEmissionAudit();
+    if (eventCount >= 400) return rejectEmission('budget', event);
     let metadata: BenchmarkEvent;
     switch (event.kind) {
       case 'startup_boundary':
         if (
-          !['module', 'identity', 'foundation', 'shell'].includes(
-            event.stage
-          ) ||
-          startupBoundaries.has(event.stage)
+          !['module', 'identity', 'foundation', 'shell'].includes(event.stage)
         )
-          return;
+          return rejectEmission('metadata', event);
+        if (startupBoundaries.has(event.stage)) return;
         startupBoundaries.add(event.stage);
         metadata = { kind: 'startup_boundary', stage: event.stage };
         break;
@@ -163,7 +169,7 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
           event.navigationSequence < 1 ||
           !nonnegative(event.elapsedMs)
         )
-          return;
+          return rejectEmission('metadata', event);
         metadata = {
           kind: 'screen',
           route: event.route,
@@ -179,7 +185,7 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
           !performanceStages.includes(event.stage) ||
           !nonnegative(event.elapsedMs)
         )
-          return;
+          return rejectEmission('metadata', event);
         metadata = {
           kind: 'timing',
           stage: event.stage,
@@ -187,15 +193,18 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
         };
         break;
       case 'home':
-        if (!['ready', 'failed', 'left_route'].includes(event.outcome)) return;
+        if (!['ready', 'failed', 'left_route'].includes(event.outcome))
+          return rejectEmission('metadata', event);
         metadata = { kind: 'home', outcome: event.outcome };
         break;
       case 'protected_route':
-        if (!['unlock', 'home', 'other'].includes(event.category)) return;
+        if (!['unlock', 'home', 'other'].includes(event.category))
+          return rejectEmission('metadata', event);
         metadata = { kind: 'protected_route', category: event.category };
         break;
       case 'preferences':
-        if (!['read', 'write'].includes(event.operation)) return;
+        if (!['read', 'write'].includes(event.operation))
+          return rejectEmission('metadata', event);
         if (event.outcome === 'success') {
           if (
             event.errorClass !== 'none' ||
@@ -203,7 +212,7 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
             'boundary' in event ||
             'argumentOrdinal' in event
           )
-            return;
+            return rejectEmission('metadata', event);
           metadata = {
             kind: 'preferences',
             operation: event.operation,
@@ -223,7 +232,7 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
             boundary: event.boundary,
             argumentOrdinal: event.argumentOrdinal
           };
-        } else return;
+        } else return rejectEmission('metadata', event);
         break;
       case 'transport':
         if (
@@ -238,7 +247,7 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
           !nullableInteger(event.payloadBytes) ||
           !nonnegative(event.elapsedMs)
         )
-          return;
+          return rejectEmission('metadata', event);
         metadata = {
           kind: 'transport',
           group: event.group,
@@ -251,14 +260,89 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
         };
         break;
       default:
-        return;
+        return rejectEmission('metadata', event);
     }
+    rejection = 'clock';
+    const atMs = performance.now();
+    if (!nonnegative(atMs)) return rejectEmission('clock', event);
+    rejection = 'runtime';
+    emitAcceptedBenchmarkEvent(metadata, atMs, emissionAudit);
+    if (metadata.kind === 'home') scheduleBenchmarkAudit();
+  } catch {
+    // Telemetry must never affect application outcomes, even if its sink fails.
+    rejectEmission(rejection, event);
+  }
+}
+
+function emitAcceptedBenchmarkEvent(
+  metadata: BenchmarkEvent,
+  atMs: number,
+  audit: BenchmarkEmissionAudit
+): void {
+  eventCount++;
+  const sequence =
+    metadata.kind === 'transport' ? metadata.requestSequence : undefined;
+  audit.accept(sequence);
+  try {
+    console.info(
+      'BENCHMARK_METRIC',
+      JSON.stringify({ ...metadata, atMs, emissionSequence: eventCount })
+    );
+    audit.delivered('returned', sequence);
+  } catch {
+    audit.delivered('threw', sequence);
+  }
+}
+
+function scheduleBenchmarkAudit(): void {
+  if (auditSnapshotScheduled) return;
+  auditSnapshotScheduled = true;
+  setTimeout(emitBenchmarkEmissionAudit, 2000);
+}
+
+function rejectEmission(
+  reason: 'metadata' | 'clock' | 'runtime' | 'budget',
+  event: BenchmarkEvent
+): void {
+  let sequence: number | undefined;
+  try {
+    if (
+      event.kind === 'transport' &&
+      Number.isSafeInteger(event.requestSequence)
+    )
+      sequence = event.requestSequence;
+  } catch {
+    // A rejected object's getters are untrusted; retain only the fixed reason.
+  }
+  emissionAudit?.reject(reason, sequence);
+}
+
+export function readBenchmarkEmissionAudit() {
+  return isBenchmarkReadOnly() ? emissionAudit?.snapshot() : undefined;
+}
+
+/** One bounded post-Home receipt; missing output remains an incomplete diagnostic. */
+export function emitBenchmarkEmissionAudit(): void {
+  try {
+    if (auditSnapshotAttempted) return;
+    const snapshot = readBenchmarkEmissionAudit();
+    if (!snapshot) return;
+    auditSnapshotAttempted = true;
+    if (eventCount >= 400) return;
     const atMs = performance.now();
     if (!nonnegative(atMs)) return;
     eventCount++;
-    console.info('BENCHMARK_METRIC', JSON.stringify({ ...metadata, atMs }));
+    console.info(
+      'BENCHMARK_AUDIT',
+      JSON.stringify({
+        kind: 'emission_audit',
+        atMs,
+        emissionSequence: eventCount,
+        ...snapshot
+      })
+    );
   } catch {
-    // Telemetry must never affect application outcomes, even if its sink fails.
+    // The collector rejects a missing receipt; never retry a failed diagnostic sink.
   }
 }
 
@@ -487,6 +571,8 @@ export function benchmarkFetch(
   if (!isBenchmarkReadOnly() || (method !== 'GET' && method !== 'HEAD'))
     return request(url, init);
   const sequence = ++requestSequence;
+  emissionAudit ??= new BenchmarkEmissionAudit();
+  emissionAudit.allocate(sequence);
   const started = performance.now();
   const group = endpointGroup(url);
   return (async () => {
@@ -494,6 +580,10 @@ export function benchmarkFetch(
     try {
       response = await request(url, init);
     } catch (error) {
+      emissionAudit?.terminal(
+        sequence,
+        init.signal?.aborted ? 'aborted' : 'network'
+      );
       recordBenchmarkEvent({
         kind: 'transport',
         group,
@@ -506,6 +596,7 @@ export function benchmarkFetch(
       });
       throw error;
     }
+    emissionAudit?.terminal(sequence, 'response');
     let payloadBytes: number | null = null;
     try {
       const length = response.headers?.get('content-length');

@@ -197,6 +197,7 @@ describe('benchmark preference storage diagnostics', () => {
         operation: 'write',
         outcome: 'success',
         errorClass: 'none',
+        emissionSequence: expect.any(Number),
         atMs: expect.any(Number)
       }
     ]);
@@ -233,6 +234,7 @@ describe('benchmark preference storage diagnostics', () => {
           rejectionShape: 'code_message',
           boundary: 'unrecognized',
           argumentOrdinal: 'none',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);
@@ -296,6 +298,7 @@ describe('benchmark preference storage diagnostics', () => {
               ? 'kotlin_read_wrapper'
               : 'kotlin_write_wrapper',
           argumentOrdinal: 'second',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);

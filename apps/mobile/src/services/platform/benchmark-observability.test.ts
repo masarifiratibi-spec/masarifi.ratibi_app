@@ -11,9 +11,14 @@ jest.mock('expo', () =>
 );
 let log: jest.SpyInstance;
 beforeEach(() => {
+  jest.useFakeTimers({ doNotFake: ['performance'] });
   log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
 });
-afterEach(() => log.mockRestore());
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+  log.mockRestore();
+});
 const events = () =>
   log.mock.calls
     .filter(([prefix]) => prefix === 'BENCHMARK_METRIC')
@@ -69,6 +74,7 @@ it.each([
         rejectionShape: 'code_message',
         boundary: 'unrecognized',
         argumentOrdinal: 'none',
+        emissionSequence: expect.any(Number),
         atMs: expect.any(Number)
       }
     ]);
@@ -96,6 +102,7 @@ it('distinguishes JavaScript type errors and records successful reads', () => {
         rejectionShape: 'message_only',
         boundary: 'unrecognized',
         argumentOrdinal: 'none',
+        emissionSequence: expect.any(Number),
         atMs: expect.any(Number)
       },
       {
@@ -103,6 +110,7 @@ it('distinguishes JavaScript type errors and records successful reads', () => {
         operation: 'read',
         outcome: 'success',
         errorClass: 'none',
+        emissionSequence: expect.any(Number),
         atMs: expect.any(Number)
       }
     ]);
@@ -146,6 +154,7 @@ it.each([
           rejectionShape: 'code_message',
           boundary: 'unrecognized',
           argumentOrdinal: 'none',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);
@@ -180,6 +189,7 @@ it.each(['code', 'message'])(
           rejectionShape: 'unreadable',
           boundary: 'unrecognized',
           argumentOrdinal: 'none',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);
@@ -234,7 +244,13 @@ it('rejects invalid preference enums and strips private event extras', () => {
       rejectionShape: 'unreadable',
       boundary: 'kotlin_read_wrapper'
     } as never);
-    expect(events()).toEqual([{ ...valid, atMs: expect.any(Number) }]);
+    expect(events()).toEqual([
+      {
+        ...valid,
+        emissionSequence: expect.any(Number),
+        atMs: expect.any(Number)
+      }
+    ]);
   } finally {
     restore();
   }
@@ -338,6 +354,7 @@ it.each([
           rejectionShape: 'code_message',
           boundary,
           argumentOrdinal,
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);
@@ -375,6 +392,7 @@ it.each([
           rejectionShape,
           boundary: 'unrecognized',
           argumentOrdinal: 'none',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);
@@ -532,6 +550,7 @@ it('serializes only fixed enums and numeric metadata, ignoring private extras an
       kind: 'timing',
       stage: 'startup.fonts',
       elapsedMs: 12,
+      emissionSequence: expect.any(Number),
       atMs: expect.any(Number)
     });
     expect(JSON.stringify(events())).not.toMatch(
@@ -573,6 +592,7 @@ it('records real GET/HEAD attempts, normalized groups and nullable unknown lengt
         payloadBytes: 321,
         outcome: 'response',
         requestSequence: expect.any(Number),
+        emissionSequence: expect.any(Number),
         atMs: expect.any(Number),
         elapsedMs: expect.any(Number)
       },
@@ -653,6 +673,7 @@ it('emits the first protected route once per process and caps all output at 400 
         {
           kind: 'protected_route',
           category: 'unlock',
+          emissionSequence: expect.any(Number),
           atMs: expect.any(Number)
         }
       ]);

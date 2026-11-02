@@ -110,8 +110,7 @@ jest.mock('expo', () =>
 it.each(['ready', 'failed', 'left_route'] as const)(
   'records only the genuine post-layout Home release outcome: %s',
   (outcome) => {
-    const restore =
-      installBenchmarkEnvironment();
+    const restore = installBenchmarkEnvironment();
     const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
     try {
       const view = render(
@@ -135,7 +134,12 @@ it.each(['ready', 'failed', 'left_route'] as const)(
         layoutPage();
       }
       expect(events()).toEqual([
-        { kind: 'home', outcome, atMs: expect.any(Number) }
+        {
+          kind: 'home',
+          outcome,
+          emissionSequence: expect.any(Number),
+          atMs: expect.any(Number)
+        }
       ]);
       layoutPage();
       view.rerender(
