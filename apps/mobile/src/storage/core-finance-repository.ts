@@ -360,9 +360,14 @@ export class CoreFinanceRepository {
             )
           ).map((row) => row.resource_id)
         );
-        for (const category of categories)
-          if (!pending.has(category.id))
-            await persistCategory(transaction, category);
+        const writable = categories.filter(
+          (category) => !pending.has(category.id)
+        );
+        for (let offset = 0; offset < writable.length; offset += 100)
+          await persistCategoryBatch(
+            transaction,
+            writable.slice(offset, offset + 100)
+          );
       }
     );
   }
@@ -1630,14 +1635,23 @@ async function persistCategory(
   database: SqlRunner,
   category: Category
 ): Promise<void> {
+  await persistCategoryBatch(database, [category]);
+}
+
+async function persistCategoryBatch(
+  database: SqlRunner,
+  categories: readonly Category[]
+): Promise<void> {
   await database.runAsync(
-    'INSERT INTO finance_categories (id, payload, parent_id, status, merged_into_id, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, parent_id = excluded.parent_id, status = excluded.status, merged_into_id = excluded.merged_into_id, updated_at = excluded.updated_at',
-    category.id,
-    JSON.stringify(category),
-    category.parentId,
-    category.status,
-    category.mergedIntoId,
-    category.updatedAt
+    `INSERT INTO finance_categories (id, payload, parent_id, status, merged_into_id, updated_at) VALUES ${categories.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')} ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, parent_id = excluded.parent_id, status = excluded.status, merged_into_id = excluded.merged_into_id, updated_at = excluded.updated_at`,
+    ...categories.flatMap((category) => [
+      category.id,
+      JSON.stringify(category),
+      category.parentId,
+      category.status,
+      category.mergedIntoId,
+      category.updatedAt
+    ])
   );
 }
 

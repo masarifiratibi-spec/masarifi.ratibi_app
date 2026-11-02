@@ -94,6 +94,42 @@ afterAll(() => {
 });
 
 describe('session-controller', () => {
+  it.each([
+    ['AED', 0],
+    ['SAR', 1]
+  ] as const)(
+    'restores authoritative currency from %s with only %s automatic preference writes',
+    async (currency, writes) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      useAppShellStore.setState({ session: await auth.restoreSession() });
+      usePreferenceStore.setState({
+        baseCurrencyCode: currency,
+        hydrated: true
+      });
+      mockSavePreferences.mockClear();
+      const updates = jest.fn();
+      const unsubscribe = usePreferenceStore.subscribe(updates);
+      try {
+        await restoreAppShellSession(auth, () => true, {
+          getProfileSetup: async () => aedProfileSetup
+        });
+        expect(usePreferenceStore.getState().baseCurrencyCode).toBe('AED');
+        expect(useAppShellStore.getState().profileSetupSnapshot).toEqual(
+          aedProfileSetup
+        );
+        expect(mockSavePreferences).toHaveBeenCalledTimes(writes);
+        expect(updates).toHaveBeenCalledTimes(writes);
+        if (writes)
+          expect(mockSavePreferences).toHaveBeenLastCalledWith(
+            expect.objectContaining({ baseCurrencyCode: 'AED' })
+          );
+      } finally {
+        unsubscribe();
+      }
+    }
+  );
+
   it('keeps the already authorized same-owner local shell readable while profile revalidation is pending', async () => {
     const auth = createMockAuthService();
     await auth.signInWithGoogle();

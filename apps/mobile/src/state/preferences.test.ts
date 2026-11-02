@@ -26,6 +26,19 @@ beforeEach(() => {
   usePreferenceStore.setState({ ...buildPreferences({}), hydrated: false });
 });
 
+it.each(['currency', 'timeZone'] as const)(
+  'keeps explicit unchanged %s setter calls available to retry persistence',
+  (kind) => {
+    const state = usePreferenceStore.getState();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (kind === 'currency')
+        state.setBaseCurrencyCode(state.baseCurrencyCode);
+      else state.setTimeZone(state.timeZone);
+    }
+    expect(mockSavePreferences).toHaveBeenCalledTimes(2);
+  }
+);
+
 it('defaults reminders on for every new owner while preserving each explicit choice across switches and reloads', async () => {
   expect(effectiveReturnRemindersEnabled('new-owner')).toBe(true);
   await usePreferenceStore

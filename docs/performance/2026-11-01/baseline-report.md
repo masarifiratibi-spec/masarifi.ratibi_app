@@ -1,8 +1,8 @@
 # Performance baseline — 1 November 2026
 
-Status: **incomplete**. Accepted authenticated startup, screen and business-API samples: **0**. No speedup is claimed.
+Historical status on 1 November: **incomplete**, with 0 accepted authenticated samples. The [2 November authenticated baseline](../2026-11-02/authenticated-mobile-baseline-report.md) supersedes that measurement blocker: 40 process-cold launches, 40 separate native HOT resumes and 360 successful cold GET responses are now recorded. The cold target is not met; no application speedup is claimed.
 
-The [2 November continuation](../2026-11-02/runtime-query-deadline-report.md) adds 20 controlled Arabic guest process-cold launches on the unchanged Release APK: native Activity-draw p95 530 ms. This is separate from usable-screen or authenticated-data readiness. English, warm resume and authenticated business reads remain unqualified. The approved Metro wrapper was later restored on19081 (listener PID21264) after an external restart; Metro identities below are dated earlier observations.
+The [2 November continuation](../2026-11-02/runtime-query-deadline-report.md) adds 20 controlled Arabic guest process-cold launches on the unchanged Release APK: native Activity-draw p95 530 ms. This is separate from usable-screen or authenticated-data readiness. English, warm resume and authenticated business reads remain unqualified. The approved Metro wrapper was later restored on 19081 (listener PID 21264) after an external restart; Metro identities below are dated earlier observations.
 
 ## Environment
 
@@ -22,13 +22,13 @@ Original Metro PID12652 had disappeared externally. The user approved replacemen
 
 No percentile or comparative improvement is supported by these samples. Earlier guest builds and historical cumulative frame statistics are excluded from before/after claims. A DEV token-gated observation reached an observer deadline without an accepted API response; it is not an API-latency measurement.
 
-## Functional acceptance and measurement blocker
+## Historical 1 November functional acceptance and measurement blocker
 
 An actual Release startup failure was diagnosed to R8 eliminating an Expo Record annotation reference before SecureStore method execution. A targeted annotation-interface keep rule repaired it. Actual encrypted preference read, local first-launch write, and read after cold relaunch all succeeded without clearing keys/data, plaintext fallback or changing encryption. Welcome completion remains persisted and the Google sign-in screen is visible.
 
 The current benchmark uses an existing-account-only Google helper (`signUpIfMissing:false`), strict callback/nonce validation and exact SDK owner/session checks. It never invokes the generic SDK flow's automatic sign-up transfer. Native Google roundtrip remains untested: **Google has not been clicked**. Immediately before login, renew the read-only active-profile and ready-default-account predicate in the enabled matching currency. It briefly passed at19:49 Riyadh, then subsequent admission checks failed. At21:32 Riyadh a connection-pressure query again timed out; a separately bounded verify-full psql probe also timed out. See [incident evidence](current-database-incident.md).
 
-The benchmark-only fixed-schema sink caps attempted metric events at400/process, exporting no raw URLs, tokens, bodies, owners or financial values. It covers startup stages, first protected-route readiness, Home outcomes and GET/HEAD outcomes. Transport timing is fetch-to-Response, excluding preceding authentication and subsequent decoding; optional bytes are Content-Length metadata. Runtime `atMs` origin is unverified and must not be treated as process-start elapsed time. The harness still needs a verified launch/readiness clock alignment and adequate warm-resume observation.
+The benchmark-only fixed-schema sink caps attempted metric events at400/process, exporting no raw URLs, tokens, bodies, owners or financial values. It covers startup stages, first protected-route readiness, Home outcomes and GET/HEAD outcomes. Transport timing is fetch-to-Response, excluding preceding authentication and subsequent decoding; optional bytes are Content-Length metadata. The runtime clock was unverified in this 1 November observation. The linked authenticated continuation now empirically aligns Android event-log monotonic anchors with per-sample HomeReady, and separately records native HOT-resume renderer frames; it still does not equate native draw with complete usable-data readiness.
 
 ## Remaining controlled methodology
 

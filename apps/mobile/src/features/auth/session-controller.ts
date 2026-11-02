@@ -187,7 +187,11 @@ async function restoreCurrentSession(
     // Optional local persistence must not invalidate the server profile.
     await preferences.hydrate().catch(() => undefined);
     if (!(await admitted())) return;
-    if (snapshot.profile?.currency) {
+    if (
+      snapshot.profile?.currency &&
+      usePreferenceStore.getState().baseCurrencyCode !==
+        snapshot.profile.currency
+    ) {
       usePreferenceStore
         .getState()
         .setBaseCurrencyCode(snapshot.profile.currency);

@@ -1,0 +1,823 @@
+{
+  "date": "2026-11-02",
+  "apkSourceCommit": "815a029ccb562164be60447ecd1e69017b222507",
+  "apkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+  "package": "com.masarifi.mobile.benchmark",
+  "beforeAfterImprovementClaimed": false,
+  "appDataCleared": false,
+  "scenarios": {
+    "ar": {
+      "coldInputSha256": "e94ca72d4f067468185fee469921a709c3428bc1573ba6154544056560aa6b21",
+      "warmInputSha256": "fe35629d50e976c608955b31550ba7e8dd36e2ec1cccbc1c0d4f72360a838a94",
+      "coldUtcStart": "2026-11-02T08:42:43.992072+00:00",
+      "coldUtcEndLastLaunch": "2026-11-02T08:44:39.446909+00:00",
+      "cold": {
+        "nativeActivityDrawMs": {
+          "n": 20,
+          "min": 401,
+          "median": 426.5,
+          "p95NearestRank": 447,
+          "max": 719
+        },
+        "homeReadyFromProcessStartMs": {
+          "n": 20,
+          "min": 2972.69,
+          "median": 3267.798,
+          "p95NearestRank": 3519.423,
+          "max": 3874.157
+        },
+        "homeReadyFromActivityCreateMs": {
+          "n": 20,
+          "min": 3027.69,
+          "median": 3316.798,
+          "p95NearestRank": 3564.423,
+          "max": 3906.157
+        },
+        "processPssKiB": {
+          "n": 20,
+          "min": 213511,
+          "median": 236806.5,
+          "p95NearestRank": 238478,
+          "max": 238816
+        }
+      },
+      "coldRequests": {
+        "n": 180,
+        "perLaunch": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "status200": 180,
+        "method": "GET",
+        "retryOrFailedOutcomeObserved": false
+      },
+      "coldTransportGroups": {
+        "identity": {
+          "n": 60,
+          "min": 515.3328649997711,
+          "median": 599.1104689836502,
+          "p95NearestRank": 723.9698960781097,
+          "max": 726.9028120040894
+        },
+        "ledger": {
+          "n": 120,
+          "min": 134.30734395980835,
+          "median": 168.2388014793396,
+          "p95NearestRank": 595.9927079677582,
+          "max": 740.2744789123535
+        }
+      },
+      "coldSuccessfulPreferenceWritesPerLaunch": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "coldStageSummaries": {
+        "processToFirstHttp": {
+          "n": 20,
+          "medianMs": 1700.402,
+          "p95Ms": 1939.619,
+          "minMs": 1572.684,
+          "maxMs": 2266.097
+        },
+        "firstToLastHttp": {
+          "n": 20,
+          "medianMs": 1367.143,
+          "p95Ms": 1574.745,
+          "minMs": 1211.55,
+          "maxMs": 1645.433
+        },
+        "lastHttpToHomeReady": {
+          "n": 20,
+          "medianMs": 158.279,
+          "p95Ms": 226.286,
+          "minMs": 23.304,
+          "maxMs": 261.489
+        },
+        "identity.cache.read.duration": {
+          "n": 20,
+          "medianMs": 21.552,
+          "p95Ms": 28.051,
+          "minMs": 17.017,
+          "maxMs": 30.272
+        },
+        "identity.cache.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 1879.049,
+          "p95Ms": 2113.428,
+          "minMs": 1745.054,
+          "maxMs": 2447.491
+        },
+        "startup.fonts.duration": {
+          "n": 20,
+          "medianMs": 153.649,
+          "p95Ms": 169.432,
+          "minMs": 142.825,
+          "maxMs": 175.471
+        },
+        "startup.fonts.endFromProcess": {
+          "n": 20,
+          "medianMs": 1190.842,
+          "p95Ms": 1282.687,
+          "minMs": 1127.39,
+          "maxMs": 1614.865
+        },
+        "startup.identity.duration": {
+          "n": 20,
+          "medianMs": 540.674,
+          "p95Ms": 725.104,
+          "minMs": 435.78,
+          "maxMs": 735.538
+        },
+        "startup.identity.endFromProcess": {
+          "n": 20,
+          "medianMs": 1582.954,
+          "p95Ms": 1802.944,
+          "minMs": 1450.287,
+          "maxMs": 2146.235
+        },
+        "identity.local.read.duration": {
+          "n": 20,
+          "medianMs": 66.964,
+          "p95Ms": 78.485,
+          "minMs": 63.078,
+          "maxMs": 86.086
+        },
+        "identity.local.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 1696.719,
+          "p95Ms": 1934.419,
+          "minMs": 1569.635,
+          "maxMs": 2262.985
+        },
+        "identity.token.read.duration": {
+          "n": 20,
+          "medianMs": 0.162,
+          "p95Ms": 0.173,
+          "minMs": 0.153,
+          "maxMs": 0.173
+        },
+        "identity.token.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 2929.347,
+          "p95Ms": 3315.519,
+          "minMs": 2698.513,
+          "maxMs": 3678.815
+        },
+        "identity.onboarding.duration": {
+          "n": 20,
+          "medianMs": 608.58,
+          "p95Ms": 719.085,
+          "minMs": 522.105,
+          "maxMs": 732.773
+        },
+        "identity.onboarding.endFromProcess": {
+          "n": 20,
+          "medianMs": 2311.026,
+          "p95Ms": 2647.513,
+          "minMs": 2106.524,
+          "maxMs": 2982.498
+        },
+        "identity.profile.remote.duration": {
+          "n": 20,
+          "medianMs": 599.957,
+          "p95Ms": 724.1,
+          "minMs": 522.466,
+          "maxMs": 733.352
+        },
+        "identity.profile.remote.endFromProcess": {
+          "n": 20,
+          "medianMs": 2310.518,
+          "p95Ms": 2647.75,
+          "minMs": 2118.526,
+          "maxMs": 2982.797
+        },
+        "identity.preferences.duration": {
+          "n": 20,
+          "medianMs": 608.698,
+          "p95Ms": 729.052,
+          "minMs": 523.01,
+          "maxMs": 732.457
+        },
+        "identity.preferences.endFromProcess": {
+          "n": 20,
+          "medianMs": 2310.553,
+          "p95Ms": 2647.217,
+          "minMs": 2118.068,
+          "maxMs": 2992.404
+        },
+        "identity.local.write.duration": {
+          "n": 20,
+          "medianMs": 40.443,
+          "p95Ms": 46.956,
+          "minMs": 31.764,
+          "maxMs": 52.915
+        },
+        "identity.local.write.endFromProcess": {
+          "n": 20,
+          "medianMs": 2351.516,
+          "p95Ms": 2679.67,
+          "minMs": 2160.879,
+          "maxMs": 3030.058
+        },
+        "startup.profile.duration": {
+          "n": 20,
+          "medianMs": 726.562,
+          "p95Ms": 836.556,
+          "minMs": 631.345,
+          "maxMs": 842.51
+        },
+        "startup.profile.endFromProcess": {
+          "n": 20,
+          "medianMs": 2351.737,
+          "p95Ms": 2679.838,
+          "minMs": 2161.168,
+          "maxMs": 3030.241
+        },
+        "startup.restore.duration": {
+          "n": 20,
+          "medianMs": 812.164,
+          "p95Ms": 918.547,
+          "minMs": 706.096,
+          "maxMs": 929.844
+        },
+        "startup.restore.endFromProcess": {
+          "n": 20,
+          "medianMs": 2391.211,
+          "p95Ms": 2716.085,
+          "minMs": 2195.074,
+          "maxMs": 3067.531
+        },
+        "ledger.categories.duration": {
+          "n": 20,
+          "medianMs": 642.469,
+          "p95Ms": 861.423,
+          "minMs": 420.994,
+          "maxMs": 916.884
+        },
+        "ledger.categories.endFromProcess": {
+          "n": 20,
+          "medianMs": 3189.882,
+          "p95Ms": 3482.794,
+          "minMs": 2815.218,
+          "maxMs": 3622.208
+        },
+        "ledger.read.duration": {
+          "n": 20,
+          "medianMs": 487.88,
+          "p95Ms": 744.532,
+          "minMs": 446.314,
+          "maxMs": 749.712
+        },
+        "ledger.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 3063.461,
+          "p95Ms": 3325.955,
+          "minMs": 2807.62,
+          "maxMs": 3749.101
+        },
+        "ledger.today.duration": {
+          "n": 20,
+          "medianMs": 657.543,
+          "p95Ms": 869.598,
+          "minMs": 492.573,
+          "maxMs": 924.668
+        },
+        "ledger.today.endFromProcess": {
+          "n": 20,
+          "medianMs": 3226.383,
+          "p95Ms": 3484.565,
+          "minMs": 2817.141,
+          "maxMs": 3771.803
+        }
+      },
+      "nativeWarm": {
+        "nativeTotalTimeMs": {
+          "n": 20,
+          "median": 179.0,
+          "p95NearestRank": 267,
+          "min": 154,
+          "max": 319
+        },
+        "firstRendererFrameCompleteFromIntentMs": {
+          "n": 20,
+          "median": 253.6355,
+          "p95NearestRank": 344.723,
+          "min": 153.753,
+          "max": 421.274
+        }
+      },
+      "nativeWarmObservedReadCounts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    "en": {
+      "coldInputSha256": "ef37c0a95486906a11a7cdb50018591ae80d872a1a4aeb674bfa9a4a2f72cd25",
+      "warmInputSha256": "86a5ab0864fddaebb7f3376dfe039ab1a187f331332f5608549569506dd95f3d",
+      "coldUtcStart": "2026-11-02T08:50:45.528703+00:00",
+      "coldUtcEndLastLaunch": "2026-11-02T08:52:42.290895+00:00",
+      "cold": {
+        "nativeActivityDrawMs": {
+          "n": 20,
+          "min": 407,
+          "median": 444.0,
+          "p95NearestRank": 496,
+          "max": 537
+        },
+        "homeReadyFromProcessStartMs": {
+          "n": 20,
+          "min": 2983.302,
+          "median": 3297.8145,
+          "p95NearestRank": 3911.385,
+          "max": 4295.109
+        },
+        "homeReadyFromActivityCreateMs": {
+          "n": 20,
+          "min": 3014.302,
+          "median": 3336.7535,
+          "p95NearestRank": 3940.385,
+          "max": 4330.109
+        },
+        "processPssKiB": {
+          "n": 20,
+          "min": 213290,
+          "median": 239641.0,
+          "p95NearestRank": 240876,
+          "max": 241217
+        }
+      },
+      "coldRequests": {
+        "n": 180,
+        "perLaunch": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "status200": 180,
+        "method": "GET",
+        "retryOrFailedOutcomeObserved": false
+      },
+      "coldTransportGroups": {
+        "identity": {
+          "n": 60,
+          "min": 513.4941658973694,
+          "median": 558.8065878152847,
+          "p95NearestRank": 946.7644779682159,
+          "max": 1555.9700000286102
+        },
+        "ledger": {
+          "n": 120,
+          "min": 123.27796912193298,
+          "median": 169.05489599704742,
+          "p95NearestRank": 572.9686980247498,
+          "max": 1098.8123950958252
+        }
+      },
+      "coldSuccessfulPreferenceWritesPerLaunch": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "coldStageSummaries": {
+        "processToFirstHttp": {
+          "n": 20,
+          "medianMs": 1730.97,
+          "p95Ms": 1897.284,
+          "minMs": 1598.647,
+          "maxMs": 1917.517
+        },
+        "firstToLastHttp": {
+          "n": 20,
+          "medianMs": 1332.366,
+          "p95Ms": 1899.433,
+          "minMs": 1207.22,
+          "maxMs": 2247.481
+        },
+        "lastHttpToHomeReady": {
+          "n": 20,
+          "medianMs": 168.128,
+          "p95Ms": 216.556,
+          "minMs": 88.987,
+          "maxMs": 560.444
+        },
+        "identity.cache.read.duration": {
+          "n": 20,
+          "medianMs": 22.568,
+          "p95Ms": 30.815,
+          "minMs": 16.158,
+          "maxMs": 32.623
+        },
+        "identity.cache.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 1915.852,
+          "p95Ms": 2072.296,
+          "minMs": 1772.769,
+          "maxMs": 2095.272
+        },
+        "startup.fonts.duration": {
+          "n": 20,
+          "medianMs": 150.568,
+          "p95Ms": 162.084,
+          "minMs": 136.272,
+          "maxMs": 171.07
+        },
+        "startup.fonts.endFromProcess": {
+          "n": 20,
+          "medianMs": 1222.402,
+          "p95Ms": 1267.881,
+          "minMs": 1165.729,
+          "maxMs": 1356.867
+        },
+        "startup.identity.duration": {
+          "n": 20,
+          "medianMs": 539.364,
+          "p95Ms": 702.311,
+          "minMs": 435.102,
+          "maxMs": 758.644
+        },
+        "startup.identity.endFromProcess": {
+          "n": 20,
+          "medianMs": 1614.569,
+          "p95Ms": 1774.588,
+          "minMs": 1483.237,
+          "maxMs": 1791.088
+        },
+        "identity.local.read.duration": {
+          "n": 20,
+          "medianMs": 67.026,
+          "p95Ms": 75.894,
+          "minMs": 64.704,
+          "maxMs": 87.83
+        },
+        "identity.local.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 1727.557,
+          "p95Ms": 1893.959,
+          "minMs": 1595.394,
+          "maxMs": 1914.095
+        },
+        "identity.token.read.duration": {
+          "n": 20,
+          "medianMs": 0.159,
+          "p95Ms": 0.192,
+          "minMs": 0.152,
+          "maxMs": 0.208
+        },
+        "identity.token.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 2957.752,
+          "p95Ms": 3414.056,
+          "minMs": 2697.217,
+          "maxMs": 4029.087
+        },
+        "identity.onboarding.duration": {
+          "n": 20,
+          "medianMs": 565.38,
+          "p95Ms": 898.557,
+          "minMs": 521.471,
+          "maxMs": 953.581
+        },
+        "identity.onboarding.endFromProcess": {
+          "n": 20,
+          "medianMs": 2323.326,
+          "p95Ms": 2608.678,
+          "minMs": 2126.798,
+          "maxMs": 2682.714
+        },
+        "identity.preferences.duration": {
+          "n": 20,
+          "medianMs": 565.031,
+          "p95Ms": 954.87,
+          "minMs": 521.234,
+          "maxMs": 1564.805
+        },
+        "identity.preferences.endFromProcess": {
+          "n": 20,
+          "medianMs": 2327.136,
+          "p95Ms": 2683.926,
+          "minMs": 2127.205,
+          "maxMs": 3439.835
+        },
+        "identity.profile.remote.duration": {
+          "n": 20,
+          "medianMs": 565.958,
+          "p95Ms": 909.425,
+          "minMs": 520.95,
+          "maxMs": 964.246
+        },
+        "identity.profile.remote.endFromProcess": {
+          "n": 20,
+          "medianMs": 2321.623,
+          "p95Ms": 2619.235,
+          "minMs": 2136.951,
+          "maxMs": 2693.125
+        },
+        "identity.local.write.duration": {
+          "n": 20,
+          "medianMs": 41.076,
+          "p95Ms": 50.998,
+          "minMs": 33.796,
+          "maxMs": 53.058
+        },
+        "identity.local.write.endFromProcess": {
+          "n": 20,
+          "medianMs": 2368.563,
+          "p95Ms": 2739.049,
+          "minMs": 2175.788,
+          "maxMs": 3487.31
+        },
+        "startup.profile.duration": {
+          "n": 20,
+          "medianMs": 680.445,
+          "p95Ms": 1076.998,
+          "minMs": 640.272,
+          "maxMs": 1688.852
+        },
+        "startup.profile.endFromProcess": {
+          "n": 20,
+          "medianMs": 2368.793,
+          "p95Ms": 2739.322,
+          "minMs": 2176.039,
+          "maxMs": 3487.501
+        },
+        "startup.restore.duration": {
+          "n": 20,
+          "medianMs": 761.337,
+          "p95Ms": 1155.553,
+          "minMs": 726.522,
+          "maxMs": 1756.778
+        },
+        "startup.restore.endFromProcess": {
+          "n": 20,
+          "medianMs": 2404.446,
+          "p95Ms": 2775.212,
+          "minMs": 2214.772,
+          "maxMs": 3520.174
+        },
+        "ledger.categories.duration": {
+          "n": 20,
+          "medianMs": 649.522,
+          "p95Ms": 758.826,
+          "minMs": 399.497,
+          "maxMs": 1236.702
+        },
+        "ledger.categories.endFromProcess": {
+          "n": 20,
+          "medianMs": 3221.812,
+          "p95Ms": 3887.073,
+          "minMs": 2914.506,
+          "maxMs": 4271.944
+        },
+        "ledger.read.duration": {
+          "n": 20,
+          "medianMs": 519.716,
+          "p95Ms": 612.518,
+          "minMs": 451.427,
+          "maxMs": 1100.082
+        },
+        "ledger.read.endFromProcess": {
+          "n": 20,
+          "medianMs": 3098.72,
+          "p95Ms": 3613.732,
+          "minMs": 2813.241,
+          "maxMs": 4107.394
+        },
+        "ledger.today.duration": {
+          "n": 20,
+          "medianMs": 662.263,
+          "p95Ms": 1127.398,
+          "minMs": 508.836,
+          "maxMs": 1243.966
+        },
+        "ledger.today.endFromProcess": {
+          "n": 20,
+          "medianMs": 3259.429,
+          "p95Ms": 3888.88,
+          "minMs": 2963.531,
+          "maxMs": 4273.703
+        }
+      },
+      "nativeWarm": {
+        "nativeTotalTimeMs": {
+          "n": 20,
+          "median": 179.0,
+          "p95NearestRank": 221,
+          "min": 154,
+          "max": 240
+        },
+        "firstRendererFrameCompleteFromIntentMs": {
+          "n": 20,
+          "median": 266.9685,
+          "p95NearestRank": 336.797,
+          "min": 193.2,
+          "max": 342.059
+        }
+      },
+      "nativeWarmObservedReadCounts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    }
+  },
+  "readScreenSmoke": {
+    "arabic": [
+      {
+        "screen": "home",
+        "n": 1,
+        "observedRequests": 9,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "accounts",
+        "n": 1,
+        "observedRequests": 4,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "transactions",
+        "n": 1,
+        "observedRequests": 7,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "reports",
+        "n": 1,
+        "observedRequests": 6,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "more",
+        "n": 1,
+        "observedRequests": 8,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      }
+    ],
+    "english": [
+      {
+        "screen": "home",
+        "n": 1,
+        "observedRequests": 9,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "accounts",
+        "n": 1,
+        "observedRequests": 4,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "transactions",
+        "n": 1,
+        "observedRequests": 7,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "reports",
+        "n": 1,
+        "observedRequests": 6,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      },
+      {
+        "screen": "more",
+        "n": 1,
+        "observedRequests": 8,
+        "observedStatus200": true,
+        "fixedObservationSeconds": 6,
+        "readyTimeMeasured": false
+      }
+    ]
+  },
+  "limitations": [
+    "HomeReady is the actual Home data/layout loading boundary, not physical frame presentation.",
+    "Process-cold preserves account data and warm OS/filesystem caches; no fully uncached or populated-list qualification.",
+    "Native HOT resumes do not establish authoritative refreshed-data readiness or the warm usable-screen target.",
+    "Transport starts at fetch and ends at Response; auth acquisition, JSON decoding and local projection are excluded.",
+    "Content-Length values are metadata, not measured wire bytes.",
+    "Fixed six-second screen smoke observations are not screen-transition/data-ready latency.",
+    "No p99, concurrency, writes, provider work or paired speedup claim."
+  ]
+}

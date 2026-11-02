@@ -17,7 +17,7 @@ Decision: **NOT READY**. Cleanup and a scoped Staging Admin release have execute
 | Hosted schema/RPC/backports and worker leases | NOT RECONCILED; preserve current roles/admission/owner scopes and pending operations |
 | One canonical API/worker release | INCOMPLETE:14 existing APIs and 11 workers remain protected pending capability and data correctness gates |
 | Observation | Admin originally promoted2026-11-01T21:08:45.348383+00:00; observation resumed after approved host reboot at2026-11-01T22:01:42.804184+00:00, due24 hours later. Full canonical release observation has not begun |
-| Benchmark authentication/app timings | Exact815a029c independent APK remains installed; zero accepted authenticated startup/API samples, no measured speedup pair |
+| Benchmark authentication/app timings | Exact815a029c independent APK: 40 accepted authenticated process-cold launches and 360 successful GETs; cold p95 exceeds 3 s; 40 native HOT resumes do not qualify complete refreshed-data readiness; no speedup pair |
 | Production identity/signing/observability/write flows | NOT QUALIFIED; financial writes, registration/deletion replay, paid AI and delivery remain outside selected acceptance |
 
 The [off-host Admin build](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/41347012074) used the existing public Clerk/API configuration and a fictional build-only server placeholder; the actual secret remained on the VPS. Build Node 24.16.0/npm 11.17.0 and measured runtime Node 24.20.0 are recorded separately. A failed owned 1 GiB build was isolated, logged and removed before the off-host artifact was staged; no production process OOM is attributed to it.
@@ -35,3 +35,5 @@ The subsequent [explicitly approved retirement](../2026-11-02/old-success-event-
 
 
 The [hosted schema compatibility review](../2026-11-02/hosted-schema-compatibility-report.md) confirms that canonical tracking/late-upload-erasure helpers are absent and the current hosted history fails the canonical ordered-prefix check. Preserve current callers and leave automatic migration execution off until reviewed corrections and restoration/owner tests pass.
+
+The [authenticated Arabic/English continuation](../2026-11-02/authenticated-mobile-baseline-report.md) records 20 process-cold launches and 20 separate native HOT resumes per language on the unchanged Release APK. All 360 cold GETs succeeded. Activity-create-to-HomeReady p95 is 3564.4 ms Arabic and 3940.4 ms English, above the 3000 ms target. Read-screen/layout smokes passed for the observed empty account, but populated lists, accurate cached transition timing and origin-stage API attribution remain incomplete. These measurements do not remove the hosted compatibility or recovery gates.

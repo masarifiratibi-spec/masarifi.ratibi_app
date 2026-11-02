@@ -16,8 +16,14 @@ const mockDatabaseFor = (payloads: Map<string, string>) => ({
       ? Array.from(payloads.values(), (payload) => ({ payload }))
       : []
   ),
-  runAsync: jest.fn(async (_sql: string, id: string, payload: string) => {
-    payloads.set(id, payload);
+  runAsync: jest.fn(async (_sql: string, ...values: unknown[]) => {
+    for (let offset = 0; offset < values.length; offset += 6) {
+      const id = values[offset];
+      const payload = values[offset + 1];
+      if (typeof id !== 'string' || typeof payload !== 'string')
+        throw new Error('unsupported category write');
+      payloads.set(id, payload);
+    }
   })
 });
 const mockOwnerDatabase = mockDatabaseFor(mockCategoryPayloads);

@@ -162,9 +162,10 @@ export function FoundationProviders({
         state.session?.status === 'authenticated' &&
         ['complete', 'incomplete'].includes(state.profileSetupStatus)
       ) {
-        usePreferenceStore
-          .getState()
-          .setTimeZone(resolveEffectiveTimeZone(snapshot.profile.timeZone));
+        const timeZone = resolveEffectiveTimeZone(snapshot.profile.timeZone);
+        const preferences = usePreferenceStore.getState();
+        if (preferences.timeZone !== timeZone)
+          preferences.setTimeZone(timeZone);
         client.setQueryData<UserProfile>(['settings', 'profile'], (cached) =>
           cached && cached.version > snapshot.profile.version
             ? cached

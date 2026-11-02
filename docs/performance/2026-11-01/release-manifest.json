@@ -15,7 +15,7 @@
     "javascriptBundled": true,
     "apkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
     "certificateSha256": "68fd00ac6ef649e053a2bfcd571b4316fda0f484cf23460e3fcac8dcd8122e8a",
-    "deviceAcceptance": "Exact815a029c installed; encrypted preference read and persisted first-launch completion pass; Google not clicked",
+    "deviceAcceptance": "Exact815a029c installed; existing owner admitted;40 authenticated process-cold launches and40 separate native HOT resumes; current empty-account layouts/read screens inspected; no financial mutation",
     "apkBytes": 49420701,
     "temporarySourceInstallPermission": "revoked; appops deny and UI switch off verified",
     "originalInstalledAppsPreserved": true,
@@ -26,7 +26,7 @@
       "androidWaitTimeMs": 518,
       "acceptedAuthenticatedStartupSamples": 0
     },
-    "lastOwnerPreflight": "Active profile and ready enabled matching-currency default account briefly verified; renew immediately before login because later read-only admission timed out",
+    "lastOwnerPreflight": "2026-11-02T08:27:55Z:existing active owner and ready default account verified before admission",
     "storageDiagnostic": {
       "read": "success",
       "write": "success on native fix26511585; persisted into815a029c",
@@ -34,6 +34,21 @@
       "rootCause": "R8 removed Expo Record annotation reference before SecureStore body",
       "encryptionChanged": false,
       "dataOrKeysCleared": false
+    },
+    "authenticatedBaseline": {
+      "report": "../2026-11-02/authenticated-mobile-baseline-report.md",
+      "evidence": "../2026-11-02/authenticated-mobile-baseline-evidence.json",
+      "coldSamplesPerLanguage": 20,
+      "coldGetResponses": 360,
+      "coldStatus200Responses": 360,
+      "coldHomeReadyActivityCreateP95Ms": {
+        "ar": 3564.423,
+        "en": 3940.385
+      },
+      "nativeHotResumeSamplesPerLanguage": 20,
+      "completeWarmDataReadinessQualified": false,
+      "coldTargetPassed": false,
+      "beforeAfterSpeedupClaimed": false
     }
   },
   "canonicalBackendImageDigest": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",

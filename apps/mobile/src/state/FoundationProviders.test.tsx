@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Platform, Pressable, Text } from 'react-native';
 import { QueryClient } from '@tanstack/react-query';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
 
 import { resolveTheme } from '@/design-system/theme';
 import { usePreferenceStore } from '@/state/preferences';
@@ -54,6 +55,70 @@ beforeEach(() => {
   mockSystemScheme = 'light';
   usePreferenceStore.setState({ theme: 'system' });
 });
+
+it.each([
+  ['Asia/Dubai', 0],
+  ['Asia/Riyadh', 1]
+] as const)(
+  'applies validated profile timezone from %s with only %s automatic keystore writes',
+  async (timeZone, writes) => {
+    usePreferenceStore.setState({ hydrated: true, timeZone });
+    useAppShellStore.setState({
+      session: {
+        status: 'authenticated',
+        userId: 'bootstrap-zone-owner'
+      } as never,
+      profileSetupSnapshot: null,
+      profileSetupStatus: 'loading'
+    });
+    const client = new QueryClient();
+    const view = render(
+      <FoundationProviders client={client}>
+        <></>
+      </FoundationProviders>
+    );
+    const persisted = jest.mocked(SecureStore.setItemAsync);
+    persisted.mockClear();
+    const updates = jest.fn();
+    const unsubscribe = usePreferenceStore.subscribe(updates);
+    try {
+      await act(async () => {
+        for (const version of [2, 3])
+          useAppShellStore.getState().setProfileSetup('complete', {
+            complete: true,
+            profile: {
+              name: 'Validated',
+              currency: 'AED',
+              timeZone: 'Asia/Dubai',
+              version
+            }
+          } as ProfileSetupSnapshot);
+      });
+      expect(usePreferenceStore.getState().timeZone).toBe('Asia/Dubai');
+      const preferenceWrites = persisted.mock.calls.filter(
+        ([key]) => key === 'masarifi.preferences'
+      );
+      expect(preferenceWrites).toHaveLength(writes);
+      expect(updates).toHaveBeenCalledTimes(writes);
+      if (writes)
+        expect(JSON.parse(preferenceWrites[0]![1])).toMatchObject({
+          timeZone: 'Asia/Dubai'
+        });
+      expect(client.getQueryData(['settings', 'profile'])).toMatchObject({
+        version: 3
+      });
+    } finally {
+      unsubscribe();
+      view.unmount();
+      client.clear();
+      useAppShellStore.setState({
+        session: null,
+        profileSetupSnapshot: null,
+        profileSetupStatus: 'unknown'
+      });
+    }
+  }
+);
 
 it('reuses the validated bootstrap profile and does not overwrite a newer profile query', async () => {
   usePreferenceStore.setState({ hydrated: true });
