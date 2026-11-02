@@ -1,11 +1,13 @@
 import { URL } from 'node:url';
 import { Buffer } from 'node:buffer';
 import benchmarkPolicy from './benchmark-build-policy.cjs';
+import performanceQaExclusion from './performance-qa-exclusion.cjs';
 
 const clerkKeyPattern = /^pk_(?:live|test)_[A-Za-z0-9_-]{10,}$/;
 const publicSecretPattern = /^EXPO_PUBLIC_.*(?:API_KEY|SECRET|SERVICE_ROLE)/;
 
 export function validateClientBuildEnvironment(environment = process.env) {
+  performanceQaExclusion.assertNormalBuildComposition(environment);
   const exposed = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
   );

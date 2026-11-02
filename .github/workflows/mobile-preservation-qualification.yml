@@ -37,7 +37,9 @@ jobs:
         run: npm install --global npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
       - run: node --test scripts/native-stability-fixes.test.mjs scripts/sqlite-cleanup-fix.test.mjs scripts/screens-fabric-fix.test.mjs
-      - run: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs
+      - run: |
+          node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs scripts/performance-qa-exclusion.test.mjs
+          node --test ../../scripts/qa/performance/*.test.cjs
       - run: node --test --test-concurrency=1 ../../packages/transaction-parser/*.test.js
       - run: npm run typecheck
       - run: npm run lint

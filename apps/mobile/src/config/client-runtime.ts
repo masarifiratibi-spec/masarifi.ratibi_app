@@ -24,6 +24,8 @@ const bundledEnvironment = (): RuntimeEnvironment => ({
   EXPO_PUBLIC_BENCHMARK_READ_ONLY: process.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY,
   EXPO_PUBLIC_BENCHMARK_OWNER_ID: process.env.EXPO_PUBLIC_BENCHMARK_OWNER_ID,
   EXPO_PUBLIC_RELEASE_CHANNEL: process.env.EXPO_PUBLIC_RELEASE_CHANNEL,
+  EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256:
+    process.env.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256,
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 });
@@ -155,6 +157,12 @@ export function resolveClientRuntime(
   environment: RuntimeEnvironment = bundledEnvironment(),
   nodeEnvironment = process.env.NODE_ENV
 ): ClientRuntime {
+  if (
+    environment.EXPO_PUBLIC_APP_VARIANT === 'performance-qa' ||
+    environment.EXPO_PUBLIC_RELEASE_CHANNEL === 'performance-qa' ||
+    environment.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256 !== undefined
+  )
+    throw new Error('Performance QA requires private composition');
   isBenchmarkReadOnly(environment);
   const exposedSecret = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)

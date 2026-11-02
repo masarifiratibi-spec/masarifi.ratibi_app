@@ -3,8 +3,12 @@ const { URL } = globalThis;
 const {
   validateBenchmarkBuildEnvironment
 } = require('./scripts/benchmark-build-policy.cjs');
+const {
+  assertNormalBuildComposition
+} = require('./scripts/performance-qa-exclusion.cjs');
 
 module.exports = ({ config }) => {
+  assertNormalBuildComposition(process.env, config);
   if (validateBenchmarkBuildEnvironment(process.env)) {
     return {
       ...config,

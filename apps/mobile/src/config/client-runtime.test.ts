@@ -17,6 +17,37 @@ const devAppLockRuntime = {
 };
 
 describe('Mobile client runtime policy', () => {
+  it.each([
+    { EXPO_PUBLIC_APP_VARIANT: 'performance-qa' },
+    { EXPO_PUBLIC_RELEASE_CHANNEL: 'performance-qa' },
+    { EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256: 'a'.repeat(64) },
+    { EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256: '' },
+    { EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256: 'false' }
+  ])('rejects private QA configuration before every ordinary client mode: %j', (marker) => {
+    for (const mode of ['live', 'demo', 'test']) {
+      expect(() =>
+        resolveClientRuntime(
+          { ...liveEnvironment, ...marker, EXPO_PUBLIC_CLIENT_MODE: mode },
+          'test'
+        )
+      ).toThrow('Performance QA requires private composition');
+    }
+  });
+
+  it('rejects the bundled private manifest marker without an explicit environment argument', () => {
+    const original = process.env.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256;
+    try {
+      process.env.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256 = 'a'.repeat(64);
+      expect(() => resolveClientRuntime()).toThrow(
+        'Performance QA requires private composition'
+      );
+    } finally {
+      if (original === undefined)
+        delete process.env.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256;
+      else process.env.EXPO_PUBLIC_PERFORMANCE_QA_MANIFEST_SHA256 = original;
+    }
+  });
+
   const privacyEnvironment = {
     ...liveEnvironment,
     EXPO_PUBLIC_APP_VARIANT: 'staging-development-privacy',
