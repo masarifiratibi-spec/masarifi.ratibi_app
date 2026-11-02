@@ -1,6 +1,6 @@
 # Supabase optimization and recovery — 2 November 2026
 
-**Live recovery changes applied and verified. Production decision: NOT READY.** Work remains on `codex/voice-promoted-operating-2026-10-13`. Current evidence supersedes the earlier failed deployment attempts. No financial rows, users, Storage objects or unpublished events were deleted. The API/worker source corrections are tested but not deployed.
+**Live recovery changes applied and verified. Production decision: NOT READY.** Work remains on `codex/voice-promoted-operating-2026-10-13`. Current evidence supersedes the earlier failed deployment attempts. No financial rows, users or Storage objects were deleted. The user separately approved retirement of 408,734 exact old operational success notifications after encrypted archival and full restoration verification; other pending events remain protected. The API/worker source corrections are tested but not deployed.
 
 ## Completed changes
 
@@ -12,7 +12,7 @@
 | Table maintenance | Set only Outbox `autovacuum_vacuum_scale_factor=0.05`; autovacuum completed at 07:10:13 UTC. Dead-tuple estimate fell from 95,934 to zero at 07:22:28. |
 | Runtime login defaults | Both existing runtime login roles now have `statement_timeout=2s`; connection limits remain 20. Applied in an explicit transaction through verify-full TLS and verified by the plugin at 07:23:09 UTC. Existing pooler backends are not retroactively reconfigured. |
 
-Database size was 465,284,243 bytes before queue maintenance and 435,170,451 afterward: **30,113,792 net bytes less**. The removed index itself occupied 30,179,328 bytes; background growth explains the difference. Autovacuum makes dead space reusable; it does not guarantee disk-file shrinkage. No `VACUUM FULL`, broad pruning or pending-work deletion was performed.
+Database size was 465,284,243 bytes before queue maintenance and 435,170,451 afterward: **30,113,792 net bytes less**. The removed index itself occupied 30,179,328 bytes; background growth explains the difference. Autovacuum makes dead space reusable; it does not guarantee disk-file shrinkage. This index-maintenance phase deleted no rows. The subsequently approved operational-success retirement is documented below; no `VACUUM FULL` or broad pruning was performed.
 
 Both migrations preserved the complete `pg_auth_members` fingerprint `c47ffe096cd56bba3e213241d59cde5e`. MCP generated different timestamps, so only the two exact newly inserted history rows were reconciled to canonical source versions after matching name, statement count and SQL MD5. Other historical backports remain unreconciled: do not run the entire migration chain automatically.
 
@@ -54,6 +54,6 @@ PostgreSQL 17.11.0.011 is offered, but the isolated target clone did not start a
 
 ## Outstanding gates
 
-The [space attribution follow-up](supabase-space-root-cause.md) identifies 90.2% of database bytes in Outbox/job/provider bookkeeping. The reviewed `20261102073431` correction is now live: nine natural zero-claim sync runs retained their job history while producing zero redundant success events. An additional 5,760 expired provider checks were archived, restored/hash-verified and deleted under the existing 35-day policy; no additional filesystem shrink is claimed. Old pending Outbox events remain protected.
+The [space attribution follow-up](supabase-space-root-cause.md) identifies 90.2% of initial database bytes in Outbox/job/provider bookkeeping. The reviewed `20261102073431` correction is live: nine natural zero-claim sync runs retained their job history while producing zero redundant success events in the documented first window. An additional 5,760 expired provider checks were archived, restored/hash-verified and deleted under the existing 35-day policy. The separately approved 408,734 historical success notifications have now been archived, restored/hash-verified and retired. No additional filesystem shrink is claimed; other pending events remain protected. [Retirement evidence](old-success-event-retirement-evidence.json).
 
 Rebuild and qualify the source fixes, reconcile required route/worker capabilities and hosted history, then deploy gradually with rollback. Renew the existing-owner/default-account preflight before benchmark login. Authenticated Arabic/English app timings and business-API measurements remain incomplete. Twenty Arabic guest launches have native Activity-draw p95 530 ms; that is not usable account readiness. Production remains **NOT READY**.

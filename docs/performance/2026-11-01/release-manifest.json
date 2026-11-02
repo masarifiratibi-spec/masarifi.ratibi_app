@@ -167,7 +167,35 @@
     "suppressionMigrationVersion": "20261102073431",
     "expiredProviderChecksDeleted": 5760,
     "providerArchiveRestoreVerified": true,
-    "pendingEventsDeleted": 0,
-    "spaceAttributionReport": "../2026-11-02/supabase-space-root-cause.md"
+    "pendingEventsDeleted": 408734,
+    "spaceAttributionReport": "../2026-11-02/supabase-space-root-cause.md",
+    "historicalOperationalSuccessEventsRetired": 408734,
+    "otherPendingEventsDeleted": 0,
+    "retirementArchiveSha256": "8857c69039cd32d2f2192221b3e22a03c27087f6fedef09485efb24d1038d0bd",
+    "retirementRestoreAllRowHashesVerified": true,
+    "retirementEvidence": "../2026-11-02/old-success-event-retirement-evidence.json",
+    "postRetirementDeadTupleEstimate": 0,
+    "physicalCompactionPerformed": false
+  },
+  "latestBranchQualification": {
+    "candidateCommit": "ea30c3a3efa5038b017ac89be69504a2041bcce2",
+    "run": 41408486741,
+    "status": "success",
+    "applicationDatabaseMobilePassed": true,
+    "fullRequiredChecksPassed": true,
+    "productionReadiness": "NOT READY",
+    "productionSigning": "skipped",
+    "imageDigest": "sha256:6c94ac56656142a65cee4f09512f8db8e2f89c2dc4285cd0bd897b4c2766e348",
+    "sourceFixesDeployed": false
+  },
+  "latestQualifiedBackendCandidate": {
+    "sourceCommit": "ea30c3a3efa5038b017ac89be69504a2041bcce2",
+    "imageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:6c94ac56656142a65cee4f09512f8db8e2f89c2dc4285cd0bd897b4c2766e348",
+    "foundationRun": 41408486741,
+    "configuredSecurityScanPassed": true,
+    "imageContractsPassed": true,
+    "published": true,
+    "deployed": false,
+    "hostedCompatibilityGate": "blocked_pending_reviewed_schema_and_history_reconciliation"
   }
 }

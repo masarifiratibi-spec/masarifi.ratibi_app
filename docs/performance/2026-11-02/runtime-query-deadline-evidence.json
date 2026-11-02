@@ -13,7 +13,7 @@
     ],
     "eachLoginConnectionLimit": 20
   },
-  "databaseRowsDeleted": 5760,
+  "databaseRowsDeleted": 414494,
   "databaseBytesReclaimed": 30113792,
   "focusedIntegration": {
     "numPassedTests": 13,
@@ -172,7 +172,10 @@
     "operatorSqlSha256": "731fbc2c67e3fd841382923e8256cce4686c867344431b6b821bb34cab0c478b"
   },
   "financialRowsDeleted": 0,
-  "pendingEventsDeleted": 0,
+  "pendingEventsDeleted": 408734,
   "expiredProviderChecksDeleted": 5760,
-  "spaceFollowUp": "supabase-space-root-cause.md"
+  "spaceFollowUp": "supabase-space-root-cause.md",
+  "otherPendingEventsDeleted": 0,
+  "oldOperationalSuccessNotificationsRetired": 408734,
+  "retirementEvidence": "old-success-event-retirement-evidence.json"
 }

@@ -1,6 +1,6 @@
 # Runtime resource fixes and measured guest startup
 
-Status: **NOT READY. Two source fixes are tested; neither is deployed to the live API/worker services. Micro, the lookup index, queue maintenance and new-login deadlines are now applied and verified; current live evidence is linked below.** Work remains on `codex/voice-promoted-operating-2026-10-13`, based on `d1eaa7be`. No production cutover, main merge, financial/pending-data deletion or mobile replacement occurred. The later [space follow-up](supabase-space-root-cause.md) records verified expired-provider-check cleanup and live suppression of redundant zero-claim sync success events.
+Status: **NOT READY. Two source fixes are tested; neither is deployed to the live API/worker services. Micro, the lookup index, queue maintenance and new-login deadlines are now applied and verified; current live evidence is linked below.** Work remains on `codex/voice-promoted-operating-2026-10-13`, based on `d1eaa7be`. No production cutover, main merge, financial/domain-data deletion or mobile replacement occurred. The later [space follow-up](supabase-space-root-cause.md) records verified expired-provider-check cleanup and live suppression of redundant zero-claim sync success events.
 
 ## Proven causes and corrections
 
@@ -44,7 +44,7 @@ There were four measured identity-cache reads per launch, 80 in total, with p95 
 
 ## Space, health and next gate
 
-No financial/pending rows or Storage objects were removed. The redundant-index removal reclaimed **30,113,792 net database bytes**. Later cleanup deleted 5,760 expired provider checks only after encrypted export and hash-verified isolated restoration; their physical table size did not shrink. The large unpublished Outbox population remains durable pending work; age alone does not authorize dropping it. Existing retention predicates and owner relationships remain intact.
+No financial/domain events or Storage objects were removed. The redundant-index removal reclaimed **30,113,792 net database bytes**. Later cleanup deleted 5,760 expired provider checks only after encrypted export and hash-verified isolated restoration. The user then explicitly approved archival and retirement of 408,734 exact old operational success notifications; that completed after full restoration verification. Neither row cleanup is claimed to shrink files. Other pending events remain protected; existing owner relationships remain intact. [Retirement evidence](old-success-event-retirement-evidence.json).
 
 The separate VPS sample at 23:41:25 UTC retained approximately 75.15 GB available disk and 4.43 GB available RAM; all 14 protected API liveness checks returned 200 and there were no failed systemd units. CPU measurements are short snapshots, and the voice-worker restart loop is a material exception to healthy service operation. VPS memory is not Supabase-host memory.
 
