@@ -87,9 +87,16 @@ export class PoolService implements OnModuleDestroy {
 
   private async connect(): Promise<PoolClient> {
     const client = await this.pool.connect();
-    if (!this.runtimeRole || this.initializedClients.has(client)) return client;
+    if (this.initializedClients.has(client)) return client;
     try {
-      await client.query(`set role ${this.runtimeRole}`);
+      // A client deadline does not cancel work behind the session pooler.
+      // Keep stricter server budgets; PostgreSQL stores this setting in ms.
+      const deadline =
+        "select set_config('statement_timeout', least(nullif((select setting::integer from pg_settings where name='statement_timeout'), 0), 2000)::text, false)";
+      const initialization = this.runtimeRole
+        ? `${deadline}; set role ${this.runtimeRole}`
+        : deadline;
+      await client.query(initialization);
       this.initializedClients.add(client);
       return client;
     } catch (error) {

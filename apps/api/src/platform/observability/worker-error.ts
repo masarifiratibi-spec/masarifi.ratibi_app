@@ -174,6 +174,19 @@ function describe(error: unknown): SafeWorkerException {
     (codes.has(rawCode) || sqlStates.has(rawCode) || reasons.has(rawCode))
       ? rawCode
       : undefined;
+  // Supavisor reports its session-capacity limit as generic SQLSTATE XX000.
+  // Recognize this exact wire format without making other internal errors retryable.
+  const poolCapacity =
+    code === 'XX000' &&
+    typeof message === 'string' &&
+    /^\(EMAXCONNSESSION\) max clients reached in session mode - max clients are limited to pool_size: [1-9]\d{0,5}$/.test(
+      message,
+    );
+  const reason = poolCapacity
+    ? 'DATABASE_POOL_CAPACITY'
+    : message && reasons.has(message)
+      ? message
+      : 'unclassified';
   const stack = field(error, 'stack');
   // Skip the exception header; accept only frame lines at explicitly trusted paths.
   const frames =
@@ -197,8 +210,8 @@ function describe(error: unknown): SafeWorkerException {
   return {
     name,
     ...(code ? { code } : {}),
-    reason: message && reasons.has(message) ? message : 'unclassified',
-    ...(message && !reasons.has(message)
+    reason,
+    ...(message && reason === 'unclassified'
       ? { messageHash: createHash('sha256').update(message).digest('hex') }
       : {}),
     frames,

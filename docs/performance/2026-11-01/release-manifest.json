@@ -136,13 +136,32 @@
     "originalDiscardDeviceLimitsRestored": true,
     "memoryLeakProven": false
   },
-  "currentBranchApiAdminPackageAndDockerTreesEqualQualifiedCandidate": true,
+  "currentBranchApiAdminPackageAndDockerTreesEqualQualifiedCandidate": false,
   "pendingDatabaseOptimization": {
     "sourceMigration": "supabase/migrations/20261101223723_outbox_voice_confirmation_lookup_index.sql",
     "sha256": "f3cfc33fb1f267572bf7d1eaee67cc544f24583b0998b07c3c1b3784dea0edbb",
-    "liveApplied": false,
-    "lastLiveReconciliationAtUtc": "2026-11-01T23:01:34.816878+00:00",
+    "liveApplied": true,
+    "lastLiveReconciliationAtUtc": "2026-11-02T07:23:09.541950Z",
     "report": "../2026-11-02/supabase-optimization-report.md",
     "fullBranchQualificationPassed": false
+  },
+  "pendingRuntimeOptimization": {
+    "baseCommit": "d1eaa7bef0cc2e4203f29884696a411f6d34423f",
+    "sourceFixesDeployed": false,
+    "roleDefaultsApplied": true,
+    "report": "../2026-11-02/runtime-query-deadline-report.md",
+    "evidence": "../2026-11-02/runtime-query-deadline-evidence.json",
+    "qualifiedImageMustBeRebuilt": true
+  },
+  "supabaseLiveRecovery": {
+    "evidence": "../2026-11-02/supabase-live-recovery-evidence.json",
+    "compute": "Micro",
+    "incrementalMonthlyComputeQuoteUsd": 0,
+    "indexApplied": true,
+    "queueCleanupApplied": true,
+    "runtimeLoginDefaultsApplied": true,
+    "databaseNetReductionBytes": 30113792,
+    "allHostedMigrationHistoryReconciled": false,
+    "postgresPatchUpgradeApplied": false
   }
 }

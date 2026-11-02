@@ -112,8 +112,18 @@ it('uses separate least-privilege connections for normal sync claims and ledger 
         'composition-probe',
       ),
     ).rejects.toBeDefined();
-    expect(observed).toContainEqual({ connection: workerUrl, sql: 'set role masarifi_worker' });
-    expect(observed).toContainEqual({ connection: apiUrl, sql: 'set role masarifi_api' });
+    expect(
+      observed.some(
+        (entry) =>
+          entry.connection === workerUrl && /(?:^|;\s*)set role masarifi_worker$/.test(entry.sql),
+      ),
+    ).toBe(true);
+    expect(
+      observed.some(
+        (entry) =>
+          entry.connection === apiUrl && /(?:^|;\s*)set role masarifi_api$/.test(entry.sql),
+      ),
+    ).toBe(true);
     expect(observed).not.toContainEqual({
       connection: workerUrl,
       sql: 'set local role masarifi_api',

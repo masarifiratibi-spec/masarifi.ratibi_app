@@ -18,7 +18,7 @@ describeLiveDatabase('Database callback timeout isolation', () => {
       const first = await pool.query<{ pid: number }>('select pg_backend_pid() pid');
       await expect(
         pool.query(
-          "begin; select set_config('client_test.owner','previous-query-owner',true); select pg_sleep(3)",
+          "begin; set local statement_timeout = '10s'; select set_config('client_test.owner','previous-query-owner',true); select pg_sleep(3)",
           [],
           10000,
         ),
@@ -55,6 +55,7 @@ describeLiveDatabase('Database callback timeout isolation', () => {
       await expect(
         pool.withClient(async (client) => {
           await client.query('begin');
+          await client.query("set local statement_timeout = '10s'");
           firstPid = (await client.query<{ pid: number }>('select pg_backend_pid() pid')).rows[0]
             ?.pid;
           await client.query("select set_config('client_test.owner', 'previous-owner', true)");

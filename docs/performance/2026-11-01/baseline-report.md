@@ -2,6 +2,8 @@
 
 Status: **incomplete**. Accepted authenticated startup, screen and business-API samples: **0**. No speedup is claimed.
 
+The [2 November continuation](../2026-11-02/runtime-query-deadline-report.md) adds 20 controlled Arabic guest process-cold launches on the unchanged Release APK: native Activity-draw p95 530 ms. This is separate from usable-screen or authenticated-data readiness. English, warm resume and authenticated business reads remain unqualified. The approved Metro wrapper was later restored on19081 (listener PID21264) after an external restart; Metro identities below are dated earlier observations.
+
 ## Environment
 
 Repository `D:/Masarifi-integration-2026-10-10`, branch `codex/voice-promoted-operating-2026-10-13`, candidate `815a029ccb562164be60447ecd1e69017b222507`, original baseline `f957cb3df1c1e8b096561fc3114cf16d97379270`. The same Redmi and existing account are required; the physical device binding and owner identifier remain private. Both original application packages and APK paths were reverified unchanged; no data was cleared.

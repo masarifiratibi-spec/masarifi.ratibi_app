@@ -1,0 +1,174 @@
+{
+  "status": "NOT READY",
+  "baseCommit": "d1eaa7bef0cc2e4203f29884696a411f6d34423f",
+  "sourceFixesDeployed": false,
+  "roleDefaultsApplied": true,
+  "roleReconciliation": {
+    "atUtc": "2026-11-02T07:23:09.541950Z",
+    "apiRoleConfig": [
+      "statement_timeout=2s"
+    ],
+    "workerRoleConfig": [
+      "statement_timeout=2s"
+    ],
+    "eachLoginConnectionLimit": 20
+  },
+  "databaseRowsDeleted": 0,
+  "databaseBytesReclaimed": 30113792,
+  "focusedIntegration": {
+    "numPassedTests": 13,
+    "numFailedTests": 0,
+    "success": true
+  },
+  "voiceAndSafeErrorTests": {
+    "numPassedTests": 45,
+    "numFailedTests": 0,
+    "success": true
+  },
+  "broadApiRun": {
+    "numTotalTestSuites": 533,
+    "numPassedTestSuites": 384,
+    "numFailedTestSuites": 7,
+    "numPendingTestSuites": 142,
+    "numPassedTests": 2658,
+    "numFailedTests": 18,
+    "numPendingTests": 1077
+  },
+  "broadRunLimitations": [
+    "17 container failures require unavailable Docker Desktop daemon.",
+    "One sync composition failure fixed; four tests passed in affected suite afterward.",
+    "Skipped live DB/other opt-in suites not qualified by this run."
+  ],
+  "operatorAttempt": {
+    "exit": 2,
+    "elapsedMs": 18650,
+    "tlsVerification": "verify-full",
+    "route": "session_pooler_5432",
+    "schemaMigrationHistoryChanged": false,
+    "results": [],
+    "errorClass": "timeout",
+    "operatorSqlSha256": "731fbc2c67e3fd841382923e8256cce4686c867344431b6b821bb34cab0c478b"
+  },
+  "operatorSyntheticTest": {
+    "atUtc": "2026-11-01T23:33:41.111Z",
+    "syntheticOnly": true,
+    "results": [
+      {
+        "user": "masarifi_api_login",
+        "serverCancellationCode": "57014",
+        "elapsedMs": 2017
+      },
+      {
+        "user": "masarifi_worker_login",
+        "serverCancellationCode": "57014",
+        "elapsedMs": 2009
+      }
+    ],
+    "unrelatedSettingsPreserved": true,
+    "conflictingDeadlineRejected": true,
+    "atomicRollbackVerified": true,
+    "databaseOverrideGuardsVerified": true
+  },
+  "observedWorkerCapacityError": {
+    "observedAtUtc": "2026-11-01T23:42:05.939930+00:00",
+    "restartCount": 62,
+    "sqlState": "XX000",
+    "messageSha256": "c6a3ab32edc2536e7f86414b1be8e3b35573d5d1d39def0288bd68a46aff1e89",
+    "providerCapacityLimit": 15,
+    "noOom": true
+  },
+  "guestBaseline": "guest-startup-evidence.json",
+  "sourceSha256": {
+    "apps/api/src/platform/database/pool.service.ts": "0f568405b7699e7b4a80a2890c08ce95e707a3cbfa117ad6c6445bd9c7a799f4",
+    "apps/api/src/platform/observability/worker-error.ts": "70f7806c1e3c457fb6f57db347b6b10d4d0514a690c1b4850ea199c6e67f2dce",
+    "apps/api/src/ai/voice-transient-error.ts": "46e9c1df07377a4d4370b43d0b35b7ed21afd3f9be062375ec30903851011f88",
+    "scripts/ops/runtime-login-statement-deadline.sql": "731fbc2c67e3fd841382923e8256cce4686c867344431b6b821bb34cab0c478b"
+  },
+  "finalUnitRun": {
+    "success": true,
+    "numTotalTestSuites": 194,
+    "numPassedTestSuites": 194,
+    "numFailedTestSuites": 0,
+    "numPassedTests": 2080,
+    "numFailedTests": 0
+  },
+  "buildEntrypointsPassed": [
+    "api",
+    "worker",
+    "migration"
+  ],
+  "localSyntheticDatabaseStopped": true,
+  "localSyntheticDatabaseFilesRetainedAfterAutomaticPolicyRejection": true,
+  "metroListenerPreserved": {
+    "pid": 21264,
+    "port": 19081,
+    "originalListenerGoneAfterExternalRestart": true,
+    "approvedWrapperRestored": true
+  },
+  "adbReverseRestored": [
+    "8081:19081",
+    "19081:19081"
+  ],
+  "dashboardComputeReview": {
+    "accessRestored": true,
+    "currentCompute": "Micro",
+    "stagedCompute": "Micro",
+    "beforeMaxMemoryGiB": 0.5,
+    "currentMaxMemoryGiB": 1,
+    "stagedMemoryGiB": 1,
+    "beforeMonthlyUsd": 9.68,
+    "afterMonthlyUsd": 9.68,
+    "monthlyDeltaUsd": 0,
+    "automaticDatabaseRestartRequired": true,
+    "userApprovalPending": false,
+    "confirmed": true
+  },
+  "postMicroOperatorAttempt": {
+    "exit": 0,
+    "elapsedMs": 706,
+    "tlsVerification": "verify-full",
+    "route": "session_pooler_5432",
+    "schemaMigrationHistoryChanged": false,
+    "results": [
+      {
+        "phase": "before",
+        "atUtc": "2026-11-02T07:22:46.305937+00:00",
+        "roleConfig": [
+          {
+            "role": "masarifi_api_login",
+            "limit": 20,
+            "config": null
+          },
+          {
+            "role": "masarifi_worker_login",
+            "limit": 20,
+            "config": null
+          }
+        ],
+        "membershipFingerprint": "c47ffe096cd56bba3e213241d59cde5e"
+      },
+      {
+        "phase": "after",
+        "atUtc": "2026-11-02T07:22:46.328875+00:00",
+        "roleConfig": [
+          {
+            "role": "masarifi_api_login",
+            "limit": 20,
+            "config": [
+              "statement_timeout=2s"
+            ]
+          },
+          {
+            "role": "masarifi_worker_login",
+            "limit": 20,
+            "config": [
+              "statement_timeout=2s"
+            ]
+          }
+        ],
+        "membershipFingerprint": "c47ffe096cd56bba3e213241d59cde5e"
+      }
+    ],
+    "operatorSqlSha256": "731fbc2c67e3fd841382923e8256cce4686c867344431b6b821bb34cab0c478b"
+  }
+}

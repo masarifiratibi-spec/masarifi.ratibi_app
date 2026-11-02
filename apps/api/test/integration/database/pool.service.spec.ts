@@ -50,7 +50,10 @@ describe('buildPoolOptions', () => {
       rows: [{ healthy: true }],
     });
 
-    expect(query).toHaveBeenNthCalledWith(1, `set role ${role}`);
+    expect(query).toHaveBeenNthCalledWith(
+      1,
+      `select set_config('statement_timeout', least(nullif((select setting::integer from pg_settings where name='statement_timeout'), 0), 2000)::text, false); set role ${role}`,
+    );
     expect(query).toHaveBeenNthCalledWith(2, 'select $1', [true]);
     expect(release).toHaveBeenCalledTimes(1);
   });

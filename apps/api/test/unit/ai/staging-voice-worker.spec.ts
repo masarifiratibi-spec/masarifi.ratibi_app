@@ -157,27 +157,55 @@ function fixture(mode = 'canary', continuous = false) {
     },
   };
 }
-it('keeps continuous posting open through repeated heartbeat outages and resumes after revalidation', async () => {
-  jest.useFakeTimers();
+it.each([
+  new Error('Query read timeout'),
+  Object.assign(
+    new Error(
+      '(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15',
+    ),
+    { code: 'XX000' },
+  ),
+])(
+  'keeps continuous posting open through heartbeat outage %s and resumes after revalidation',
+  async (outage) => {
+    jest.useFakeTimers();
+    const f = fixture('operating', true);
+    let offline = true;
+    f.repository.voiceEpochHeartbeat = () =>
+      offline ? Promise.reject(outage) : Promise.resolve({ enabled: true, mode: 'operating' });
+    try {
+      f.worker.start();
+      await jest.advanceTimersByTimeAsync(65000);
+      expect(f.effects).toEqual([]);
+      expect(f.observations.at(-1)).toMatchObject({
+        availability: 'retrying',
+        desiredPosting: true,
+      });
+      offline = false;
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(f.effects).toContain('scoped-finalize');
+      expect(f.effects).not.toContain('closed:runtime_failed');
+    } finally {
+      await f.worker.stop();
+      jest.useRealTimers();
+    }
+  },
+);
+
+it.each([
+  Object.assign(new Error('unclassified internal database failure'), { code: 'XX000' }),
+  Object.assign(
+    new Error(
+      '(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15',
+    ),
+    { code: '42501' },
+  ),
+])('does not retry a non-capacity database rejection %s', async (error) => {
   const f = fixture('operating', true);
-  let offline = true;
-  f.repository.voiceEpochHeartbeat = () =>
-    offline
-      ? Promise.reject(new Error('Query read timeout'))
-      : Promise.resolve({ enabled: true, mode: 'operating' });
-  try {
-    f.worker.start();
-    await jest.advanceTimersByTimeAsync(65000);
-    expect(f.effects).toEqual([]);
-    expect(f.observations.at(-1)).toMatchObject({ availability: 'retrying', desiredPosting: true });
-    offline = false;
-    await jest.advanceTimersByTimeAsync(30000);
-    expect(f.effects).toContain('scoped-finalize');
-    expect(f.effects).not.toContain('closed:runtime_failed');
-  } finally {
-    await f.worker.stop();
-    jest.useRealTimers();
-  }
+  f.repository.voiceEpochHeartbeat = () => Promise.reject(error);
+  await f.worker.tick();
+  await f.worker.tick();
+  expect(f.effects).toEqual(['closed:runtime_failed']);
 });
 
 it('reconciles an uncertain continuous finalization on a later poll without closing its epoch', async () => {

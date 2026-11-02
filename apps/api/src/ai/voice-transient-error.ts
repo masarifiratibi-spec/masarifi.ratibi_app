@@ -35,6 +35,7 @@ export function isTransientVoiceError(error: unknown): boolean {
           'Connection terminated',
           'timeout exceeded when trying to connect',
         ].includes(item.reason) ||
+        (item.code === 'XX000' && item.reason === 'DATABASE_POOL_CAPACITY') ||
         [
           'ECONNRESET',
           'ECONNREFUSED',
