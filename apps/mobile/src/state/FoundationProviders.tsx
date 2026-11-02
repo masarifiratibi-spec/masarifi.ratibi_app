@@ -1,3 +1,5 @@
+import { measurePerformance } from '@/services/platform/performance-timing';
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 /**
  * Foundation providers.
  *
@@ -66,6 +68,9 @@ export function FoundationProviders({
   children: ReactNode;
   client?: QueryClient;
 }) {
+  React.useLayoutEffect(() => {
+    recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'foundation' });
+  }, []);
   const locale = usePreferenceStore((state) => state.locale);
   const preference = usePreferenceStore((state) => state.theme);
   const systemScheme = useColorScheme();
@@ -78,7 +83,7 @@ export function FoundationProviders({
 
   useEffect(() => {
     if (!hydrated) {
-      void hydrate();
+      void measurePerformance('startup.preferences', hydrate);
     }
   }, [hydrate, hydrated]);
 
@@ -108,11 +113,17 @@ export function FoundationProviders({
       const session = useAppShellStore.getState().session;
       const ownerId =
         session?.status === 'authenticated' ? (session.userId ?? '') : '';
-      const next = JSON.stringify({ ownerId, scope, restoration: session?.restoration });
+      const next = JSON.stringify({
+        ownerId,
+        scope,
+        restoration: session?.restoration
+      });
       if (next === identity) return;
       if (previousOwner !== ownerId) locallyAdmittedOwner = '';
       if (session?.restoration === 'local') locallyAdmittedOwner = ownerId;
-      const remotelyRestored = scope && locallyAdmittedOwner === ownerId &&
+      const remotelyRestored =
+        scope &&
+        locallyAdmittedOwner === ownerId &&
         session?.restoration === 'restored';
       if (remotelyRestored) locallyAdmittedOwner = '';
       stop();
@@ -126,13 +137,18 @@ export function FoundationProviders({
       stop = bindLocalReadCache(client, createQueryReadCache(current));
       if (remotelyRestored) {
         // Retire reads from the old auth context; never resume or clear commands.
-        void Promise.all(offlineReadPrefixes.map(queryKey => client.cancelQueries({ queryKey })))
-          .then(() => {
-            if (identity !== next) return;
-            return Promise.all(offlineReadPrefixes.map(queryKey =>
+        void Promise.all(
+          offlineReadPrefixes.map((queryKey) =>
+            client.cancelQueries({ queryKey })
+          )
+        ).then(() => {
+          if (identity !== next) return;
+          return Promise.all(
+            offlineReadPrefixes.map((queryKey) =>
               client.invalidateQueries({ queryKey, refetchType: 'active' })
-            ));
-          });
+            )
+          );
+        });
       }
     };
     // Cache is only a read projection; retain existing explicit write/sync admission.

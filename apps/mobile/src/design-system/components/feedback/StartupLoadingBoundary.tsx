@@ -46,6 +46,10 @@ export function useStartupReady(ready: boolean) {
   }, [ready, finish]);
 }
 
+export function useStartupContentVisible(): boolean {
+  return useContext(StartupReadiness) === null;
+}
+
 export function StartupLoadingStage(
   props: React.ComponentProps<typeof StartupLoading>
 ) {

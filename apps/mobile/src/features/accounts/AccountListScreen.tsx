@@ -1,3 +1,4 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import React, { useMemo, useState } from 'react';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
@@ -118,6 +119,12 @@ export function AccountListScreen() {
     ? `•••• ${baseCurrencyCode}`
     : formatMinorAmount(totalBalanceMinor, baseCurrencyCode, locale);
 
+  const onPerformanceLayout = useScreenPerformance(
+    'accounts',
+    [accounts, balances],
+    search
+  );
+
   if (accounts.isLoading || balances.isLoading) {
     return (
       <StateView
@@ -144,7 +151,10 @@ export function AccountListScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}>
+    <View
+      onLayout={onPerformanceLayout}
+      style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}
+    >
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.account.id}

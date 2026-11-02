@@ -1,3 +1,4 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -115,6 +116,11 @@ function QueriedHomeScreen({
   useHomeReadRecovery(query, activity);
   const accounts = useAccounts(true);
   const categories = useCategories();
+  const onPerformanceLayout = useScreenPerformance(
+    'home',
+    [query, activity, accounts, categories],
+    JSON.stringify([selectedAccountId, period])
+  );
   const homeSummary = query.data;
   const empty = homeSummary?.dataState === 'empty';
   const initialReadsReady =
@@ -149,7 +155,11 @@ function QueriedHomeScreen({
     ) ?? null;
 
   return (
-    <HomeLayout period={period} onPeriodChange={onPeriodChange}>
+    <HomeLayout
+      period={period}
+      onPeriodChange={onPeriodChange}
+      onLayout={onPerformanceLayout}
+    >
       {query.isError ? <FinancialRefreshStatus query={query} /> : null}
       {query.isError && homeSummary ? (
         <ActionButton
@@ -219,8 +229,10 @@ function QueriedHomeScreen({
 function HomeLayout({
   children,
   period,
-  onPeriodChange
+  onPeriodChange,
+  onLayout
 }: {
+  onLayout?: (event: import('react-native').LayoutChangeEvent) => void;
   children: React.ReactNode;
   period: DatePeriod;
   onPeriodChange: (period: DatePeriod) => void;
@@ -231,7 +243,7 @@ function HomeLayout({
       style={{ backgroundColor: theme.colors.surfaces.page }}
       contentContainerStyle={styles.stack}
     >
-      <FinancialHorizonSurface style={styles.horizon}>
+      <FinancialHorizonSurface style={styles.horizon} onLayout={onLayout}>
         <HomeHeader period={period} onPeriodChange={onPeriodChange} />
         {children}
       </FinancialHorizonSurface>

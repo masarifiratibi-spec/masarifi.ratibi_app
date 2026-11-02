@@ -6,6 +6,7 @@ import {
   type QueryClient
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { inheritReadProvenance } from '@/services/read-snapshot';
 
 import {
   emptyTransactionFilters,
@@ -81,11 +82,14 @@ export function useHomeBalanceSummary(
       return {
         accountId,
         currency,
-        summary: summarizeHomeBalances(
-          accounts,
-          balances,
-          selectedCurrency ?? currency,
-          accountId
+        summary: inheritReadProvenance(
+          summarizeHomeBalances(
+            accounts,
+            balances,
+            selectedCurrency ?? currency,
+            accountId
+          ),
+          [accounts, balances]
         )
       };
     },

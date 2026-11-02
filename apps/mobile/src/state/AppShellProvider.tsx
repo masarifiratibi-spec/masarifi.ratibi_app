@@ -1,4 +1,5 @@
 import { recordMobileForeground } from '@/services/live/mobile-activity';
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
 import { Alert, AppState, Linking, type AppStateStatus } from 'react-native';
@@ -47,6 +48,9 @@ export function AppShellProvider({
   children,
   onAppStateChange
 }: AppShellProviderProps) {
+  React.useLayoutEffect(() => {
+    recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'shell' });
+  }, []);
   const hydrated = useAppShellStore((state) => state.hydrated);
   const hydrate = useAppShellStore((state) => state.hydrate);
   const setPendingDestination = useAppShellStore(

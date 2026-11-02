@@ -1,6 +1,14 @@
 import { benchmarkFetch } from '../platform/benchmark-observability';
+import { markRemoteSnapshot } from '@/services/read-snapshot';
 import type { z } from 'zod';
-import { assertBenchmarkRead } from '@/config/client-runtime';
+import {
+  assertBenchmarkRead,
+  isBenchmarkReadOnly
+} from '@/config/client-runtime';
+import {
+  measurePerformance,
+  recordPerformanceTiming
+} from '../platform/performance-timing';
 
 export type HttpErrorCode =
   | 'validation_error'
@@ -153,6 +161,7 @@ async function performRequestJson<T>(
   options: RequestOptions<T> = {}
 ): Promise<T> {
   const startedAt = Date.now();
+  const benchmarkDiagnostic = isBenchmarkReadOnly();
   let httpStatus: number | null = null;
   let abortSource: 'cancelled' | 'timeout' | null = null;
   const diagnostic: { stage: 'auth' | 'transport' | 'decode' } = {
@@ -179,7 +188,11 @@ async function performRequestJson<T>(
     if (controller.signal.aborted)
       throw new HttpError('provider_unavailable', 503);
     const operation = (async () => {
-      const token = options.token ?? (await tokenProvider?.());
+      const token =
+        options.token ??
+        (await (benchmarkDiagnostic
+          ? measurePerformance('http.auth', async () => tokenProvider?.())
+          : tokenProvider?.()));
       if (controller.signal.aborted)
         throw new HttpError('provider_unavailable', 503);
       if (!token) throw new HttpError('session_expired', 401);
@@ -219,13 +232,27 @@ async function performRequestJson<T>(
 
       let payload: unknown;
       try {
-        payload = await response.json();
+        payload = benchmarkDiagnostic
+          ? await measurePerformance('http.body', () => response.json())
+          : await response.json();
       } catch {
         throw new HttpError('contract_mismatch', 502);
       }
-      const parsed = schema.safeParse(payload);
+      const validationStarted = benchmarkDiagnostic ? performance.now() : null;
+      let parsed: ReturnType<typeof schema.safeParse>;
+      try {
+        parsed = schema.safeParse(payload);
+      } finally {
+        if (validationStarted !== null)
+          recordPerformanceTiming(
+            'http.validation',
+            performance.now() - validationStarted
+          );
+      }
       if (!parsed.success) throw new HttpError('contract_mismatch', 502);
-      return parsed.data;
+      return benchmarkDiagnostic && !controller.signal.aborted
+        ? markRemoteSnapshot(parsed.data)
+        : parsed.data;
     })();
     return await Promise.race([operation, aborted]);
   } catch (error) {

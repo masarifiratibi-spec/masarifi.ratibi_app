@@ -1,5 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 import { assertBenchmarkRead } from '@/config/client-runtime';
+import { markOfflineSnapshot } from '@/services/read-snapshot';
 import {
   accountInputSchema,
   categoryInputSchema,
@@ -1000,18 +1001,21 @@ export function createLiveCoreFinanceService(
     target as unknown as CapabilityProviderHandle<CoreFinanceService>,
     {
       get(provider, property) {
-        const mutation = !localMethods.has(String(property)) ||
+        const mutation =
+          !localMethods.has(String(property)) ||
           ['saveDraft', 'discardDraft'].includes(String(property));
         if (!available && property !== 'metadata')
           return async () => {
-            if (mutation || property === 'calculateCreditCardPayoff') assertBenchmarkRead('POST');
+            if (mutation || property === 'calculateCreditCardPayoff')
+              assertBenchmarkRead('POST');
             throw new CoreFinanceError('offline');
           };
         if (property in provider) {
           const value = Reflect.get(provider, property);
           if (typeof value !== 'function') return value;
           const invoke = async (...args: unknown[]) => {
-            if (property === 'calculateCreditCardPayoff') assertBenchmarkRead('POST');
+            if (property === 'calculateCreditCardPayoff')
+              assertBenchmarkRead('POST');
             try {
               if (
                 property !== 'updateTransaction' &&
@@ -1022,7 +1026,9 @@ export function createLiveCoreFinanceService(
                 const owner = await captureLiveClerkOwner();
                 if (await confirmedOffline()) {
                   try {
-                    return await localCall(property, args, owner);
+                    return markOfflineSnapshot(
+                      await localCall(property, args, owner)
+                    );
                   } catch (error) {
                     if (
                       property === 'createTransaction' &&

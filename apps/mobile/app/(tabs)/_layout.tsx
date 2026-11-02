@@ -1,3 +1,4 @@
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React from 'react';
 import { Tabs, router } from 'expo-router';
 
@@ -10,18 +11,22 @@ export default function TabsLayout() {
     <ProtectedRouteGate>
       <Tabs
         layout={({ children, state }) => (
-          <InitialHomeLoadingBoundary isHome={state.routeNames[state.index] === 'home'}>
+          <InitialHomeLoadingBoundary
+            isHome={state.routeNames[state.index] === 'home'}
+          >
             {children}
           </InitialHomeLoadingBoundary>
         )}
         screenOptions={{ headerShown: false }}
         tabBar={({ state }) => {
           const currentName = state.routeNames[state.index];
-          return currentName === 'reports' ||
-            currentName === 'more' ? null : (
+          return currentName === 'reports' || currentName === 'more' ? null : (
             <AppTabs
               currentRoute={`/(tabs)/${currentName}`}
-              onSelect={(route) => router.navigate(route)}
+              onSelect={(route) => {
+                beginScreenNavigation(route);
+                router.navigate(route);
+              }}
             />
           );
         }}

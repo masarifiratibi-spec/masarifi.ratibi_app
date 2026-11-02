@@ -1,3 +1,4 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useContext, useMemo, useState } from 'react';
@@ -120,8 +121,16 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     [anchorDate, timeZone, monthStartDay]
   );
 
+  const onPerformanceLayout = useScreenPerformance(
+    'reports',
+    [accounts, home, reportQuery, trendQuery],
+    JSON.stringify(reportInput) + timeframe
+  );
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}>
+    <View
+      onLayout={onPerformanceLayout}
+      style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}
+    >
       <ScrollView
         style={{ backgroundColor: theme.colors.surfaces.page }}
         contentOffset={{ x: 0, y: scrollOffset }}

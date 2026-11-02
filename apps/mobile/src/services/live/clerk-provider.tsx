@@ -1,3 +1,4 @@
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 import {
   ClerkProvider,
   getClerkInstance,
@@ -92,6 +93,9 @@ export function MobileIdentityProvider({
   children: ReactNode;
   recoveryFallback?: ReactNode;
 }) {
+  React.useLayoutEffect(() => {
+    recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'identity' });
+  }, []);
   const [restarting, setRestarting] = useState(false);
   const reloadProvider = useCallback(() => setRestarting(true), []);
   useEffect(() => {
@@ -386,9 +390,7 @@ function ClerkBridgeInstaller({
         return session;
       } catch (error) {
         recordDevelopmentAuthDiagnostic('sso_failure', error);
-        if (
-          error instanceof Error && error.message === 'googleAuth.incomplete'
-        )
+        if (error instanceof Error && error.message === 'googleAuth.incomplete')
           onStatus('incomplete');
         else onStatus('error');
         throw error;
@@ -398,7 +400,11 @@ function ClerkBridgeInstaller({
     },
     reverifyConflict: async () => null,
     signOut: ({ scope, sessionId }) => {
-      if (sessionId && (!latest.current.auth.isLoaded || latest.current.auth.sessionId !== sessionId))
+      if (
+        sessionId &&
+        (!latest.current.auth.isLoaded ||
+          latest.current.auth.sessionId !== sessionId)
+      )
         return Promise.reject(new Error('LOGOUT_SESSION_UNVERIFIED'));
       return latest.current.auth.signOut(
         scope === 'current'

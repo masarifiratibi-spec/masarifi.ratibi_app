@@ -1,3 +1,4 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import React, { useEffect, useMemo, useState } from 'react';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
@@ -11,6 +12,7 @@ import {
   View
 } from 'react-native';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
@@ -39,6 +41,7 @@ import type {
 } from '@/domain/core-finance';
 import type { Locale } from '@/domain/foundation';
 import {
+  coreFinanceKeys,
   useAccounts,
   useCategories,
   useHomeSummary,
@@ -96,6 +99,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
   // Native layout changes must still reach PixelRatio-based child layouts.
   useWindowDimensions();
   const theme = useTheme();
+  const client = useQueryClient();
   const filters = useCoreFinanceViewState((state) => state.filters);
   const draft = useCoreFinanceViewState((state) => state.draftFilters);
   const beginFilterSession = useCoreFinanceViewState(
@@ -339,8 +343,23 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
       </View>
     </View>
   );
+  const onPerformanceLayout = useScreenPerformance(
+    'transactions',
+    [query, accounts, categories],
+    JSON.stringify(scopedFilters),
+    {
+      client,
+      key: summaryCurrencyCode
+        ? coreFinanceKeys.home(
+            summaryCurrencyCode,
+            applyAccountScope(periodFilters(appliedPeriod), selectedAccountId)
+          )
+        : null
+    }
+  );
   return (
     <FlatList
+      onLayout={onPerformanceLayout}
       data={rows}
       keyExtractor={(item) => item.key}
       style={{ backgroundColor: theme.colors.surfaces.page }}

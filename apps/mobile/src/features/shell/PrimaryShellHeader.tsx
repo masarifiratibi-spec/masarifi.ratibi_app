@@ -1,3 +1,4 @@
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -38,9 +39,17 @@ export function PrimaryShellHeader({
     state.session?.status === 'authenticated' ? state.session.userId : null
   );
   const profile = useSettingsProfile(showAvatar && userId !== null);
-  useInitialHomeReadiness('header', origin === '/(tabs)/home'
-    ? (!showAvatar || userId === null || profile.data !== undefined || profile.isError ? 'ready' : 'pending')
-    : null);
+  useInitialHomeReadiness(
+    'header',
+    origin === '/(tabs)/home'
+      ? !showAvatar ||
+        userId === null ||
+        profile.data !== undefined ||
+        profile.isError
+        ? 'ready'
+        : 'pending'
+      : null
+  );
   const publicName = resolvePublicDisplayName(
     userId ? profile.data?.name : null,
     getLiveClerkDisplayName(userId),
@@ -93,12 +102,13 @@ export function PrimaryShellHeader({
           testID="primary-shell-reports-action"
           accessibilityLabel={reportsLabel}
           accessibilityRole="button"
-          onPress={() =>
+          onPress={() => {
+            beginScreenNavigation('/reports');
             router.push({
               pathname: '/(tabs)/reports',
               params: { returnTo: origin }
-            })
-          }
+            });
+          }}
           style={styles.action}
         >
           <DesignIcon

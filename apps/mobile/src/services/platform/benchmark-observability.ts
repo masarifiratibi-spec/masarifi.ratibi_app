@@ -9,6 +9,10 @@ export const performanceStages = [
   'startup.restore',
   'startup.profile',
   'startup.identity',
+  'startup.preferences',
+  'http.auth',
+  'http.body',
+  'http.validation',
   'identity.cache.read',
   'identity.token.read',
   'identity.token.fresh',
@@ -75,6 +79,27 @@ type PreferencesEvent = {
   | ({ outcome: 'failure' } & PreferencesFailure)
 );
 type BenchmarkEvent =
+  | {
+      kind: 'startup_boundary';
+      stage: 'module' | 'identity' | 'foundation' | 'shell';
+    }
+  | {
+      kind: 'screen';
+      route: 'home' | 'accounts' | 'transactions' | 'reports';
+      phase:
+        | 'start'
+        | 'visible'
+        | 'cached'
+        | 'refreshed'
+        | 'offline'
+        | 'interactive'
+        | 'failed'
+        | 'aborted';
+      origin: 'tap' | 'mount';
+      freshness: 'pending' | 'cached' | 'fresh' | 'offline' | 'failed';
+      navigationSequence: number;
+      elapsedMs: number;
+    }
   | { kind: 'timing'; stage: PerformanceStage; elapsedMs: number }
   | { kind: 'home'; outcome: HomeOutcome }
   | { kind: 'protected_route'; category: RouteCategory }
@@ -93,6 +118,7 @@ type BenchmarkEvent =
 let eventCount = 0;
 let requestSequence = 0;
 let protectedRouteRecorded = false;
+const startupBoundaries = new Set<string>();
 const nonnegative = (value: number) => Number.isFinite(value) && value >= 0;
 const nullableInteger = (value: number | null) =>
   value === null || (Number.isSafeInteger(value) && value >= 0);
@@ -103,6 +129,51 @@ export function recordBenchmarkEvent(event: BenchmarkEvent): void {
     if (!isBenchmarkReadOnly() || eventCount >= 400) return;
     let metadata: BenchmarkEvent;
     switch (event.kind) {
+      case 'startup_boundary':
+        if (
+          !['module', 'identity', 'foundation', 'shell'].includes(
+            event.stage
+          ) ||
+          startupBoundaries.has(event.stage)
+        )
+          return;
+        startupBoundaries.add(event.stage);
+        metadata = { kind: 'startup_boundary', stage: event.stage };
+        break;
+      case 'screen':
+        if (
+          !['home', 'accounts', 'transactions', 'reports'].includes(
+            event.route
+          ) ||
+          ![
+            'start',
+            'visible',
+            'cached',
+            'refreshed',
+            'offline',
+            'interactive',
+            'failed',
+            'aborted'
+          ].includes(event.phase) ||
+          !['tap', 'mount'].includes(event.origin) ||
+          !['pending', 'cached', 'fresh', 'offline', 'failed'].includes(
+            event.freshness
+          ) ||
+          !Number.isSafeInteger(event.navigationSequence) ||
+          event.navigationSequence < 1 ||
+          !nonnegative(event.elapsedMs)
+        )
+          return;
+        metadata = {
+          kind: 'screen',
+          route: event.route,
+          phase: event.phase,
+          origin: event.origin,
+          freshness: event.freshness,
+          navigationSequence: event.navigationSequence,
+          elapsedMs: event.elapsedMs
+        };
+        break;
       case 'timing':
         if (
           !performanceStages.includes(event.stage) ||

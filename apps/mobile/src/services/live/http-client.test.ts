@@ -7,7 +7,9 @@ import {
   requestJson,
   sanitizeHttpLog
 } from './http-client';
-jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
 
 const schema = z.object({ state: z.enum(['ready']) }).strict();
 const response = (status: number, value?: unknown): Response =>
@@ -19,17 +21,28 @@ const response = (status: number, value?: unknown): Response =>
 
 describe('Mobile strict HTTP client', () => {
   it('reads the Bearer API without consulting the native cookie jar', async () => {
-    const request = jest.fn(async (_url: RequestInfo | URL, options?: RequestInit) => {
-      if (options?.credentials !== 'omit')
-        throw new Error('Native cookie jar must not participate in Bearer API reads');
-      return response(
-        (options.headers as Record<string, string>).Authorization === 'Bearer token' ? 200 : 401,
-        { state: 'ready' }
-      );
-    });
-    await expect(requestJson('/api/v1/me', schema, {
-      baseUrl: 'https://inert.invalid', token: 'token', request
-    })).resolves.toEqual({ state: 'ready' });
+    const request = jest.fn(
+      async (_url: RequestInfo | URL, options?: RequestInit) => {
+        if (options?.credentials !== 'omit')
+          throw new Error(
+            'Native cookie jar must not participate in Bearer API reads'
+          );
+        return response(
+          (options.headers as Record<string, string>).Authorization ===
+            'Bearer token'
+            ? 200
+            : 401,
+          { state: 'ready' }
+        );
+      }
+    );
+    await expect(
+      requestJson('/api/v1/me', schema, {
+        baseUrl: 'https://inert.invalid',
+        token: 'token',
+        request
+      })
+    ).resolves.toEqual({ state: 'ready' });
   });
   it('blocks benchmark mutations before token acquisition, transport and recent authentication', async () => {
     const restoreEnvironment = installBenchmarkEnvironment();
@@ -40,15 +53,26 @@ describe('Mobile strict HTTP client', () => {
     configureRecentAuthHandler(recent);
     try {
       for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
-        await expect(requestJson('/api/v1/me', schema, { method, request })).rejects.toThrow('benchmark_read_only');
+        await expect(
+          requestJson('/api/v1/me', schema, { method, request })
+        ).rejects.toThrow('benchmark_read_only');
       expect(token).not.toHaveBeenCalled();
       expect(request).not.toHaveBeenCalled();
       expect(recent).not.toHaveBeenCalled();
       request.mockResolvedValue(response(200, { state: 'ready' }));
       for (const method of ['GET', 'HEAD'])
-        await expect(requestJson('/api/v1/me', schema, { method, request, baseUrl: 'https://inert.invalid' })).resolves.toEqual({ state: 'ready' });
+        await expect(
+          requestJson('/api/v1/me', schema, {
+            method,
+            request,
+            baseUrl: 'https://inert.invalid'
+          })
+        ).resolves.toEqual({ state: 'ready' });
       expect(request).toHaveBeenCalledTimes(2);
-    } finally { restoreEnvironment(); configureRecentAuthHandler(); }
+    } finally {
+      restoreEnvironment();
+      configureRecentAuthHandler();
+    }
   });
   it('reverifies once and retries the same mutation identity with a fresh credential', async () => {
     const request = jest
@@ -524,6 +548,16 @@ it('counts shared-client benchmark fetch attempts without logging credentials or
         status: 200,
         payloadBytes: null,
         outcome: 'response'
+      }),
+      expect.objectContaining({
+        kind: 'timing',
+        stage: 'http.body',
+        elapsedMs: expect.any(Number)
+      }),
+      expect.objectContaining({
+        kind: 'timing',
+        stage: 'http.validation',
+        elapsedMs: expect.any(Number)
       })
     ]);
     expect(JSON.stringify(events)).not.toMatch(

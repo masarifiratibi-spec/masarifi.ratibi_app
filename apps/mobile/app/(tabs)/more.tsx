@@ -1,3 +1,4 @@
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React, { useCallback, useRef } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -233,7 +234,10 @@ export default function MoreRoute() {
             iconColor={colorTokens.raw['175B4F']}
             showChevron
             hideBorder
-            onPress={() => router.push('/accounts')}
+            onPress={() => {
+              beginScreenNavigation('/accounts');
+              router.push('/accounts');
+            }}
           />
           <Divider />
           <MenuLink

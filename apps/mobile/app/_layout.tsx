@@ -3,6 +3,7 @@
  */
 
 import React, { useCallback } from 'react';
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 import { Stack, usePathname } from 'expo-router';
 
 import { FontGate } from '@/design-system/typography';
@@ -27,14 +28,22 @@ import { usePreferenceStore } from '@/state/preferences';
 import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
 import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
 
+recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'module' });
+
 export default function RootLayout() {
   const locale = usePreferenceStore((state) => state.locale);
   const themePreference = usePreferenceStore((state) => state.theme);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   return (
-    <MobileIdentityProvider recoveryFallback={
-      <StartupLoading locale={locale} themePreference={themePreference} reducedMotion={reducedMotion} />
-    }>
+    <MobileIdentityProvider
+      recoveryFallback={
+        <StartupLoading
+          locale={locale}
+          themePreference={themePreference}
+          reducedMotion={reducedMotion}
+        />
+      }
+    >
       <FoundationProviders>
         <StartupLoadingBoundary
           locale={locale}
@@ -67,7 +76,9 @@ function StartupDestinationReady() {
 }
 
 function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
-  const preferenceEnabled = useAppShellStore((state) => state.privacyLock?.enabled === true);
+  const preferenceEnabled = useAppShellStore(
+    (state) => state.privacyLock?.enabled === true
+  );
   const appLockEnabled = isAppLockEnabled() && preferenceEnabled;
   const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
