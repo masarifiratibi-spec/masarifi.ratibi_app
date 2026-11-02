@@ -18,6 +18,19 @@ const response = (status: number, value?: unknown): Response =>
   }) as unknown as Response;
 
 describe('Mobile strict HTTP client', () => {
+  it('reads the Bearer API without consulting the native cookie jar', async () => {
+    const request = jest.fn(async (_url: RequestInfo | URL, options?: RequestInit) => {
+      if (options?.credentials !== 'omit')
+        throw new Error('Native cookie jar must not participate in Bearer API reads');
+      return response(
+        (options.headers as Record<string, string>).Authorization === 'Bearer token' ? 200 : 401,
+        { state: 'ready' }
+      );
+    });
+    await expect(requestJson('/api/v1/me', schema, {
+      baseUrl: 'https://inert.invalid', token: 'token', request
+    })).resolves.toEqual({ state: 'ready' });
+  });
   it('blocks benchmark mutations before token acquisition, transport and recent authentication', async () => {
     const restoreEnvironment = installBenchmarkEnvironment();
     const request = jest.fn();
@@ -57,6 +70,8 @@ describe('Mobile strict HTTP client', () => {
       const [first, second] = request.mock.calls.map(
         (call) => call[1] as RequestInit
       );
+      expect(first.credentials).toBe('omit');
+      expect(second.credentials).toBe('omit');
       expect(second.body).toBe(first.body);
       expect(second.headers).toMatchObject({
         Authorization: 'Bearer fresh-token',

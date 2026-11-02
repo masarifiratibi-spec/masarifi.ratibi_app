@@ -202,6 +202,8 @@ async function performRequestJson<T>(
       const response = await benchmarkFetch(request, `${baseUrl}${path}`, {
         method: options.method,
         headers,
+        // API identity comes from Bearer auth; native cookies also initialize WebView.
+        credentials: 'omit',
         body:
           options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: controller.signal
