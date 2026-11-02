@@ -54,4 +54,6 @@ PostgreSQL 17.11.0.011 is offered, but the isolated target clone did not start a
 
 ## Outstanding gates
 
+The [space attribution follow-up](supabase-space-root-cause.md) identifies 90.2% of database bytes in Outbox/job/provider bookkeeping. The reviewed `20261102073431` correction is now live: nine natural zero-claim sync runs retained their job history while producing zero redundant success events. An additional 5,760 expired provider checks were archived, restored/hash-verified and deleted under the existing 35-day policy; no additional filesystem shrink is claimed. Old pending Outbox events remain protected.
+
 Rebuild and qualify the source fixes, reconcile required route/worker capabilities and hosted history, then deploy gradually with rollback. Renew the existing-owner/default-account preflight before benchmark login. Authenticated Arabic/English app timings and business-API measurements remain incomplete. Twenty Arabic guest launches have native Activity-draw p95 530 ms; that is not usable account readiness. Production remains **NOT READY**.

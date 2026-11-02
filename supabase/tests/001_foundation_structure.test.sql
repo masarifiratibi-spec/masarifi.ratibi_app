@@ -31,7 +31,16 @@ select has_column('private', 'outbox_events', 'last_error_code', 'outbox last_er
 select has_column('private', 'outbox_events', 'locked_by', 'outbox locked_by exists');
 select has_column('private', 'outbox_events', 'locked_until', 'outbox locked_until exists');
 select has_pk('private', 'outbox_events', 'outbox primary key exists');
-select has_index('private', 'outbox_events', 'outbox_events_claim_idx', 'claim index exists');
+select ok(
+  to_regclass('private.outbox_events_claim_idx') is null
+  and exists (
+    select 1 from pg_index
+    where indexrelid = to_regclass('private.outbox_events_claim_order_idx')
+      and indisvalid and indisready
+      and pg_get_indexdef(indexrelid) = 'CREATE INDEX outbox_events_claim_order_idx ON private.outbox_events USING btree (available_at, id) WHERE (published_at IS NULL)'
+  ),
+  'redundant claim index retired with valid ordered pending-claim access'
+);
 select has_index('private', 'outbox_events', 'outbox_events_claim_order_idx', 'claim order index exists');
 select has_index('private', 'outbox_events', 'outbox_events_aggregate_history_idx', 'aggregate index exists');
 select has_index('private', 'outbox_events', 'outbox_events_lease_recovery_idx', 'lease index exists');

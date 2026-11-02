@@ -162,6 +162,12 @@
     "runtimeLoginDefaultsApplied": true,
     "databaseNetReductionBytes": 30113792,
     "allHostedMigrationHistoryReconciled": false,
-    "postgresPatchUpgradeApplied": false
+    "postgresPatchUpgradeApplied": false,
+    "zeroClaimSuccessSuppressionApplied": true,
+    "suppressionMigrationVersion": "20261102073431",
+    "expiredProviderChecksDeleted": 5760,
+    "providerArchiveRestoreVerified": true,
+    "pendingEventsDeleted": 0,
+    "spaceAttributionReport": "../2026-11-02/supabase-space-root-cause.md"
   }
 }
