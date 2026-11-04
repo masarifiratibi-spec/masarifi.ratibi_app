@@ -95,6 +95,9 @@ function SessionProbe() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(getClerkInstance).mockReturnValue({
+    status: 'ready', user: null, session: null
+  } as never);
   mockProviderInitialize.mockReset();
   mockProviderMounted.current = false;
   mockIsBenchmarkReadOnly.mockReturnValue(false);
@@ -184,7 +187,7 @@ it.each(['new', 'existing'] as const)(
   'accepts an SDK-activated %s Google session without activating it twice',
   async (kind) => {
     const setActive = jest.fn();
-    jest.mocked(getClerkInstance).mockReturnValue({
+    const clerk = {
       user: { id: 'user-1' },
       setActive,
       session: {
@@ -193,14 +196,17 @@ it.each(['new', 'existing'] as const)(
         lastActiveAt: new Date(1000),
         expireAt: new Date(4_000_000_000_000)
       }
-    } as never);
-    mockStartSSOFlow.mockResolvedValue({
+    };
+    mockStartSSOFlow.mockImplementation(async () => {
+      jest.mocked(getClerkInstance).mockReturnValue(clerk as never);
+      return {
       createdSessionId: kind === 'new' ? 'session-1' : null,
       signIn: {
         status: 'complete',
         existingSession: kind === 'existing' ? { sessionId: 'session-1' } : null
       },
       authSessionResult: { type: 'success' }
+      };
     });
     render(
       <MobileIdentityProvider>
@@ -216,6 +222,47 @@ it.each(['new', 'existing'] as const)(
     });
     expect(session).toMatchObject({ id: 'session-1', userId: 'user-1' });
     expect(setActive).not.toHaveBeenCalled();
+  }
+);
+
+it('resumes a verified active Google session instead of creating another sign-in', async () => {
+  // 2026-11-04 primary client: another create fails with session_exists.
+  jest.mocked(getClerkInstance).mockReturnValue({
+    status: 'ready', user: { id: 'user-1' },
+    session: {
+      id: 'session-1', status: 'active',
+      lastActiveAt: new Date(1000), expireAt: new Date(4_000_000_000_000)
+    }
+  } as never);
+  mockStartSSOFlow.mockRejectedValue({ status: 400, errors: [{ code: 'session_exists' }] });
+  render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+  const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+  await act(async () => {
+    await expect(bridge.signInWithGoogle()).resolves.toMatchObject({
+      id: 'session-1', userId: 'user-1', expiresAt: 4_000_000_000_000
+    });
+  });
+  expect(screen.getByText('ready')).toBeOnTheScreen();
+  expect(mockStartSSOFlow).not.toHaveBeenCalled();
+});
+
+it.each(['absent', 'pending', 'different session', 'different owner'])(
+  'does not resume an %s identity from a session_exists error', async (scenario) => {
+    const failure = { status: 400, errors: [{ code: 'session_exists' }] };
+    jest.mocked(getClerkInstance).mockReturnValue({
+      status: 'ready', user: scenario === 'absent' ? null : { id: scenario === 'different owner' ? 'user-other' : 'user-1' },
+      session: scenario === 'absent' ? null : {
+        id: scenario === 'different session' ? 'session-other' : 'session-1',
+        status: scenario === 'pending' ? 'pending' : 'active',
+        lastActiveAt: new Date(1000), expireAt: new Date(4_000_000_000_000)
+      }
+    } as never);
+    mockStartSSOFlow.mockRejectedValue(failure);
+    render(<MobileIdentityProvider><StatusProbe /></MobileIdentityProvider>);
+    const bridge = mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge;
+    await act(async () => { await expect(bridge.signInWithGoogle()).rejects.toBe(failure); });
+    expect(screen.getByText('error')).toBeOnTheScreen();
+    expect(authState.signOut).not.toHaveBeenCalled();
   }
 );
 

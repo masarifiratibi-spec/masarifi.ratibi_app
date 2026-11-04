@@ -344,6 +344,19 @@ function ClerkBridgeInstaller({
         );
         throw new Error('appShell.auth.unavailable');
       }
+      if (!isBenchmarkReadOnly()) {
+        const session = currentSession();
+        const auth = latest.current.auth;
+        if (
+          auth.isSignedIn &&
+          session?.id === auth.sessionId &&
+          session?.userId === auth.userId
+        ) {
+          onStatus('ready');
+          onSessionKey(session.id);
+          return session;
+        }
+      }
       ssoPending.current = true;
       onStatus('sso');
       recordDevelopmentAuthDiagnostic('sso_start');
