@@ -9,6 +9,7 @@ import { EngagementPrivacyHandler } from '../../../src/engagement/engagement-pri
 import { TrackingPrivacyHandler } from '../../../src/tracking/tracking-privacy.handler';
 import { IdentityRepository } from '../../../src/identity/identity.repository';
 import { PoolService } from '../../../src/platform/database/pool.service';
+import { OwnerDataErasureService } from '../../../src/security/owner-data-erasure.service';
 
 const localUrl = process.env.MASARIFI_DELETION_LOCAL_DATABASE_URL;
 const describeLocal = localUrl ? describe : describe.skip;
@@ -43,15 +44,38 @@ describeLocal('identity deletion with the real local worker role', () => {
     clerk.deleteIdentityUser.mockReset();
     subject = `privacy_local_${randomUUID()}`;
     await pool.query(
-      "insert into public.profiles(id,status,primary_email,display_name) values($1,'active','disposable@example.test','Disposable')",
-      [subject],
+      "insert into public.profiles(id,status,primary_email,display_name) values($1,'active',$2,'Disposable')",
+      [subject, `${subject}@example.test`],
     );
     clerk.revokeUserSessions.mockResolvedValue(['session-1', 'session-2']);
     clerk.deleteIdentityUser.mockResolvedValue('deleted');
   });
   afterEach(async () => {
-    await pool.query('delete from private.account_deletion_requests where user_id=$1', [subject]);
-    await pool.query('delete from public.profiles where id=$1', [subject]);
+    await pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        for (const table of [
+          'account_deletion_receipts',
+          'account_erasure_context',
+          'account_erasure_resources',
+          'account_upload_erasure_tombstones',
+        ]) {
+          await client.query(
+            `delete from private.${table} where request_id in
+             (select id from private.account_deletion_requests where user_id=$1)`,
+            [subject],
+          );
+        }
+        await client.query('delete from private.account_deletion_requests where user_id=$1', [
+          subject,
+        ]);
+        await client.query('delete from public.profiles where id=$1', [subject]);
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
   });
   afterAll(async () => pool.onModuleDestroy());
 
@@ -74,7 +98,7 @@ describeLocal('identity deletion with the real local worker role', () => {
         new AiPrivacyHandler(pool, storage as never),
         new EngagementPrivacyHandler(pool, storage as never),
         { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
-        {} as never,
+        new OwnerDataErasureService(pool, storage as never, storage as never, storage as never),
       );
       await (
         worker as SecurityWorkerService & { runDeletionForOwner(owner: string): Promise<void> }
@@ -142,20 +166,21 @@ describeLocal('identity deletion with the real local worker role', () => {
       new AiPrivacyHandler(pool, storage as never),
       new EngagementPrivacyHandler(pool, storage as never),
       { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
-      {} as never,
+      new OwnerDataErasureService(pool, storage as never, storage as never, storage as never),
     );
     await worker.runDeletionForOwner(subject);
     expect(
       (
-        await pool.query('select status from private.account_deletion_requests where user_id=$1', [
-          subject,
-        ])
-      ).rows[0]?.status,
-    ).toBe('failed');
+        await pool.query(
+          'select status,error_code,completed_at from private.account_deletion_requests where user_id=$1',
+          [subject],
+        )
+      ).rows[0],
+    ).toEqual({ status: 'processing', error_code: 'DELETION_HANDLER_FAILED', completed_at: null });
     expect(
-      (await pool.query('select status from public.profiles where id=$1', [subject])).rows[0]
-        ?.status,
-    ).toBe('active');
+      (await pool.query('select status,deleted_at from public.profiles where id=$1', [subject]))
+        .rows[0],
+    ).toEqual({ status: 'deletion_pending', deleted_at: null });
     expect(clerk.revokeUserSessions).not.toHaveBeenCalled();
   });
 
@@ -175,7 +200,7 @@ describeLocal('identity deletion with the real local worker role', () => {
       new AiPrivacyHandler(pool, storage as never),
       new EngagementPrivacyHandler(pool, storage as never),
       { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
-      {} as never,
+      new OwnerDataErasureService(pool, storage as never, storage as never, storage as never),
     );
     clerk.deleteIdentityUser.mockRejectedValueOnce(new ClerkProviderUnavailableError());
     await worker.runDeletionForOwner(subject);

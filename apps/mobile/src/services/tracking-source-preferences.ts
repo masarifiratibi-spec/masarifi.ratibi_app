@@ -11,8 +11,10 @@ import {
   useTrackingAdmission
 } from '@/state/tracking-admission';
 import { readLogoutSessionAnchor } from './live/auth-service';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   productionTrackingConsent,
+  prepareTrackingInstallationConsentPurge,
   type TrackingSourceConsentPort
 } from './tracking-installation-consent';
 
@@ -28,6 +30,22 @@ export const trackingConsentEpoch = () => consentEpoch;
 export const invalidateTrackingConsent = () => {
   consentEpoch++;
 };
+export async function settleTrackingSourceMutations(): Promise<void> {
+  await sourceMutation;
+}
+
+function assertSourceMutationAllowed(existingCommand = false): void {
+  const shell = useAppShellStore.getState();
+  const owner =
+    useTrackingAdmission.getState().admittedOwnerId ?? shell.session?.userId;
+  if (
+    owner &&
+    (shell.logoutQuiescingOwnerId === owner ||
+      shell.logoutRecoveryOwnerId === owner ||
+      (!existingCommand && shell.logoutInProgressOwnerId === owner))
+  )
+    throw new Error('tracking_source_lifecycle_busy');
+}
 
 export interface TrackingSourceState {
   smsEnabled: boolean;
@@ -216,6 +234,7 @@ export class TrackingSourcePreferences {
     enabled: boolean
   ): Promise<TrackingSourceState> {
     assertTrackingAvailable();
+    assertSourceMutationAllowed();
     const scope = sourceScope();
     consentEpoch++;
     return serializeSources(async () => {
@@ -255,6 +274,7 @@ export class TrackingSourcePreferences {
   }
 
   async retryPendingConsent(): Promise<boolean> {
+    assertSourceMutationAllowed(true);
     const scope = sourceScope();
     return serializeSources(async () => {
       if (this.consent.hasPending && !(await this.consent.hasPending()))
@@ -280,6 +300,7 @@ export class TrackingSourcePreferences {
     accountId: string | null
   ): Promise<TrackingSourceState> {
     assertTrackingAvailable();
+    assertSourceMutationAllowed();
     if (
       accountId !== null &&
       !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(accountId)
@@ -319,7 +340,8 @@ export const trackingSourcePreferences = new TrackingSourcePreferences();
 export async function purgeTrackingSourcePreferences(
   ownerId: string,
   ownerDigest: string,
-  assertCurrent: () => void
+  assertCurrent: () => void,
+  cleanup: (clearSources: () => Promise<void>) => Promise<void>
 ): Promise<void> {
   consentEpoch++;
   await serializeSources(async () => {
@@ -337,9 +359,23 @@ export async function purgeTrackingSourcePreferences(
       const parsed = envelopeSchema.safeParse(value);
       if (!parsed.success || parsed.data.ownerId !== ownerId)
         throw new Error('tracking_source_owner_unavailable');
-      await AsyncStorage.removeItem(key);
-      assertCurrent();
     }
+    const clearConsent = await prepareTrackingInstallationConsentPurge(
+      ownerId,
+      ownerDigest,
+      assertCurrent
+    );
+    // All source writers take this lock before native I/O. Keep the same order
+    // during cleanup, and validate both envelopes before any destructive I/O.
+    await cleanup(async () => {
+      assertCurrent();
+      const current = await AsyncStorage.getItem(key);
+      assertCurrent();
+      if (current !== raw) throw new Error('tracking_source_owner_unavailable');
+      if (raw !== null) await AsyncStorage.removeItem(key);
+      assertCurrent();
+      await clearConsent();
+    });
   });
 }
 

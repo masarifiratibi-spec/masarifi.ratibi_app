@@ -42,9 +42,7 @@ export interface TrackingConsentPorts {
     setItem(key: string, value: string): Promise<void>;
   };
   scope(): Promise<TrackingConsentScope>;
-  registerDevice(
-    scope: TrackingConsentScope
-  ): Promise<{
+  registerDevice(scope: TrackingConsentScope): Promise<{
     deviceFingerprint: string;
     platform: 'android';
     appVersion: string;
@@ -273,15 +271,57 @@ function localSources(
   };
 }
 function receivedReceipt(value: unknown): TrackingInstallationReceipt {
-  if (!value || typeof value !== 'object' || !('installation' in value)
-    || !('configurationAvailable' in value) || typeof value.configurationAvailable !== 'boolean')
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('installation' in value) ||
+    !('configurationAvailable' in value) ||
+    typeof value.configurationAvailable !== 'boolean'
+  )
     throw new Error('tracking_consent_response_invalid');
   const parsed = trackingInstallationReceiptSchema.safeParse(
     value.installation
   );
-  if (!parsed.success || (parsed.data.captureAllowed && !value.configurationAvailable))
+  if (
+    !parsed.success ||
+    (parsed.data.captureAllowed && !value.configurationAvailable)
+  )
     throw new Error('tracking_consent_response_invalid');
   return parsed.data;
+}
+
+function consentStorageKey(ownerDigest: string): string {
+  if (!/^[a-f0-9]{64}$/.test(ownerDigest))
+    throw new Error('tracking_consent_storage_invalid');
+  return `masarifi.tracking.installation-consent.v1.${ownerDigest}`;
+}
+
+/** Only a pinned owner cleanup supplies the guard; SDK sign-out may already be complete. */
+export async function prepareTrackingInstallationConsentPurge(
+  ownerId: string,
+  ownerDigest: string,
+  assertCurrent: () => void
+): Promise<() => Promise<void>> {
+  assertCurrent();
+  const key = consentStorageKey(ownerDigest);
+  const raw = await AsyncStorage.getItem(key);
+  assertCurrent();
+  if (raw !== null) {
+    try {
+      if (journalSchema.parse(JSON.parse(raw)).ownerId !== ownerId)
+        throw new Error();
+    } catch {
+      throw new Error('tracking_consent_storage_invalid');
+    }
+  }
+  return async () => {
+    assertCurrent();
+    const current = await AsyncStorage.getItem(key);
+    assertCurrent();
+    if (current !== raw) throw new Error('tracking_consent_storage_invalid');
+    if (raw !== null) await AsyncStorage.removeItem(key);
+    assertCurrent();
+  };
 }
 
 export class TrackingInstallationConsentJournal {
@@ -309,7 +349,7 @@ export class TrackingInstallationConsentJournal {
       !/^[a-f0-9]{64}$/.test(scope.sessionBinding)
     )
       throw new Error('tracking_consent_storage_invalid');
-    return `masarifi.tracking.installation-consent.v1.${scope.ownerDigest}`;
+    return consentStorageKey(scope.ownerDigest);
   }
   private async read(scope: TrackingConsentScope): Promise<Journal> {
     await scope.assertCurrent();
@@ -354,7 +394,9 @@ export class TrackingInstallationConsentJournal {
       receipt.sources.notificationEnabled !== requested.notificationEnabled ||
       ((requested.smsEnabled || requested.notificationEnabled) &&
         !receipt.captureAllowed) ||
-      (requested.smsEnabled && BigInt(receipt.sources.smsActivationId ?? '0') < BigInt(requested.smsActivationId ?? '0')) ||
+      (requested.smsEnabled &&
+        BigInt(receipt.sources.smsActivationId ?? '0') <
+          BigInt(requested.smsActivationId ?? '0')) ||
       (requested.smsEnabled &&
         Date.parse(receipt.sources.smsActivatedAt ?? '') <
           Date.parse(requested.smsActivatedAt ?? '')) ||

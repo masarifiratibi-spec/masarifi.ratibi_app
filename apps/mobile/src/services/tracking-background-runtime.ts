@@ -512,30 +512,32 @@ export async function purgeDeletedOwnerTracking(
     )
       throw new Error('tracking_restore_unavailable');
     nativeGeneration++;
-    return serializeNative(async () => {
-      assertCurrent();
-      const context = await readTrackingOwnerContext(ownerId);
-      if (context && context.generation !== lease.generation)
-        throw new Error('tracking_restore_unavailable');
-      assertCurrent();
-      await native.purgeTrackingOwnerDataV4!(
-        lease.ownerDigest,
-        lease.generation
-      );
-      assertCurrent();
-      await purgeTrackingSourcePreferences(
-        ownerId,
-        lease.ownerDigest,
-        assertCurrent
-      );
-      if (context) {
-        if ((await SecureStore.getItemAsync(context.key)) !== context.raw)
-          throw new Error('tracking_restore_unavailable');
-        assertCurrent();
-        await SecureStore.deleteItemAsync(context.key);
-      }
-      assertCurrent();
-    });
+    return purgeTrackingSourcePreferences(
+      ownerId,
+      lease.ownerDigest,
+      assertCurrent,
+      (clearSources) =>
+        serializeNative(async () => {
+          assertCurrent();
+          const context = await readTrackingOwnerContext(ownerId);
+          if (context && context.generation !== lease.generation)
+            throw new Error('tracking_restore_unavailable');
+          assertCurrent();
+          await native.purgeTrackingOwnerDataV4!(
+            lease.ownerDigest,
+            lease.generation
+          );
+          assertCurrent();
+          await clearSources();
+          if (context) {
+            if ((await SecureStore.getItemAsync(context.key)) !== context.raw)
+              throw new Error('tracking_restore_unavailable');
+            assertCurrent();
+            await SecureStore.deleteItemAsync(context.key);
+          }
+          assertCurrent();
+        })
+    );
   }
   if (!native?.purgeTrackingOwnerData)
     throw new Error('tracking_native_upgrade_required');

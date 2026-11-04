@@ -18,6 +18,8 @@ import * as financeSync from '@/services/live/core-finance-service';
 import * as trackingSync from '@/services/automatic-tracking-coordinator';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { clearDatabaseOwner } from '@/storage/database';
+import { setImmediate } from 'node:timers';
+import { TrackingSourcePreferences, type TrackingSourceState } from './tracking-source-preferences';
 
 const mockSecure = new Map<string, string>();
 const mockRows = new Map<string, number>();
@@ -174,6 +176,95 @@ it('ordinary sign-out keeps owner data and pending work without sync or a remova
   expect(useAppShellStore.getState().session?.status).toBe('signed_out');
   expect(useAppShellStore.getState().logoutRecoveryOwnerId).toBeNull();
   expect(sdkSignOut).toHaveBeenCalledTimes(1);
+});
+
+it('settles an in-flight source consent before ending the verified SDK session', async () => {
+  let release!: () => void;
+  let entered!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const values = new Map<string, string>();
+  const sources = new TrackingSourcePreferences(
+    {
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: async (key) => {
+        values.delete(key);
+      }
+    },
+    undefined,
+    {
+      apply: async (value: TrackingSourceState) => {
+        entered();
+        await gate;
+        return {
+          commandId: 'aaaaaaaa-1111-4111-8111-111111111111',
+          sources: value
+        };
+      },
+      retry: async () => null,
+      acknowledge: async () => undefined
+    }
+  );
+  const changing = sources.set('notification', true);
+  await started;
+  const signingOut = signOutAppShellSession({} as never, 'local');
+  try {
+    // All supplied I/O is immediate except the explicit consent gate.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(sdkSignOut).not.toHaveBeenCalled();
+    expect(mockSession?.id).toBe(originalSession.id);
+    release();
+    await changing;
+    await expect(signingOut).resolves.toBe(true);
+    expect(mockRows.get(owner)).toBe(1);
+    expect(mockRows.get(other)).toBe(1);
+  } finally {
+    release();
+    await Promise.allSettled([changing, signingOut]);
+  }
+});
+
+it('rejects a new source mutation while logout is quiesced and preserves the original source bytes', async () => {
+  let release!: () => void;
+  mockProviderGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const values = new Map<string, string>();
+  const apply = jest.fn(async (value: TrackingSourceState) => ({
+    commandId: 'aaaaaaaa-1111-4111-8111-111111111111',
+    sources: value
+  }));
+  const sources = new TrackingSourcePreferences(
+    {
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: async (key) => {
+        values.delete(key);
+      }
+    },
+    undefined,
+    { apply, retry: async () => null, acknowledge: async () => undefined }
+  );
+  const signingOut = signOutAppShellSession({} as never, 'local');
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(useAppShellStore.getState().logoutInProgressOwnerId).toBe(owner);
+    await expect(sources.set('notification', true)).rejects.toThrow();
+    expect(apply).not.toHaveBeenCalled();
+    expect(values.size).toBe(0);
+  } finally {
+    release();
+    await signingOut;
+  }
 });
 
 it.each([false,true])('reconstructs a preserving cleanup without erasing data or terminating the session twice (legacy=%s)', async (legacy) => {

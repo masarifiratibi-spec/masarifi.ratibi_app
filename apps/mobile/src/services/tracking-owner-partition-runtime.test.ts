@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { createHash } from 'node:crypto';
+import { setImmediate } from 'node:timers';
 import * as database from '@/storage/database';
 import { useAppShellStore } from '@/state/app-shell';
 import {
@@ -754,6 +755,101 @@ it('purges only the admitted owner namespace and leaves foreign legacy context a
   expect(await AsyncStorage.getItem('masarifi.tracking.sources.v1')).toBe(
     'unattributed legacy consent'
   );
+});
+
+it('removes only the validated current owner production consent journal during owned cleanup', async () => {
+  await restoreAppShellSession(verifiedSession(), () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  const journalKey = `masarifi.tracking.installation-consent.v1.${digest}`;
+  const foreignDigest = createHash('sha256')
+    .update('user_retainedB')
+    .digest('hex');
+  const foreignKey = `masarifi.tracking.installation-consent.v1.${foreignDigest}`;
+  await AsyncStorage.setItem(
+    journalKey,
+    JSON.stringify({ version: 1, ownerId: owner, superseded: [] })
+  );
+  await AsyncStorage.setItem(foreignKey, 'retained foreign consent bytes');
+  await purgeDeletedOwnerTracking(owner);
+  expect(await AsyncStorage.getItem(journalKey)).toBeNull();
+  expect(await AsyncStorage.getItem(foreignKey)).toBe(
+    'retained foreign consent bytes'
+  );
+  expect(mockSecureValues.get(legacyKey)).toBe(retained);
+});
+
+it.each(['malformed', 'foreign'] as const)(
+  'preserves all owned cleanup state when its consent journal is %s',
+  async (kind) => {
+    await restoreAppShellSession(verifiedSession(), () => true, {
+      getProfileSetup: async () => ({ complete: true })
+    } as never);
+    const journalKey = `masarifi.tracking.installation-consent.v1.${digest}`;
+    const raw =
+      kind === 'malformed'
+        ? '{retained-invalid-consent'
+        : JSON.stringify({
+            version: 1,
+            ownerId: 'user_retainedB',
+            superseded: []
+          });
+    await AsyncStorage.setItem(journalKey, raw);
+    const nativeBefore = { ...mockNative.committed };
+    const suspendedBefore = mockNative.suspended;
+    const contextBefore = mockSecureValues.get(contextKey);
+    await expect(purgeDeletedOwnerTracking(owner)).rejects.toThrow(
+      'tracking_consent_storage_invalid'
+    );
+    expect(await AsyncStorage.getItem(journalKey)).toBe(raw);
+    expect(mockNative.committed).toEqual(nativeBefore);
+    expect(mockNative.suspended).toBe(suspendedBefore);
+    expect(mockSecureValues.get(contextKey)).toBe(contextBefore);
+    expect(mockSecureValues.get(legacyKey)).toBe(retained);
+  }
+);
+
+it('settles source work before any native purge and clears its completed owner data once', async () => {
+  await restoreAppShellSession(verifiedSession(), () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  let release!: () => void;
+  let entered!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const preferences = new TrackingSourcePreferences(AsyncStorage, undefined, {
+    apply: async (sources) => {
+      entered();
+      await gate;
+      return { commandId: 'aaaaaaaa-1111-4111-8111-111111111111', sources };
+    },
+    retry: async () => null,
+    acknowledge: async () => undefined
+  });
+  const changing = preferences.set('notification', true);
+  await started;
+  const purge = jest.mocked(MasarifiSmsInbox!.purgeTrackingOwnerDataV4!);
+  const callsBefore = purge.mock.calls.length;
+  const cleaning = purgeDeletedOwnerTracking(owner);
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(purge).toHaveBeenCalledTimes(callsBefore);
+    release();
+    await changing;
+    await cleaning;
+    expect(purge).toHaveBeenCalledTimes(callsBefore + 1);
+    expect(
+      await AsyncStorage.getItem(`masarifi.tracking.sources.v3.${digest}`)
+    ).toBeNull();
+    expect(mockSecureValues.get(legacyKey)).toBe(retained);
+  } finally {
+    release();
+    await Promise.allSettled([changing, cleaning]);
+  }
 });
 
 it('finishes only a durable approved cold logout preservation after its SDK session is already gone', async () => {

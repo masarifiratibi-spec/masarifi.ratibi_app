@@ -37,6 +37,7 @@ describeLiveDatabase('category lifecycle', () => {
   });
 
   afterAll(async () => {
+    let orphanCursorCount: number | undefined;
     await pool.withClient(async (client) => {
       const users = [owner.userId, other.userId];
       await client.query('begin');
@@ -63,10 +64,20 @@ describeLiveDatabase('category lifecycle', () => {
       );
       await client.query('delete from public.accounts where user_id=any($1)', [users]);
       await client.query('delete from public.categories where user_id=any($1)', [users]);
+      await client.query('delete from private.sync_cursor_positions where user_id=any($1)', [
+        users,
+      ]);
       await client.query('delete from public.profiles where id=any($1)', [users]);
       await client.query('commit');
+      const cursors = await client.query<{ count: number }>(
+        `select count(*)::int count from private.sync_cursor_positions c
+         where c.user_id=any($1) and not exists(select 1 from public.profiles p where p.id=c.user_id)`,
+        [[owner.userId, other.userId]],
+      );
+      orphanCursorCount = cursors.rows[0]?.count;
     });
     await pool.onModuleDestroy();
+    expect(orphanCursorCount).toBe(0);
   });
 
   it('rejects cross-owner graph links and rolls the resource back if audit fails', async () => {

@@ -22,6 +22,7 @@ const priorClientMode = process.env.EXPO_PUBLIC_CLIENT_MODE;
 const mockFiles = new Set<string>();
 const mockSecrets = new Map<string, string>();
 const mockConnections = new Map<string, { closed: boolean }>();
+const mockOpenedNames: string[] = [];
 const mockFileFailures = new Set<string>();
 let mockCloseFailure = false;
 let mockSecretFailure = false;
@@ -91,6 +92,7 @@ jest.mock('expo-sqlite', () => ({
     return mockDirectory;
   },
   openDatabaseAsync: async (name: string) => {
+    mockOpenedNames.push(name);
     const connection = { closed: false };
     let cachedByNative = true;
     mockConnections.set(name, connection);
@@ -140,6 +142,7 @@ beforeEach(async () => {
   mockFiles.clear();
   mockSecrets.clear();
   mockConnections.clear();
+  mockOpenedNames.length = 0;
   mockFileFailures.clear();
   seedOwnerFiles(NAME_A);
   seedOwnerFiles(NAME_B);
@@ -194,16 +197,18 @@ test('purges a switched-away owner without closing or replacing the active owner
   expect(mockSecrets.get(KEY_B)).toBe('b'.repeat(64));
 });
 
-test('purges after sign-out without opening or recreating the deleted database', async () => {
+test('inspects the existing owner file after sign-out without recreating it on a completed retry', async () => {
   await configureDatabaseOwner(OWNER_A);
   await openDatabase(OWNER_A);
   await clearDatabaseOwner(OWNER_A);
   mockConnections.clear();
+  mockOpenedNames.length = 0;
 
   await purgeAccountDatabase(OWNER_A);
   await purgeAccountDatabase(OWNER_A);
 
-  expect(mockConnections.size).toBe(0);
+  expect(mockOpenedNames).toEqual([NAME_A]);
+  expect(mockConnections.get(NAME_A)?.closed).toBe(true);
   expect(mockFiles.has(`file://${mockDirectory}/${NAME_A}`)).toBe(false);
   expect(mockSecrets.has(KEY_A)).toBe(false);
   expect(mockSecrets.get(KEY_B)).toBe('b'.repeat(64));

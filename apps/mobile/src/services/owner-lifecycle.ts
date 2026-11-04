@@ -48,7 +48,10 @@ import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import { syncFirstLogout } from '@/services/sync-first-logout';
 import { settleTransactionDraftWrites } from '@/storage/transaction-draft-snapshots';
-import { trackingSourcePreferences } from './tracking-source-preferences';
+import {
+  trackingSourcePreferences,
+  settleTrackingSourceMutations
+} from './tracking-source-preferences';
 export {
   isLogoutOwnerFenced,
   currentLogoutAdmissionRevision
@@ -172,6 +175,7 @@ async function performSignOutAppShellSession(
         assertCurrent();
         useAppShellStore.setState({ logoutQuiescingOwnerId: ownerId });
         await disableTrackingBackground(true);
+        await settleTrackingSourceMutations();
         await settleTransactionDraftWrites();
         assertCurrent();
       },

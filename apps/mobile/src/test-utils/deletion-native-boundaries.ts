@@ -1,8 +1,21 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
+interface FixtureDatabase {
+  exec(sql: string): void;
+  close(): void;
+  prepare(sql: string): {
+    get(): Record<string, unknown> | undefined;
+    all(): Record<string, unknown>[];
+  };
+}
+const { DatabaseSync } = jest.requireActual<{
+  DatabaseSync: new (path: string) => FixtureDatabase;
+}>('node:sqlite');
+
 export const deletionNative = {
   secrets: new Map<string, string>(),
   files: new Set<string>(),
+  databases: new Map<string, FixtureDatabase>(),
   failFileDeletion: false,
   failSecretDeletion: false,
   secureStore: {
@@ -29,9 +42,43 @@ export const deletionNative = {
   },
   sqlite: {
     defaultDatabaseDirectory: 'file:///databases',
-    openDatabaseAsync: jest.fn(async () => {
-      throw new Error('Deletion recovery must never open a database');
-    })
+    openDatabaseAsync: jest.fn(
+      async (name: string, options?: { useNewConnection?: boolean }) => {
+        const filename = `file:///databases/${name}`;
+        const db = deletionNative.databases.get(filename);
+        if (
+          !options?.useNewConnection ||
+          !db ||
+          !deletionNative.files.has(filename)
+        )
+          throw new Error(
+            'Deletion recovery must only inspect an existing database'
+          );
+        let closed = false;
+        const check = () => {
+          if (closed) throw new Error('closed inspection');
+        };
+        return {
+          execAsync: async (sql: string) => {
+            check();
+            db.exec(sql);
+          },
+          getFirstAsync: async (sql: string) => {
+            check();
+            return sql === 'PRAGMA cipher_version'
+              ? { cipher_version: '4.6.1' }
+              : (db.prepare(sql).get() ?? null);
+          },
+          getAllAsync: async (sql: string) => {
+            check();
+            return db.prepare(sql).all();
+          },
+          closeAsync: async () => {
+            closed = true;
+          }
+        };
+      }
+    )
   },
   fileSystem: {
     File: class {
@@ -60,10 +107,21 @@ export function seedDeletedOwner(ownerId: string): string {
     `masarifi.database.key.${ownerHash}`,
     'b'.repeat(64)
   );
+  const database = new DatabaseSync(':memory:');
+  database.exec(`
+    create table schema_migrations(version integer primary key);
+    insert into schema_migrations values(17);
+    create table sms_import_queue(id text primary key,payload text not null);
+    create table sms_import_queue_v3(id text primary key,payload text not null);
+  `);
+  deletionNative.databases.get(filename)?.close();
+  deletionNative.databases.set(filename, database);
   return filename;
 }
 
 export function resetDeletionNative(): void {
+  for (const db of deletionNative.databases.values()) db.close();
+  deletionNative.databases.clear();
   deletionNative.secrets.clear();
   deletionNative.files.clear();
   deletionNative.failFileDeletion = false;
