@@ -48,6 +48,7 @@ describeLiveDatabase('identity RLS request context', () => {
   });
 
   it('sets claims and the API role only for the customer transaction', async () => {
+    const initial = await pool.query<{ role_name: string }>('select current_user as role_name');
     const result = await repository.withCustomerTransaction(
       { userId: 'integration_owner_1', sessionId: 'integration_session_1', factorAgeSeconds: 60 },
       async (client: PoolClient) => {
@@ -74,7 +75,7 @@ describeLiveDatabase('identity RLS request context', () => {
       `select nullif(current_setting('request.jwt.claims', true), '') as claims,
               current_user as role_name`,
     );
-    expect(after.rows[0]).toEqual({ claims: null, role_name: 'postgres' });
+    expect(after.rows[0]).toEqual({ claims: null, role_name: initial.rows[0]?.role_name });
   });
 
   it('isolates consecutive subjects on the same pooled connection', async () => {
