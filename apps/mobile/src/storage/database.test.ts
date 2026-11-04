@@ -250,12 +250,15 @@ it('migrates retained v1-v6 data through each pending schema in order', async ()
     { version: 13, applied_at: expect.any(Number) },
     { version: 14, applied_at: expect.any(Number) },
     { version: 15, applied_at: expect.any(Number) },
-    { version: 16, applied_at: expect.any(Number) }
+    { version: 16, applied_at: expect.any(Number) },
+    { version: 17, applied_at: expect.any(Number) }
   ]);
   expect(mockDatabase.events).toEqual([
     'pragma',
     'begin',
     'ddl',
+    'ddl',
+    'migration',
     'ddl',
     'migration',
     'ddl',
@@ -285,7 +288,7 @@ it('migrates retained v1-v6 data through each pending schema in order', async ()
     await database.getAllAsync(
       'SELECT version FROM schema_migrations ORDER BY version'
     )
-  ).toHaveLength(16);
+  ).toHaveLength(17);
   expect(mockDatabase.events.slice(-4)).toEqual([
     'pragma',
     'begin',
@@ -306,7 +309,7 @@ it('applies every migration to a fresh database', async () => {
         'SELECT version FROM schema_migrations ORDER BY version'
       )
     ).map((row) => row.version)
-  ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
   expect(
     (
       await database.getAllAsync<{ name: string }>(
@@ -329,6 +332,7 @@ it('applies every migration to a fresh database', async () => {
       'sync_id_mappings',
       'planning_payment_matches',
       'sms_import_queue',
+      'sms_import_queue_v3',
       'query_read_cache'
     ])
   );
@@ -398,6 +402,7 @@ it('creates all current tables including the idempotent demo marker', async () =
 
   for (const [table, columns, values] of [
     ['sms_import_queue', 'id, payload', ['not-singleton', '{}']],
+    ['sms_import_queue_v3', 'id, payload', ['not-singleton', '{}']],
     [
       'notification_preferences',
       'id, payload, updated_at',

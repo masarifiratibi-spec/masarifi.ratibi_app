@@ -6,6 +6,9 @@ export function clearTrackingIsolation(): void {
     ready: true,
     admittedOwnerId: null,
     isolatedForOwnerId: null,
+    nativeLease: null,
+    sessionAnchor: null,
+    partitioned: false,
     revision: state.revision + 1
   }));
 }

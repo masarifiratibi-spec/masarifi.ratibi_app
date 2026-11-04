@@ -1,5 +1,7 @@
 import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { MasarifiSmsInbox } from '../../../modules/masarifi-sms-inbox';
+import type { MasarifiSmsInboxModule } from '../../../modules/masarifi-sms-inbox';
+import { captureTrackingNativeLease } from '../tracking-native-lease';
 import * as Crypto from 'expo-crypto';
 import type {
   RawSmsMessage,
@@ -7,7 +9,10 @@ import type {
   SmsInboxPage
 } from './sms-inbox-service';
 
-interface NativeSmsInbox {
+interface NativeSmsInbox extends Pick<
+  MasarifiSmsInboxModule,
+  'readFinancialSmsPageV4'
+> {
   readRecentSms(since: number, limit: number): Promise<unknown>;
   readSmsPage?(since: number, afterId: string, limit: number): Promise<unknown>;
   readFinancialSmsPageV2?(
@@ -47,13 +52,14 @@ export function createAndroidSmsInboxService(
   return {
     available: native !== null,
     async readRecent({ since, limit, afterId }) {
-      assertTrackingAvailable();
+      const scope = await captureTrackingNativeLease();
+      if (scope.lease) throw new Error('sms_inbox_owner_required');
       validateBounds(since, limit);
       if (!native) return [];
       return validMessages(await legacyRead(since, afterId, limit));
     },
     async readPage({ since, limit, afterId, ownerId }) {
-      assertTrackingAvailable();
+      const scope = await captureTrackingNativeLease(ownerId);
       validateBounds(since, limit);
       const initial = { receivedAt: since, id: afterId || '0' };
       if (!boundary(initial) || !ownerId)
@@ -66,7 +72,7 @@ export function createAndroidSmsInboxService(
           hasMore: false,
           scanned: 0
         };
-      if (!native.readFinancialSmsPageV2) {
+      if (!scope.lease && !native.readFinancialSmsPageV2) {
         const rows = await legacyRead(since, afterId, limit);
         const tail = rows.at(-1) as Record<string, unknown> | undefined;
         const last = tail
@@ -81,17 +87,31 @@ export function createAndroidSmsInboxService(
           scanned: rows.length
         };
       }
-      const digest = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        ownerId
-      );
-      assertTrackingAvailable();
-      const value = await native.readFinancialSmsPageV2(
-        since,
-        initial.id,
-        limit,
-        digest
-      );
+      if (scope.lease && !native.readFinancialSmsPageV4)
+        throw new Error('tracking_native_upgrade_required');
+      const digest =
+        scope.lease?.ownerDigest ??
+        (await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          ownerId
+        ));
+      await scope.assertCurrent();
+      const value = scope.lease
+        ? await native.readFinancialSmsPageV4!(
+            JSON.stringify({
+              ...scope.lease,
+              since,
+              afterId: initial.id,
+              limit
+            })
+          )
+        : await native.readFinancialSmsPageV2!(
+            since,
+            initial.id,
+            limit,
+            digest
+          );
+      await scope.assertCurrent();
       if (!value || typeof value !== 'object')
         throw new Error('sms_inbox_invalid_response');
       const page = value as SmsInboxPage;

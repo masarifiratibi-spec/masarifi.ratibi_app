@@ -38,9 +38,9 @@ Same workspace/branch; preserve all existing data/keys/sessions/pending work/UI/
 
 **Interfaces:** JS persists prepared owner/generation before exact native commit; only committed verified owner receives admission. Owner-scoped source preferences start disabled. No global legacy removal on parse/owner mismatch; cleanup targets admitted owner only.
 
-- [ ] RED restoration through real state with native/storage boundaries: foreign current login gets independent namespace; interruption reconciles; stale owner/logout/consent work rejects; foreign legacy bytes survive load/clear/logout.
-- [ ] Implement and connect Task 1 protocol, fenced headless/capture/read/ack/cleanup and explicit available/current-owner UI.
-- [ ] Run affected integration suites, mobile typecheck/lint/boundaries and required full mobile suite. Record accepted limitations separately; commit qualified code.
+- [x] RED restoration through real state with native/storage boundaries: foreign current login gets independent namespace; interruption reconciles; stale owner/logout/consent work rejects; foreign legacy bytes survive load/clear/logout.
+- [x] Connect Task1 protocol and existing owner-keyed controls after acknowledgment; fence headless/capture/read/ack/cleanup. Durable consent/configuration races reconcile while capture stays off.
+- [x] Qualified full Mobile608suites/4806tests, native78tests, typecheck/lint/complete frontend boundaries exit0; actual APK/device and production API acceptance remain later gates. Evidence: `docs/evidence/2026-11-04-production-apk-readiness/js-owner-contexts-and-consent.md`.
 
 ## Task 3: Production installation consent and capture contract
 

@@ -2,10 +2,13 @@ import { openDatabase, runExclusiveDatabaseTransaction } from './database';
 import { clearAppShellUserData } from './app-shell-storage';
 import { resetRuntimeUserData } from './runtime-user-data-reset';
 import { clearPersistedPreferences } from './secure-preferences';
-import { clearLegacySmsImportQueue } from './sms-import-queue';
+import { clearLegacySmsImportQueue, SmsImportQueue } from './sms-import-queue';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
-import { captureTrackingAdmission } from '@/state/tracking-admission';
+import {
+  captureTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 
 type LocalDataDeletionResult = { deletedRows: number; operationId: string };
 type SqliteLike = {
@@ -19,10 +22,15 @@ export async function resetLocalUserData(
   operationId: string
 ): Promise<LocalDataDeletionResult> {
   const assertCurrent = captureTrackingAdmission();
+  const partitionOwner = useTrackingAdmission.getState().nativeLease
+    ? useTrackingAdmission.getState().admittedOwnerId
+    : null;
   const replay = completed.get(operationId);
   if (replay) return replay;
   return withTransactionDraftWrite(async () => {
     assertCurrent();
+    // Validate attribution before owner cleanup; legacy Tracking stays outside its scope.
+    if (partitionOwner) await new SmsImportQueue().load(partitionOwner);
     let deletedRows = 0;
     const outcomes = await Promise.allSettled([
       (async () => {
@@ -40,6 +48,11 @@ export async function resetLocalUserData(
             AND name NOT LIKE 'sqlite_%'
         `);
           for (const { name } of tables) {
+            if (
+              partitionOwner &&
+              ['sms_import_queue', 'sms_import_queue_v3'].includes(name)
+            )
+              continue;
             if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
               throw new Error('invalid local data table');
             assertCurrent();
@@ -52,6 +65,7 @@ export async function resetLocalUserData(
       clearPersistedPreferences(),
       clearLegacySmsImportQueue()
     ]);
+    if (partitionOwner) await new SmsImportQueue().clear(partitionOwner);
     await resetRuntimeUserData();
     const failure = outcomes.find(
       (outcome): outcome is PromiseRejectedResult =>

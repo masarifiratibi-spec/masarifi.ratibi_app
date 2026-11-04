@@ -54,7 +54,7 @@ class MasarifiSmsInboxModule : Module() {
     AsyncFunction("readFinancialSmsPageV4") { request: String ->
       val page=JSONObject(request)
       val lease=partitionLease(page)
-      currentPartition(lease) {readFinancialPage(page.getDouble("since"),page.getString("afterId"),page.getInt("limit"),lease.owner)}
+      currentPartition(lease) {readFinancialPage(page.getDouble("since"),page.getString("afterId"),page.getInt("limit"),lease.owner,true)}
     }
     AsyncFunction("presentCaptureConfirmationV4") { request: String ->
       val notification=JSONObject(request)
@@ -196,7 +196,7 @@ class MasarifiSmsInboxModule : Module() {
           "nativeKey" to record.nativeKey
         ) + (record.sourceDisplayName?.let { mapOf("sourceDisplayName" to it) } ?: emptyMap())
   }
-  private fun readFinancialPage(since:Double,afterId:String,limit:Int,expectedOwner:String?):Map<String,Any> = synchronized(TrackingOwner) {
+  private fun readFinancialPage(since:Double,afterId:String,limit:Int,expectedOwner:String?,enforceConsent:Boolean=false):Map<String,Any> = synchronized(TrackingOwner) {
     require(since.isFinite() && since>=0 && since%1.0==0.0 && since<=9007199254740991.0 && limit in 1..100)
     val id=afterId.toLongOrNull() ?: throw IllegalArgumentException("sms_cursor_invalid")
     require(id>=0)
@@ -208,15 +208,16 @@ class MasarifiSmsInboxModule : Module() {
         expectedOwner!=null && state.optString("owner")!=expectedOwner)
       throw IllegalStateException("sms_owner_unavailable")
     val policy=TrackingOwner.policy(state) ?: throw IllegalStateException("tracking_policy_unavailable")
+    val boundary=if(enforceConsent) trackingSmsBoundary(state,since.toLong(),afterId) else since.toLong() to afterId
     val observedAt=System.currentTimeMillis()
     val cursor=context.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI,arrayOf("_id","address","body","date"),
-      "date > ? OR (date = ? AND _id > ?)",arrayOf(since.toLong().toString(),since.toLong().toString(),id.toString()),"date ASC, _id ASC")
+      "date > ? OR (date = ? AND _id > ?)",arrayOf(boundary.first.toString(),boundary.first.toString(),boundary.second),"date ASC, _id ASC")
       ?: throw IllegalStateException("sms_inbox_unavailable")
     cursor.use {
       val rows=sequence {
         while(cursor.moveToNext()) yield(SmsInboxRow(cursor.getLong(0).toString(),cursor.getString(1)?:"",cursor.getString(2)?:"",cursor.getLong(3)))
       }
-      scanFinancialSmsPage(rows.iterator(),since.toLong(),afterId,limit,observedAt) { row ->
+      scanFinancialSmsPage(rows.iterator(),boundary.first,boundary.second,limit,observedAt) { row ->
         if(policy.nominal) policy.isFinancial(row.body,row.sender,"android_sms")
         else policy.isStrong(row.body,row.sender,"android_sms")
       }

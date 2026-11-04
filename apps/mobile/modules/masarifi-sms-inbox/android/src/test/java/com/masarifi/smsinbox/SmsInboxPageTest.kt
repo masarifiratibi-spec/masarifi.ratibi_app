@@ -4,6 +4,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SmsInboxPageTest {
+  @Test fun ownerConsentClampsOldCursorsAndPreservesTheExactActivationRowBoundary() {
+    val state=org.json.JSONObject().put("smsActivatedAt",100L).put("smsActivationId","42")
+    assertEquals(100L to "42",trackingSmsBoundary(state,0L,"0"))
+    assertEquals(100L to "42",trackingSmsBoundary(state,100L,"41"))
+    assertEquals(100L to "43",trackingSmsBoundary(state,100L,"43"))
+    assertEquals(101L to "0",trackingSmsBoundary(state,101L,"0"))
+    assertEquals(100L to "999999999999999999",trackingSmsBoundary(state,100L,"999999999999999999"))
+  }
+  @Test fun scanningCannotExposePreConsentRowsEvenWhenTheProviderReturnsThem() {
+    val rows=listOf(SmsInboxRow("1","BANK","Purchase SAR1",99),
+      SmsInboxRow("41","BANK","Purchase SAR1",100),SmsInboxRow("42","BANK","Purchase SAR1",100),
+      SmsInboxRow("43","BANK","Purchase SAR2",100))
+    val page=scanFinancialSmsPage(rows.iterator(),100,"42",100,200) { true }
+    assertEquals(listOf("43"),(page["messages"] as List<*>).map {(it as Map<*,*>)["id"]})
+    assertEquals(mapOf("receivedAt" to 100L,"id" to "43"),page["lastScanned"])
+  }
   @Test fun blankRowsDoNotAbortFinancialRowsAtTheSameTimestamp() {
     val rows=listOf(SmsInboxRow("1","BANK","Purchase SAR1",100),
       SmsInboxRow("2","BANK","",100),SmsInboxRow("3","BANK","Purchase SAR2",100))

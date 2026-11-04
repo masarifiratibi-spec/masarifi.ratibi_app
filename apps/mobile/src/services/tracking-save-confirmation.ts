@@ -13,14 +13,20 @@ import { usePreferenceStore } from '@/state/preferences';
 import { translate } from '@/localization/i18n';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { openDatabase } from '@/storage/database';
+import { useTrackingAdmission } from '@/state/tracking-admission';
+import { captureTrackingNativeLease } from './tracking-native-lease';
 
 export async function reconcileTrackingSaves(
   ownerId: string,
   sessionId: string
 ): Promise<boolean> {
   if (useAppShellStore.getState().session?.userId !== ownerId) return false;
+  const scope = useTrackingAdmission.getState().nativeLease
+    ? await captureTrackingNativeLease(ownerId)
+    : null;
   const items =
     (await automaticTrackingService.listImportOutcomes?.(sessionId)) ?? [];
+  await scope?.assertCurrent();
   const accepted = items.filter(
     (item) => item.status === 'accepted' && item.transactionId
   );
@@ -86,6 +92,7 @@ export async function reconcileTrackingSaves(
       const transaction = await noticeLedger.getTransaction(
         item.transactionId!
       );
+      await scope?.assertCurrent();
       if (!currentOwner()) return false;
       if (
         transaction.id !== item.transactionId ||
@@ -127,6 +134,7 @@ export async function reconcileTrackingSaves(
         // Optional cached labels must not delay or suppress verified ledger details.
       }
       if (!currentOwner()) return false;
+      await scope?.assertCurrent();
       const category =
         locale === 'ar' ? labels?.categoryAr : labels?.categoryEn;
       const description = [transaction.merchant || transaction.title, category]
@@ -138,12 +146,26 @@ export async function reconcileTrackingSaves(
         .slice(0, 240);
       // The native encrypted receipt deduplicates this same durable notice
       // across sessions, retries and application restarts.
-      await native.presentCaptureConfirmation(
-        ownerId,
-        item.notificationId,
-        title,
-        body
-      );
+      if (scope?.lease) {
+        if (!native.presentCaptureConfirmationV4)
+          throw new Error('tracking_native_upgrade_required');
+        await native.presentCaptureConfirmationV4(
+          JSON.stringify({
+            ownerId,
+            generation: scope.lease.generation,
+            notificationId: item.notificationId,
+            title,
+            body
+          })
+        );
+      } else
+        await native.presentCaptureConfirmation(
+          ownerId,
+          item.notificationId,
+          title,
+          body
+        );
+      await scope?.assertCurrent();
       presented.add(transaction.id);
     }
     return (

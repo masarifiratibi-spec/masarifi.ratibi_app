@@ -208,11 +208,16 @@ it.each(['source', 'account'] as const)(
   async (operation) => {
     clearTrackingIsolation();
     let release!: (raw: string) => void;
+    let entered!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
     const storage = {
       getItem: jest.fn(
         () =>
           new Promise<string>((resolve) => {
             release = resolve;
+            entered();
           })
       ),
       setItem: jest.fn(),
@@ -224,6 +229,7 @@ it.each(['source', 'account'] as const)(
         ? sources.set('sms', false)
         : sources.setNotificationAccount(null);
     const rejected = expect(writing).rejects.toThrow('tracking_owner_isolated');
+    await reading;
     isolateTrackingForOwner('user_currentA');
     release('{}');
     await rejected;

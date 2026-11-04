@@ -205,9 +205,15 @@ internal object TrackingOwnerPartitions {
   }
 
   fun configure(context: Context, lease: TrackingPartitionLease, configuration: JSONObject): Unit = synchronized(TrackingOwner) {
-    assertCurrent(context, lease)
     require(configuration.opt("sms") is Boolean && configuration.opt("notification") is Boolean)
     val enabledSources = listOf("sms", "notification").filter { configuration.getBoolean(it) }
+    if(enabledSources.isEmpty()) {
+      // Revocation must finish during an interrupted restore, without granting read admission.
+      val selected=journal(context)
+      check(matches(selected,lease) && selected!!.optString("phase")=="committed" && matches(selectedContext(context),lease)) {
+        "tracking_owner_lease_stale"
+      }
+    } else assertCurrent(context, lease)
     val now = System.currentTimeMillis()
     require(enabledSources.all { configuration.optLong(it + "ActivatedAt", 0) in 1..now }) { "tracking_activation_boundary_required" }
     val policy = FinancialDiscoveryPolicy.parse(configuration.optString("discoveryPolicy"))

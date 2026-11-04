@@ -17,7 +17,11 @@ import { settingsService } from '@/services/mocks/subscription-settings-service'
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { measurePerformance } from '@/services/platform/performance-timing';
-import { restoreTrackingOwnerAdmission } from '@/services/tracking-background-runtime';
+import {
+  restoreTrackingOwnerAdmission,
+  commitTrackingOwnerAdmission
+} from '@/services/tracking-background-runtime';
+import { readLogoutSessionAnchor } from '@/services/live/auth-service';
 import { useTrackingAdmission } from '@/state/tracking-admission';
 import {
   rememberAuthenticatedOwner,
@@ -139,8 +143,14 @@ async function restoreCurrentSession(
       await useAppShellStore.getState().authenticate(session, isCurrent);
     else {
       const tracking = useTrackingAdmission.getState();
-      if (!tracking.ready ||
-          (tracking.admittedOwnerId && tracking.admittedOwnerId !== session.userId))
+      if (
+        !tracking.ready ||
+        (tracking.admittedOwnerId &&
+          tracking.admittedOwnerId !== session.userId) ||
+        (tracking.nativeLease &&
+          tracking.sessionAnchor !==
+            (await readLogoutSessionAnchor(session.userId!)))
+      )
         await restoreTrackingOwnerAdmission(session.userId!);
       if (!(await admitted())) return;
       useAppShellStore.setState({ session });
@@ -172,6 +182,7 @@ async function restoreCurrentSession(
           session: currentSession,
           profileSetupStatus: 'complete'
         });
+        await commitTrackingOwnerAdmission(session.userId!, isCurrent);
         return;
       }
       if (error instanceof HttpError && error.code === 'session_expired') {
@@ -190,6 +201,13 @@ async function restoreCurrentSession(
     if (!(await admitted())) return;
     if (snapshot.complete && resolveClientMode() === 'live') {
       await rememberAuthenticatedOwner(session, isCurrent);
+      if (!(await admitted())) return;
+      await commitTrackingOwnerAdmission(
+        session.userId!,
+        () =>
+          isCurrent() &&
+          useAppShellStore.getState().logoutQuiescingOwnerId !== session.userId
+      );
       if (!(await admitted())) return;
     }
     const preferences = usePreferenceStore.getState();

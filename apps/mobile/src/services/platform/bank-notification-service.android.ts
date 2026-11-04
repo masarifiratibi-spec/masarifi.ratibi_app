@@ -1,11 +1,19 @@
 import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { MasarifiSmsInbox } from '../../../modules/masarifi-sms-inbox';
+import type { MasarifiSmsInboxModule } from '../../../modules/masarifi-sms-inbox';
+import { captureTrackingNativeLease } from '../tracking-native-lease';
 import type {
   BankNotificationService,
   RawBankNotification
 } from './bank-notification-service';
 
-interface NativeBankNotifications {
+interface NativeBankNotifications extends Pick<
+  MasarifiSmsInboxModule,
+  | 'notificationCaptureIssueV4'
+  | 'setNotificationCaptureEnabledV4'
+  | 'readRecentNotificationsV4'
+  | 'acknowledgeNotificationsV4'
+> {
   notificationCaptureIssue?(): Promise<string | null>;
   isNotificationAccessEnabled(): Promise<unknown>;
   openNotificationAccessSettings(): Promise<void>;
@@ -19,6 +27,17 @@ export function createAndroidBankNotificationService(
 ): BankNotificationService {
   return {
     async getCaptureIssue() {
+      const scope = await captureTrackingNativeLease();
+      if (scope.lease) {
+        if (!native?.notificationCaptureIssueV4)
+          throw new Error('tracking_native_upgrade_required');
+        const value = await native.notificationCaptureIssueV4(
+          scope.lease.ownerDigest,
+          scope.lease.generation
+        );
+        await scope.assertCurrent();
+        return value;
+      }
       return (await native?.notificationCaptureIssue?.()) ?? null;
     },
     async getAccessState() {
@@ -36,15 +55,32 @@ export function createAndroidBankNotificationService(
       await native?.openNotificationAccessSettings();
     },
     async setCaptureEnabled(enabled) {
-      assertTrackingAvailable();
-      await native?.setNotificationCaptureEnabled(enabled);
+      const scope = await captureTrackingNativeLease();
+      if (scope.lease) {
+        if (!native?.setNotificationCaptureEnabledV4)
+          throw new Error('tracking_native_upgrade_required');
+        await native.setNotificationCaptureEnabledV4(
+          scope.lease.ownerDigest,
+          scope.lease.generation,
+          enabled
+        );
+      } else await native?.setNotificationCaptureEnabled(enabled);
+      await scope.assertCurrent();
     },
     async readRecent(limit) {
-      assertTrackingAvailable();
+      const scope = await captureTrackingNativeLease();
       if (!native) return [];
-      const value = await native.readRecentNotifications(
-        Math.max(1, Math.min(100, Math.trunc(limit)))
-      );
+      const bounded = Math.max(1, Math.min(100, Math.trunc(limit)));
+      if (scope.lease && !native.readRecentNotificationsV4)
+        throw new Error('tracking_native_upgrade_required');
+      const value = scope.lease
+        ? await native.readRecentNotificationsV4!(
+            scope.lease.ownerDigest,
+            scope.lease.generation,
+            bounded
+          )
+        : await native.readRecentNotifications(bounded);
+      await scope.assertCurrent();
       if (!Array.isArray(value))
         throw new Error('bank_notification_invalid_response');
       return value.flatMap((row) => {
@@ -53,11 +89,21 @@ export function createAndroidBankNotificationService(
       });
     },
     async acknowledge(keys) {
-      assertTrackingAvailable();
+      const scope = await captureTrackingNativeLease();
       if (!native) return;
       const validKeys = [...new Set(keys.filter((key) => key.length > 0))];
-      if (validKeys.length > 0)
-        await native.acknowledgeNotifications(validKeys);
+      if (validKeys.length > 0) {
+        if (scope.lease) {
+          if (!native.acknowledgeNotificationsV4)
+            throw new Error('tracking_native_upgrade_required');
+          await native.acknowledgeNotificationsV4(
+            scope.lease.ownerDigest,
+            scope.lease.generation,
+            validKeys
+          );
+        } else await native.acknowledgeNotifications(validKeys);
+      }
+      await scope.assertCurrent();
     }
   };
 }

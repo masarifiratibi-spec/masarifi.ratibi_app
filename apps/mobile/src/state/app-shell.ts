@@ -40,7 +40,10 @@ import {
 } from '@/storage/app-shell-storage';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 import { usePreferenceStore } from '@/state/preferences';
-import { assertTrackingAvailable } from '@/state/tracking-admission';
+import {
+  assertTrackingAvailable,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 import {
   registerRuntimeUserDataReset,
   resetRuntimeIdentityData
@@ -130,7 +133,13 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   fenceLogoutOwner: (ownerId) => {
     const current = get().session?.userId;
     if (current && current !== ownerId) return;
-    set({ ...initialState, logoutInProgressOwnerId: get().logoutInProgressOwnerId, hydrated: true, session: signedOutSession, logoutRecoveryOwnerId: ownerId });
+    set({
+      ...initialState,
+      logoutInProgressOwnerId: get().logoutInProgressOwnerId,
+      hydrated: true,
+      session: signedOutSession,
+      logoutRecoveryOwnerId: ownerId
+    });
   },
   retryBootstrap: () => {
     if (get().profileSetupStatus === 'loading') return;
@@ -142,14 +151,18 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   hydrate: async (now = Date.now()) => {
     let hydrationOwnerId = get().session?.userId;
-    const ownerIsCurrent = () => !get().session?.userId || get().session?.userId === hydrationOwnerId;
+    const ownerIsCurrent = () =>
+      !get().session?.userId || get().session?.userId === hydrationOwnerId;
     try {
       const demoMode = isDemoModeEnabled();
       if (!demoMode && resolveClientMode() === 'live') {
         const admissionRevision = currentLogoutAdmissionRevision();
         const disposition = await loadCachedLogoutDisposition();
         if (!ownerIsCurrent()) return;
-        if (disposition) { get().fenceLogoutOwner(disposition.ownerId); return; }
+        if (disposition) {
+          get().fenceLogoutOwner(disposition.ownerId);
+          return;
+        }
         const cached = await loadLocalOwnerAccess();
         if (!ownerIsCurrent()) return;
         hydrationOwnerId = cached?.userId ?? hydrationOwnerId;
@@ -164,11 +177,20 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
           if (!ownerIsCurrent()) return;
           const privacyLock = await storage.loadPrivacyLock();
           const launchLock = lockForLaunch(privacyLock);
-          if (!ownerIsCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
+          if (
+            !ownerIsCurrent() ||
+            admissionRevision !== currentLogoutAdmissionRevision()
+          )
+            return;
           if (await isLogoutOwnerFenced(cached.userId)) {
-            get().fenceLogoutOwner(cached.userId); return;
+            get().fenceLogoutOwner(cached.userId);
+            return;
           }
-          if (!ownerIsCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
+          if (
+            !ownerIsCurrent() ||
+            admissionRevision !== currentLogoutAdmissionRevision()
+          )
+            return;
           if (launchLock?.enabled || !isAppLockEnabled()) {
             set({
               ...initialState,
@@ -263,8 +285,14 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   authenticate: async (session, isCurrent = () => true) => {
     if (!isCurrent()) return;
     const admissionRevision = currentLogoutAdmissionRevision();
-    if (session.userId && (get().logoutQuiescingOwnerId === session.userId || await isLogoutOwnerFenced(session.userId))) return;
-    if (!isCurrent() || admissionRevision !== currentLogoutAdmissionRevision()) return;
+    if (
+      session.userId &&
+      (get().logoutQuiescingOwnerId === session.userId ||
+        (await isLogoutOwnerFenced(session.userId)))
+    )
+      return;
+    if (!isCurrent() || admissionRevision !== currentLogoutAdmissionRevision())
+      return;
     const liveMode = resolveClientMode() === 'live';
     if (
       liveMode &&
@@ -309,7 +337,13 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
         storage.loadProfilePromptDismissed(),
         storage.loadTrackingHomeCardDismissed()
       ]);
-      if (!isCurrent() || admissionRevision !== currentLogoutAdmissionRevision() || get().logoutQuiescingOwnerId === session.userId || await isLogoutOwnerFenced(session.userId!)) return;
+      if (
+        !isCurrent() ||
+        admissionRevision !== currentLogoutAdmissionRevision() ||
+        get().logoutQuiescingOwnerId === session.userId ||
+        (await isLogoutOwnerFenced(session.userId!))
+      )
+        return;
       if (admissionRevision !== currentLogoutAdmissionRevision()) return;
       set({
         hydrated: true,
@@ -360,7 +394,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       onboarding: null,
       pendingDestination: null,
       privacyLock: null,
-          profilePromptDismissed: false,
+      profilePromptDismissed: false,
       trackingHomeCardDismissed: false,
       profileSetupStatus: 'unknown',
       profileSetupSnapshot: null
@@ -370,10 +404,15 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       storage.clearSession(),
       (async () => {
         try {
-          if (!localDataRemoved)
-            await clearDatabaseOwner(
-              ownerId && resolveClientMode() === 'live' ? ownerId : undefined
-            );
+          if (!localDataRemoved) {
+            const databaseOwner =
+              ownerId && resolveClientMode() === 'live' ? ownerId : undefined;
+            if (useTrackingAdmission.getState().partitioned)
+              await clearDatabaseOwner(databaseOwner, {
+                preservePendingWork: true
+              });
+            else await clearDatabaseOwner(databaseOwner);
+          }
         } finally {
           await clearLegacySmsImportQueue();
         }
@@ -435,7 +474,12 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
 
   lockNow: async () => {
     const privacyLock = get().privacyLock;
-    if (!isAppLockEnabled() || !privacyLock?.enabled || privacyLock.appLockStatus === 'locked') return;
+    if (
+      !isAppLockEnabled() ||
+      !privacyLock?.enabled ||
+      privacyLock.appLockStatus === 'locked'
+    )
+      return;
     const expectedSession = get().session;
     const locked = { ...privacyLock, appLockStatus: 'locked' as const };
     await storage.savePrivacyLock(locked);
@@ -471,7 +515,10 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
       appLockStatus: 'unlocked' as const
     };
     await storage.savePrivacyLock(unlocked);
-    if (get().session === expectedSession && admissionRevision === currentLogoutAdmissionRevision())
+    if (
+      get().session === expectedSession &&
+      admissionRevision === currentLogoutAdmissionRevision()
+    )
       set({ privacyLock: unlocked });
   },
 
@@ -480,12 +527,22 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   }
 }));
 
-function lockForLaunch(privacyLock: PrivacyLockPreference | null): PrivacyLockPreference | null {
+function lockForLaunch(
+  privacyLock: PrivacyLockPreference | null
+): PrivacyLockPreference | null {
   const enabledInBuild = isAppLockEnabled();
-  if (!privacyLock) return enabledInBuild ? null : {
-    enabled: false, autoLockDuration: 'immediate', appLockStatus: 'unlocked'
+  if (!privacyLock)
+    return enabledInBuild
+      ? null
+      : {
+          enabled: false,
+          autoLockDuration: 'immediate',
+          appLockStatus: 'unlocked'
+        };
+  return {
+    ...privacyLock,
+    appLockStatus: privacyLock.enabled && enabledInBuild ? 'locked' : 'unlocked'
   };
-  return { ...privacyLock, appLockStatus: privacyLock.enabled && enabledInBuild ? 'locked' : 'unlocked' };
 }
 
 registerRuntimeUserDataReset(() => {

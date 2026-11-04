@@ -1,4 +1,9 @@
-import { assertTrackingAvailable, captureTrackingAdmission, beginTrackingAdmission, useTrackingAdmission } from '@/state/tracking-admission';
+import {
+  assertTrackingAvailable,
+  captureTrackingAdmission,
+  beginTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 import type { AuthenticationSession } from '@/domain/app-shell';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { resolveClientMode } from '@/config/client-runtime';
@@ -9,6 +14,7 @@ import { bankNotificationService } from '@/services/platform/bank-notification-s
 import {
   disableTrackingBackground,
   restoreTrackingBackground,
+  commitTrackingOwnerAdmission,
   purgeDeletedOwnerTracking
 } from '@/services/tracking-background-runtime';
 import {
@@ -22,10 +28,17 @@ import {
   type LogoutDisposition
 } from '@/storage/app-shell-storage';
 import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
-import { purgeAccountDatabase, configureDatabaseOwner, clearDatabaseOwner } from '@/storage/database';
+import {
+  purgeAccountDatabase,
+  configureDatabaseOwner,
+  clearDatabaseOwner
+} from '@/storage/database';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { preserveLegacySmsImportQueue } from '@/storage/sms-import-queue';
-import { readLogoutSessionAnchor, terminatePinnedLogout } from '@/services/live/auth-service';
+import {
+  readLogoutSessionAnchor,
+  terminatePinnedLogout
+} from '@/services/live/auth-service';
 import {
   pendingOwnerWork,
   ownerVoiceAudioReferences
@@ -39,10 +52,17 @@ export {
   isLogoutOwnerFenced,
   currentLogoutAdmissionRevision
 } from '@/storage/app-shell-storage';
-let activeLogout: { ownerId: string; promise: Promise<boolean | void> } | null = null;
-function runLogoutOperation(ownerId: string, action: () => Promise<boolean | void>): Promise<boolean | void> {
+let activeLogout: { ownerId: string; promise: Promise<boolean | void> } | null =
+  null;
+function runLogoutOperation(
+  ownerId: string,
+  action: () => Promise<boolean | void>
+): Promise<boolean | void> {
   if (activeLogout) {
-    if (activeLogout.ownerId !== ownerId) return Promise.reject(new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED'));
+    if (activeLogout.ownerId !== ownerId)
+      return Promise.reject(
+        new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED')
+      );
     return activeLogout.promise;
   }
   const operation = { ownerId, promise: Promise.resolve().then(action) };
@@ -77,7 +97,8 @@ export async function signOutAppShellSession(
 ): Promise<boolean | void> {
   assertTrackingAvailable();
   const ownerId = useAppShellStore.getState().session?.userId;
-  if (!ownerId) return performSignOutAppShellSession(authService, scope, options);
+  if (!ownerId)
+    return performSignOutAppShellSession(authService, scope, options);
   const assertTrackingCurrent = captureTrackingAdmission(ownerId);
   return runLogoutOperation(ownerId, () => {
     assertTrackingCurrent();
@@ -109,7 +130,12 @@ async function performSignOutAppShellSession(
       assertTrackingCurrent();
     };
     return syncFirstLogout({
-      logout: { ownerId, scope, sessionId: await readLogoutSessionAnchor(ownerId), dataDisposition: options.confirmRemoval ? 'remove' : 'preserve' },
+      logout: {
+        ownerId,
+        scope,
+        sessionId: await readLogoutSessionAnchor(ownerId),
+        dataDisposition: options.confirmRemoval ? 'remove' : 'preserve'
+      },
       synchronize: async () => {
         let nothingPending = false;
         try {
@@ -118,7 +144,9 @@ async function performSignOutAppShellSession(
             bankNotificationService.readRecent(100)
           ]);
           nothingPending = pending === 0 && native.length === 0;
-        } catch { /* Unknown pending work retains the existing sync-first path. */ }
+        } catch {
+          /* Unknown pending work retains the existing sync-first path. */
+        }
         assertCurrent();
         // The quiesced check below still catches work arriving after this fast path.
         if (nothingPending) return;
@@ -135,9 +163,16 @@ async function performSignOutAppShellSession(
         assertCurrent();
       },
       resume: async () => {
-        if (useAppShellStore.getState().logoutQuiescingOwnerId === ownerId) useAppShellStore.setState({ logoutQuiescingOwnerId: null });
+        if (useAppShellStore.getState().logoutQuiescingOwnerId === ownerId)
+          useAppShellStore.setState({ logoutQuiescingOwnerId: null });
         if (useAppShellStore.getState().session?.userId !== ownerId) return;
         await restoreTrackingBackground(ownerId);
+        await commitTrackingOwnerAdmission(
+          ownerId,
+          () =>
+            useAppShellStore.getState().session?.userId === ownerId &&
+            useAppShellStore.getState().logoutQuiescingOwnerId !== ownerId
+        );
         await syncAutomaticTracking().catch(() => undefined);
       },
       pending: async () => {
@@ -160,7 +195,7 @@ async function performSignOutAppShellSession(
         assertCurrent();
         await terminatePinnedLogout(record);
       },
-      purge: record => purgeLogoutOwner(record, audio)
+      purge: (record) => purgeLogoutOwner(record, audio)
     });
   }
   assertTrackingCurrent();
@@ -184,33 +219,49 @@ async function performSignOutAppShellSession(
   if (failure !== undefined) throw failure;
 }
 
-async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: string[]): Promise<void> {
+async function purgeLogoutOwner(
+  record: LogoutDisposition,
+  capturedAudio?: string[]
+): Promise<void> {
   if (record.dataDisposition === 'preserve') return releaseLogoutOwner(record);
   const ownerId = record.ownerId;
   const assertTrackingCurrent = captureTrackingAdmission();
   const assertOwner = async () => {
     assertTrackingCurrent();
     const current = useAppShellStore.getState().session?.userId;
-    if (current && current !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    if (current && current !== ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     await readLogoutSessionAnchor(ownerId);
     const after = useAppShellStore.getState().session?.userId;
-    if (after && after !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    if (after && after !== ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     const stored = await loadLogoutDisposition(ownerId);
-    if (stored?.id !== record.id || stored.phase !== 'cleanup-ready' || stored.dataDisposition !== record.dataDisposition) throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+    if (
+      stored?.id !== record.id ||
+      stored.phase !== 'cleanup-ready' ||
+      stored.dataDisposition !== record.dataDisposition
+    )
+      throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
     await readLogoutSessionAnchor(ownerId);
     const latest = useAppShellStore.getState().session?.userId;
-    if (latest && latest !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    if (latest && latest !== ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
   };
   await assertOwner();
   await configureDatabaseOwner(ownerId);
   await assertOwner();
-  const audio = capturedAudio ?? await ownerVoiceAudioReferences(ownerId);
+  const audio = capturedAudio ?? (await ownerVoiceAudioReferences(ownerId));
   await assertOwner();
   await purgeDeletedOwnerTracking(ownerId);
   await assertOwner();
-  for (const uri of audio) { await assertOwner(); await voiceRecorderService.remove(uri); }
-  await assertOwner(); await purgeAccountDatabase(ownerId);
-  await assertOwner(); await purgeAppShellOwnerData(ownerId);
+  for (const uri of audio) {
+    await assertOwner();
+    await voiceRecorderService.remove(uri);
+  }
+  await assertOwner();
+  await purgeAccountDatabase(ownerId);
+  await assertOwner();
+  await purgeAppShellOwnerData(ownerId);
   await assertOwner();
   useAppShellStore.getState().fenceLogoutOwner(ownerId);
   beginTrackingAdmission();
@@ -221,21 +272,28 @@ async function releaseLogoutOwner(record: LogoutDisposition): Promise<void> {
   const assertOwner = async () => {
     assertTrackingCurrent();
     const current = useAppShellStore.getState().session?.userId;
-    if (current && current !== record.ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    if (current && current !== record.ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     await readLogoutSessionAnchor(record.ownerId);
     const stored = await loadLogoutDisposition(record.ownerId);
-    if (stored?.id !== record.id || stored.phase !== 'cleanup-ready' || stored.dataDisposition !== 'preserve') throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+    if (
+      stored?.id !== record.id ||
+      stored.phase !== 'cleanup-ready' ||
+      stored.dataDisposition !== 'preserve'
+    )
+      throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
     const latest = useAppShellStore.getState().session?.userId;
-    if (latest && latest !== record.ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    if (latest && latest !== record.ownerId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
   };
   await assertOwner();
   await configureDatabaseOwner(record.ownerId);
   await assertOwner();
   await preserveLegacySmsImportQueue(record.ownerId);
   await assertOwner();
-  await clearDatabaseOwner(record.ownerId, {preservePendingWork: true});
+  await clearDatabaseOwner(record.ownerId, { preservePendingWork: true });
   await assertOwner();
-  await resetRuntimeIdentityData({kind: 'signed-out-preserve'});
+  await resetRuntimeIdentityData({ kind: 'signed-out-preserve' });
   await assertOwner();
   await createAppShellStorage().clearSession();
   await assertOwner();
@@ -253,11 +311,18 @@ export async function retryPendingLogout(ownerId: string): Promise<void> {
     await readLogoutSessionAnchor(ownerId);
     const cold = !useTrackingAdmission.getState().ready;
     try {
-      if (cold) await restoreTrackingBackground(ownerId);
+      if (cold) {
+        await restoreTrackingBackground(ownerId, record);
+        await commitTrackingOwnerAdmission(ownerId);
+      }
       assertTrackingAvailable(ownerId);
       const latest = await loadLogoutDisposition(ownerId);
       if (JSON.stringify(latest) !== JSON.stringify(record))
-        throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+        throw new HttpError(
+          'session_expired',
+          401,
+          'LOGOUT_DISPOSITION_CHANGED'
+        );
       await retryLogoutDisposition(ownerId);
     } finally {
       if (cold) beginTrackingAdmission();
@@ -267,7 +332,8 @@ export async function retryPendingLogout(ownerId: string): Promise<void> {
 
 async function retryLogoutDisposition(ownerId: string): Promise<void> {
   const current = useAppShellStore.getState().session?.userId;
-  if (current && current !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+  if (current && current !== ownerId)
+    throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
   const assertTrackingCurrent = captureTrackingAdmission(ownerId);
   let record = await loadLogoutDisposition(ownerId);
   assertTrackingCurrent();

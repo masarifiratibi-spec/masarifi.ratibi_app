@@ -46,6 +46,17 @@ class PartitionKeyGenerator : KeyGeneratorSpi() {
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
 class TrackingPartitionAdmissionTest {
+  @Test fun sourceRevocationCanFinishWhileIdentityAdmissionStaysSuspended() {
+    TrackingOwnerPartitions.prepare(context,TrackingPartitionTransition(leaseA))
+    TrackingOwnerPartitions.commit(context,leaseA)
+    TrackingOwner.suspend(context)
+    TrackingOwnerPartitions.configure(context,leaseA,JSONObject().put("sms",false).put("notification",false))
+    assertTrue(TrackingOwner.isSuspended(context))
+    assertFalse(TrackingOwner.active(context))
+    expectRejected("tracking_owner_lease_stale") {
+      TrackingOwnerPartitions.configure(context,leaseB,JSONObject().put("sms",false).put("notification",false))
+    }
+  }
   private lateinit var context: Context
   private val ownerA = "a".repeat(64)
   private val ownerB = "b".repeat(64)

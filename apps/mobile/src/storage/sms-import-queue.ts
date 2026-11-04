@@ -15,7 +15,11 @@ import type {
   TrackingMode
 } from '@/domain/automatic-tracking';
 
-import { assertTrackingAvailable, captureTrackingAdmission } from '@/state/tracking-admission';
+import {
+  assertTrackingAvailable,
+  captureTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 
 const storageKey = 'masarifi.tracking.smsImportQueue.v1';
 
@@ -194,6 +198,15 @@ export class SmsImportQueue {
   }
 
   async clear(ownerId?: string): Promise<void> {
+    if (useTrackingAdmission.getState().nativeLease) {
+      const admittedOwner = useTrackingAdmission.getState().admittedOwnerId;
+      if (!admittedOwner || (ownerId && ownerId !== admittedOwner))
+        throw new Error('tracking_queue_owner_unavailable');
+      await this.updatePartition(admittedOwner, (state) =>
+        Object.assign(state, empty(admittedOwner))
+      );
+      return;
+    }
     const assertCurrent = captureTrackingAdmission(ownerId);
     try {
       const database = await openDatabase(ownerId);
@@ -212,6 +225,8 @@ export class SmsImportQueue {
     ownerId: string,
     mutate?: (state: SmsImportQueueState) => void
   ): Promise<SmsImportQueueState> {
+    if (useTrackingAdmission.getState().nativeLease)
+      return this.updatePartition(ownerId, mutate);
     const assertCurrent = captureTrackingAdmission(ownerId);
     const database = await openDatabase(ownerId);
     let state = empty(ownerId);
@@ -226,7 +241,8 @@ export class SmsImportQueue {
       const encrypted = row ? parseState(row.payload, ownerId) : null;
       const legacyState = parseLegacyState(legacy, ownerId);
       assertCurrent();
-      if (row && !encrypted && legacyState) throw new Error('encrypted queue unavailable');
+      if (row && !encrypted && legacyState)
+        throw new Error('encrypted queue unavailable');
       const stored = mergePreservedQueue(encrypted, legacyState);
       state = stored ?? empty(ownerId);
       if (mutate) mutate(state);
@@ -246,42 +262,128 @@ export class SmsImportQueue {
       }
     });
     // Only remove a valid legacy copy after the encrypted transaction commits.
-    if (legacy !== null && await this.storage.getItem(storageKey) === legacy) {
+    if (
+      legacy !== null &&
+      (await this.storage.getItem(storageKey)) === legacy
+    ) {
       assertCurrent();
       await this.storage.removeItem(storageKey);
     }
     return state;
   }
+
+  private async updatePartition(
+    ownerId: string,
+    mutate?: (state: SmsImportQueueState) => void
+  ): Promise<SmsImportQueueState> {
+    const assertAdmission = captureTrackingAdmission(ownerId);
+    const lease = useTrackingAdmission.getState().nativeLease;
+    const assertCurrent = () => {
+      assertAdmission();
+      if (!lease || useTrackingAdmission.getState().nativeLease !== lease)
+        throw new Error('tracking_admission_changed');
+    };
+    const database = await openDatabase(ownerId);
+    assertCurrent();
+    let result = empty(ownerId);
+    await runExclusiveDatabaseTransaction(database, async (transaction) => {
+      assertCurrent();
+      const row = await transaction.getFirstAsync<{ payload: string }>(
+        'SELECT payload FROM sms_import_queue_v3 WHERE id = ?',
+        'singleton'
+      );
+      let state: SmsImportQueueState | null;
+      if (row) {
+        try {
+          state = parseState(row.payload, ownerId);
+        } catch {
+          throw new Error('tracking_queue_owner_unavailable');
+        }
+        if (!state) throw new Error('tracking_queue_owner_unavailable');
+      } else {
+        const retained = await transaction.getFirstAsync<{ payload: string }>(
+          'SELECT payload FROM sms_import_queue WHERE id = ?',
+          'singleton'
+        );
+        const legacy = await this.storage.getItem(storageKey);
+        // Copy only attributable work. Retained original bytes are never removed or updated.
+        state = mergePreservedQueue(
+          parseLegacyState(retained?.payload ?? null, ownerId),
+          parseLegacyState(legacy, ownerId)
+        );
+      }
+      assertCurrent();
+      result = state ?? empty(ownerId);
+      if (mutate) mutate(result);
+      result = queueSchema.parse(result);
+      result.pending = result.pending.map((entry) => ({
+        ...entry,
+        submission: minimize(entry.submission)
+      }));
+      // An empty committed row is also the migration receipt: old work cannot resurrect after clear.
+      if (!row || mutate) {
+        await transaction.runAsync(
+          'INSERT INTO sms_import_queue_v3 (id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload',
+          'singleton',
+          JSON.stringify(result)
+        );
+      }
+      assertCurrent();
+    });
+    assertCurrent();
+    return result;
+  }
 }
 
 export async function clearLegacySmsImportQueue(): Promise<void> {
   assertTrackingAvailable();
+  if (useTrackingAdmission.getState().partitioned) return;
   return AsyncStorage.removeItem(storageKey);
 }
 
-export async function preserveLegacySmsImportQueue(ownerId: string): Promise<void> {
+export async function preserveLegacySmsImportQueue(
+  ownerId: string
+): Promise<void> {
   assertTrackingAvailable();
   const raw = await AsyncStorage.getItem(storageKey);
   if (raw !== null && parseLegacyState(raw, ownerId))
     await new SmsImportQueue().load(ownerId);
 }
 
-function mergePreservedQueue(current: SmsImportQueueState | null, legacy: SmsImportQueueState | null): SmsImportQueueState | null {
+function mergePreservedQueue(
+  current: SmsImportQueueState | null,
+  legacy: SmsImportQueueState | null
+): SmsImportQueueState | null {
   if (!current) return legacy;
   if (!legacy) return current;
-  const pending = new Map(current.pending.map(entry => [entry.idempotencyKey,entry]));
+  const pending = new Map(
+    current.pending.map((entry) => [entry.idempotencyKey, entry])
+  );
   const known = new Set(current.fingerprints);
   for (const entry of legacy.pending) {
     const existing = pending.get(entry.idempotencyKey);
     if (existing) {
-      if (JSON.stringify(minimize(existing.submission)) !== JSON.stringify(minimize(entry.submission)))
+      if (
+        JSON.stringify(minimize(existing.submission)) !==
+        JSON.stringify(minimize(entry.submission))
+      )
         throw new Error('legacy queue conflict');
       continue;
     }
-    if (entry.submission.events.length > 0 && entry.submission.events.every(event => known.has(event.sourceItemKey))) continue;
-    pending.set(entry.idempotencyKey,entry);
+    if (
+      entry.submission.events.length > 0 &&
+      entry.submission.events.every((event) => known.has(event.sourceItemKey))
+    )
+      continue;
+    pending.set(entry.idempotencyKey, entry);
   }
-  return {...current,pending:[...pending.values()],fingerprints:[...new Set([...current.fingerprints,...legacy.fingerprints])]};
+  return {
+    ...current,
+    pending: [...pending.values()],
+    fingerprints: [
+      ...new Set([...current.fingerprints, ...legacy.fingerprints])
+    ]
+  };
 }
 
 const boundedText = z.string().min(1).max(200);
@@ -530,7 +632,7 @@ function parseState(
     throw new Error('sms_queue_corrupt');
   }
 }
-// Legacy AsyncStorage is unencrypted and has no reliable owner fence; invalid legacy data is purged.
+// Unattributed legacy data is never adopted by an owner-scoped partition.
 function parseLegacyState(
   raw: string | null,
   ownerId: string

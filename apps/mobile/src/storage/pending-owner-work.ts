@@ -1,4 +1,6 @@
 import { openDatabase, hasQuarantinedOwnerDatabase } from './database';
+import { useTrackingAdmission } from '@/state/tracking-admission';
+import { SmsImportQueue } from './sms-import-queue';
 
 export async function pendingOwnerWork(ownerId: string): Promise<number> {
   if (await hasQuarantinedOwnerDatabase(ownerId))
@@ -17,6 +19,10 @@ export async function pendingOwnerWork(ownerId: string): Promise<number> {
         json_extract(payload,'$.audioReference') IS NOT NULL) AS count`);
   if (!row || !Number.isSafeInteger(row.count) || row.count < 0)
     throw new Error('pending work unavailable');
+  if (useTrackingAdmission.getState().nativeLease)
+    return (
+      row.count + (await new SmsImportQueue().load(ownerId)).pending.length
+    );
   const sms = await database.getFirstAsync<{ payload: string }>(
     'SELECT payload FROM sms_import_queue WHERE id=?',
     'singleton'

@@ -7,7 +7,10 @@ import {
   scheduleTrackingFollowUp
 } from './tracking-background-runtime';
 
-import { resolveClientMode, isBenchmarkReadOnly } from '@/config/client-runtime';
+import {
+  resolveClientMode,
+  isBenchmarkReadOnly
+} from '@/config/client-runtime';
 import type {
   KeywordRuleSummary,
   SenderRule,
@@ -113,12 +116,6 @@ const idleState: AutomaticTrackingSyncState = {
   duplicateId: null,
   errorCode: null
 };
-
-function laterSmsId(left: string, right: string): string {
-  const a = /^\d{1,19}$/.test(left) ? left.replace(/^0+(?=\d)/, '') : '0',
-    b = /^\d{1,19}$/.test(right) ? right.replace(/^0+(?=\d)/, '') : '0';
-  return a.length > b.length || (a.length === b.length && a > b) ? a : b;
-}
 
 export function createAutomaticTrackingCoordinator(
   dependencies: CoordinatorDependencies
@@ -880,3 +877,4 @@ export const subscribeAutomaticTrackingSyncState = (listener: () => void) =>
 export const suspendAutomaticTrackingConfiguration = (
   ownerId: string | null | undefined
 ) => coordinator.suspendKeywordConfiguration(ownerId);
+import { laterSmsId } from './tracking-sms-cursor';
