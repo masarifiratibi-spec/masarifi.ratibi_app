@@ -1,6 +1,6 @@
 # Production Tracking installation consent — 4 November 2026
 
-Status: local implementation and qualification in progress. This is not a production acceptance or deployment record. The installed Redmi APK and delivery file have not been updated by this task.
+Status: source implementation qualified locally. Production acceptance remains open. The installed Redmi APK and delivery file have not been updated by this task. Source checkpoints are `70160b1d`, `d80c5420` and `711ca1cb` on the existing branch.
 
 ## Contract and authority
 
@@ -21,13 +21,16 @@ Android notifications persist their capture generation. Current reads filter bef
 - Complete Mobile: 610 suites / 4,845 tests, runner exit 0. TypeScript, full ESLint and complete frontend/Firebase/runtime boundaries exit 0. Existing lint warnings remain warnings and are not described as corrected.
 - Complete native module: 10 classes / 85 tests, no failures, errors or skips. Matching XML and source hashes are archived privately. These tests do not prove physical Android Keystore, SQLCipher or installed-APK preservation.
 - Real production-consent SQL integration: 31 passing cases, including foreign/revoked/session-mismatched devices, retries/conflicts, worker leases, cross-generation deduplication, receipt continuity, concurrent revocation and UUID case aliases. Focused mobile journal tests: 18 passing cases. Earlier failing results and fixture corrections remain separate evidence.
-- Complete affected API Tracking gates: 35 suites / 377 tests across unit, contract, integration, security and E2E, exit 0, on a fresh named isolated fixture target. API TypeScript and full ESLint also pass. The broader API run has not yet been accepted.
+- Complete affected API Tracking gates: 35 suites / 377 tests across unit, contract, integration, security and E2E, exit 0, on a fresh named isolated fixture target.
+- Complete active API gates: 475 suites / 3,630 tests passed, exit 0, after the final changes. Another 10 opt-in suites / 132 cases remain skipped and unverified. They cover additional assistant data/queue, owner erasure, deletion, activity, restricted-role and migration-role cases; they are not passes or production exceptions. API TypeScript, full/scoped ESLint and API/worker/migration builds pass.
 - A distinct new owned PostgreSQL 17.6 target applied all 182 unchanged canonical migrations, then the exact candidate once as migration 183 through the application MigrationRunner. The old iterated target remains preserved. No hosted migration or history repair ran.
 - Candidate catalog checks verify forced RLS, migration-role ownership, runtime table denials, all 13 definer functions with an empty search path, and unchanged grantor-specific memberships. The pinned Supabase CLI 2.116.0 database lint passed public/private/audit schemas. No CLI upgrade ran.
 - Migration executor regression: three real transaction cases verify restoration of the original execution role and exact existing/absent membership options. The defect was observed failing before correction. PostgreSQL membership-option semantics were checked against the [PostgreSQL 17 GRANT documentation](https://www.postgresql.org/docs/17/sql-grant.html).
+- Broad test qualification required complete public snapshots, the correct disposable database declaration and local fixture administrator. The RLS test now asserts restoration of its actual initial executor, keeping null-claims/API-role/one-owner checks. The concurrency fixture opens its 25 real clients before the same 25 business transactions; report fixture seeding precedes the tested concurrent insert. Runtime connection/query deadlines are unchanged. Earlier failures remain archived.
+- Each whole API run receives fresh global AI state. Previous synthetic databases, including failed attempts, are retained under recorded names/OIDs. A synthetic restore attempt exposed orphan cursors from fixture teardown and rolled back; it is not customer restore proof. The final fresh run passed. Only the owned loopback relay CPU allowance changed; its isolation, identity, memory/PID limits and all application/server policy remained intact.
 
 ## Remaining gates
 
-Reconcile the complete API run and its disposable-fixture requirements before accepting its results. Complete the functional acceptance ledger and owned cleanup review, including consent-journal cleanup, in-flight source mutations and foreign/unattributed legacy records inside an owner database. Voice001 remains unresolved and must not be replayed.
+Qualify the 132 opt-in API cases on separately admitted targets. Complete the functional acceptance ledger and owned cleanup review, including consent-journal cleanup, in-flight source mutations, fixture teardown integrity and foreign/unattributed legacy records inside an owner database. Voice001 remains unresolved and must not be replayed.
 
 Hosted current-restore/compatibility, backup/rollback and deployment approval, signer-transition qualification, exact final APK, actual Redmi capture-to-Ledger acceptance and independent fresh Google OAuth remain required. Production readiness, unrestricted customer workflows and final installed/delivery/source equality have not been established by these local checks. Benchmark, development automation and the closed comparisons were not resumed; no hosted or primary-phone state was changed.

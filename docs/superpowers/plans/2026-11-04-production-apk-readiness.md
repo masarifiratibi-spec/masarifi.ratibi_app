@@ -48,9 +48,9 @@ Same workspace/branch; preserve all existing data/keys/sessions/pending work/UI/
 
 **Interfaces:** `PUT /api/v1/tracking/installations/:deviceId` expectedVersion+explicit sources/boundaries+registered device; principal-only owner; response version and existing SmsRuleSnapshot. Same transaction validates server mode/preferences and session-bound Android device. No GET enrollment, no DEV enablement.
 
-- [ ] RED contract/real SQL cases for authorized registration, conflicts/retries, foreign/revoked/session-mismatched device, disabled/paused preference, consent revoke/re-enable and stale submission/worker lease.
-- [ ] Implement additive production consent records and shared capture policy admission while preserving DEV data/behavior. Generate migration through pinned discovered CLI; preserve historical SQL.
-- [ ] Wire mobile consent mutations to explicit enrollment; ordinary reads stay reads. Run affected API/mobile/SQL/OpenAPI/security checks and required complete suites. Commit qualified source without hosted migration dispatch.
+- [x] RED contract/real SQL cases for authorized registration, conflicts/retries, foreign/revoked/session-mismatched device, disabled/paused preference, consent revoke/re-enable and stale submission/worker lease.
+- [x] Additive production consent and shared policy implemented with unchanged DEV records and 182 historical migrations; pinned CLI-generated candidate applied once on fresh isolated targets, no hosted dispatch.
+- [x] Explicit mobile consent integration qualified: complete Mobile610suites/4845tests, native85tests, affected TrackingAPI35suites/377tests, full active API475suites/3630tests, types/lint/build/SQL checks pass. The132opt-in API cases remain unverified for Task4/7. Source checkpoints70160b1d,d80c5420,711ca1cb; evidence: `docs/evidence/2026-11-04-production-apk-readiness/production-installation-consent.md`. APK/device/production acceptance remains open.
 
 ## Task 4: Current-app acceptance and specific defect closure
 
