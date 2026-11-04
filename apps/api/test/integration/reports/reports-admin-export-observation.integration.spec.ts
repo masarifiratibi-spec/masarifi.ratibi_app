@@ -34,7 +34,8 @@ describeLiveDatabase('stable activity export observation', () => {
     await pool.onModuleDestroy();
   });
   it('excludes a concurrent leading insert after the observation fetch and exports original IDs once', async () => {
-    const original = await Promise.all(Array.from({ length: 26 }, append));
+    const original: string[] = [];
+    for (let index = 0; index < 26; index += 1) original.push(await append());
     let inserted: string | undefined;
     const boundaryPool = {
       withClient: <T>(action: (client: PoolClient) => Promise<T>) =>

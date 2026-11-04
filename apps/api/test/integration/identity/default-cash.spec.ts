@@ -6,7 +6,8 @@ import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('authenticated default Cash onboarding', () => {
   // Exercise all 25 concurrent sessions at the database instead of timing out in a 10-slot fixture queue.
-  const pool = createLivePool(25);
+  const concurrentSessions = 25;
+  const pool = createLivePool(concurrentSessions);
   const identity = new IdentityRepository(pool);
 
   async function customer() {
@@ -206,8 +207,35 @@ describeLiveDatabase('authenticated default Cash onboarding', () => {
   it('retries across concurrent sessions without additional accounts or financial effects', async () => {
     const owner = await customer();
     await selectCurrency(owner);
+    // Establish fixture sockets before exercising concurrent business transactions.
+    // Every connection still uses the production connection and query deadlines.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const priming: Promise<void>[] = [];
+    try {
+      for (let index = 0; index < concurrentSessions; index += 1) {
+        let ready!: () => void;
+        let failed!: (error: unknown) => void;
+        const entered = new Promise<void>((resolve, reject) => {
+          ready = resolve;
+          failed = reject;
+        });
+        const opening = pool.withClient(async () => {
+          ready();
+          await held;
+        });
+        priming.push(opening);
+        void opening.catch(failed);
+        await entered;
+      }
+    } finally {
+      release();
+      await Promise.all(priming);
+    }
     await Promise.all(
-      Array.from({ length: 25 }, (_, index) =>
+      Array.from({ length: concurrentSessions }, (_, index) =>
         identity.getProfile({ ...owner, sessionId: `device_${String(index)}` }),
       ),
     );
