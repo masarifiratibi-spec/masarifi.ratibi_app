@@ -53,6 +53,7 @@ import {
 import { compileFinancialDiscoveryPolicy } from '@masarifi/transaction-parser';
 import { captureTrackingNativeLease } from './tracking-native-lease';
 import { laterSmsId } from './tracking-sms-cursor';
+import { hasProductionTrackingConsent } from './tracking-installation-consent';
 
 const contextKey = 'masarifi.tracking.background-context.v2';
 const clerkSessionCache: TokenCache = {
@@ -101,13 +102,23 @@ async function configureOwnerPartition(
   };
   await assertCurrent();
   const { sources, revision } = await trackingSourcePreferences.snapshot();
+  const productionConsent = await hasProductionTrackingConsent(
+    rules.installation,
+    sources
+  );
+  await assertCurrent();
   const sourceAt = sources.smsActivatedAt ?? 0;
   const policyAt = rules.activation?.smsActivatedAt ?? 0;
   const sourceId = sources.smsActivationId ?? '0';
   const policyId = rules.activation?.smsActivationId ?? '0';
   const configuration = {
-    sms: !rules.requiresRefresh && mode !== 'paused' && sources.smsEnabled,
+    sms:
+      productionConsent &&
+      !rules.requiresRefresh &&
+      mode !== 'paused' &&
+      sources.smsEnabled,
     notification:
+      productionConsent &&
       !rules.requiresRefresh &&
       mode !== 'paused' &&
       sources.notificationEnabled,
@@ -158,7 +169,13 @@ async function configureOwnerPartition(
     JSON.stringify({
       revision,
       configuration,
-      serverRevision: rules.configurationRevision ?? null
+      serverRevision: rules.configurationRevision ?? null,
+      serverConsent: rules.installation
+        ? {
+            generation: rules.installation.generation,
+            version: rules.installation.version
+          }
+        : null
     })
   );
   let saved = await readTrackingOwnerContext(ownerId);

@@ -42,8 +42,8 @@ export default function TrackingPermissionRoute() {
           : await service.requestAfterEducation();
       setPermission(result);
       if (result.status !== 'granted') return;
-      await trackingSourcePreferences.set('sms', true);
       await automaticTrackingService.setMode(selectedMode);
+      await trackingSourcePreferences.set('sms', true);
       router.replace('/tracking');
     } catch {
       setFailed(true);

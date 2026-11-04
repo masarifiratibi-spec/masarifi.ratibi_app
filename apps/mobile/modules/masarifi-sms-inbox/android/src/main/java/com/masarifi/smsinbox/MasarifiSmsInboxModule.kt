@@ -46,10 +46,13 @@ class MasarifiSmsInboxModule : Module() {
       currentPartition(TrackingPartitionLease(owner,generation)) {NotificationCaptureState.setEnabled(it,enabled)}
     }
     AsyncFunction("readRecentNotificationsV4") { owner: String,generation: String,limit: Int ->
-      currentPartition(TrackingPartitionLease(owner,generation)) {notificationRows(it,limit)}
+      currentPartition(TrackingPartitionLease(owner,generation)) {notificationRows(it,limit,generation)}
     }
     AsyncFunction("acknowledgeNotificationsV4") { owner: String,generation: String,keys: List<String> ->
-      currentPartition(TrackingPartitionLease(owner,generation)) {NotificationQueue(it).acknowledge(keys.filter {key->key.isNotBlank()}.toSet())}
+      currentPartition(TrackingPartitionLease(owner,generation)) {NotificationQueue(it).acknowledgeCurrent(keys.filter {key->key.isNotBlank()}.toSet(),generation)}
+    }
+    AsyncFunction("retainedNotificationCountV4") { owner: String,generation: String ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {NotificationQueue(it).retainedCount()}
     }
     AsyncFunction("readFinancialSmsPageV4") { request: String ->
       val page=JSONObject(request)
@@ -182,7 +185,9 @@ class MasarifiSmsInboxModule : Module() {
     operation(context)
   }
 
-  private fun notificationRows(context: Context,requestedLimit: Int) = NotificationQueue(context).read(requestedLimit).map { record ->
+  private fun notificationRows(context: Context,requestedLimit: Int,generation: String?=null) = NotificationQueue(context).let {
+    if(generation==null) it.read(requestedLimit) else it.readCurrent(requestedLimit,generation)
+  }.map { record ->
         mapOf(
           "key" to record.key,
           "packageName" to record.packageName,
@@ -193,6 +198,7 @@ class MasarifiSmsInboxModule : Module() {
           "discovered" to record.discovered,
           "captureActivatedAt" to record.captureActivatedAt,
           "capturePolicy" to record.capturePolicy,
+          "captureGeneration" to record.captureGeneration,
           "nativeKey" to record.nativeKey
         ) + (record.sourceDisplayName?.let { mapOf("sourceDisplayName" to it) } ?: emptyMap())
   }

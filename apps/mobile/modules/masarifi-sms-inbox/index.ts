@@ -30,6 +30,10 @@ export interface MasarifiSmsInboxModule {
     generation: string,
     limit: number
   ): Promise<unknown>;
+  retainedNotificationCountV4?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<number>;
   acknowledgeNotificationsV4?(
     ownerDigest: string,
     generation: string,

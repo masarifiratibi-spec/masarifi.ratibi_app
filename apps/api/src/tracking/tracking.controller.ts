@@ -37,6 +37,16 @@ type Input = {
 @UseGuards(ClerkAuthGuard)
 export class TrackingController {
   constructor(readonly tracking: TrackingService) {}
+  @Put('api/v1/tracking/installations/:deviceId')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'configureTrackingInstallation' })
+  updateInstallationConsent(
+    @Req() request: Request,
+    @Param('deviceId') deviceId: string,
+    @Body() body: unknown,
+  ) {
+    return this.tracking.updateInstallationConsent(this.principal(request), deviceId, body);
+  }
   @Post('api/v1/tracking/device/rule-snapshot')
   @HttpCode(200)
   @ApiOperation({ operationId: 'enrollTrackingInstallation' })

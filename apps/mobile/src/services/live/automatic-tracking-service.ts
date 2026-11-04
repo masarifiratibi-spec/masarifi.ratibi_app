@@ -49,6 +49,7 @@ import {
   captureLiveReadClerkIdentity
 } from './auth-service';
 import { getTrackingDeviceId } from '../tracking-device';
+import { trackingInstallationReceiptSchema } from '@/storage/tracking-installation-contract';
 import { assertReadActive, withReadContext } from './read-context';
 import {
   canonicalJson,
@@ -504,6 +505,12 @@ export function createLiveAutomaticTrackingService({
       )
         throw new TrackingError('unknown');
       const snapshot = validateRuleSnapshot(configuration.snapshot);
+      const installation =
+        configuration.installation === undefined
+          ? undefined
+          : trackingInstallationReceiptSchema.parse(configuration.installation);
+      if (installation && installation.deviceId !== deviceId)
+        throw new TrackingError('unknown');
       if (
         configuration.currencyAccountPolicy !== undefined &&
         (configuration.currencyAccountPolicy !== 'source_currency_v1' ||
@@ -546,6 +553,21 @@ export function createLiveAutomaticTrackingService({
         : [];
       return {
         snapshot,
+        ...(installation
+          ? {
+              installation,
+              activation: {
+                smsActivatedAt: installation.sources.smsActivatedAt
+                  ? Date.parse(installation.sources.smsActivatedAt)
+                  : 0,
+                smsActivationId: installation.sources.smsActivationId ?? '0',
+                notificationActivatedAt: installation.sources
+                  .notificationActivatedAt
+                  ? Date.parse(installation.sources.notificationActivatedAt)
+                  : 0
+              }
+            }
+          : {}),
         ...(configuration.currencyAccountPolicy === 'source_currency_v1'
           ? { currencyAccountPolicy: 'source_currency_v1' as const }
           : {}),

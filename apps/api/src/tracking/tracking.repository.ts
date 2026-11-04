@@ -6,7 +6,11 @@ import type { PoolClient, QueryResultRow } from 'pg';
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import { PoolService } from '../platform/database/pool.service';
-import type { NormalizedImport, TrackingCursor } from './tracking.dto';
+import type {
+  NormalizedImport,
+  TrackingCursor,
+  NormalizedTrackingInstallationConsent,
+} from './tracking.dto';
 
 interface Claim extends QueryResultRow {
   outcome: 'new' | 'replay' | 'hash_mismatch' | 'in_progress';
@@ -72,6 +76,25 @@ function mappedError(error: unknown): HttpException | Error {
 @Injectable()
 export class TrackingRepository {
   constructor(private readonly pool: PoolService) {}
+
+  updateInstallationConsent(
+    principal: ClerkPrincipal,
+    input: Omit<NormalizedTrackingInstallationConsent, 'deviceRegistration'> & {
+      notificationDeviceId: string;
+    },
+  ): Promise<Record<string, unknown>> {
+    return this.ownerJson(
+      principal,
+      'select private.configure_tracking_installation($1,$2::uuid,$3::uuid,$4::integer,$5::jsonb) result',
+      [
+        principal.userId,
+        input.deviceId,
+        input.notificationDeviceId,
+        input.expectedVersion,
+        JSON.stringify(input.sources),
+      ],
+    );
+  }
 
   enrollInstallation(
     principal: ClerkPrincipal,

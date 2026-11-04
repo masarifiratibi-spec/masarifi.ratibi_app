@@ -48,12 +48,24 @@ import { syncAutomaticTracking } from '@/services/automatic-tracking-coordinator
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
 import { syncFirstLogout } from '@/services/sync-first-logout';
 import { settleTransactionDraftWrites } from '@/storage/transaction-draft-snapshots';
+import { trackingSourcePreferences } from './tracking-source-preferences';
 export {
   isLogoutOwnerFenced,
   currentLogoutAdmissionRevision
 } from '@/storage/app-shell-storage';
 let activeLogout: { ownerId: string; promise: Promise<boolean | void> } | null =
   null;
+async function retainedNativeTrackingWork(): Promise<number> {
+  if (bankNotificationService.retainedCount) {
+    const count = await bankNotificationService.retainedCount();
+    if (!Number.isSafeInteger(count) || count < 0)
+      throw new Error('pending native count unavailable');
+    return count;
+  }
+  const page = await bankNotificationService.readRecent(100);
+  if (page.length >= 100) throw new Error('pending native count exceeds page');
+  return page.length;
+}
 function runLogoutOperation(
   ownerId: string,
   action: () => Promise<boolean | void>
@@ -139,11 +151,12 @@ async function performSignOutAppShellSession(
       synchronize: async () => {
         let nothingPending = false;
         try {
-          const [pending, native] = await Promise.all([
+          const [pending, native, consent] = await Promise.all([
             pendingOwnerWork(ownerId),
-            bankNotificationService.readRecent(100)
+            retainedNativeTrackingWork(),
+            trackingSourcePreferences.hasPendingConsent()
           ]);
-          nothingPending = pending === 0 && native.length === 0;
+          nothingPending = pending === 0 && native === 0 && !consent;
         } catch {
           /* Unknown pending work retains the existing sync-first path. */
         }
@@ -179,11 +192,10 @@ async function performSignOutAppShellSession(
         audio = await ownerVoiceAudioReferences(ownerId);
         audioKnown = true;
         const count = await pendingOwnerWork(ownerId);
-        const native = await bankNotificationService.readRecent(100);
+        const native = await retainedNativeTrackingWork();
+        const consent = await trackingSourcePreferences.hasPendingConsent();
         assertCurrent();
-        if (native.length >= 100)
-          throw new Error('pending native count exceeds page');
-        return count + native.length;
+        return count + native + (consent ? 1 : 0);
       },
       confirmRemoval: options.confirmRemoval ?? (async () => false),
       assertCurrent,

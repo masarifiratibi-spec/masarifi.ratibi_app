@@ -60,13 +60,107 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
+  it('shows a locally disabled source as off while its server revocation remains pending', async () => {
+    let enabled = true;
+    jest
+      .spyOn(trackingSourcePreferences, 'set')
+      .mockImplementation(async () => {
+        enabled = false;
+        throw new Error('offline_revocation');
+      });
+    jest
+      .spyOn(trackingSourcePreferences, 'hasPendingConsent')
+      .mockImplementation(async () => !enabled);
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      smsPermissionStatus: 'granted',
+      notificationAccessStatus: 'granted',
+      smsTrackingEnabled: true,
+      notificationTrackingEnabled: false,
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 0,
+      activeSenderCount: 0,
+      lastUpdatedAt: 1
+    });
+    jest
+      .mocked(trackingSourcePreferences.load)
+      .mockImplementation(async () => ({
+        smsEnabled: enabled,
+        notificationEnabled: false
+      }));
+    fireEvent.press(await readyControl('tracking-sms-switch'));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('tracking-sms-switch')
+      ).toHaveAccessibilityState({ checked: false })
+    );
+    expect(
+      await screen.findByText(translate('tracking.sources.pendingConsent'))
+    ).toBeOnTheScreen();
+  });
+  it('shows a pending source command without activating it on screen open and offers an explicit retry', async () => {
+    let pending = true;
+    jest
+      .spyOn(trackingSourcePreferences, 'hasPendingConsent')
+      .mockImplementation(async () => pending);
+    const retry = jest
+      .spyOn(trackingSourcePreferences, 'retryPendingConsent')
+      .mockResolvedValue(false);
+    const resync = jest
+      .spyOn(coordinator, 'resyncAutomaticTracking')
+      .mockImplementation(async () => {
+        pending = false;
+        return {
+          status: 'idle',
+          sessionId: null,
+          reviewId: null,
+          duplicateId: null,
+          errorCode: null
+        };
+      });
+    renderStatus({
+      platform: 'android',
+      mode: 'automatic_clear',
+      permissionStatus: 'granted',
+      smsTrackingEnabled: false,
+      notificationTrackingEnabled: false,
+      serviceState: 'healthy',
+      lastDetectedAt: null,
+      lastSuccessfulTransactionId: null,
+      detectedThisMonth: 0,
+      reviewCount: 0,
+      activeKeywordCount: 0,
+      activeSenderCount: 0,
+      lastUpdatedAt: 1
+    });
+    expect(
+      await screen.findByText(translate('tracking.sources.pendingConsent'))
+    ).toBeOnTheScreen();
+    expect(retry).not.toHaveBeenCalled();
+    expect(resync).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByTestId('tracking-consent-retry'));
+    await waitFor(() => expect(resync).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(translate('tracking.sources.pendingConsent'))
+      ).toBeNull()
+    );
+  });
   it('shows preserved Tracking as unavailable without mounting capture controls or reads', () => {
     changeLocale('ar');
     isolateTrackingForOwner('user_currentA');
     const read = jest.spyOn(automaticTrackingService, 'getStatus');
     try {
       renderWithQueryData(<TrackingStatusScreen />, []);
-      expect(screen.getByText('التتبع معلّق لحماية بيانات محفوظة')).toBeOnTheScreen();
+      expect(
+        screen.getByText('التتبع معلّق لحماية بيانات محفوظة')
+      ).toBeOnTheScreen();
       expect(screen.queryByTestId('tracking-add-keyword-toggle')).toBeNull();
       expect(read).not.toHaveBeenCalled();
     } finally {
@@ -422,6 +516,58 @@ describe('TrackingStatusScreen', () => {
     expect(setCaptureEnabled).toHaveBeenCalledWith(true);
     expect(openSettings).not.toHaveBeenCalled();
   });
+
+  it.each(['sms', 'notification'] as const)(
+    'unpauses server preferences before requesting explicit %s consent',
+    async (source) => {
+      let serverEnabled = false;
+      const savedSources = { smsEnabled: false, notificationEnabled: false };
+      jest
+        .spyOn(automaticTrackingService, 'setMode')
+        .mockImplementation(async () => {
+          serverEnabled = true;
+          return {} as never;
+        });
+      jest
+        .spyOn(trackingSourcePreferences, 'set')
+        .mockImplementation(async (selected, enabled) => {
+          if (enabled && !serverEnabled)
+            throw new Error('TRACKING_PREFERENCES_DISABLED');
+          savedSources[
+            selected === 'sms' ? 'smsEnabled' : 'notificationEnabled'
+          ] = enabled;
+          return { ...savedSources };
+        });
+      jest
+        .spyOn(bankNotificationService, 'setCaptureEnabled')
+        .mockResolvedValue();
+      renderStatus({
+        platform: 'android',
+        mode: 'paused',
+        permissionStatus: 'granted',
+        smsPermissionStatus: 'granted',
+        notificationAccessStatus: 'granted',
+        smsTrackingEnabled: false,
+        notificationTrackingEnabled: false,
+        serviceState: 'healthy',
+        lastDetectedAt: null,
+        lastSuccessfulTransactionId: null,
+        detectedThisMonth: 0,
+        reviewCount: 0,
+        activeKeywordCount: 0,
+        activeSenderCount: 0,
+        lastUpdatedAt: 1
+      });
+      fireEvent.press(await readyControl(`tracking-${source}-switch`));
+      await waitFor(() =>
+        expect(savedSources).toEqual({
+          smsEnabled: source === 'sms',
+          notificationEnabled: source === 'notification'
+        })
+      );
+      expect(serverEnabled).toBe(true);
+    }
+  );
 
   it('turns off notification capture without pausing enabled SMS tracking', async () => {
     const saveSource = jest

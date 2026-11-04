@@ -65,6 +65,92 @@ class NotificationListenerRecoveryTest {
 
   private fun stored(): JSONArray = JSONArray(TrackingEncryptedStore(service,"masarifi_notification_queue_v2").read())
 
+  private fun selectGeneration(generation: String) {
+    val preferences=service.getSharedPreferences("masarifi_tracking_owner_v2",Context.MODE_PRIVATE)
+    val state=JSONObject(preferences.getString("context",null)!!).put("generation",generation)
+    preferences.edit().putString("context",state.toString()).commit()
+  }
+
+  @Test fun reconnectPinsTheCaptureGenerationWithoutChangingTheNativeIdentity() {
+    val generation="11111111-1111-4111-8111-111111111111"
+    selectGeneration(generation)
+    shadowOf(service as NotificationListenerService).addActiveNotification("example.synthetic.wallet",3,
+      Notification.Builder(service).setContentTitle("Payment").setContentText("Paid SAR2").build())
+    service.onListenerConnected()
+    assertEquals(generation,stored().getJSONObject(0).optString("captureGeneration"))
+    val key=stored().getJSONObject(0).getString("key")
+    service.onListenerConnected()
+    assertEquals(key,stored().getJSONObject(0).getString("key"))
+  }
+
+  @Test fun currentGenerationReadsCannotBeStarvedByRetainedOldOrUnattributedRows() {
+    val current="22222222-2222-4222-8222-222222222222"
+    selectGeneration(current)
+    val queue=NotificationQueue(service)
+    repeat(101) { index -> queue.add(CapturedNotification("old-$index","com.bank","title","Paid SAR2",index.toLong(),
+      captureGeneration="11111111-1111-4111-8111-111111111111")) }
+    queue.add(CapturedNotification("unattributed","com.bank","title","Paid SAR2",102))
+    queue.add(CapturedNotification("current","com.bank","title","Paid SAR2",103,captureGeneration=current))
+    assertEquals(listOf("current"),queue.readCurrent(1,current).map {it.key})
+    assertEquals(current,NotificationQueue(service).readCurrent(1,current).single().captureGeneration)
+    assertEquals(103,stored().length())
+  }
+
+  @Test fun currentGenerationAcknowledgmentPreservesOldAndUnattributedOperations() {
+    val current="22222222-2222-4222-8222-222222222222"
+    selectGeneration(current)
+    val queue=NotificationQueue(service)
+    queue.add(CapturedNotification("old","com.bank","title","Paid SAR2",1,captureGeneration="11111111-1111-4111-8111-111111111111"))
+    queue.add(CapturedNotification("unattributed","com.bank","title","Paid SAR2",2))
+    queue.add(CapturedNotification("current","com.bank","title","Paid SAR2",3,captureGeneration=current))
+    queue.acknowledgeCurrent(setOf("old","unattributed","current"),current)
+    assertEquals(setOf("old","unattributed"),queue.read(100).map {it.key}.toSet())
+  }
+
+  @Test fun retentionAssessmentCountsOldAndUnattributedWorkWithoutAdmittingIt() {
+    val current="22222222-2222-4222-8222-222222222222"
+    selectGeneration(current)
+    val queue=NotificationQueue(service)
+    queue.add(CapturedNotification("old","com.bank","title","Paid SAR2",1,captureGeneration="11111111-1111-4111-8111-111111111111"))
+    queue.add(CapturedNotification("unattributed","com.bank","title","Paid SAR2",2))
+    assertEquals(2,queue.retainedCount())
+  }
+
+  private fun unknownRetainedRows() = JSONArray("""[
+    "opaque-unattributed-row",
+    {"key":"old","packageName":"com.bank","title":"old","text":"Paid SAR2","postedAt":1,
+     "captureGeneration":"11111111-1111-4111-8111-111111111111","futureField":{"preserve":true}}
+  ]""")
+
+  @Test fun retentionAssessmentCountsUnparseableRowsWithoutChangingTheirBytes() {
+    TrackingEncryptedStore(service,"masarifi_notification_queue_v2").write(unknownRetainedRows().toString())
+    val before=stored().toString()
+    assertEquals(2,NotificationQueue(service).retainedCount())
+    assertEquals(before,stored().toString())
+  }
+
+  @Test fun appendingNewCapturePreservesUnknownRetainedRowsAndFields() {
+    val current="22222222-2222-4222-8222-222222222222"
+    selectGeneration(current)
+    TrackingEncryptedStore(service,"masarifi_notification_queue_v2").write(unknownRetainedRows().toString())
+    NotificationQueue(service).add(CapturedNotification("current","com.bank","title","Paid SAR2",2,captureGeneration=current))
+    val result=stored()
+    assertEquals(3,result.length())
+    assertEquals("opaque-unattributed-row",result.getString(0))
+    assertTrue(result.getJSONObject(1).getJSONObject("futureField").getBoolean("preserve"))
+  }
+
+  @Test fun acknowledgingCurrentCapturePreservesEveryOtherRetainedJsonValue() {
+    val current="22222222-2222-4222-8222-222222222222"
+    selectGeneration(current)
+    val original=unknownRetainedRows()
+    val values=JSONArray(original.toString()).put(JSONObject().put("key","current").put("captureGeneration",current)
+      .put("packageName","com.bank").put("title","title").put("text","Paid SAR2").put("postedAt",2))
+    TrackingEncryptedStore(service,"masarifi_notification_queue_v2").write(values.toString())
+    NotificationQueue(service).acknowledgeCurrent(setOf("old","current"),current)
+    assertEquals(original.toString(),stored().toString())
+  }
+
   @Test fun reconnectPersistsFinancialActivityWithTheInstalledApplicationLabel() {
     installSource("  Synthetic Wallet\n\u0000  ")
     val listener: NotificationListenerService=service

@@ -11,7 +11,11 @@ import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
 import { createMockAuthService } from '@/services/mocks/auth-service';
 import { registerLiveClerkBridge } from '@/services/live/auth-service';
-import { TrackingSourcePreferences } from './tracking-source-preferences';
+import {
+  TrackingSourcePreferences,
+  trackingSourcePreferences
+} from './tracking-source-preferences';
+import * as installationConsent from './tracking-installation-consent';
 import {
   configureTrackingBackground,
   runTrackingBackground,
@@ -21,6 +25,7 @@ import {
 } from './tracking-background-runtime';
 import { syncAutomaticTracking } from './automatic-tracking-coordinator';
 import { createAndroidBankNotificationService } from './platform/bank-notification-service.android';
+import { bankNotificationService } from './platform/bank-notification-service';
 import { createAndroidSmsInboxService } from './platform/sms-inbox-service.android';
 import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 import { signOutAppShellSession, retryPendingLogout } from './owner-lifecycle';
@@ -204,6 +209,7 @@ jest.mock('../../modules/masarifi-sms-inbox', () => ({
       )
         throw new Error('native_pause_lease_stale');
     },
+    retainedNotificationCountV4: jest.fn(async () => 7),
     purgeTrackingOwnerDataV4: jest.fn(async () => {
       mockNative.suspended = true;
     }),
@@ -309,6 +315,88 @@ function verifiedSession() {
   });
   return { ...createMockAuthService(), restoreSession: async () => session };
 }
+
+it('keeps native capture disabled until the current production receipt has local acknowledgment', async () => {
+  await restoreAppShellSession(verifiedSession(), () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  await new TrackingSourcePreferences().set('sms', true);
+  await new TrackingSourcePreferences().set('notification', true);
+  const permit = jest
+    .spyOn(installationConsent, 'hasProductionTrackingConsent')
+    .mockResolvedValue(false);
+  await configureTrackingBackground(
+    owner,
+    { keywords: [], senders: [] },
+    'automatic_clear'
+  );
+  expect(mockNative.configured).toMatchObject({
+    configuration: { sms: false, notification: false }
+  });
+  permit.mockResolvedValue(true);
+  await configureTrackingBackground(
+    owner,
+    { keywords: [], senders: [] },
+    'automatic_clear'
+  );
+  expect(mockNative.configured).toMatchObject({
+    configuration: { sms: true, notification: true }
+  });
+});
+
+it('assesses all retained native notifications without reading their payloads and fences SDK changes', async () => {
+  await restoreAppShellSession(verifiedSession(), () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  const service = createAndroidBankNotificationService();
+  const lease = useTrackingAdmission.getState().nativeLease;
+  expect(await service.retainedCount?.()).toBe(7);
+  expect(MasarifiSmsInbox?.retainedNotificationCountV4).toHaveBeenCalledWith(
+    lease?.ownerDigest,
+    lease?.generation
+  );
+  sdkUser = 'user_retainedB';
+  await expect(service.retainedCount?.()).rejects.toThrow();
+});
+
+it('does not report zero retained work when the admitted native bridge is unavailable', async () => {
+  await restoreAppShellSession(verifiedSession(), () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  await expect(
+    createAndroidBankNotificationService(null).retainedCount?.()
+  ).rejects.toThrow();
+});
+
+it('includes old-generation notifications and pending source commands in removal assessment', async () => {
+  const auth = verifiedSession();
+  await restoreAppShellSession(auth, () => true, {
+    getProfileSetup: async () => ({ complete: true })
+  } as never);
+  Object.defineProperty(bankNotificationService, 'retainedCount', {
+    configurable: true,
+    value: async () => 7
+  });
+  jest
+    .spyOn(trackingSourcePreferences, 'hasPendingConsent')
+    .mockResolvedValue(true);
+  let assessed: number | null | undefined;
+  try {
+    expect(
+      await signOutAppShellSession(auth, 'local', {
+        confirmRemoval: async (count) => {
+          assessed = count;
+          return false;
+        }
+      })
+    ).toBe(false);
+    expect(assessed).toBe(9);
+    expect(useAppShellStore.getState().session?.userId).toBe(owner);
+    expect(mockSecureValues.get(legacyKey)).toBe(retained);
+  } finally {
+    delete bankNotificationService.retainedCount;
+  }
+});
 
 it.each(['cold', 'cached'] as const)(
   '%s verified bootstrap admits independent Tracking without modifying retained legacy context',

@@ -11,6 +11,10 @@ import {
   useTrackingAdmission
 } from '@/state/tracking-admission';
 import { readLogoutSessionAnchor } from './live/auth-service';
+import {
+  productionTrackingConsent,
+  type TrackingSourceConsentPort
+} from './tracking-installation-consent';
 
 const storageKey = 'masarifi.tracking.sources.v1';
 let consentEpoch = 0;
@@ -117,7 +121,8 @@ export class TrackingSourcePreferences {
           afterId: '0'
         }
       );
-    }
+    },
+    private readonly consent: TrackingSourceConsentPort = productionTrackingConsent
   ) {}
 
   private async read(scope: ReturnType<typeof sourceScope>) {
@@ -135,7 +140,11 @@ export class TrackingSourcePreferences {
       const result = envelopeSchema.safeParse(parsed);
       if (!result.success || result.data.ownerId !== scope.ownerId)
         throw new Error('tracking_source_owner_unavailable');
-      return { sources: result.data.sources, revision: result.data.revision };
+      const sources =
+        (await this.consent.effectiveSources?.(result.data.sources)) ??
+        result.data.sources;
+      await scope.check();
+      return { sources, revision: result.data.revision };
     }
     try {
       const value = JSON.parse(raw ?? 'null');
@@ -229,8 +238,41 @@ export class TrackingSourcePreferences {
       };
       // Consent changes invalidate all queued native work; the next authenticated pass installs a new generation.
       await disableTrackingBackground(true);
-      await this.write(scope, next, revision);
-      return next;
+      // A local disable is effective even while its durable server revocation is offline.
+      if (!enabled) await this.write(scope, next, revision);
+      const applied = await this.consent.apply(next);
+      const accepted = applied?.sources ?? next;
+      await scope.check();
+      if (enabled || JSON.stringify(accepted) !== JSON.stringify(next))
+        await this.write(scope, accepted, revision);
+      if (applied) await this.consent.acknowledge(applied.commandId);
+      return accepted;
+    });
+  }
+
+  async hasPendingConsent(): Promise<boolean> {
+    return (await this.consent.hasPending?.()) ?? false;
+  }
+
+  async retryPendingConsent(): Promise<boolean> {
+    const scope = sourceScope();
+    return serializeSources(async () => {
+      if (this.consent.hasPending && !(await this.consent.hasPending()))
+        return false;
+      const { sources, revision } = await this.read(scope);
+      consentEpoch++;
+      await disableTrackingBackground(true);
+      const applied = await this.consent.retry();
+      if (!applied) return false;
+      const accepted = {
+        ...applied.sources,
+        ...(sources.notificationAccountId
+          ? { notificationAccountId: sources.notificationAccountId }
+          : {})
+      };
+      await this.write(scope, accepted, revision);
+      await this.consent.acknowledge(applied.commandId);
+      return true;
     });
   }
 

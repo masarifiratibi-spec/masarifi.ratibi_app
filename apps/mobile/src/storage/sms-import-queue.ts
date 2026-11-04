@@ -7,6 +7,10 @@ import {
 } from '@masarifi/transaction-parser';
 import type { KeywordRule } from '@/domain/app-shell';
 import { openDatabase, runExclusiveDatabaseTransaction } from './database';
+import {
+  trackingInstallationReceiptSchema,
+  type TrackingInstallationReceipt
+} from './tracking-installation-contract';
 
 import type {
   TrackingDiagnostic,
@@ -35,6 +39,7 @@ export interface SmsImportQueueEntry {
 }
 
 export interface SmsRuleSnapshot {
+  installation?: TrackingInstallationReceipt;
   sourceAdmissionPolicy?: 'financial_content_v1';
   currencyAccountPolicy?: 'source_currency_v1';
   policyActivatedAt?: number;
@@ -437,9 +442,16 @@ const eventSchema = z
         deviceId: boundedText,
         channel: z.enum(['android_sms', 'android_notification']),
         nativeIdDigest: boundedText,
-        revisionDigest: boundedText
+        revisionDigest: boundedText,
+        installationGeneration: z.string().uuid().optional(),
+        installationVersion: z.number().int().min(1).max(2147483647).optional()
       })
       .strict()
+      .refine(
+        (transport) =>
+          (transport.installationGeneration === undefined) ===
+          (transport.installationVersion === undefined)
+      )
       .optional(),
     providerReferenceDigest: boundedText.optional(),
     originalProviderReferenceDigest: z
@@ -500,6 +512,7 @@ const queueSchema = z
     mode: z.enum(['automatic_clear', 'review_all', 'paused']).nullable(),
     rules: z
       .object({
+        installation: trackingInstallationReceiptSchema.optional(),
         accountingPolicy: z.literal('default_account_nominal_v1').optional(),
         sourceAdmissionPolicy: z.literal('financial_content_v1').optional(),
         currencyAccountPolicy: z.literal('source_currency_v1').optional(),

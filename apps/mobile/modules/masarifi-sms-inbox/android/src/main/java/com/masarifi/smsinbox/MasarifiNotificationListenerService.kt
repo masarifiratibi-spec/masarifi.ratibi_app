@@ -20,7 +20,8 @@ data class CapturedNotification(
   val observedAt: Long = postedAt,
   val captureActivatedAt: Long = 0,
   val capturePolicy: String = "legacy",
-  val sourceDisplayName: String? = null
+  val sourceDisplayName: String? = null,
+  val captureGeneration: String? = null
 )
 
 private fun normalizedSourceDisplayName(label: String?): String? = label
@@ -72,17 +73,47 @@ object NotificationQueuePolicy {
 }
 
 internal class NotificationQueue(private val context: Context) {
+  private fun assertGeneration(generation: String) {
+    check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
+    check(generation.length in 16..80 && TrackingOwner.read(context).optString("generation")==generation) {
+      "tracking_notification_generation_stale"
+    }
+  }
+  fun readCurrent(limit: Int,generation: String): List<CapturedNotification> = synchronized(TrackingOwner) {
+    assertGeneration(generation)
+    readStored().filter {it.captureGeneration==generation}.sortedBy {it.postedAt}.take(limit.coerceIn(1,100))
+  }
+  fun acknowledgeCurrent(keys: Set<String>,generation: String) = synchronized(TrackingOwner) {
+    assertGeneration(generation)
+    val records=JSONArray(encrypted.read() ?: "[]")
+    val retained=JSONArray()
+    for(index in 0 until records.length()) {
+      val row=records.optJSONObject(index)
+      if(row?.opt("captureGeneration")!=generation || row.opt("key") !in keys) retained.put(records.get(index))
+    }
+    encrypted.write(retained.toString())
+    preferences.edit().remove("captureIssue").commit()
+  }
+  fun retainedCount(): Int = synchronized(TrackingOwner) {
+    check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
+    JSONArray(encrypted.read() ?: "[]").length()
+  }
   private val encrypted = TrackingEncryptedStore(context,"masarifi_notification_queue_v2")
   private val preferences: SharedPreferences get() = TrackingOwnerPartitions.ownerPreferences(
     context, "masarifi_notification_queue_v1", "masarifi_notification_queue_metadata_v3")
 
   fun add(record: CapturedNotification) = synchronized(TrackingOwner) {
     check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
-    val pruned=try {NotificationQueuePolicy.append(readStored(),record)} catch(error:IllegalStateException) {
+    val records=JSONArray(encrypted.read() ?: "[]")
+    if((0 until records.length()).any {index -> records.optJSONObject(index)?.let {
+        it.opt("key")==record.key && (it.opt("captureGeneration") as? String)==record.captureGeneration
+      }==true}) return@synchronized
+    if(records.length()>=10000) {
       preferences.edit().putLong("overflowCount",preferences.getLong("overflowCount",0)+1).commit()
-      throw error
+      throw IllegalStateException("tracking_notification_queue_full")
     }
-    write(pruned)
+    records.put(encodeRecord(record))
+    encrypted.write(records.toString())
   }
 
   fun read(limit: Int): List<CapturedNotification> = synchronized(TrackingOwner) {
@@ -125,7 +156,8 @@ internal class NotificationQueue(private val context: Context) {
             item.optLong("captureActivatedAt",0),
             item.optString("capturePolicy","legacy"),
             normalizedSourceDisplayName(item.opt("sourceDisplayName") as? String)
-              ?: applicationSourceDisplayName(context,packageName)
+              ?: applicationSourceDisplayName(context,packageName),
+            item.opt("captureGeneration") as? String
           )
         )
       }
@@ -134,9 +166,12 @@ internal class NotificationQueue(private val context: Context) {
 
   private fun write(records: List<CapturedNotification>) {
     val array = JSONArray()
-    records.forEach { record ->
-      array.put(
-        JSONObject()
+    records.forEach { record -> array.put(encodeRecord(record)) }
+    encrypted.write(array.toString())
+    preferences.edit().remove("records").commit()
+  }
+
+  private fun encodeRecord(record: CapturedNotification): JSONObject = JSONObject()
           .put("key", record.key)
           .put("packageName", record.packageName)
           .put("title", record.title)
@@ -148,11 +183,7 @@ internal class NotificationQueue(private val context: Context) {
           .put("captureActivatedAt",record.captureActivatedAt)
           .put("capturePolicy",record.capturePolicy)
           .put("sourceDisplayName",normalizedSourceDisplayName(record.sourceDisplayName))
-      )
-    }
-    encrypted.write(array.toString())
-    preferences.edit().remove("records").commit()
-  }
+          .put("captureGeneration",record.captureGeneration)
 
   private companion object {
     val lock = Any()
@@ -227,7 +258,8 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
         admission==NotificationAdmission.DISCOVERED,
         System.currentTimeMillis(),boundary,
         if(policy?.nominal==true) "default_account_nominal_v1" else "legacy",
-        applicationSourceDisplayName(this,notification.packageName)
+        applicationSourceDisplayName(this,notification.packageName),
+        state.optString("generation").takeIf {it.length in 16..80}
       ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
     )} catch(error:Exception) {
       TrackingOwnerPartitions.ownerPreferences(this,"masarifi_notification_queue_v1","masarifi_notification_queue_metadata_v3").edit()

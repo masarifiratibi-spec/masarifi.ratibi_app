@@ -2,6 +2,8 @@ import * as Crypto from 'expo-crypto';
 import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { getTrackingDeviceId } from './tracking-device';
 import { reconcileTrackingSaves } from './tracking-save-confirmation';
+import { hasProductionTrackingConsent } from './tracking-installation-consent';
+import { laterSmsId } from './tracking-sms-cursor';
 import {
   configureTrackingBackground,
   scheduleTrackingFollowUp
@@ -149,13 +151,44 @@ export function createAutomaticTrackingCoordinator(
     try {
       const ownerId = session.userId;
       const epoch = trackingConsentEpoch();
-      const queue = await dependencies.queue.load(ownerId);
+      let queue = await dependencies.queue.load(ownerId);
       let online = await dependencies.inbox.isNetworkAvailable();
       let serviceFailed = false;
       if (requireFreshConfiguration && !online)
         throw new Error('tracking_configuration_refresh_failed');
       let mode = queue.mode ?? dependencies.offlineMode();
       let status: TrackingStatusSnapshot | null = null;
+      const stillOwner = () => {
+        assertTrackingAvailable();
+        if (epoch !== trackingConsentEpoch())
+          throw new Error('tracking_consent_changed');
+        if (
+          dependencies.session()?.userId !== ownerId ||
+          dependencies.session()?.status !== 'authenticated'
+        )
+          throw new Error('tracking_owner_changed');
+      };
+      let last: AutomaticTrackingSyncState | null = null;
+      const attempted = new Set<string>();
+      // An accepted session is an owned receipt even after its capture capability is revoked.
+      if (online && queue.pending.some((entry) => entry.sessionId !== null)) {
+        const receipts = queue.pending.filter(
+          (entry) => entry.sessionId !== null
+        );
+        last = await flush(
+          ownerId,
+          receipts,
+          dependencies,
+          update,
+          stillOwner,
+          (step) => {
+            phase = step;
+          }
+        );
+        receipts.forEach((entry) => attempted.add(entry.idempotencyKey));
+        stillOwner();
+        queue = await dependencies.queue.load(ownerId);
+      }
       if (online) {
         try {
           phase = 'status';
@@ -174,19 +207,8 @@ export function createAutomaticTrackingCoordinator(
           'paused',
           epoch
         );
-        return update('idle');
+        return last ?? update('idle');
       }
-      const stillOwner = () => {
-        assertTrackingAvailable();
-        if (epoch !== trackingConsentEpoch())
-          throw new Error('tracking_consent_changed');
-        if (
-          dependencies.session()?.userId !== ownerId ||
-          dependencies.session()?.status !== 'authenticated'
-        )
-          throw new Error('tracking_owner_changed');
-      };
-      let last: AutomaticTrackingSyncState | null = null;
       const sources = await dependencies.sources.load();
       phase = 'notification_status';
       const captureIssue = sources.notificationEnabled
@@ -223,25 +245,46 @@ export function createAutomaticTrackingCoordinator(
         );
         throw new Error('tracking_configuration_refresh_failed');
       }
+      if (!(await hasProductionTrackingConsent(config.installation, sources))) {
+        await dependencies.configureBackground?.(
+          ownerId,
+          config,
+          'paused',
+          epoch
+        );
+        return last ?? update('idle');
+      }
+      stillOwner();
       const eligiblePending = (entries: readonly SmsImportQueueEntry[]) =>
         entries.filter(
           (entry) =>
-            (!config.policyActivatedAt ||
-              entry.submission.events.every(
-                (event) =>
-                  Date.parse(event.receivedAt) >= config.policyActivatedAt!
-              )) &&
-            (!config.accountingPolicy ||
-              entry.submission.schemaVersion === 3) &&
-            (entry.submission.sourceChannel === 'android_notification'
-              ? sources.notificationEnabled
-              : sources.smsEnabled)
+            !attempted.has(entry.idempotencyKey) &&
+            (entry.sessionId !== null ||
+              ((!config.policyActivatedAt ||
+                entry.submission.events.every(
+                  (event) =>
+                    Date.parse(event.receivedAt) >= config.policyActivatedAt!
+                )) &&
+                (!config.accountingPolicy ||
+                  entry.submission.schemaVersion === 3) &&
+                (entry.submission.sourceChannel === 'android_notification'
+                  ? sources.notificationEnabled
+                  : sources.smsEnabled) &&
+                (!config.installation ||
+                  entry.submission.events.every(
+                    (event) =>
+                      event.transport?.installationGeneration ===
+                        config.installation?.generation &&
+                      event.transport?.installationVersion ===
+                        config.installation?.version
+                  ))))
         );
       phase = 'pending_receipts';
-      if (online && queue.pending.length)
+      const waiting = eligiblePending(queue.pending);
+      if (online && waiting.length) {
         last = await flush(
           ownerId,
-          eligiblePending(queue.pending),
+          waiting,
           dependencies,
           update,
           stillOwner,
@@ -249,28 +292,39 @@ export function createAutomaticTrackingCoordinator(
             phase = step;
           }
         );
+        waiting.forEach((entry) => attempted.add(entry.idempotencyKey));
+      }
       const sourceSmsAt =
         sources.smsActivatedAt ??
         queue.activation?.smsActivatedAt ??
         dependencies.now();
       const sourceSmsId =
         sources.smsActivationId ?? queue.activation?.smsActivationId ?? '0';
-      const policySmsId = config.policySmsActivationId ?? '0';
+      const smsPolicyAt =
+        config.activation?.smsActivatedAt ?? config.policyActivatedAt ?? 0;
+      const notificationPolicyAt =
+        config.activation?.notificationActivatedAt ??
+        config.policyActivatedAt ??
+        0;
+      const policySmsId =
+        config.activation?.smsActivationId ??
+        config.policySmsActivationId ??
+        '0';
       const activation = {
         smsActivatedAt: Math.max(
-          config.policyActivatedAt ?? 0,
+          smsPolicyAt,
           sources.smsActivatedAt ??
             queue.activation?.smsActivatedAt ??
             dependencies.now()
         ),
         smsActivationId:
-          (config.policyActivatedAt ?? 0) > sourceSmsAt
+          smsPolicyAt > sourceSmsAt
             ? policySmsId
-            : config.policyActivatedAt === sourceSmsAt
+            : smsPolicyAt === sourceSmsAt
               ? laterSmsId(policySmsId, sourceSmsId)
               : sourceSmsId,
         notificationActivatedAt: Math.max(
-          config.policyActivatedAt ?? 0,
+          notificationPolicyAt,
           sources.notificationActivatedAt ??
             queue.activation?.notificationActivatedAt ??
             dependencies.now()
@@ -345,6 +399,17 @@ export function createAutomaticTrackingCoordinator(
               ? activation.smsActivatedAt
               : activation.notificationActivatedAt
         });
+        if (config.installation) {
+          for (const event of prepared.events) {
+            if (!event.transport)
+              throw new Error('tracking_capture_proof_missing');
+            event.transport = {
+              ...event.transport,
+              installationGeneration: config.installation.generation,
+              installationVersion: config.installation.version
+            };
+          }
+        }
         prepared.events = prepared.events.filter(
           (event) => !fingerprints.has(event.sourceItemKey)
         );
@@ -507,10 +572,11 @@ export function createAutomaticTrackingCoordinator(
         );
         return update('error', { errorCode: 'sync_failed' });
       }
-      if (online && pending.length)
+      const ready = eligiblePending(pending);
+      if (online && ready.length)
         return await flush(
           ownerId,
-          eligiblePending(pending),
+          ready,
           dependencies,
           update,
           stillOwner,
@@ -518,9 +584,12 @@ export function createAutomaticTrackingCoordinator(
             phase = step;
           }
         );
-      return captured
-        ? update('queued', serviceFailed ? { errorCode: 'sync_failed' } : {})
-        : (last ?? update(accountRequired ? 'account_required' : 'idle'));
+      return (
+        last ??
+        (captured
+          ? update('queued', serviceFailed ? { errorCode: 'sync_failed' } : {})
+          : update(accountRequired ? 'account_required' : 'idle'))
+      );
     } catch (error) {
       // Keep SMS text, identities and server responses out of device logs.
       const code =
@@ -860,10 +929,12 @@ const coordinator = createAutomaticTrackingCoordinator({
 
 export const syncAutomaticTracking = async () => {
   assertTrackingAvailable();
+  await trackingSourcePreferences.retryPendingConsent();
   return coordinator.sync();
 };
 export const resyncAutomaticTracking = async () => {
   assertTrackingAvailable();
+  await trackingSourcePreferences.retryPendingConsent();
   return coordinator.resync();
 };
 export const updateAutomaticTrackingKeywords = (
@@ -877,4 +948,3 @@ export const subscribeAutomaticTrackingSyncState = (listener: () => void) =>
 export const suspendAutomaticTrackingConfiguration = (
   ownerId: string | null | undefined
 ) => coordinator.suspendKeywordConfiguration(ownerId);
-import { laterSmsId } from './tracking-sms-cursor';

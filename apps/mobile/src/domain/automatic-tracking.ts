@@ -110,6 +110,8 @@ export interface TrackingImportEvent {
     channel: 'android_sms' | 'android_notification';
     nativeIdDigest: string;
     revisionDigest: string;
+    installationGeneration?: string;
+    installationVersion?: number;
   };
   providerReferenceDigest?: string;
   originalProviderReferenceDigest?: string;

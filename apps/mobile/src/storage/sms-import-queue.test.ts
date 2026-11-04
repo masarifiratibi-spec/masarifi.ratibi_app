@@ -17,6 +17,53 @@ jest.mock('./database', () => ({
 beforeEach(() => {
   mockDatabase = new StatefulSqlite(['sms_import_queue']);
 });
+it('retains production receipt and immutable transport proof through an offline restart', async () => {
+  const storage = memoryStorage();
+  const queue = new SmsImportQueue(storage);
+  const installation = {
+    deviceId: 'aaaaaaaa-1111-4111-8111-111111111111',
+    version: 1,
+    generation: 'bbbbbbbb-2222-4222-8222-222222222222',
+    sessionBinding: 'a'.repeat(64),
+    captureAllowed: true,
+    sources: {
+      smsEnabled: true,
+      notificationEnabled: false,
+      smsActivatedAt: '2026-11-04T10:00:00Z',
+      smsActivationId: '42',
+      notificationActivatedAt: null
+    }
+  };
+  await queue.saveRules('owner-1', {
+    keywords: [],
+    senders: [],
+    installation
+  } as Parameters<SmsImportQueue['saveRules']>[1]);
+  const transport = {
+    deviceId: installation.deviceId,
+    channel: 'android_sms' as const,
+    nativeIdDigest: 'b'.repeat(64),
+    revisionDigest: 'c'.repeat(64),
+    installationGeneration: installation.generation,
+    installationVersion: installation.version
+  };
+  const work = {
+    ...submission,
+    events: submission.events.map((event) => ({ ...event, transport }))
+  };
+  await queue.enqueue('owner-1', {
+    idempotencyKey: 'original-operation',
+    submission: work,
+    cursor: 42,
+    fingerprints: []
+  });
+  const restored = await new SmsImportQueue(storage).load('owner-1');
+  expect(restored.rules).toMatchObject({ installation });
+  expect(restored.pending[0]).toMatchObject({
+    idempotencyKey: 'original-operation',
+    submission: { events: [expect.objectContaining({ transport })] }
+  });
+});
 it('round trips the recognized source-currency capability through a queued offline restart', async () => {
   const storage = memoryStorage();
   const queue = new SmsImportQueue(storage);
@@ -421,14 +468,22 @@ describe('SMS import queue', () => {
     const storage = memoryStorage();
     const queue = new SmsImportQueue(storage);
     await queue.enqueue('owner-1', {
-      idempotencyKey:'sms:encrypted',
-      submission:{...submission,events:submission.events.map(event=>({...event,sourceItemKey:'sha256:encrypted'}))},
-      cursor:42,
-      fingerprints:['sha256:encrypted']
+      idempotencyKey: 'sms:encrypted',
+      submission: {
+        ...submission,
+        events: submission.events.map((event) => ({
+          ...event,
+          sourceItemKey: 'sha256:encrypted'
+        }))
+      },
+      cursor: 42,
+      fingerprints: ['sha256:encrypted']
     });
-    storage.values.set(legacyKey,JSON.stringify(legacy()));
+    storage.values.set(legacyKey, JSON.stringify(legacy()));
     const merged = await queue.load('owner-1');
-    expect(merged.pending.map(entry=>entry.idempotencyKey).sort()).toEqual(['sms:encrypted',legacy().pending[0]!.idempotencyKey].sort());
+    expect(merged.pending.map((entry) => entry.idempotencyKey).sort()).toEqual(
+      ['sms:encrypted', legacy().pending[0]!.idempotencyKey].sort()
+    );
     expect(storage.values.has(legacyKey)).toBe(false);
   });
 
@@ -452,15 +507,23 @@ describe('SMS import queue', () => {
     const storage = memoryStorage();
     const queue = new SmsImportQueue(storage);
     await queue.enqueue('owner-1', {
-      idempotencyKey:legacy().pending[0]!.idempotencyKey,
-      submission:{...submission,events:submission.events.map(event=>({...event,amountMinor:-2500}))},
-      cursor:42,
-      fingerprints:['sha256:one']
+      idempotencyKey: legacy().pending[0]!.idempotencyKey,
+      submission: {
+        ...submission,
+        events: submission.events.map((event) => ({
+          ...event,
+          amountMinor: -2500
+        }))
+      },
+      cursor: 42,
+      fingerprints: ['sha256:one']
     });
     const before = mockDatabase.read('sms_import_queue');
     const raw = JSON.stringify(legacy());
-    storage.values.set(legacyKey,raw);
-    await expect(queue.load('owner-1')).rejects.toThrow('legacy queue conflict');
+    storage.values.set(legacyKey, raw);
+    await expect(queue.load('owner-1')).rejects.toThrow(
+      'legacy queue conflict'
+    );
     expect(mockDatabase.read('sms_import_queue')).toEqual(before);
     expect(storage.values.get(legacyKey)).toBe(raw);
   });

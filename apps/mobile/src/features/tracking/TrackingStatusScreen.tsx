@@ -64,11 +64,13 @@ export function TrackingStatusScreen() {
         state="error"
         title={translate(
           admission.isolatedForOwnerId
-            ? 'tracking.isolated.title' : 'tracking.unverified.title'
+            ? 'tracking.isolated.title'
+            : 'tracking.unverified.title'
         )}
         message={translate(
           admission.isolatedForOwnerId
-            ? 'tracking.isolated.message' : 'tracking.unverified.message'
+            ? 'tracking.isolated.message'
+            : 'tracking.unverified.message'
         )}
       />
     );
@@ -102,6 +104,7 @@ function TrackingStatusContent() {
     enabled: boolean;
   } | null>(null);
   const [actionFailed, setActionFailed] = useState(false);
+  const [pendingConsent, setPendingConsent] = useState(false);
   const keywordRules = keywords.data ?? [];
   const keywordLoadState = hasReadableSnapshot(keywords)
     ? 'ready'
@@ -110,6 +113,57 @@ function TrackingStatusContent() {
       : 'error';
   const awaitingNotificationAccess = useRef(false);
   const loadKeywords = keywords.refetch;
+
+  useEffect(() => {
+    let current = true;
+    void trackingSourcePreferences
+      .hasPendingConsent()
+      .then((pending) => {
+        if (current) setPendingConsent(pending);
+      })
+      .catch(() => {
+        if (current) setActionFailed(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, [ownerId, isUpdating, query.dataUpdatedAt, syncState.status]);
+
+  async function publishSavedLocalSources() {
+    try {
+      if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+        return;
+      const sources = await trackingSourcePreferences.load();
+      if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+        return;
+      queryClient.setQueryData<TrackingStatusSnapshot>(
+        statusKey,
+        (current) =>
+          current && {
+            ...current,
+            smsTrackingEnabled: sources.smsEnabled,
+            notificationTrackingEnabled: sources.notificationEnabled
+          }
+      );
+    } catch {
+      /* The original action failure remains visible; no authority is granted by this read. */
+    }
+  }
+
+  async function retrySourceConsent() {
+    if (updating) return;
+    setUpdating(true);
+    setActionFailed(false);
+    try {
+      const result = await resyncAutomaticTracking();
+      if (result.status === 'error') setActionFailed(true);
+      await refetchTrackingStatus();
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setUpdating(false);
+    }
+  }
 
   function setKeywordRules(rules: KeywordRule[]) {
     // The callback only publishes a server-confirmed save/conflict result. Manual
@@ -225,6 +279,7 @@ function TrackingStatusContent() {
       }
       await showSavedSources(sources, mode);
     } catch {
+      await publishSavedLocalSources();
       setActionFailed(true);
     } finally {
       setUpdating(false);
@@ -298,6 +353,7 @@ function TrackingStatusContent() {
       }
       await showSavedSources(sources, mode);
     } catch {
+      await publishSavedLocalSources();
       setActionFailed(true);
     } finally {
       setUpdating(false);
@@ -367,6 +423,20 @@ function TrackingStatusContent() {
         showsVerticalScrollIndicator={false}
       >
         <FinancialRefreshStatus query={query} />
+        {pendingConsent ? (
+          <SurfaceCard style={styles.card}>
+            <StyledText accessibilityRole="alert">
+              {translate('tracking.sources.pendingConsent')}
+            </StyledText>
+            <ActionButton
+              testID="tracking-consent-retry"
+              label="designSystem.action.retry"
+              variant="secondary"
+              disabled={updating}
+              onPress={() => void retrySourceConsent()}
+            />
+          </SurfaceCard>
+        ) : null}
         {/* 2. Tracking Status Card */}
         <SurfaceCard style={styles.card}>
           {!isAndroid ? (
@@ -704,12 +774,11 @@ async function enableTrackingSource(
       source === 'sms' ? 'notification' : 'sms',
       false
     );
+    await automaticTrackingService.setMode('automatic_clear');
   }
   if (source === 'notification')
     await bankNotificationService.setCaptureEnabled(true);
   const sources = await trackingSourcePreferences.set(source, true);
-  if (mode === 'paused')
-    await automaticTrackingService.setMode('automatic_clear');
   return sources;
 }
 

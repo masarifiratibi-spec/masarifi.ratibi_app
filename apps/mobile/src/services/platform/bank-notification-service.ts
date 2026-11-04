@@ -15,6 +15,7 @@ export interface RawBankNotification {
 }
 
 export interface BankNotificationService {
+  retainedCount?(): Promise<number>;
   getCaptureIssue?(): Promise<string | null>;
   getAccessState(): Promise<BankNotificationAccessState>;
   openSettings(): Promise<void>;

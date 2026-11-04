@@ -168,17 +168,15 @@ describe('live automatic tracking adapter', () => {
         hydrated: true,
         returnRemindersPausedOwnerId: null
       });
-      const request = jest
-        .fn()
-        .mockResolvedValue(
-          response({
-            snapshot: defaultSnapshot,
-            configurationHash: 'event-source-digest',
-            rolloutMode: 'automatic',
-            keywords: [],
-            senders: []
-          })
-        );
+      const request = jest.fn().mockResolvedValue(
+        response({
+          snapshot: defaultSnapshot,
+          configurationHash: 'event-source-digest',
+          rolloutMode: 'automatic',
+          keywords: [],
+          senders: []
+        })
+      );
       try {
         await createLiveAutomaticTrackingService({ baseUrl, request })
           .getRuleConfiguration!();
@@ -246,17 +244,15 @@ describe('live automatic tracking adapter', () => {
         hydrated: true,
         returnRemindersPausedOwnerId: null
       });
-      const request = jest
-        .fn()
-        .mockResolvedValue(
-          response({
-            snapshot: defaultSnapshot,
-            configurationHash: 'event-source-digest',
-            rolloutMode: 'automatic',
-            keywords: [],
-            senders: []
-          })
-        );
+      const request = jest.fn().mockResolvedValue(
+        response({
+          snapshot: defaultSnapshot,
+          configurationHash: 'event-source-digest',
+          rolloutMode: 'automatic',
+          keywords: [],
+          senders: []
+        })
+      );
       try {
         await createLiveAutomaticTrackingService({
           baseUrl: developmentBuild.apiUrl,
@@ -426,6 +422,51 @@ describe('live automatic tracking adapter', () => {
     expect(request.mock.calls[0][0]).toContain(
       '/api/v1/tracking/rule-snapshot?deviceId=aaaaaaaa-1111-4111-8111-111111111111'
     );
+  });
+  it('preserves the production receipt and independent source activation boundaries without enrolling on read', async () => {
+    const installation = {
+      deviceId: 'aaaaaaaa-1111-4111-8111-111111111111',
+      version: 3,
+      generation: 'bbbbbbbb-2222-4222-8222-222222222222',
+      sessionBinding: 'a'.repeat(64),
+      captureAllowed: true,
+      sources: {
+        smsEnabled: true,
+        notificationEnabled: true,
+        smsActivatedAt: '2026-11-04T10:00:00Z',
+        smsActivationId: '42',
+        notificationActivatedAt: '2026-11-04T11:00:00Z'
+      }
+    };
+    const request = jest
+      .fn()
+      .mockResolvedValue(
+        response({
+          snapshot: defaultSnapshot,
+          configurationHash: 'event-source-digest',
+          configurationAvailable: true,
+          installation,
+          rolloutMode: 'automatic',
+          keywords: [],
+          senders: []
+        })
+      );
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await expect(service.getRuleConfiguration!()).resolves.toMatchObject({
+      installation,
+      activation: {
+        smsActivatedAt: Date.parse(installation.sources.smsActivatedAt),
+        smsActivationId: '42',
+        notificationActivatedAt: Date.parse(
+          installation.sources.notificationActivatedAt
+        )
+      }
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][1].method).toBe('GET');
   });
   it.each([
     {

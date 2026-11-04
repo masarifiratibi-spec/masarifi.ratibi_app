@@ -23,6 +23,7 @@ import {
   normalizeTrackingOwnerFilters,
   normalizeVersion,
   normalizeTrackingInstallationEnrollment,
+  normalizeTrackingInstallationConsent,
   type NormalizedImport,
 } from './tracking.dto';
 import {
@@ -110,6 +111,36 @@ function trackingPage(items: unknown[], limit: number, resource = ''): Record<st
 
 @Injectable()
 export class TrackingService {
+  async updateInstallationConsent(
+    principal: ClerkPrincipal,
+    deviceId: unknown,
+    body: unknown,
+  ): Promise<Record<string, unknown>> {
+    let input: ReturnType<typeof normalizeTrackingInstallationConsent>;
+    try {
+      input = normalizeTrackingInstallationConsent(deviceId, body);
+    } catch {
+      throw this.validation();
+    }
+    if (!this.identity) throw new Error('TRACKING_IDENTITY_UNAVAILABLE');
+    const registration = await this.identity
+      .registerDevice(principal, input.deviceRegistration)
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === 'PUSH_TOKEN_CONFLICT')
+          throw new HttpException({ code: 'TRACKING_DEVICE_SESSION_CONFLICT' }, 409);
+        throw error;
+      });
+    const value = await this.repository.updateInstallationConsent(principal, {
+      deviceId: input.deviceId,
+      notificationDeviceId: registration.device.id,
+      expectedVersion: input.expectedVersion,
+      sources: input.sources,
+    });
+    return {
+      ...value,
+      configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    };
+  }
   async deviceRuleSnapshot(principal: ClerkPrincipal, body: unknown) {
     if (this.config?.get('MASARIFI_MOBILE_AUTOMATION_ENABLED') !== true)
       throw new HttpException({ code: 'NOT_FOUND' }, 404);

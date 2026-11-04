@@ -80,4 +80,27 @@ describe('tracking permission route', () => {
     expect(mockPermissionService.requestAfterEducation).not.toHaveBeenCalled();
     expect(setMode).not.toHaveBeenCalled();
   });
+
+  it('sets the requested server mode before asking for source consent', async () => {
+    let enabled = false;
+    jest
+      .spyOn(automaticTrackingService, 'setMode')
+      .mockImplementation(async () => {
+        enabled = true;
+        return {} as never;
+      });
+    jest
+      .spyOn(trackingSourcePreferences, 'set')
+      .mockImplementation(async () => {
+        if (!enabled) throw new Error('TRACKING_PREFERENCES_DISABLED');
+        return { smsEnabled: true, notificationEnabled: false };
+      });
+    renderWithProviders(<PermissionRoute />);
+    fireEvent.press(
+      await screen.findByLabelText(translate('appShell.permission.enable'))
+    );
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith('/tracking')
+    );
+  });
 });

@@ -11,9 +11,11 @@ import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
   'tracking.unverified.title': 'التتبع غير متاح حتى التحقق من الحساب',
-  'tracking.unverified.message': 'اتصل بالإنترنت للتحقق من صلاحية الوصول إلى بيانات التتبع المحفوظة. بياناتك تبقى محمية.',
+  'tracking.unverified.message':
+    'اتصل بالإنترنت للتحقق من صلاحية الوصول إلى بيانات التتبع المحفوظة. بياناتك تبقى محمية.',
   'tracking.isolated.title': 'التتبع معلّق لحماية بيانات محفوظة',
-  'tracking.isolated.message': 'بيانات التتبع المحفوظة مرتبطة بحساب آخر وتبقى محمية. يمكنك استخدام حسابك كالمعتاد، والتتبع ومسح البيانات المحلية غير متاحين حتى تتم معالجة ارتباط الملكية.',
+  'tracking.isolated.message':
+    'بيانات التتبع المحفوظة مرتبطة بحساب آخر وتبقى محمية. يمكنك استخدام حسابك كالمعتاد، والتتبع ومسح البيانات المحلية غير متاحين حتى تتم معالجة ارتباط الملكية.',
   'assistant.response.up': 'زيادة',
   'assistant.response.down': 'انخفاض',
   'assistant.response.flat': 'بدون تغيّر',
@@ -30,16 +32,19 @@ const ar: MessageCatalog = {
   'reports.local.excluded': 'سجلات مستبعدة تحتاج إلى مراجعة أو تأكيد',
   'reports.local.missingRates':
     'لا تُعرض الإجماليات التي تتطلب أسعار صرف غير متوفرة.',
-  'reports.pdf.internet': 'تعمل التقارير دون اتصال. اتصل بالإنترنت لإرسال تقرير PDF إلى بريدك.',
-  'reports.pdf.policyPending':
-    'يتطلب إرسال تقرير PDF تحديث الخادم المعتمد.',
+  'reports.pdf.internet':
+    'تعمل التقارير دون اتصال. اتصل بالإنترنت لإرسال تقرير PDF إلى بريدك.',
+  'reports.pdf.policyPending': 'يتطلب إرسال تقرير PDF تحديث الخادم المعتمد.',
   'reports.pdf.download': 'إرسال تقرير PDF إلى بريدي',
   'reports.pdf.emailWaitTitle': 'قد يستغرق هذا بعض الوقت',
-  'reports.pdf.emailPreparing': 'جارٍ طلب تجهيز التقرير وإرساله إلى بريد حسابك بصيغة PDF مرفق.',
-  'reports.pdf.emailQueued': 'تم قبول طلبك. سيُرسل ملف PDF إلى بريد حسابك بعد اكتمال تجهيزه.',
+  'reports.pdf.emailPreparing':
+    'جارٍ طلب تجهيز التقرير وإرساله إلى بريد حسابك بصيغة PDF مرفق.',
+  'reports.pdf.emailQueued':
+    'تم قبول طلبك. سيُرسل ملف PDF إلى بريد حسابك بعد اكتمال تجهيزه.',
   'reports.pdf.emailFailure': 'تعذّر طلب التقرير',
   'reports.pdf.emailMissing': 'يلزم بريد أساسي موثّق لحسابك لإرسال التقرير.',
-  'reports.pdf.emailUnavailable': 'إرسال التقارير إلى البريد غير متاح الآن. حاول لاحقًا.',
+  'reports.pdf.emailUnavailable':
+    'إرسال التقارير إلى البريد غير متاح الآن. حاول لاحقًا.',
   'reports.pdf.generating': 'جارٍ إعداد ملف PDF…',
   'reports.pdf.saving': 'جارٍ تنزيل PDF. اختر مجلدًا لحفظه.',
   'reports.pdf.success': 'تم حفظ ملف PDF',
@@ -1254,6 +1259,8 @@ const ar: MessageCatalog = {
   'tracking.service.unavailable': 'غير متاح',
   'tracking.state.loading': 'جار تحميل التتبع',
   'tracking.state.error': 'التتبع غير متاح',
+  'tracking.sources.pendingConsent':
+    'مصادر التتبع متوقفة حتى تأكيد الإعداد. أعد المحاولة عند توفر الاتصال.',
   'tracking.recovery.message':
     'الإضافة اليدوية تظل متاحة أثناء استعادة التتبع.',
   'tracking.action.openTracking': 'فتح التتبع',
@@ -1613,7 +1620,8 @@ const ar: MessageCatalog = {
   'planning.state.empty': 'لا توجد سجلات تخطيط بعد',
   'planning.state.partial': 'بعض بيانات التخطيط غير مكتملة',
   'planning.state.offline': 'تبقى التغييرات على هذا الجهاز دون اتصال',
-  'planning.state.offlineRead': 'دون اتصال · نعرض البيانات المحفوظة على هذا الجهاز. قد تكون بعض القيم غير متاحة أو غير محدثة.',
+  'planning.state.offlineRead':
+    'دون اتصال · نعرض البيانات المحفوظة على هذا الجهاز. قد تكون بعض القيم غير متاحة أو غير محدثة.',
   'planning.state.error': 'التخطيط غير متاح',
   'planning.state.hidden': 'القيم مخفية',
   'planning.reason.missing_data': 'غير متاح حتى إضافة بيانات أكثر',
@@ -1627,7 +1635,8 @@ const ar: MessageCatalog = {
   'planning.action.edit': 'تعديل',
   'planning.action.save': 'حفظ',
   'planning.action.next': 'التالي',
-  'planning.budget.savedDraftOnly': 'مسودة محفوظة. اتصل بالإنترنت للتحقق من الميزانية قبل حفظها.',
+  'planning.budget.savedDraftOnly':
+    'مسودة محفوظة. اتصل بالإنترنت للتحقق من الميزانية قبل حفظها.',
   'planning.action.resumeDraft': 'متابعة المسودة المحفوظة',
   'planning.action.retry': 'إعادة المحاولة',
   'planning.action.undo': 'تراجع',
@@ -2233,7 +2242,8 @@ const ar: MessageCatalog = {
   'assistant.actionPreview.state.loading': 'أحمّل معاينة الإجراء…',
   'assistant.actionPreview.state.offline':
     'تحتاج اتصال بالإنترنت عشان تشوف معاينة الإجراء.',
-  'assistant.actionPreview.state.error': 'الإجراء مو متاح الحين. تحقّق من حالته.',
+  'assistant.actionPreview.state.error':
+    'الإجراء مو متاح الحين. تحقّق من حالته.',
   'assistant.actionPreview.state.stale': 'المعاينة تغيّرت. راجع معاينة جديدة.',
   'assistant.actionPreview.state.expired': 'انتهت صلاحية هالمعاينة.',
   'assistant.actionPreview.state.failed': 'ما اكتمل الإجراء.',

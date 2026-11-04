@@ -270,7 +270,7 @@ class TrackingWorker(context: Context, parameters: WorkerParameters): Worker(con
       if(current.optString("owner")==owner.optString("owner") && current.optString("generation")==generation &&
           (current.optBoolean("sms") || current.optBoolean("notification"))) {
       val continuation=workDataOf("ownerDigest" to current.optString("owner"),"generation" to generation)
-      if(NotificationQueue(applicationContext).read(1).isNotEmpty()) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-drain-next",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<NotificationDrainWorker>().setInputData(continuation).setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+      if(hasCurrentNotificationWork(applicationContext)) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-drain-next",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<NotificationDrainWorker>().setInputData(continuation).setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
       // Replace the completed content-trigger work so the next SMS can wake the process.
       if (current.optBoolean("sms")) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-sms-next",ExistingWorkPolicy.REPLACE,
         OneTimeWorkRequestBuilder<SmsWatchWorker>().setInputData(continuation).setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
@@ -294,10 +294,14 @@ class SmsWatchWorker(context:Context,parameters:WorkerParameters):Worker(context
 class NotificationDrainWorker(context:Context,parameters:WorkerParameters):Worker(context,parameters) {
   override fun doWork():Result = synchronized(TrackingOwner) {
     if(TrackingOwner.active(applicationContext) && trackingWorkMatches(TrackingOwner.read(applicationContext),inputData) &&
-        NotificationQueue(applicationContext).read(1).isNotEmpty()) TrackingScheduler.incoming(applicationContext)
+        hasCurrentNotificationWork(applicationContext)) TrackingScheduler.incoming(applicationContext)
     Result.success()
   }
 }
+
+internal fun hasCurrentNotificationWork(context: Context): Boolean =
+  if(TrackingOwnerPartitions.exists(context)) NotificationQueue(context).readCurrent(1,TrackingOwner.read(context).getString("generation")).isNotEmpty()
+  else NotificationQueue(context).read(1).isNotEmpty()
 
 private fun trackingWorkMatches(owner: JSONObject,input: Data): Boolean =
   owner.optString("owner")==input.getString("ownerDigest") && owner.optString("generation")==input.getString("generation")

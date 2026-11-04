@@ -8,10 +8,13 @@
  */
 
 const en = {
-  'tracking.unverified.title': 'Tracking is unavailable until your account is verified',
-  'tracking.unverified.message': 'Connect to the internet to verify access to saved tracking data. Your data remains protected.',
+  'tracking.unverified.title':
+    'Tracking is unavailable until your account is verified',
+  'tracking.unverified.message':
+    'Connect to the internet to verify access to saved tracking data. Your data remains protected.',
   'tracking.isolated.title': 'Tracking is paused to protect saved data',
-  'tracking.isolated.message': 'Saved tracking data belongs to a different account and remains protected. You can use your account normally; tracking and local data cleanup are unavailable until ownership is resolved.',
+  'tracking.isolated.message':
+    'Saved tracking data belongs to a different account and remains protected. You can use your account normally; tracking and local data cleanup are unavailable until ownership is resolved.',
   'assistant.response.up': 'increase',
   'assistant.response.down': 'decrease',
   'assistant.response.flat': 'unchanged',
@@ -291,9 +294,11 @@ const en = {
   'googleAuth.incomplete':
     'Google registration needs additional account information. Please try another Google account or contact support.',
   'googleAuth.welcome': 'Welcome to\nMasarifi & Ratibi',
-  'googleAuth.supporting': 'Your finances, together in one place.\nContinue with Google to get started.',
+  'googleAuth.supporting':
+    'Your finances, together in one place.\nContinue with Google to get started.',
   'googleAuth.continue': 'Continue with Google',
-  'googleAuth.footer': 'Use the same Google account to return to your finances.',
+  'googleAuth.footer':
+    'Use the same Google account to return to your finances.',
   'appShell.security.stagingDisabled':
     'App Lock prompts are disabled in this development build.',
   // App shell
@@ -1298,6 +1303,8 @@ const en = {
   'tracking.service.unavailable': 'Unavailable',
   'tracking.state.loading': 'Loading tracking',
   'tracking.state.error': 'Tracking is unavailable',
+  'tracking.sources.pendingConsent':
+    'Tracking sources are stopped while their settings await confirmation. Try again when connected.',
   'tracking.recovery.message':
     'Manual entry stays available while tracking is recovered.',
   'tracking.action.openTracking': 'Open tracking',
@@ -2357,7 +2364,8 @@ const en = {
   'assistant.transactionReview.cancel': 'Cancel',
   'assistant.transactionReview.added': 'Added {{kind}} {{amount}}',
   'assistant.transactionReview.cancelled': 'Cancelled',
-  'assistant.transactionReview.accountUnavailable': 'Account details unavailable',
+  'assistant.transactionReview.accountUnavailable':
+    'Account details unavailable',
   'assistant.actionPreview.action.cancel': 'Cancel proposal',
   'assistant.actionPreview.action.back': 'Back',
   'assistant.actionPreview.action.confirmNow': 'Confirm action',

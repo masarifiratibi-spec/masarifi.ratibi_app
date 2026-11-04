@@ -8,6 +8,32 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/tracking/installations/{deviceId}:
+    put:
+      operationId: configureTrackingInstallation
+      tags: [Tracking Rules]
+      description: Explicit owner consent for a registered Android installation. Owner and session come from authentication. Identical command retries preserve their receipt; stale or different versions conflict. Reads never enroll or enable capture.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackingInstallationConsent' }
+      responses:
+        '200':
+          description: Versioned installation receipt and current public rules when available. Revocation can complete without a published rule snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrackingInstallationConfiguration' }
+        '400': { $ref: '#/components/responses/TrackingBadRequest' }
+        '401': { $ref: '#/components/responses/TrackingUnauthorized' }
+        '404': { $ref: '#/components/responses/TrackingNotFound' }
+        '409': { $ref: '#/components/responses/TrackingConflict' }
   /api/v1/tracking/device/rule-snapshot:
     post:
       operationId: enrollTrackingInstallation
@@ -1120,6 +1146,127 @@ components:
               expectedVersion: { type: integer, minimum: 1 }
               patch: { type: object, maxProperties: 12 }
   schemas:
+    TrackingInstallationConsent:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, deviceRegistration, sources]
+      properties:
+        expectedVersion: { type: integer, minimum: 0, maximum: 2147483646 }
+        deviceRegistration:
+          type: object
+          additionalProperties: false
+          required: [deviceFingerprint, platform, appVersion]
+          properties:
+            deviceFingerprint: { type: string, minLength: 16, maxLength: 512 }
+            platform: { type: string, const: android }
+            appVersion: { type: string, minLength: 1, maxLength: 32, pattern: '^[A-Za-z0-9._+-]+$' }
+        sources: { $ref: '#/components/schemas/TrackingInstallationSources' }
+    TrackingInstallationSources:
+      type: object
+      additionalProperties: false
+      required: [smsEnabled, notificationEnabled]
+      properties:
+        smsEnabled: { type: boolean }
+        notificationEnabled: { type: boolean }
+        smsActivatedAt: { type: [string, 'null'], format: date-time }
+        smsActivationId:
+          type: [string, 'null']
+          pattern: '^[0-9]{1,19}$'
+          description: Observed native SMS row ID, at most 9223372036854775807.
+        notificationActivatedAt: { type: [string, 'null'], format: date-time }
+      allOf:
+        - if: { properties: { smsEnabled: { const: true } } }
+          then:
+            required: [smsActivatedAt, smsActivationId]
+            properties:
+              smsActivatedAt: { type: string }
+              smsActivationId: { type: string }
+          else:
+            properties:
+              smsActivatedAt: { type: 'null' }
+              smsActivationId: { type: 'null' }
+        - if: { properties: { notificationEnabled: { const: true } } }
+          then:
+            required: [notificationActivatedAt]
+            properties: { notificationActivatedAt: { type: string } }
+          else:
+            properties: { notificationActivatedAt: { type: 'null' } }
+    TrackingInstallationReceipt:
+      type: object
+      additionalProperties: false
+      required: [deviceId, version, generation, sessionBinding, sources, captureAllowed]
+      properties:
+        deviceId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1, maximum: 2147483647 }
+        generation: { type: string, format: uuid }
+        sessionBinding: { type: string, pattern: '^[a-f0-9]{64}$' }
+        sources: { $ref: '#/components/schemas/TrackingInstallationSources' }
+        captureAllowed: { type: boolean }
+    TrackingInstallationConfiguration:
+      type: object
+      additionalProperties: false
+      required: [installation, configurationAvailable, configurationHash]
+      properties:
+        installation: { $ref: '#/components/schemas/TrackingInstallationReceipt' }
+        configurationAvailable: { type: boolean }
+        configurationHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        snapshot:
+          type: object
+          description: Published public parser rule bundle validated by the existing rule-snapshot contract.
+          additionalProperties: true
+        contentHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        channelVersion: { type: integer, minimum: 1 }
+        rolloutMode: { type: string, enum: [shadow, review, automatic] }
+        keywords:
+          type: array
+          items: { $ref: '#/components/schemas/TrackingKeywordRuleResource' }
+        senders:
+          type: array
+          items: { $ref: '#/components/schemas/TrackingSenderRuleResource' }
+        bindings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [provider, role, suffix, accountId]
+            properties:
+              provider: { type: string }
+              role: { type: string, enum: [card, account, cash_card, cash_account] }
+              suffix: { type: string }
+              accountId: { type: string, format: uuid }
+        configurationRevision: { type: string, pattern: '^[a-f0-9]{64}$' }
+        accountingPolicy: { type: string, const: default_account_nominal_v1 }
+        sourceAdmissionPolicy: { type: string, const: financial_content_v1 }
+        currencyAccountPolicy: { type: string, const: source_currency_v1 }
+        policyActivatedAt: { type: integer, minimum: 1 }
+        policySmsActivationId: { type: string, pattern: '^[0-9]{1,19}$' }
+        activation:
+          type: object
+          additionalProperties: false
+          required: [smsActivatedAt, notificationActivatedAt]
+          properties:
+            smsActivatedAt: { type: integer, minimum: 0 }
+            smsActivationId: { type: string, pattern: '^[0-9]{1,19}$' }
+            notificationActivatedAt: { type: integer, minimum: 0 }
+      allOf:
+        - if: { properties: { configurationAvailable: { const: true } } }
+          then:
+            required:
+              [
+                snapshot,
+                contentHash,
+                channelVersion,
+                rolloutMode,
+                keywords,
+                senders,
+                bindings,
+                configurationRevision,
+                accountingPolicy,
+              ]
+          else:
+            properties:
+              installation:
+                properties: { captureAllowed: { const: false } }
     TrackingMessageTransport:
       type: object
       additionalProperties: false
@@ -1129,6 +1276,15 @@ components:
         channel: { type: string, enum: [android_sms, android_notification] }
         nativeIdDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
         revisionDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        installationGeneration: { type: string, format: uuid }
+        installationVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+      dependentRequired:
+        installationGeneration: [installationVersion]
+        installationVersion: [installationGeneration]
+      allOf:
+        - if: { required: [installationGeneration] }
+          then:
+            properties: { deviceId: { format: uuid } }
     TrackingMessageClassification:
       type: object
       additionalProperties: false

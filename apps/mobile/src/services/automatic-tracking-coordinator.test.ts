@@ -5,9 +5,16 @@ import type {
 } from '@/domain/automatic-tracking';
 import { permissionState } from './mocks/tracking-permission-service';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
-import { createAutomaticTrackingCoordinator } from './automatic-tracking-coordinator';
+import {
+  createAutomaticTrackingCoordinator,
+  syncAutomaticTracking
+} from './automatic-tracking-coordinator';
 import { prepareFinancialMessageImport } from '@/features/tracking/sms-import';
-import { invalidateTrackingConsent } from './tracking-source-preferences';
+import {
+  invalidateTrackingConsent,
+  trackingSourcePreferences
+} from './tracking-source-preferences';
+import * as productionConsent from './tracking-installation-consent';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import {
@@ -349,6 +356,17 @@ jest.mock('@/storage/database', () => ({
 beforeEach(() => {
   mockDatabase = new StatefulSqlite(['sms_import_queue']);
 });
+it('runs the durable source-consent actor before ordinary background synchronization', async () => {
+  const retry = jest
+    .spyOn(trackingSourcePreferences, 'retryPendingConsent')
+    .mockResolvedValue(false);
+  try {
+    await syncAutomaticTracking();
+    expect(retry).toHaveBeenCalledTimes(1);
+  } finally {
+    retry.mockRestore();
+  }
+});
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -499,6 +517,205 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  const installation = {
+    deviceId: 'aaaaaaaa-1111-4111-8111-111111111111',
+    version: 1,
+    generation: 'bbbbbbbb-2222-4222-8222-222222222222',
+    sessionBinding: 'a'.repeat(64),
+    captureAllowed: true,
+    sources: {
+      smsEnabled: true,
+      notificationEnabled: false,
+      smsActivatedAt: '1970-01-01T00:00:01.000Z',
+      smsActivationId: '42',
+      notificationActivatedAt: null
+    }
+  };
+  const productionRules = () => ({
+    keywords: [],
+    senders: [],
+    snapshot: defaultSnapshot,
+    accountingPolicy: 'default_account_nominal_v1' as const,
+    sourceAdmissionPolicy: 'financial_content_v1' as const,
+    installation,
+    activation: {
+      smsActivatedAt: 1000,
+      smsActivationId: '42',
+      notificationActivatedAt: 0
+    },
+    policyActivatedAt: 1000,
+    configurationRevision: 'c'.repeat(64)
+  });
+  it('holds capture and unsubmitted work while production consent is not locally acknowledged', async () => {
+    const context = setup();
+    const permit = jest
+      .spyOn(productionConsent, 'hasProductionTrackingConsent')
+      .mockResolvedValue(false);
+    try {
+      await context.coordinator.sync();
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+      expect(context.bankNotifications.readRecent).not.toHaveBeenCalled();
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    } finally {
+      permit.mockRestore();
+    }
+  });
+  it('pins the production generation on newly captured events without changing their source identity', async () => {
+    const context = setup({
+      prepare: prepareFinancialMessageImport,
+      deviceId: async () => installation.deviceId
+    });
+    context.setOnline(false);
+    context.inbox.readRecent.mockResolvedValue([
+      { id: '99', sender: 'BANK', body: 'Paid SAR2', receivedAt: 3000 }
+    ]);
+    await context.queue.saveRules('owner-1', productionRules());
+    await context.coordinator.sync();
+    const pending = (await context.queue.load('owner-1')).pending;
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.submission.events[0]?.transport).toMatchObject({
+      deviceId: installation.deviceId,
+      installationGeneration: installation.generation,
+      installationVersion: 1
+    });
+    const original = await prepareFinancialMessageImport(
+      [{ id: '99', sender: 'BANK', body: 'Paid SAR2', receivedAt: 3000 }],
+      {
+        keywordRules: [],
+        senderRules: [],
+        accounts: [ownerAccount],
+        knownFingerprints: new Set(),
+        deviceId: installation.deviceId,
+        snapshot: defaultSnapshot,
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1',
+        activatedAt: 1000
+      }
+    );
+    expect(pending[0]?.submission.events[0]?.sourceItemKey).toBe(
+      original.events[0]?.sourceItemKey
+    );
+  });
+  it('retains an unsubmitted stale generation without replacing its proof or operation ID', async () => {
+    const context = setup({
+      sources: {
+        load: async () => ({
+          smsEnabled: true,
+          notificationEnabled: false,
+          smsActivatedAt: 1000,
+          smsActivationId: '42'
+        })
+      }
+    });
+    Object.assign(context.tracking, {
+      getRuleConfiguration: async () => productionRules()
+    });
+    context.inbox.readRecent.mockResolvedValue([]);
+    await context.queue.saveRules('owner-1', productionRules());
+    const prepared = await prepareFinancialMessageImport(
+      [{ id: '99', sender: 'BANK', body: 'Paid SAR2', receivedAt: 3000 }],
+      {
+        keywordRules: [],
+        senderRules: [],
+        accounts: [ownerAccount],
+        knownFingerprints: new Set(),
+        deviceId: installation.deviceId,
+        snapshot: defaultSnapshot,
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1',
+        activatedAt: 1000
+      }
+    );
+    for (const event of prepared.events)
+      if (event.transport)
+        Object.assign(event.transport, {
+          installationGeneration: 'cccccccc-3333-4333-8333-333333333333',
+          installationVersion: 99
+        });
+    await context.queue.enqueue('owner-1', {
+      idempotencyKey: 'retained-original',
+      submission: {
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: prepared.events
+      },
+      cursor: 3000,
+      fingerprints: []
+    });
+    const before = (await context.queue.load('owner-1')).pending;
+    await context.coordinator.sync();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending).toEqual(before);
+  });
+  it('bounds polling of a retained processing receipt to one normal observation and recheck per pass', async () => {
+    const context = setup();
+    context.inbox.readRecent.mockResolvedValue([]);
+    await context.queue.enqueue('owner-1', {
+      idempotencyKey: 'retained-processing',
+      submission: {
+        schemaVersion: 1,
+        sourceType: 'sms',
+        events: [
+          {
+            sourceItemKey: 'retained-original',
+            amountMinor: -1,
+            receivedAt: '2026-01-01T00:00:00Z'
+          }
+        ]
+      },
+      cursor: 1,
+      fingerprints: []
+    });
+    await context.queue.markSubmitted(
+      'owner-1',
+      'retained-processing',
+      'session-1'
+    );
+    await context.coordinator.sync();
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(2);
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+  it('reconciles a retained accepted session while capture is paused and both sources are disabled', async () => {
+    const onSaved = jest.fn(async () => true);
+    const context = setup({
+      onSaved,
+      sources: {
+        load: async () => ({ smsEnabled: false, notificationEnabled: false })
+      }
+    });
+    context.tracking.getStatus.mockResolvedValue({
+      ...status(),
+      mode: 'paused'
+    });
+    await context.queue.enqueue('owner-1', {
+      idempotencyKey: 'retained-original',
+      submission: {
+        schemaVersion: 1,
+        sourceType: 'sms',
+        events: [
+          {
+            sourceItemKey: 'retained-original',
+            amountMinor: -1,
+            receivedAt: '2026-01-01T00:00:00Z'
+          }
+        ]
+      },
+      cursor: 1,
+      fingerprints: []
+    });
+    await context.queue.markSubmitted(
+      'owner-1',
+      'retained-original',
+      'session-1'
+    );
+    context.tracking.getImportSession.mockResolvedValue(session('complete'));
+    expect((await context.coordinator.sync()).status).toBe('imported');
+    expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+  });
   it('rechecks a live import once and reconciles a save before another native follow-up', async () => {
     const onSaved = jest.fn(async () => true);
     const scheduleFollowUp = jest.fn(async () => undefined);

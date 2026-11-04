@@ -4,6 +4,69 @@ import { validateClassification, type Classification } from '@masarifi/transacti
 
 type JsonObject = Record<string, unknown>;
 
+export function normalizeTrackingInstallationConsent(deviceId: unknown, value: unknown) {
+  const input = object(value);
+  keys(input, ['expectedVersion', 'deviceRegistration', 'sources']);
+  if (
+    !Number.isSafeInteger(input.expectedVersion) ||
+    Number(input.expectedVersion) < 0 ||
+    Number(input.expectedVersion) >= 2147483647
+  )
+    invalid();
+  const sources = object(input.sources);
+  keys(sources, [
+    'smsEnabled',
+    'notificationEnabled',
+    'smsActivatedAt',
+    'smsActivationId',
+    'notificationActivatedAt',
+  ]);
+  if (typeof sources.smsEnabled !== 'boolean' || typeof sources.notificationEnabled !== 'boolean')
+    invalid();
+  if (
+    !sources.smsEnabled &&
+    [sources.smsActivatedAt, sources.smsActivationId].some((value) => value != null)
+  )
+    invalid();
+  if (!sources.notificationEnabled && sources.notificationActivatedAt != null) invalid();
+  const smsActivationId = sources.smsEnabled ? text(sources.smsActivationId, 1, 19) : null;
+  if (
+    smsActivationId !== null &&
+    (!/^[0-9]{1,19}$/.test(smsActivationId) || BigInt(smsActivationId) > 9223372036854775807n)
+  )
+    invalid();
+  return {
+    deviceId: normalizeTrackingId(deviceId),
+    expectedVersion: input.expectedVersion as number,
+    deviceRegistration: normalizeAndroidTrackingRegistration(input.deviceRegistration),
+    sources: {
+      smsEnabled: sources.smsEnabled,
+      notificationEnabled: sources.notificationEnabled,
+      smsActivatedAt: sources.smsEnabled ? instant(sources.smsActivatedAt) : null,
+      smsActivationId: smsActivationId === null ? null : BigInt(smsActivationId).toString(),
+      notificationActivatedAt: sources.notificationEnabled
+        ? instant(sources.notificationActivatedAt)
+        : null,
+    },
+  };
+}
+
+function normalizeAndroidTrackingRegistration(value: unknown) {
+  const registration = object(value);
+  keys(registration, ['deviceFingerprint', 'platform', 'appVersion']);
+  const appVersion = text(registration.appVersion, 1, 32);
+  if (registration.platform !== 'android' || !/^[A-Za-z0-9._+-]+$/.test(appVersion)) invalid();
+  return {
+    deviceFingerprint: text(registration.deviceFingerprint, 16, 512),
+    platform: 'android' as const,
+    appVersion,
+  };
+}
+
+export type NormalizedTrackingInstallationConsent = ReturnType<
+  typeof normalizeTrackingInstallationConsent
+>;
+
 export function normalizeTrackingInstallationEnrollment(value: unknown) {
   const input = object(value);
   keys(input, [
@@ -15,17 +78,13 @@ export function normalizeTrackingInstallationEnrollment(value: unknown) {
     'reminderLocale',
     'reminderTimeZone',
   ]);
-  const registration = object(input.deviceRegistration);
-  keys(registration, ['deviceFingerprint', 'platform', 'appVersion']);
+  const registration = normalizeAndroidTrackingRegistration(input.deviceRegistration);
   const smsActivationId = text(input.smsActivationId, 1, 19);
-  const appVersion = text(registration.appVersion, 1, 32);
   const reminderTimeZone = text(input.reminderTimeZone, 1, 64);
   new Intl.DateTimeFormat('en', { timeZone: reminderTimeZone });
   if (
     !/^[0-9]{1,19}$/.test(smsActivationId) ||
     BigInt(smsActivationId) > 9223372036854775807n ||
-    registration.platform !== 'android' ||
-    !/^[A-Za-z0-9._+-]+$/.test(appVersion) ||
     typeof input.remindersEnabled !== 'boolean' ||
     typeof input.foreground !== 'boolean' ||
     (input.reminderLocale !== 'ar' && input.reminderLocale !== 'en')
@@ -34,11 +93,7 @@ export function normalizeTrackingInstallationEnrollment(value: unknown) {
   return {
     deviceId: normalizeTrackingId(input.deviceId),
     smsActivationId,
-    deviceRegistration: {
-      deviceFingerprint: text(registration.deviceFingerprint, 16, 512),
-      platform: 'android' as const,
-      appVersion,
-    },
+    deviceRegistration: registration,
     remindersEnabled: input.remindersEnabled,
     foreground: input.foreground,
     reminderLocale: input.reminderLocale,
@@ -74,6 +129,8 @@ export interface NormalizedTrackingEvent {
     channel: 'android_sms' | 'android_notification';
     nativeIdDigest: string;
     revisionDigest: string;
+    installationGeneration?: string;
+    installationVersion?: number;
   };
   providerReferenceDigest?: string;
   originalProviderReferenceDigest?: string;
@@ -338,7 +395,14 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
   }
   if (input.transport != null) {
     const transport = object(input.transport);
-    keys(transport, ['deviceId', 'channel', 'nativeIdDigest', 'revisionDigest']);
+    keys(transport, [
+      'deviceId',
+      'channel',
+      'nativeIdDigest',
+      'revisionDigest',
+      'installationGeneration',
+      'installationVersion',
+    ]);
     if (!['android_sms', 'android_notification'].includes(String(transport.channel))) invalid();
     const nativeIdDigest = text(transport.nativeIdDigest, 64, 64),
       revisionDigest = text(transport.revisionDigest, 64, 64);
@@ -349,6 +413,18 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
       nativeIdDigest,
       revisionDigest,
     };
+    if (
+      Object.prototype.hasOwnProperty.call(transport, 'installationGeneration') ||
+      Object.prototype.hasOwnProperty.call(transport, 'installationVersion')
+    ) {
+      result.transport.deviceId = normalizeTrackingId(transport.deviceId);
+      result.transport.installationGeneration = normalizeTrackingId(
+        transport.installationGeneration,
+      );
+      const version = normalizeVersion(transport.installationVersion);
+      if (version > 2147483647) invalid();
+      result.transport.installationVersion = version;
+    }
   }
   if (input.providerReferenceDigest != null) {
     result.providerReferenceDigest = text(input.providerReferenceDigest, 64, 64);

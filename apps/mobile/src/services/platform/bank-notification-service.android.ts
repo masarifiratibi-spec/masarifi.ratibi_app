@@ -13,6 +13,7 @@ interface NativeBankNotifications extends Pick<
   | 'setNotificationCaptureEnabledV4'
   | 'readRecentNotificationsV4'
   | 'acknowledgeNotificationsV4'
+  | 'retainedNotificationCountV4'
 > {
   notificationCaptureIssue?(): Promise<string | null>;
   isNotificationAccessEnabled(): Promise<unknown>;
@@ -26,6 +27,31 @@ export function createAndroidBankNotificationService(
   native: NativeBankNotifications | null = MasarifiSmsInbox
 ): BankNotificationService {
   return {
+    async retainedCount() {
+      const scope = await captureTrackingNativeLease();
+      if (!native) {
+        if (scope.lease) throw new Error('tracking_native_upgrade_required');
+        return 0;
+      }
+      let count: unknown;
+      if (scope.lease) {
+        if (!native.retainedNotificationCountV4)
+          throw new Error('tracking_native_upgrade_required');
+        count = await native.retainedNotificationCountV4(
+          scope.lease.ownerDigest,
+          scope.lease.generation
+        );
+      } else {
+        const rows = await native.readRecentNotifications(100);
+        if (!Array.isArray(rows) || rows.length >= 100)
+          throw new Error('tracking_retained_count_unavailable');
+        count = rows.length;
+      }
+      await scope.assertCurrent();
+      if (!Number.isSafeInteger(count) || Number(count) < 0)
+        throw new Error('tracking_retained_count_unavailable');
+      return Number(count);
+    },
     async getCaptureIssue() {
       const scope = await captureTrackingNativeLease();
       if (scope.lease) {
