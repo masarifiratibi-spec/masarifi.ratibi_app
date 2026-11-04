@@ -1,3 +1,4 @@
+import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { MasarifiSmsInbox } from '../../../modules/masarifi-sms-inbox';
 import type {
   BankNotificationService,
@@ -31,12 +32,15 @@ export function createAndroidBankNotificationService(
       }
     },
     async openSettings() {
+      assertTrackingAvailable();
       await native?.openNotificationAccessSettings();
     },
     async setCaptureEnabled(enabled) {
+      assertTrackingAvailable();
       await native?.setNotificationCaptureEnabled(enabled);
     },
     async readRecent(limit) {
+      assertTrackingAvailable();
       if (!native) return [];
       const value = await native.readRecentNotifications(
         Math.max(1, Math.min(100, Math.trunc(limit)))
@@ -49,6 +53,7 @@ export function createAndroidBankNotificationService(
       });
     },
     async acknowledge(keys) {
+      assertTrackingAvailable();
       if (!native) return;
       const validKeys = [...new Set(keys.filter((key) => key.length > 0))];
       if (validKeys.length > 0)

@@ -3,7 +3,9 @@ import { Platform } from 'react-native';
 import { useAppShellStore } from '@/state/app-shell';
 import { signOutAppShellSession, retryPendingLogout } from './owner-lifecycle';
 import { registerLiveClerkBridge, captureLiveClerkOwner } from './live/auth-service';
-import { cacheLocalOwnerAccess, createAppShellStorage, configureAppShellStorageOwner, loadLocalOwnerAccess, loadLogoutDisposition, prepareLogoutDisposition } from '@/storage/app-shell-storage';
+import { cacheLocalOwnerAccess, createAppShellStorage, configureAppShellStorageOwner, loadLocalOwnerAccess, loadLogoutDisposition, prepareLogoutDisposition, markLogoutCleanupReady } from '@/storage/app-shell-storage';
+import { beginTrackingAdmission, useTrackingAdmission } from '@/state/tracking-admission';
+import { restoreTrackingBackground } from './tracking-background-runtime';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import type { ProfileSetupSnapshot } from '@/domain/settings';
@@ -83,6 +85,7 @@ async function seed(id = owner) {
   await storage.savePrivacyLock(privacy);
   await cacheLocalOwnerAccess(session(id));
   useAppShellStore.setState({ session: session(id), privacyLock: privacy, profileSetupStatus: 'complete', logoutRecoveryOwnerId: null, logoutQuiescingOwnerId: null });
+  await restoreTrackingBackground(id);
 }
 
 const previousMode = process.env.EXPO_PUBLIC_CLIENT_MODE;
@@ -110,6 +113,49 @@ afterAll(() => {
   if (previousApi === undefined) delete process.env.EXPO_PUBLIC_API_URL; else process.env.EXPO_PUBLIC_API_URL = previousApi;
 });
 const logout = (accept = true, scope: 'local' | 'all' = 'local') => signOutAppShellSession({} as never, scope, { confirmRemoval: async () => accept });
+
+it('admits Tracking after real cached-owner hydration and verified same-owner restoration', async () => {
+  beginTrackingAdmission();
+  useAppShellStore.getState().reset();
+  await useAppShellStore.getState().hydrate();
+  expect(useAppShellStore.getState().session?.restoration).toBe('local');
+  await restoreAppShellSession(
+    {restoreSession:async () => session()} as AuthService,
+    () => true,
+    {getProfileSetup:async () => incompleteProfile}
+  );
+  expect(useTrackingAdmission.getState()).toMatchObject({ready:true,admittedOwnerId:owner});
+});
+
+it.each(['prepared','cleanup-ready'] as const)('recovers a cold %s preserving logout only for consistent retained ownership', async (phase) => {
+  const record = await prepareLogoutDisposition({ownerId:owner,sessionId:originalSession.id,scope:'local',dataDisposition:'preserve'});
+  if (phase === 'cleanup-ready') {
+    await terminatePinnedLogout(record);
+    await markLogoutCleanupReady(record);
+  }
+  beginTrackingAdmission();
+  useAppShellStore.getState().reset();
+  await useAppShellStore.getState().hydrate();
+  await retryPendingLogout(owner);
+  expect(await loadLogoutDisposition(owner)).toBeNull();
+  expect(mockRows.get(owner)).toBe(1);
+  expect(mockRows.get(other)).toBe(1);
+  expect(sdkSignOut).toHaveBeenCalledTimes(1);
+});
+
+it('keeps cold logout recovery blocked when retained Tracking belongs to another owner', async () => {
+  const record = await prepareLogoutDisposition({ownerId:owner,sessionId:originalSession.id,scope:'local',dataDisposition:'preserve'});
+  const raw = JSON.stringify({ownerId:other,generation:'11111111-1111-4111-8111-111111111111'});
+  mockSecure.set('masarifi.tracking.background-context.v2',raw);
+  beginTrackingAdmission();
+  useAppShellStore.getState().reset();
+  await useAppShellStore.getState().hydrate();
+  await expect(retryPendingLogout(owner)).rejects.toThrow('tracking_restore_unavailable');
+  expect((await loadLogoutDisposition(owner))?.id).toBe(record.id);
+  expect(mockSecure.get('masarifi.tracking.background-context.v2')).toBe(raw);
+  expect(mockPurges).toEqual([]);
+  expect(sdkSignOut).not.toHaveBeenCalled();
+});
 
 it('ordinary sign-out keeps owner data and pending work without sync or a removal question', async () => {
   const finance = jest.spyOn(financeSync, 'synchronizeLiveCoreFinance').mockResolvedValue(undefined);

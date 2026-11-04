@@ -1,3 +1,4 @@
+import { captureTrackingAdmission } from '@/state/tracking-admission';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { AppState, Platform } from 'react-native';
 import { useAppShellStore } from '@/state/app-shell';
@@ -218,6 +219,7 @@ export function createLiveAutomaticTrackingService({
       signal?: AbortSignal;
     } = {}
   ): Promise<unknown> => {
+    const assertTrackingCurrent = captureTrackingAdmission(expectedOwnerId);
     assertBenchmarkRead(method);
     assertIntent?.();
     const identity =
@@ -234,6 +236,7 @@ export function createLiveAutomaticTrackingService({
     await identity?.assertCurrent();
     assertIntent?.();
     assertReadActive(signal);
+    assertTrackingCurrent();
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
       ...(signal ? { signal } : {}),
@@ -246,6 +249,7 @@ export function createLiveAutomaticTrackingService({
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     });
+    assertTrackingCurrent();
     assertReadActive(signal);
     const value: unknown =
       response.status === 204 ? null : await response.json();

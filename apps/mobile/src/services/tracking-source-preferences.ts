@@ -4,6 +4,8 @@ import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 import { registerRuntimeUserDataReset } from '@/storage/runtime-user-data-reset';
 import { disableTrackingBackground } from './tracking-background-runtime';
 
+import { assertTrackingAvailable, captureTrackingAdmission } from '@/state/tracking-admission';
+
 const storageKey = 'masarifi.tracking.sources.v1';
 let consentEpoch = 0;
 export const trackingConsentEpoch = () => consentEpoch;
@@ -47,6 +49,7 @@ export class TrackingSourcePreferences {
   ) {}
 
   async load(): Promise<TrackingSourceState> {
+    assertTrackingAvailable();
     try {
       const value = JSON.parse(
         (await this.storage.getItem(storageKey)) ?? 'null'
@@ -80,6 +83,8 @@ export class TrackingSourcePreferences {
     source: 'sms' | 'notification',
     enabled: boolean
   ): Promise<TrackingSourceState> {
+    assertTrackingAvailable();
+    const assertCurrent = captureTrackingAdmission();
     consentEpoch++;
     const current = await this.load();
     const boundary =
@@ -98,6 +103,7 @@ export class TrackingSourcePreferences {
           }
         : {})
     };
+    assertCurrent();
     await this.storage.setItem(storageKey, JSON.stringify(next));
     // Consent changes invalidate all queued native work; the next authenticated pass installs a new generation.
     await disableTrackingBackground(true);
@@ -105,16 +111,20 @@ export class TrackingSourcePreferences {
   }
 
   async setNotificationAccount(accountId: string | null): Promise<TrackingSourceState> {
+    assertTrackingAvailable();
     if (accountId !== null && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(accountId))
       throw new Error('tracking_notification_account_invalid');
+    const assertCurrent = captureTrackingAdmission();
     consentEpoch++;
     const { notificationAccountId: _previous, ...current } = await this.load();
     const next = { ...current, ...(accountId ? { notificationAccountId: accountId } : {}) };
+    assertCurrent();
     await this.storage.setItem(storageKey, JSON.stringify(next));
     return next;
   }
 
-  clear(): Promise<void> {
+  async clear(): Promise<void> {
+    assertTrackingAvailable();
     return this.storage.removeItem(storageKey);
   }
 }

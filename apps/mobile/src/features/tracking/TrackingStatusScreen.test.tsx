@@ -1,3 +1,4 @@
+import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus, PixelRatio } from 'react-native';
@@ -20,6 +21,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import * as coordinator from '@/services/automatic-tracking-coordinator';
+import { isolateTrackingForOwner } from '@/state/tracking-admission';
 
 const openSmsSettings = jest.fn(async () => undefined);
 
@@ -58,6 +60,19 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
+  it('shows preserved Tracking as unavailable without mounting capture controls or reads', () => {
+    changeLocale('ar');
+    isolateTrackingForOwner('user_currentA');
+    const read = jest.spyOn(automaticTrackingService, 'getStatus');
+    try {
+      renderWithQueryData(<TrackingStatusScreen />, []);
+      expect(screen.getByText('التتبع معلّق لحماية بيانات محفوظة')).toBeOnTheScreen();
+      expect(screen.queryByTestId('tracking-add-keyword-toggle')).toBeNull();
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      clearTrackingIsolation();
+    }
+  });
   it('waits for the keyword list before allowing edits', async () => {
     let finishLoad!: (
       rules: Awaited<

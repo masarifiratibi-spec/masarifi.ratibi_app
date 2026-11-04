@@ -20,6 +20,8 @@ jest.mock('expo-constants', () => ({
   expoConfig: { android: { package: 'com.masarifi.mobile.dev' } }
 }));
 jest.mock('@/config/client-runtime', () => ({
+  resolveClientMode: () => 'live',
+  isBenchmarkReadOnly: () => false,
   resolveClientRuntime: jest.fn(() => ({
     apiUrl: 'https://api.staging.masarifiratibi.com',
     mode: 'live'

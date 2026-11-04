@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { getTrackingDeviceId } from './tracking-device';
 import { reconcileTrackingSaves } from './tracking-save-confirmation';
 import {
@@ -137,6 +138,7 @@ export function createAutomaticTrackingCoordinator(
   const execute = async (
     requireFreshConfiguration = false
   ): Promise<AutomaticTrackingSyncState> => {
+    assertTrackingAvailable();
     if (isBenchmarkReadOnly()) return update('idle');
     let phase = 'queue';
     const session = dependencies.session();
@@ -178,6 +180,7 @@ export function createAutomaticTrackingCoordinator(
         return update('idle');
       }
       const stillOwner = () => {
+        assertTrackingAvailable();
         if (epoch !== trackingConsentEpoch())
           throw new Error('tracking_consent_changed');
         if (
@@ -572,6 +575,7 @@ export function createAutomaticTrackingCoordinator(
     async suspendKeywordConfiguration(
       expectedOwner: string | null | undefined
     ): Promise<void> {
+      assertTrackingAvailable();
       if (!dependencies.isLive()) return;
       invalidateTrackingConsent();
       if (running) await running;
@@ -593,6 +597,7 @@ export function createAutomaticTrackingCoordinator(
       rules: readonly KeywordRule[],
       expectedOwner: string | null | undefined = dependencies.session()?.userId
     ): Promise<void> {
+      assertTrackingAvailable();
       if (!dependencies.isLive()) return;
       const epoch = trackingConsentEpoch();
       const current = () =>
@@ -856,8 +861,14 @@ const coordinator = createAutomaticTrackingCoordinator({
   scheduleFollowUp: scheduleTrackingFollowUp
 });
 
-export const syncAutomaticTracking = () => coordinator.sync();
-export const resyncAutomaticTracking = () => coordinator.resync();
+export const syncAutomaticTracking = async () => {
+  assertTrackingAvailable();
+  return coordinator.sync();
+};
+export const resyncAutomaticTracking = async () => {
+  assertTrackingAvailable();
+  return coordinator.resync();
+};
 export const updateAutomaticTrackingKeywords = (
   rules: readonly KeywordRule[],
   ownerId?: string | null

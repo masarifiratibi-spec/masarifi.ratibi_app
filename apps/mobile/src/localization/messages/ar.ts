@@ -10,6 +10,10 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'tracking.unverified.title': 'التتبع غير متاح حتى التحقق من الحساب',
+  'tracking.unverified.message': 'اتصل بالإنترنت للتحقق من صلاحية الوصول إلى بيانات التتبع المحفوظة. بياناتك تبقى محمية.',
+  'tracking.isolated.title': 'التتبع معلّق لحماية بيانات محفوظة',
+  'tracking.isolated.message': 'بيانات التتبع المحفوظة مرتبطة بحساب آخر وتبقى محمية. يمكنك استخدام حسابك كالمعتاد، والتتبع ومسح البيانات المحلية غير متاحين حتى تتم معالجة ارتباط الملكية.',
   'assistant.response.up': 'زيادة',
   'assistant.response.down': 'انخفاض',
   'assistant.response.flat': 'بدون تغيّر',

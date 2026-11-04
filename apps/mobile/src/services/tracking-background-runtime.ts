@@ -16,6 +16,15 @@ import {
   registerLiveClerkBridge
 } from './live/auth-service';
 import { useAppShellStore } from '@/state/app-shell';
+import { currentLogoutAdmissionRevision } from '@/storage/app-shell-storage';
+import {
+  admitTrackingOwner,
+  beginTrackingAdmission,
+  useTrackingAdmission,
+  assertTrackingAvailable,
+  captureTrackingAdmission,
+  isolateTrackingForOwner
+} from '@/state/tracking-admission';
 import {
   trackingSourcePreferences,
   invalidateTrackingConsent,
@@ -34,6 +43,11 @@ const clerkSessionCache: TokenCache = {
 let nativeMutation: Promise<void> = Promise.resolve();
 let nativeGeneration = 0;
 let restorationBlocked = false;
+class ForeignTrackingOwnerIsolated extends Error {
+  constructor() {
+    super('tracking_owner_isolated');
+  }
+}
 function serializeNative(change: () => Promise<void>): Promise<void> {
   const operation = nativeMutation.then(change, change);
   nativeMutation = operation.catch(() => undefined);
@@ -205,12 +219,15 @@ export async function configureTrackingBackground(
 export async function disableTrackingBackground(
   preserveNotifications = false
 ): Promise<void> {
+  const assertCurrent = preserveNotifications ? () => undefined : captureTrackingAdmission();
   nativeGeneration++;
   return serializeNative(async () => {
+    assertCurrent();
     if (preserveNotifications && trackingNativeRuntime?.suspendTrackingOwner)
       await trackingNativeRuntime.suspendTrackingOwner();
     else {
       await trackingNativeRuntime?.clearTrackingOwner?.();
+      assertCurrent();
       await SecureStore.deleteItemAsync(contextKey);
     }
   });
@@ -219,6 +236,7 @@ export async function disableTrackingBackground(
 export async function purgeDeletedOwnerTracking(
   ownerId: string
 ): Promise<void> {
+  const assertCurrent = captureTrackingAdmission(ownerId);
   if (Platform.OS !== 'android') return;
   const native = trackingNativeRuntime;
   if (!native?.purgeTrackingOwnerData)
@@ -230,27 +248,70 @@ export async function purgeDeletedOwnerTracking(
       Crypto.CryptoDigestAlgorithm.SHA256,
       ownerId
     );
+    assertCurrent();
     await native.purgeTrackingOwnerData!(ownerDigest);
     if (
       context?.ownerId === ownerId &&
       (await SecureStore.getItemAsync(contextKey)) === raw
     ) {
+      assertCurrent();
       await SecureStore.deleteItemAsync(contextKey);
       if ((await SecureStore.getItemAsync(contextKey)) !== null)
         throw new Error('tracking owner context remains');
     }
   });
 }
+type RetainedTrackingContext = { ownerId: string; generation: string };
+
+async function assessRetainedTrackingContext(
+  stored: RetainedTrackingContext,
+  generation: number
+): Promise<void> {
+  if (Platform.OS !== 'android' || !trackingNativeRuntime?.restoreTrackingOwner)
+    throw new Error('tracking_restore_unavailable');
+  const digest = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    stored.ownerId
+  );
+  if (generation !== nativeGeneration)
+    throw new Error('tracking_restore_unavailable');
+  // The native assessment only suspends intake and compares retained metadata.
+  // It never authenticates this owner, enables work or reads queue plaintext.
+  const outcome = await trackingNativeRuntime.restoreTrackingOwner(
+    digest, stored.generation
+  );
+  if (outcome !== 'PRESERVED') throw new Error('tracking_restore_unavailable');
+}
+
+async function assertRestorationCurrent(
+  ownerId: string,
+  raw: string | null,
+  generation: number,
+  admissionRevision: number
+): Promise<void> {
+  if (
+    (await SecureStore.getItemAsync(contextKey)) !== raw ||
+    generation !== nativeGeneration ||
+    admissionRevision !== currentLogoutAdmissionRevision()
+  )
+    throw new Error('tracking_restore_unavailable');
+  const currentOwner = useAppShellStore.getState().session?.userId;
+  if (currentOwner && currentOwner !== ownerId)
+    throw new Error('tracking_restore_unavailable');
+}
+
 export async function restoreTrackingBackground(
   ownerId: string
 ): Promise<void> {
   if (isBenchmarkReadOnly()) return;
+  const admissionRevision = currentLogoutAdmissionRevision();
   const generation = ++nativeGeneration;
   restorationBlocked = true;
+  beginTrackingAdmission();
   return serializeNative(async () => {
     try {
       const raw = await SecureStore.getItemAsync(contextKey);
-      let stored: { ownerId: string; generation: string } | null = null;
+      let stored: RetainedTrackingContext | null = null;
       if (raw !== null) {
         const value: unknown = JSON.parse(raw);
         if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -266,12 +327,19 @@ export async function restoreTrackingBackground(
           candidate.generation.length > 80
         )
           throw new Error();
-        stored = candidate as { ownerId: string; generation: string };
+        stored = candidate as RetainedTrackingContext;
       }
       if (generation !== nativeGeneration) throw new Error();
       // Cold SDK restoration is not an explicit account switch or sign-out.
       // A different retained owner must stay dormant without losing its data.
-      if (stored && stored.ownerId !== ownerId) throw new Error();
+      if (stored && stored.ownerId !== ownerId) {
+        await assessRetainedTrackingContext(stored, generation);
+        await assertRestorationCurrent(
+          ownerId, raw, generation, admissionRevision
+        );
+        isolateTrackingForOwner(ownerId);
+        throw new ForeignTrackingOwnerIsolated();
+      }
       if (Platform.OS === 'android') {
         if (!trackingNativeRuntime?.restoreTrackingOwner) throw new Error();
         const ownerDigest = await Crypto.digestStringAsync(
@@ -285,9 +353,13 @@ export async function restoreTrackingBackground(
         );
         if (!['PRESERVED', 'EMPTY'].includes(outcome)) throw new Error();
       }
-      if (generation !== nativeGeneration) throw new Error();
+      await assertRestorationCurrent(
+        ownerId, raw, generation, admissionRevision
+      );
+      admitTrackingOwner(ownerId);
       restorationBlocked = false;
-    } catch {
+    } catch (error) {
+      if (error instanceof ForeignTrackingOwnerIsolated) throw error;
       // An ambiguous restoration must not fall back to destructive sign-out.
       // Keep durable notifications and make native intake dormant instead.
       await trackingNativeRuntime?.suspendTrackingOwner?.();
@@ -296,13 +368,22 @@ export async function restoreTrackingBackground(
   });
 }
 
-registerRuntimeIdentityReset((context) => {
+export async function restoreTrackingOwnerAdmission(ownerId: string): Promise<void> {
+  try {
+    await restoreTrackingBackground(ownerId);
+  } catch (error) {
+    if (!(error instanceof ForeignTrackingOwnerIsolated)) throw error;
+  }
+}
+
+registerRuntimeIdentityReset(async (context) => {
   if (isBenchmarkReadOnly()) return;
   invalidateTrackingConsent();
   if (context && 'restoringOwnerId' in context)
-    return restoreTrackingBackground(context.restoringOwnerId);
+    return restoreTrackingOwnerAdmission(context.restoringOwnerId);
   restorationBlocked = true;
   if (context?.kind === 'restore-unavailable' || context?.kind === 'signed-out-preserve') {
+    if (context.kind === 'restore-unavailable') beginTrackingAdmission();
     nativeGeneration++;
     return serializeNative(async () => {
       if (Platform.OS !== 'android') return;
@@ -326,7 +407,7 @@ export async function runTrackingBackground(input: {
 }): Promise<void> {
   if (isBenchmarkReadOnly()) return;
   if (restorationBlocked) return;
-  const generation = nativeGeneration;
+  let generation = nativeGeneration;
   const current = () => !restorationBlocked && generation === nativeGeneration;
   const runtime = resolveClientRuntime();
   if (runtime.mode !== 'live') return;
@@ -386,6 +467,11 @@ export async function runTrackingBackground(input: {
       reverifyConflict: interactive,
       signOut: interactive
     });
+    if (!useTrackingAdmission.getState().ready) {
+      await restoreTrackingBackground(context.ownerId);
+      generation = nativeGeneration;
+    }
+    assertTrackingAvailable(context.ownerId);
     await configureDatabaseOwner(context.ownerId);
     if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
       return;
@@ -402,6 +488,13 @@ export async function runTrackingBackground(input: {
   }
   if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
     return;
+  if (!useTrackingAdmission.getState().ready) {
+    await restoreTrackingBackground(context.ownerId);
+    generation = nativeGeneration;
+  }
+  if ((await SecureStore.getItemAsync(contextKey)) !== raw || !current())
+    return;
+  assertTrackingAvailable(context.ownerId);
   const { syncAutomaticTracking } =
     // The coordinator is bundled locally; import() can refetch it in Expo DEV.
     // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires

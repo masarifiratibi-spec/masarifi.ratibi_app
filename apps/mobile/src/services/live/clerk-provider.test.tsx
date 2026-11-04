@@ -1,3 +1,4 @@
+import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import React from 'react';
 import {
   act,
@@ -18,6 +19,7 @@ import {
 } from './clerk-provider';
 import { getClerkInstance } from '@clerk/expo';
 import type { LiveClerkBridge } from './auth-service';
+import { assertTrackingAvailable } from '@/state/tracking-admission';
 
 let authState = {
   getToken: jest.fn(),
@@ -77,7 +79,8 @@ jest.mock('@clerk/expo/experimental', () => ({
   useSSO: () => ({ startSSOFlow: mockStartSSOFlow })
 }));
 jest.mock('@/config/client-runtime', () => ({
-  isBenchmarkReadOnly: () => mockIsBenchmarkReadOnly(),
+  isBenchmarkReadOnly: () => mockIsBenchmarkReadOnly?.() ?? false,
+  resolveClientMode: () => 'live',
   resolveClientRuntime: () => ({
     clerkPublishableKey: 'pk_test_staging',
     mode: 'live'
@@ -94,6 +97,7 @@ function SessionProbe() {
 }
 
 beforeEach(() => {
+  clearTrackingIsolation();
   jest.clearAllMocks();
   jest.mocked(getClerkInstance).mockReturnValue({
     status: 'ready', user: null, session: null
@@ -110,6 +114,25 @@ beforeEach(() => {
     signOut: jest.fn(),
     userId: 'user-1'
   };
+});
+
+it('blocks Tracking before child effects can use an unverified cold-start identity', () => {
+  let blocked = false;
+  function ColdStartProbe() {
+    React.useEffect(() => {
+      try { assertTrackingAvailable(); } catch { blocked = true; }
+    }, []);
+    return null;
+  }
+  render(<MobileIdentityProvider><ColdStartProbe /></MobileIdentityProvider>);
+  expect(blocked).toBe(true);
+});
+
+it('starts live Tracking closed even without a mounted React provider', () => {
+  jest.isolateModules(() => {
+    const admission = jest.requireActual<typeof import('@/state/tracking-admission')>('@/state/tracking-admission');
+    expect(() => admission.assertTrackingAvailable()).toThrow('tracking_owner_isolated');
+  });
 });
 
 it('synchronizes a stable Clerk session without another state update pass', async () => {

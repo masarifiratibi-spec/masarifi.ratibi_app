@@ -8,6 +8,10 @@
  */
 
 const en = {
+  'tracking.unverified.title': 'Tracking is unavailable until your account is verified',
+  'tracking.unverified.message': 'Connect to the internet to verify access to saved tracking data. Your data remains protected.',
+  'tracking.isolated.title': 'Tracking is paused to protect saved data',
+  'tracking.isolated.message': 'Saved tracking data belongs to a different account and remains protected. You can use your account normally; tracking and local data cleanup are unavailable until ownership is resolved.',
   'assistant.response.up': 'increase',
   'assistant.response.down': 'decrease',
   'assistant.response.flat': 'unchanged',

@@ -38,6 +38,7 @@ import type {
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { classifyPhoneVerificationError } from './clerk-errors';
 import { RecentAuthDialog } from '@/features/security/RecentAuthDialog';
+import { beginTrackingAdmission } from '@/state/tracking-admission';
 import { resolveClerkDisplayName } from './clerk-name';
 import { startBenchmarkGoogleSignIn } from './benchmark-google-sign-in';
 import {
@@ -94,6 +95,8 @@ export function MobileIdentityProvider({
   recoveryFallback?: ReactNode;
 }) {
   React.useLayoutEffect(() => {
+    if (resolveClientRuntime().mode === 'live' && !isBenchmarkReadOnly())
+      beginTrackingAdmission();
     recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'identity' });
   }, []);
   const [restarting, setRestarting] = useState(false);

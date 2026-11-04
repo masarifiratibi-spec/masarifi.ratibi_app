@@ -37,6 +37,7 @@ import {
   automaticTrackingReadKey
 } from '@/state/automatic-tracking-view-state';
 import { useAppShellStore } from '@/state/app-shell';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
@@ -56,6 +57,21 @@ import {
 
 export function TrackingStatusScreen() {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const admission = useTrackingAdmission();
+  if (!admission.ready)
+    return (
+      <StateView
+        state="error"
+        title={translate(
+          admission.isolatedForOwnerId
+            ? 'tracking.isolated.title' : 'tracking.unverified.title'
+        )}
+        message={translate(
+          admission.isolatedForOwnerId
+            ? 'tracking.isolated.message' : 'tracking.unverified.message'
+        )}
+      />
+    );
   return <TrackingStatusContent key={ownerId} />;
 }
 

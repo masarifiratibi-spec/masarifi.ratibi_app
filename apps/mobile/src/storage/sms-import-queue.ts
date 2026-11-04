@@ -15,6 +15,8 @@ import type {
   TrackingMode
 } from '@/domain/automatic-tracking';
 
+import { assertTrackingAvailable, captureTrackingAdmission } from '@/state/tracking-admission';
+
 const storageKey = 'masarifi.tracking.smsImportQueue.v1';
 
 interface StorageLike {
@@ -192,12 +194,16 @@ export class SmsImportQueue {
   }
 
   async clear(ownerId?: string): Promise<void> {
+    const assertCurrent = captureTrackingAdmission(ownerId);
     try {
       const database = await openDatabase(ownerId);
+      assertCurrent();
       await runExclusiveDatabaseTransaction(database, async (transaction) => {
+        assertCurrent();
         await transaction.runAsync('DELETE FROM sms_import_queue');
       });
     } finally {
+      assertCurrent();
       await this.storage.removeItem(storageKey);
     }
   }
@@ -206,10 +212,12 @@ export class SmsImportQueue {
     ownerId: string,
     mutate?: (state: SmsImportQueueState) => void
   ): Promise<SmsImportQueueState> {
+    const assertCurrent = captureTrackingAdmission(ownerId);
     const database = await openDatabase(ownerId);
     let state = empty(ownerId);
     let legacy: string | null = null;
     await runExclusiveDatabaseTransaction(database, async (transaction) => {
+      assertCurrent();
       const row = await transaction.getFirstAsync<{ payload: string }>(
         'SELECT payload FROM sms_import_queue WHERE id = ?',
         'singleton'
@@ -217,6 +225,7 @@ export class SmsImportQueue {
       legacy = await this.storage.getItem(storageKey);
       const encrypted = row ? parseState(row.payload, ownerId) : null;
       const legacyState = parseLegacyState(legacy, ownerId);
+      assertCurrent();
       if (row && !encrypted && legacyState) throw new Error('encrypted queue unavailable');
       const stored = mergePreservedQueue(encrypted, legacyState);
       state = stored ?? empty(ownerId);
@@ -237,17 +246,21 @@ export class SmsImportQueue {
       }
     });
     // Only remove a valid legacy copy after the encrypted transaction commits.
-    if (legacy !== null && await this.storage.getItem(storageKey) === legacy)
+    if (legacy !== null && await this.storage.getItem(storageKey) === legacy) {
+      assertCurrent();
       await this.storage.removeItem(storageKey);
+    }
     return state;
   }
 }
 
-export function clearLegacySmsImportQueue(): Promise<void> {
+export async function clearLegacySmsImportQueue(): Promise<void> {
+  assertTrackingAvailable();
   return AsyncStorage.removeItem(storageKey);
 }
 
 export async function preserveLegacySmsImportQueue(ownerId: string): Promise<void> {
+  assertTrackingAvailable();
   const raw = await AsyncStorage.getItem(storageKey);
   if (raw !== null && parseLegacyState(raw, ownerId))
     await new SmsImportQueue().load(ownerId);

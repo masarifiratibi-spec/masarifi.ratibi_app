@@ -1,3 +1,4 @@
+import { assertTrackingAvailable, captureTrackingAdmission, beginTrackingAdmission, useTrackingAdmission } from '@/state/tracking-admission';
 import type { AuthenticationSession } from '@/domain/app-shell';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { resolveClientMode } from '@/config/client-runtime';
@@ -74,9 +75,12 @@ export async function signOutAppShellSession(
   scope: 'local' | 'all',
   options: { confirmRemoval?: (count: number | null) => Promise<boolean> } = {}
 ): Promise<boolean | void> {
+  assertTrackingAvailable();
   const ownerId = useAppShellStore.getState().session?.userId;
   if (!ownerId) return performSignOutAppShellSession(authService, scope, options);
+  const assertTrackingCurrent = captureTrackingAdmission(ownerId);
   return runLogoutOperation(ownerId, () => {
+    assertTrackingCurrent();
     if (useAppShellStore.getState().session?.userId !== ownerId)
       throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     return performSignOutAppShellSession(authService, scope, options);
@@ -88,18 +92,21 @@ async function performSignOutAppShellSession(
   scope: 'local' | 'all',
   options: { confirmRemoval?: (count: number | null) => Promise<boolean> }
 ): Promise<boolean | void> {
+  const assertTrackingCurrent = captureTrackingAdmission();
   const ownerId = useAppShellStore.getState().session?.userId;
   if (
     resolveClientMode() === 'live' &&
     ownerId &&
     !(await isDeletionOwnerFenced(ownerId))
   ) {
+    assertTrackingCurrent();
     let audio: string[] = [];
     let audioKnown = false;
     const assertCurrent = () => {
       const current = useAppShellStore.getState().session?.userId;
       if (current && current !== ownerId)
         throw new HttpError('session_expired', 401);
+      assertTrackingCurrent();
     };
     return syncFirstLogout({
       logout: { ownerId, scope, sessionId: await readLogoutSessionAnchor(ownerId), dataDisposition: options.confirmRemoval ? 'remove' : 'preserve' },
@@ -156,6 +163,7 @@ async function performSignOutAppShellSession(
       purge: record => purgeLogoutOwner(record, audio)
     });
   }
+  assertTrackingCurrent();
   if (isMobileAutomationEnabled()) {
     await authService.signOut(scope);
     await useAppShellStore.getState().signOut();
@@ -179,7 +187,9 @@ async function performSignOutAppShellSession(
 async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: string[]): Promise<void> {
   if (record.dataDisposition === 'preserve') return releaseLogoutOwner(record);
   const ownerId = record.ownerId;
+  const assertTrackingCurrent = captureTrackingAdmission();
   const assertOwner = async () => {
+    assertTrackingCurrent();
     const current = useAppShellStore.getState().session?.userId;
     if (current && current !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     await readLogoutSessionAnchor(ownerId);
@@ -203,10 +213,13 @@ async function purgeLogoutOwner(record: LogoutDisposition, capturedAudio?: strin
   await assertOwner(); await purgeAppShellOwnerData(ownerId);
   await assertOwner();
   useAppShellStore.getState().fenceLogoutOwner(ownerId);
+  beginTrackingAdmission();
 }
 
 async function releaseLogoutOwner(record: LogoutDisposition): Promise<void> {
+  const assertTrackingCurrent = captureTrackingAdmission();
   const assertOwner = async () => {
+    assertTrackingCurrent();
     const current = useAppShellStore.getState().session?.userId;
     if (current && current !== record.ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     await readLogoutSessionAnchor(record.ownerId);
@@ -228,16 +241,36 @@ async function releaseLogoutOwner(record: LogoutDisposition): Promise<void> {
   await assertOwner();
   clearAppShellStorageOwner();
   useAppShellStore.getState().fenceLogoutOwner(record.ownerId);
+  beginTrackingAdmission();
 }
 
 export async function retryPendingLogout(ownerId: string): Promise<void> {
-  await runLogoutOperation(ownerId, () => retryLogoutDisposition(ownerId));
+  if (useTrackingAdmission.getState().isolatedForOwnerId)
+    throw new Error('tracking_owner_isolated');
+  await runLogoutOperation(ownerId, async () => {
+    const record = await loadLogoutDisposition(ownerId);
+    if (!record) return;
+    await readLogoutSessionAnchor(ownerId);
+    const cold = !useTrackingAdmission.getState().ready;
+    try {
+      if (cold) await restoreTrackingBackground(ownerId);
+      assertTrackingAvailable(ownerId);
+      const latest = await loadLogoutDisposition(ownerId);
+      if (JSON.stringify(latest) !== JSON.stringify(record))
+        throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
+      await retryLogoutDisposition(ownerId);
+    } finally {
+      if (cold) beginTrackingAdmission();
+    }
+  });
 }
 
 async function retryLogoutDisposition(ownerId: string): Promise<void> {
   const current = useAppShellStore.getState().session?.userId;
   if (current && current !== ownerId) throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+  const assertTrackingCurrent = captureTrackingAdmission(ownerId);
   let record = await loadLogoutDisposition(ownerId);
+  assertTrackingCurrent();
   if (!record) return;
   if (record.phase === 'prepared') {
     await terminatePinnedLogout(record, true);

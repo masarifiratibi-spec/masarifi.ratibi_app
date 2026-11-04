@@ -1,3 +1,5 @@
+import { captureTrackingAdmission } from '@/state/tracking-admission';
+
 const resets = new Set<() => void | Promise<void>>();
 export type IdentityResetContext =
   { restoringOwnerId: string } | { kind: 'restore-unavailable' | 'signed-out-preserve' };
@@ -13,8 +15,9 @@ export function registerRuntimeUserDataReset(
 }
 
 export async function resetRuntimeUserData(): Promise<void> {
+  const assertCurrent = captureTrackingAdmission();
   const outcomes = await Promise.allSettled(
-    Array.from(resets, async (reset) => reset())
+    Array.from(resets, async (reset) => { assertCurrent(); await reset(); })
   );
   const failure = outcomes.find(
     (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected'
@@ -32,8 +35,9 @@ export function registerRuntimeIdentityReset(
 export async function resetRuntimeIdentityData(
   context?: IdentityResetContext
 ): Promise<void> {
+  const assertCurrent = context ? () => undefined : captureTrackingAdmission();
   const outcomes = await Promise.allSettled(
-    Array.from(identityResets, async (reset) => reset(context))
+    Array.from(identityResets, async (reset) => { assertCurrent(); await reset(context); })
   );
   const failure = outcomes.find(
     (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected'

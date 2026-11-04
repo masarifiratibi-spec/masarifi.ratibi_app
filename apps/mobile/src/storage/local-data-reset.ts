@@ -5,6 +5,8 @@ import { clearPersistedPreferences } from './secure-preferences';
 import { clearLegacySmsImportQueue } from './sms-import-queue';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
+import { captureTrackingAdmission } from '@/state/tracking-admission';
+
 type LocalDataDeletionResult = { deletedRows: number; operationId: string };
 type SqliteLike = {
   execAsync(sql: string): Promise<void>;
@@ -16,14 +18,18 @@ const completed = new Map<string, LocalDataDeletionResult>();
 export async function resetLocalUserData(
   operationId: string
 ): Promise<LocalDataDeletionResult> {
+  const assertCurrent = captureTrackingAdmission();
   const replay = completed.get(operationId);
   if (replay) return replay;
   return withTransactionDraftWrite(async () => {
+    assertCurrent();
     let deletedRows = 0;
     const outcomes = await Promise.allSettled([
       (async () => {
         const database = await openDatabase();
+        assertCurrent();
         await runExclusiveDatabaseTransaction(database, async (transaction) => {
+          assertCurrent();
           const sqlite = transaction as SqliteLike;
           await sqlite.execAsync('PRAGMA defer_foreign_keys = ON');
           const tables = await sqlite.getAllAsync<{ name: string }>(`
@@ -36,6 +42,7 @@ export async function resetLocalUserData(
           for (const { name } of tables) {
             if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
               throw new Error('invalid local data table');
+            assertCurrent();
             deletedRows += (await sqlite.runAsync(`DELETE FROM "${name}"`))
               .changes;
           }

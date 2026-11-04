@@ -1,9 +1,10 @@
-import { AppRegistry } from 'react-native';
+import { AppRegistry, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 import { registerLiveClerkBridge } from './live/auth-service';
 import { registerTrackingHeadlessTask } from './tracking-background-runtime';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import { beginTrackingAdmission, useTrackingAdmission } from '@/state/tracking-admission';
 
 const mockSync = jest.fn(async () => ({ status: 'idle' }));
 let mockInitializations = 0;
@@ -25,7 +26,7 @@ jest.mock('expo-notifications', () => ({ registerTaskAsync: jest.fn() }));
 jest.mock('../../modules/masarifi-sms-inbox', () => ({
   MasarifiSmsInbox: {
     finishTrackingWork: jest.fn(),
-    restoreTrackingOwner: async () => 'PRESERVED',
+    restoreTrackingOwner: jest.fn(async () => 'PRESERVED'),
     clearTrackingOwner: jest.fn(),
     suspendTrackingOwner: jest.fn()
   }
@@ -57,7 +58,9 @@ const interactive = async (): Promise<never> => {
   throw new Error('interactive auth disabled');
 };
 beforeEach(async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
   jest.clearAllMocks();
+  jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner).mockResolvedValue('PRESERVED');
   jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
     key === 'masarifi.tracking.background-context.v2' ? context : null
   );
@@ -85,6 +88,17 @@ beforeEach(async () => {
     .mockImplementation((_name, factory) => {
       taskFactory = factory as typeof taskFactory;
     });
+});
+
+it('does not run cold headless work until native continuity is verified', async () => {
+  beginTrackingAdmission();
+  jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner).mockResolvedValueOnce('BLOCKED');
+  expect(useTrackingAdmission.getState().ready).toBe(false);
+  expect(mockSync).not.toHaveBeenCalled();
+  registerTrackingHeadlessTask();
+  await taskFactory()(input);
+  expect(mockSync).not.toHaveBeenCalled();
+  expect(MasarifiSmsInbox!.finishTrackingWork).toHaveBeenCalledWith(input.workId, false);
 });
 afterEach(() => {
   jest.restoreAllMocks();

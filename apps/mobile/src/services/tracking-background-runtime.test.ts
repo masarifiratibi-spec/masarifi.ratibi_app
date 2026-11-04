@@ -1,3 +1,4 @@
+import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -6,10 +7,12 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { MasarifiSmsInbox } from '../../modules/masarifi-sms-inbox';
 import { useAppShellStore } from '@/state/app-shell';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import {
   configureTrackingBackground,
   disableTrackingBackground,
   scheduleTrackingFollowUp
+  , restoreTrackingBackground
 } from './tracking-background-runtime';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { invalidateTrackingConsent } from './tracking-source-preferences';
@@ -109,6 +112,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 afterEach(() => {
+  clearTrackingIsolation();
   jest.restoreAllMocks();
   if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
   else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
@@ -503,7 +507,7 @@ it('keeps unavailable restoration denied when native suspension fails without de
   }
 });
 
-it('retains explicit provider logout cleanup after an unavailable restore', async () => {
+it('refuses destructive provider logout after an unverified restore', async () => {
   process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
   mockNativeNotifications = ['retained'];
   jest.spyOn(database, 'clearDatabaseOwner').mockResolvedValue(undefined);
@@ -526,17 +530,17 @@ it('retains explicit provider logout cleanup after an unavailable restore', asyn
   };
   try {
     await restoreAppShellSession(auth);
-    await signOutAppShellSession(auth, 'local');
-    expect(mockNativeNotifications).toEqual([]);
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
+    await expect(signOutAppShellSession(auth, 'local')).rejects.toThrow('tracking_owner_isolated');
+    expect(mockNativeNotifications).toEqual(['retained']);
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
       'masarifi.appShell.session'
     );
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
       'masarifi.tracking.background-context.v2'
     );
     expect(
       await AsyncStorage.getItem('masarifi.tracking.smsImportQueue.v1')
-    ).toBeNull();
+    ).toBe('retained-legacy-SMS');
   } finally {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   }
@@ -582,6 +586,43 @@ it('preserves native work through the actual live cold-authentication store path
   }
 });
 
+it('admits the verified account while preserving consistent foreign Tracking in suspension (November 4 Google loop)', async () => {
+  process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+  const session = {
+    ...useAppShellStore.getState().session!,
+    userId: 'user_currentA',
+    expiresAt: Date.now() + 60_000
+  };
+  const retained = JSON.stringify({
+    ownerId: 'user_retainedB',
+    generation: '11111111-1111-4111-8111-111111111111'
+  });
+  mockNativeNotifications = ['foreign-pending-notification'];
+  jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+    key === 'masarifi.tracking.background-context.v2' ? retained : null
+  );
+  jest.spyOn(database, 'configureDatabaseOwner').mockResolvedValue(undefined);
+  useAppShellStore.setState({ session: null });
+  try {
+    await expect(restoreAppShellSession(
+      { restoreSession: async () => session } as AuthService,
+      () => true,
+      { getProfileSetup: async () => ({ complete: true }) } as never
+    )).resolves.toBeUndefined();
+    expect(useAppShellStore.getState()).toMatchObject({
+      session: { userId: 'user_currentA', status: 'authenticated' },
+      profileSetupStatus: 'complete'
+    });
+    expect(mockNativeNotifications).toEqual(['foreign-pending-notification']);
+    expect(await SecureStore.getItemAsync('masarifi.tracking.background-context.v2')).toBe(retained);
+    await configureTrackingBackground('user_currentA', rules, 'automatic_clear');
+    expect(MasarifiSmsInbox!.configureTrackingOwner).not.toHaveBeenCalled();
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith('masarifi.tracking.background-context.v2');
+  } finally {
+    delete process.env.EXPO_PUBLIC_CLIENT_MODE;
+  }
+});
+
 it('still clears durable native notifications on explicit sign-out', async () => {
   mockNativeNotifications = ['retained-notification'];
   await resetRuntimeIdentityData();
@@ -621,7 +662,7 @@ it('leaves cold authentication uninitialized when ownership cannot be proven', a
   }
 });
 
-it('blocks cold restoration of a different saved owner without native cleanup or context deletion', async () => {
+it('keeps a different saved owner blocked after preservation-only native assessment', async () => {
   mockNativeNotifications = ['previous-owner-notification'];
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue(
     JSON.stringify({
@@ -630,13 +671,49 @@ it('blocks cold restoration of a different saved owner without native cleanup or
     })
   );
   await expect(
-    resetRuntimeIdentityData({ restoringOwnerId: 'owner-a' })
-  ).rejects.toThrow('tracking_restore_unavailable');
+    restoreTrackingBackground('owner-a')
+  ).rejects.toThrow('tracking_owner_isolated');
   await configureTrackingBackground('owner-a', rules, 'automatic_clear');
   expect(mockNativeNotifications).toEqual(['previous-owner-notification']);
-  expect(MasarifiSmsInbox?.restoreTrackingOwner).not.toHaveBeenCalled();
+  expect(MasarifiSmsInbox?.restoreTrackingOwner).toHaveBeenCalledWith(
+    'digest:owner-b', '11111111-1111-4111-8111-111111111111'
+  );
+  expect(useTrackingAdmission.getState().isolatedForOwnerId).toBe('owner-a');
   expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
-  expect(MasarifiSmsInbox?.suspendTrackingOwner).toHaveBeenCalled();
+  expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+});
+
+it.each(['BLOCKED', 'EMPTY', 'CLEARED', 'failure'])('rejects foreign Tracking when native preservation is %s', async (outcome) => {
+  const retained = JSON.stringify({ownerId:'owner-b',generation:'11111111-1111-4111-8111-111111111111'});
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(retained);
+  const native = jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner);
+  if (outcome === 'failure') native.mockRejectedValueOnce(new Error('native unavailable'));
+  else native.mockResolvedValueOnce(outcome);
+  await expect(resetRuntimeIdentityData({restoringOwnerId:'owner-a'})).rejects.toThrow('tracking_restore_unavailable');
+  expect(useTrackingAdmission.getState().isolatedForOwnerId).toBeNull();
+  expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+});
+
+it.each(['context', 'owner', 'generation'] as const)('rejects foreign isolation if %s changes during assessment', async (changed) => {
+  let raw = JSON.stringify({ownerId:'owner-b',generation:'11111111-1111-4111-8111-111111111111'});
+  jest.mocked(SecureStore.getItemAsync).mockImplementation(async () => raw);
+  let entered!: () => void;
+  const ready = new Promise<void>(resolve => { entered = resolve; });
+  let release!: (outcome: string) => void;
+  jest.mocked(MasarifiSmsInbox!.restoreTrackingOwner).mockImplementationOnce(() => {
+    entered();
+    return new Promise<string>(resolve => { release = resolve; });
+  });
+  const restoring = expect(restoreTrackingBackground('owner-a')).rejects.toThrow('tracking_restore_unavailable');
+  await ready;
+  let suspension: Promise<void> | undefined;
+  if (changed === 'context') raw = JSON.stringify({ownerId:'owner-b',generation:'22222222-2222-4222-8222-222222222222'});
+  if (changed === 'owner') useAppShellStore.setState({session:{...useAppShellStore.getState().session!,userId:'owner-c'}});
+  if (changed === 'generation') suspension = disableTrackingBackground(true);
+  release('PRESERVED');
+  await restoring;
+  await suspension;
+  expect(useTrackingAdmission.getState().isolatedForOwnerId).toBeNull();
   expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
 });
 
@@ -693,10 +770,10 @@ it('cannot restore old identity after a sign-out races the native restoration', 
     'tracking_restore_unavailable'
   );
   await ready;
-  const signout = resetRuntimeIdentityData();
+  const signout = resetRuntimeIdentityData({kind:'signed-out-preserve'});
   release('PRESERVED');
   await Promise.all([rejected, signout]);
-  expect(mockNativeNotifications).toEqual([]);
+  expect(mockNativeNotifications).toEqual(['retained-notification']);
   await configureTrackingBackground('owner-a', rules, 'automatic_clear');
   expect(MasarifiSmsInbox?.configureTrackingOwner).not.toHaveBeenCalled();
 });

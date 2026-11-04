@@ -1,3 +1,4 @@
+import { assertTrackingAvailable } from '@/state/tracking-admission';
 import { MasarifiSmsInbox } from '../../../modules/masarifi-sms-inbox';
 import * as Crypto from 'expo-crypto';
 import type {
@@ -36,6 +37,7 @@ export function createAndroidSmsInboxService(
     afterId: string | undefined,
     limit: number
   ): Promise<unknown[]> => {
+    assertTrackingAvailable();
     const value = native?.readSmsPage
       ? await native.readSmsPage(since, afterId ?? '', limit)
       : await native?.readRecentSms(since, limit);
@@ -45,11 +47,13 @@ export function createAndroidSmsInboxService(
   return {
     available: native !== null,
     async readRecent({ since, limit, afterId }) {
+      assertTrackingAvailable();
       validateBounds(since, limit);
       if (!native) return [];
       return validMessages(await legacyRead(since, afterId, limit));
     },
     async readPage({ since, limit, afterId, ownerId }) {
+      assertTrackingAvailable();
       validateBounds(since, limit);
       const initial = { receivedAt: since, id: afterId || '0' };
       if (!boundary(initial) || !ownerId)
@@ -81,6 +85,7 @@ export function createAndroidSmsInboxService(
         Crypto.CryptoDigestAlgorithm.SHA256,
         ownerId
       );
+      assertTrackingAvailable();
       const value = await native.readFinancialSmsPageV2(
         since,
         initial.id,

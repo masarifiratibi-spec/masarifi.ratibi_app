@@ -40,6 +40,7 @@ import {
 } from '@/storage/app-shell-storage';
 import { synchronizeClientDemoLocale } from '@/services/mocks/client-demo-locale';
 import { usePreferenceStore } from '@/state/preferences';
+import { assertTrackingAvailable } from '@/state/tracking-admission';
 import {
   registerRuntimeUserDataReset,
   resetRuntimeIdentityData
@@ -351,6 +352,7 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
   },
 
   signOut: async (localDataRemoved = false) => {
+    assertTrackingAvailable();
     const ownerId = get().session?.userId;
     set({
       hydrated: true,

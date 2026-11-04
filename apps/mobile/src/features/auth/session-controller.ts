@@ -17,6 +17,8 @@ import { settingsService } from '@/services/mocks/subscription-settings-service'
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { measurePerformance } from '@/services/platform/performance-timing';
+import { restoreTrackingOwnerAdmission } from '@/services/tracking-background-runtime';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import {
   rememberAuthenticatedOwner,
   isLogoutOwnerFenced,
@@ -135,7 +137,14 @@ async function restoreCurrentSession(
       currentSession.userId !== session.userId
     )
       await useAppShellStore.getState().authenticate(session, isCurrent);
-    else useAppShellStore.setState({ session });
+    else {
+      const tracking = useTrackingAdmission.getState();
+      if (!tracking.ready ||
+          (tracking.admittedOwnerId && tracking.admittedOwnerId !== session.userId))
+        await restoreTrackingOwnerAdmission(session.userId!);
+      if (!(await admitted())) return;
+      useAppShellStore.setState({ session });
+    }
     bindOwner(session.userId!);
     if (!(await admitted())) return;
     // Revalidate an already admitted local owner without withdrawing their
