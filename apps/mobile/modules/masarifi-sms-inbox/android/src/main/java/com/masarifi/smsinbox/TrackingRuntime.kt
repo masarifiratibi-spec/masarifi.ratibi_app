@@ -43,8 +43,10 @@ internal object TrackingOwner {
   private const val PREFS = "masarifi_tracking_owner_v2"
   private const val SUSPENDED = "suspended"
   private fun preferences(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-  fun isSuspended(context: Context): Boolean = preferences(context).getBoolean(SUSPENDED,false)
-  fun read(context: Context): JSONObject {
+  @Synchronized fun isSuspended(context: Context): Boolean = if(TrackingOwnerPartitions.exists(context)) TrackingOwnerPartitions.isSuspended(context)
+    else preferences(context).getBoolean(SUSPENDED,false)
+  @Synchronized fun read(context: Context): JSONObject {
+    if(TrackingOwnerPartitions.exists(context)) return TrackingOwnerPartitions.read(context)
     val prefs=preferences(context)
     val state=runCatching { JSONObject(prefs.getString("context", "{}")!!) }.getOrElse { JSONObject() }
     if(prefs.getBoolean(SUSPENDED,false)) state.put("sms",false).put("notification",false)
@@ -54,6 +56,7 @@ internal object TrackingOwner {
   @Synchronized fun restore(context: Context, owner: String, generation: String?): String {
     require(owner.matches(Regex("[a-f0-9]{64}")))
     suspend(context)
+    if(TrackingOwnerPartitions.exists(context)) return "BLOCKED"
     val raw=preferences(context).getString("context",null)
     if(raw==null) {
       val legacy=context.getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE).getString("records",null)
@@ -74,9 +77,14 @@ internal object TrackingOwner {
   @Synchronized fun configure(context: Context, owner: String, generation: String, sms: Boolean, notification: Boolean,
     packages: List<String>, blockedPackages: List<String>, discoveryPolicy: String?, smsActivatedAt:Long=0, notificationActivatedAt:Long=0) {
     require(owner.matches(Regex("[a-f0-9]{64}")) && generation.length in 16..80)
+    check(!TrackingOwnerPartitions.exists(context)) {"tracking_owner_transition_required"}
     require(FinancialDiscoveryPolicy.parse(discoveryPolicy)?.contentAdmission != true || supportsFinancialContentCapture(context))
     val old = read(context)
-    if (old.optString("owner") != owner) NotificationQueue(context).clear()
+    if (old.optString("owner") != owner) {
+      check(old.optString("owner").isBlank() && restore(context,owner,null) == "EMPTY") {
+        "tracking_owner_transition_required"
+      }
+    }
     val value = JSONObject().put("owner",owner).put("generation",generation).put("sms",sms).put("notification",notification)
       .put("smsActivatedAt",smsActivatedAt).put("notificationActivatedAt",notificationActivatedAt)
       .put("packages",org.json.JSONArray(packages.distinct()))
@@ -88,26 +96,34 @@ internal object TrackingOwner {
   @Synchronized fun suspend(context: Context) {
     // Preserve even malformed context bytes while making every native reader
     // observe disabled intake until an authenticated configuration replaces it.
-    check(preferences(context).edit().putBoolean(SUSPENDED,true).commit())
+    if(TrackingOwnerPartitions.exists(context)) TrackingOwnerPartitions.suspend(context)
+    else check(preferences(context).edit().putBoolean(SUSPENDED,true).commit())
     WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
   }
   @Synchronized fun clear(context: Context) {
+    check(!TrackingOwnerPartitions.exists(context)) {"tracking_owner_transition_required"}
     NotificationQueue(context).clear()
     check(preferences(context).edit().clear().putBoolean(SUSPENDED,true).commit())
     WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
   }
   @Synchronized fun purgeOwner(context: Context, owner: String) {
+    check(!TrackingOwnerPartitions.exists(context)) {"tracking_owner_transition_required"}
+    purgeLegacyOwner(context,owner)
+  }
+  @Synchronized fun purgeLegacyOwner(context: Context, owner: String) {
     check(context.packageName == "com.masarifi.mobile" || context.packageName == "com.masarifi.mobile.dev" ||
       context.packageName == "com.masarifi.mobile.dev.privacy") {"privacy_development_required"}
     require(owner.matches(Regex("[a-f0-9]{64}")))
-    val presentations = TrackingEncryptedStore(context,"masarifi_tracking_presentations_v2",owner).read()
+    val presentations = TrackingEncryptedStore(context,"masarifi_tracking_presentations_v2",owner,2).read()
     if(presentations != null) {
       val identifiers = JSONObject(presentations).keys().asSequence().toList()
       require(identifiers.all {it.matches(Regex("[a-fA-F0-9-]{36}"))})
       val notifications = context.getSystemService(NotificationManager::class.java)
       identifiers.forEach {notifications.cancel(it,0)}
     }
-    if(read(context).optString("owner") == owner) {
+    val legacyOwner=try {JSONObject(preferences(context).getString("context","{}")!!).optString("owner")}
+      catch (_: org.json.JSONException) {""}
+    if(legacyOwner == owner) {
       check(preferences(context).edit().clear().putBoolean(SUSPENDED,true).commit())
       WorkManager.getInstance(context).cancelAllWorkByTag("masarifi-tracking")
     }
@@ -131,31 +147,41 @@ internal object TrackingOwner {
   }
 }
 
-internal class TrackingEncryptedStore(private val context: Context, private val name: String, private val owner: String? = null) {
+internal class TrackingEncryptedStore(private val context: Context, private val name: String, private val owner: String? = null,
+  private val storageVersion: Int? = null) {
+  private fun version(): Int = storageVersion ?: if(TrackingOwnerPartitions.exists(context)) 3 else 2
+  private fun preferencesName(): String = (if(version()==3) name.removeSuffix("_v2")+"_v3" else name)+"_"+ownerDigest()
   private fun ownerDigest(): String = owner ?: TrackingOwner.read(context).optString("owner")
-  private fun alias(): String = "masarifi.tracking."+ownerDigest()
-  private fun key(): SecretKey = synchronized(TrackingOwner) {
+  private fun alias(): String = (if(version()==3) "masarifi.tracking.v3." else "masarifi.tracking.")+ownerDigest()
+  private fun retainedCiphertext(): Boolean = listOf("masarifi_notification_queue_v2", "masarifi_tracking_presentations_v2").any {
+    val namespace=if(version()==3) it.removeSuffix("_v2")+"_v3" else it
+    context.getSharedPreferences(namespace+"_"+ownerDigest(),Context.MODE_PRIVATE).contains("ciphertext")
+  }
+  private fun key(create: Boolean): SecretKey = synchronized(TrackingOwner) {
+    check(ownerDigest().matches(Regex("[a-f0-9]{64}"))) {"tracking_owner_key_missing"}
     val store=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     (store.getKey(alias(),null) as? SecretKey)?.let { return@synchronized it }
-    check(owner == null) {"tracking_owner_key_missing"}
+    check(create && !retainedCiphertext() &&
+      (version()==3 && TrackingOwnerPartitions.permitsKeyCreation(context,ownerDigest()) ||
+        version()==2 && owner==null && !TrackingOwner.isSuspended(context))) {"tracking_owner_key_missing"}
     KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").apply {
       init(KeyGenParameterSpec.Builder(alias(),KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
         .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
     }.generateKey()
   }
-  fun read(): String? {
-    val encoded=context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).getString("ciphertext",null) ?: return null
+  fun read(): String? = synchronized(TrackingOwner) {
+    val encoded=context.getSharedPreferences(preferencesName(),Context.MODE_PRIVATE).getString("ciphertext",null) ?: return@synchronized null
     val bytes=Base64.decode(encoded,Base64.NO_WRAP)
     val cipher=Cipher.getInstance("AES/GCM/NoPadding")
-    cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
-    return String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8)
+    cipher.init(Cipher.DECRYPT_MODE,key(false),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
+    String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8)
   }
-  fun write(value: String) {
-    val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key()) }
+  fun write(value: String) = synchronized(TrackingOwner) {
+    val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key(true)) }
     val encoded=Base64.encodeToString(cipher.iv+cipher.doFinal(value.toByteArray(Charsets.UTF_8)),Base64.NO_WRAP)
-    check(context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).edit().putString("ciphertext",encoded).commit())
+    check(context.getSharedPreferences(preferencesName(),Context.MODE_PRIVATE).edit().putString("ciphertext",encoded).commit())
   }
-  fun clear() {check(context.getSharedPreferences(name+"_"+ownerDigest(),Context.MODE_PRIVATE).edit().clear().commit())}
+  fun clear() = synchronized(TrackingOwner) {check(context.getSharedPreferences(preferencesName(),Context.MODE_PRIVATE).edit().clear().commit())}
 }
 
 internal object TrackingScheduler {
@@ -216,7 +242,7 @@ class TrackingWorker(context: Context, parameters: WorkerParameters): Worker(con
     if(!TrackingOwner.active(applicationContext)) return Result.success()
     val owner=TrackingOwner.read(applicationContext)
     val generation=inputData.getString("generation")
-    if (owner.optString("owner")!=inputData.getString("ownerDigest") || owner.optString("generation")!=generation) return Result.success()
+    if (!trackingWorkMatches(owner,inputData)) return Result.success()
     val host=(applicationContext as? ReactApplication)?.reactHost ?: return Result.retry()
     val workId=UUID.randomUUID().toString()
     val completion=Completion()
@@ -243,10 +269,11 @@ class TrackingWorker(context: Context, parameters: WorkerParameters): Worker(con
       val current=TrackingOwner.read(applicationContext)
       if(current.optString("owner")==owner.optString("owner") && current.optString("generation")==generation &&
           (current.optBoolean("sms") || current.optBoolean("notification"))) {
-      if(NotificationQueue(applicationContext).read(1).isNotEmpty()) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-drain-next",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<NotificationDrainWorker>().setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+      val continuation=workDataOf("ownerDigest" to current.optString("owner"),"generation" to generation)
+      if(NotificationQueue(applicationContext).read(1).isNotEmpty()) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-drain-next",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<NotificationDrainWorker>().setInputData(continuation).setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
       // Replace the completed content-trigger work so the next SMS can wake the process.
       if (current.optBoolean("sms")) WorkManager.getInstance(applicationContext).enqueueUniqueWork("masarifi-tracking-sms-next",ExistingWorkPolicy.REPLACE,
-        OneTimeWorkRequestBuilder<SmsWatchWorker>().setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
+        OneTimeWorkRequestBuilder<SmsWatchWorker>().setInputData(continuation).setInitialDelay(5,TimeUnit.SECONDS).addTag("masarifi-tracking").build())
       }
       }
     }
@@ -258,12 +285,19 @@ class TrackingWorker(context: Context, parameters: WorkerParameters): Worker(con
   }
 }
 class SmsWatchWorker(context:Context,parameters:WorkerParameters):Worker(context,parameters) {
-  override fun doWork():Result {TrackingScheduler.watchSms(applicationContext);return Result.success()}
+  override fun doWork():Result = synchronized(TrackingOwner) {
+    if(trackingWorkMatches(TrackingOwner.read(applicationContext),inputData)) TrackingScheduler.watchSms(applicationContext)
+    Result.success()
+  }
 }
 
 class NotificationDrainWorker(context:Context,parameters:WorkerParameters):Worker(context,parameters) {
   override fun doWork():Result = synchronized(TrackingOwner) {
-    if(TrackingOwner.active(applicationContext) && NotificationQueue(applicationContext).read(1).isNotEmpty()) TrackingScheduler.incoming(applicationContext)
+    if(TrackingOwner.active(applicationContext) && trackingWorkMatches(TrackingOwner.read(applicationContext),inputData) &&
+        NotificationQueue(applicationContext).read(1).isNotEmpty()) TrackingScheduler.incoming(applicationContext)
     Result.success()
   }
 }
+
+private fun trackingWorkMatches(owner: JSONObject,input: Data): Boolean =
+  owner.optString("owner")==input.getString("ownerDigest") && owner.optString("generation")==input.getString("generation")

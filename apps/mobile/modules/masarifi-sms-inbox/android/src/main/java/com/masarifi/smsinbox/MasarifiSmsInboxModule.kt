@@ -11,15 +11,63 @@ import android.provider.Telephony
 import android.provider.Settings
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import org.json.JSONObject
 
 class MasarifiSmsInboxModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("MasarifiSmsInbox")
+    AsyncFunction("prepareTrackingOwnerV4") { request: String ->
+      val transition=JSONObject(request)
+      TrackingOwnerPartitions.prepare(trackingContext(),TrackingPartitionTransition(partitionLease(transition),
+        transition.opt("previousGeneration") as? String,transition.opt("legacyGeneration") as? String))
+    }
+    AsyncFunction("commitTrackingOwnerV4") { owner: String,generation: String ->
+      TrackingOwnerPartitions.commit(trackingContext(),TrackingPartitionLease(owner,generation))
+    }
+    AsyncFunction("configureTrackingOwnerV4") { request: String ->
+      val configuration=JSONObject(request)
+      TrackingOwnerPartitions.configure(trackingContext(),partitionLease(configuration),configuration.getJSONObject("configuration"))
+    }
+    AsyncFunction("suspendTrackingOwnerV4") { owner: String,generation: String ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {TrackingOwner.suspend(it)}
+    }
+    AsyncFunction("clearTrackingOwnerV4") { owner: String,generation: String ->
+      TrackingOwnerPartitions.clear(trackingContext(),TrackingPartitionLease(owner,generation))
+    }
+    AsyncFunction("purgeTrackingOwnerDataV4") { owner: String,generation: String ->
+      TrackingOwnerPartitions.purge(trackingContext(),TrackingPartitionLease(owner,generation))
+    }
+    AsyncFunction("notificationCaptureIssueV4") { owner: String,generation: String ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {
+        TrackingOwnerPartitions.ownerPreferences(it,"masarifi_notification_queue_v1","masarifi_notification_queue_metadata_v3").getString("captureIssue",null)
+      }
+    }
+    AsyncFunction("setNotificationCaptureEnabledV4") { owner: String,generation: String,enabled: Boolean ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {NotificationCaptureState.setEnabled(it,enabled)}
+    }
+    AsyncFunction("readRecentNotificationsV4") { owner: String,generation: String,limit: Int ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {notificationRows(it,limit)}
+    }
+    AsyncFunction("acknowledgeNotificationsV4") { owner: String,generation: String,keys: List<String> ->
+      currentPartition(TrackingPartitionLease(owner,generation)) {NotificationQueue(it).acknowledge(keys.filter {key->key.isNotBlank()}.toSet())}
+    }
+    AsyncFunction("readFinancialSmsPageV4") { request: String ->
+      val page=JSONObject(request)
+      val lease=partitionLease(page)
+      currentPartition(lease) {readFinancialPage(page.getDouble("since"),page.getString("afterId"),page.getInt("limit"),lease.owner)}
+    }
+    AsyncFunction("presentCaptureConfirmationV4") { request: String ->
+      val notification=JSONObject(request)
+      val ownerId=notification.getString("ownerId")
+      currentPartition(TrackingPartitionLease(trackingDigest(ownerId),notification.getString("generation"))) {
+        CaptureConfirmation.present(it,ownerId,notification.getString("notificationId"),notification.getString("title"),notification.getString("body"))
+      }
+    }
     AsyncFunction("financialContentAdmissionSupported") {
       appContext.reactContext?.let { supportsFinancialContentCapture(it) } ?: false
     }
     AsyncFunction("notificationCaptureIssue") {
-      appContext.reactContext?.getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE)?.getString("captureIssue",null)
+      legacyTracking {it.getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE).getString("captureIssue",null)}
     }
 
     AsyncFunction("smsActivationBoundary") {
@@ -34,10 +82,10 @@ class MasarifiSmsInboxModule : Module() {
     }
 
     AsyncFunction("readFinancialSmsPageV2") { since:Double,afterId:String,limit:Int,owner:String ->
-      readFinancialPage(since,afterId,limit,owner)
+      legacyTracking {readFinancialPage(since,afterId,limit,owner)}
     }
     AsyncFunction("readSmsPage") { since:Double,afterId:String,limit:Int ->
-      readFinancialPage(since,afterId.ifBlank { "0" },limit,null)["messages"]
+      legacyTracking {readFinancialPage(since,afterId.ifBlank { "0" },limit,null)["messages"]}
     }
     AsyncFunction("configureTrackingOwner") { owner:String,generation:String,sms:Boolean,notifications:Boolean,packages:List<String>,blocked:List<String>,policy:String? ->
       val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
@@ -68,12 +116,11 @@ class MasarifiSmsInboxModule : Module() {
       TrackingScheduler.followUp(context,ownerDigest,generation)
     }
     AsyncFunction("presentCaptureConfirmation") {ownerId:String,notificationId:String,title:String,body:String ->
-      val context=appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
-      CaptureConfirmation.present(context,ownerId,notificationId,title,body)
+      legacyTracking {CaptureConfirmation.present(it,ownerId,notificationId,title,body)}
     }
 
     AsyncFunction("readRecentSms") { since:Double,limit:Int ->
-      readFinancialPage(since,"0",limit,null)["messages"]
+      legacyTracking {readFinancialPage(since,"0",limit,null)["messages"]}
     }
 
     AsyncFunction("isNetworkAvailable") {
@@ -110,15 +157,32 @@ class MasarifiSmsInboxModule : Module() {
     }
 
     AsyncFunction("setNotificationCaptureEnabled") { enabled: Boolean ->
-      val context = appContext.reactContext
-        ?: throw IllegalStateException("notification_context_unavailable")
-      NotificationCaptureState.setEnabled(context, enabled)
+      legacyTracking {NotificationCaptureState.setEnabled(it,enabled)}
     }
 
     AsyncFunction("readRecentNotifications") { requestedLimit: Int ->
-      val context = appContext.reactContext
-        ?: throw IllegalStateException("notification_context_unavailable")
-      NotificationQueue(context).read(requestedLimit).map { record ->
+      legacyTracking {notificationRows(it,requestedLimit)}
+    }
+
+    AsyncFunction("acknowledgeNotifications") { keys: List<String> ->
+      legacyTracking {NotificationQueue(it).acknowledge(keys.filter {key->key.isNotBlank()}.toSet())}
+    }
+  }
+
+  private fun trackingContext(): Context = appContext.reactContext ?: throw IllegalStateException("tracking_context_unavailable")
+  private fun partitionLease(request: JSONObject) = TrackingPartitionLease(request.getString("ownerDigest"),request.getString("generation"))
+  private fun <T> currentPartition(lease: TrackingPartitionLease,operation: (Context)->T): T = synchronized(TrackingOwner) {
+    val context=trackingContext()
+    TrackingOwnerPartitions.assertCurrent(context,lease)
+    operation(context)
+  }
+  private fun <T> legacyTracking(operation: (Context)->T): T = synchronized(TrackingOwner) {
+    val context=trackingContext()
+    check(!TrackingOwnerPartitions.exists(context)) {"tracking_owner_transition_required"}
+    operation(context)
+  }
+
+  private fun notificationRows(context: Context,requestedLimit: Int) = NotificationQueue(context).read(requestedLimit).map { record ->
         mapOf(
           "key" to record.key,
           "packageName" to record.packageName,
@@ -131,14 +195,6 @@ class MasarifiSmsInboxModule : Module() {
           "capturePolicy" to record.capturePolicy,
           "nativeKey" to record.nativeKey
         ) + (record.sourceDisplayName?.let { mapOf("sourceDisplayName" to it) } ?: emptyMap())
-      }
-    }
-
-    AsyncFunction("acknowledgeNotifications") { keys: List<String> ->
-      val context = appContext.reactContext
-        ?: throw IllegalStateException("notification_context_unavailable")
-      NotificationQueue(context).acknowledge(keys.filter { it.isNotBlank() }.toSet())
-    }
   }
   private fun readFinancialPage(since:Double,afterId:String,limit:Int,expectedOwner:String?):Map<String,Any> = synchronized(TrackingOwner) {
     require(since.isFinite() && since>=0 && since%1.0==0.0 && since<=9007199254740991.0 && limit in 1..100)

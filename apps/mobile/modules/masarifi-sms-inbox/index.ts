@@ -1,6 +1,42 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
 export interface MasarifiSmsInboxModule {
+  prepareTrackingOwnerV4?(request: string): Promise<void>;
+  commitTrackingOwnerV4?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<void>;
+  configureTrackingOwnerV4?(request: string): Promise<void>;
+  suspendTrackingOwnerV4?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<void>;
+  clearTrackingOwnerV4?(ownerDigest: string, generation: string): Promise<void>;
+  purgeTrackingOwnerDataV4?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<void>;
+  notificationCaptureIssueV4?(
+    ownerDigest: string,
+    generation: string
+  ): Promise<string | null>;
+  setNotificationCaptureEnabledV4?(
+    ownerDigest: string,
+    generation: string,
+    enabled: boolean
+  ): Promise<void>;
+  readRecentNotificationsV4?(
+    ownerDigest: string,
+    generation: string,
+    limit: number
+  ): Promise<unknown>;
+  acknowledgeNotificationsV4?(
+    ownerDigest: string,
+    generation: string,
+    keys: readonly string[]
+  ): Promise<void>;
+  readFinancialSmsPageV4?(request: string): Promise<unknown>;
+  presentCaptureConfirmationV4?(request: string): Promise<boolean>;
   scheduleTrackingFollowUp?(
     ownerDigest: string,
     generation: string

@@ -36,15 +36,15 @@ object NotificationCaptureState {
   private const val PREFERENCES = "masarifi_notification_capture_v1"
   private const val ENABLED = "enabled"
 
-  fun isEnabled(context: Context): Boolean =
-    context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-      .getBoolean(ENABLED, false)
+  private fun preferences(context: Context) = TrackingOwnerPartitions.ownerPreferences(context, PREFERENCES, "masarifi_notification_capture_v3")
 
-  fun setEnabled(context: Context, enabled: Boolean) {
-    context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-      .edit()
-      .putBoolean(ENABLED, enabled)
-      .apply()
+  fun isEnabled(context: Context): Boolean = synchronized(TrackingOwner) {
+    if (TrackingOwnerPartitions.exists(context) && TrackingOwner.isSuspended(context)) return@synchronized false
+    preferences(context).getBoolean(ENABLED, false)
+  }
+
+  fun setEnabled(context: Context, enabled: Boolean) = synchronized(TrackingOwner) {
+    check(preferences(context).edit().putBoolean(ENABLED, enabled).commit()) { "tracking_owner_storage_failed" }
   }
 }
 
@@ -73,10 +73,8 @@ object NotificationQueuePolicy {
 
 internal class NotificationQueue(private val context: Context) {
   private val encrypted = TrackingEncryptedStore(context,"masarifi_notification_queue_v2")
-  private val preferences: SharedPreferences = context.getSharedPreferences(
-    "masarifi_notification_queue_v1",
-    Context.MODE_PRIVATE
-  )
+  private val preferences: SharedPreferences get() = TrackingOwnerPartitions.ownerPreferences(
+    context, "masarifi_notification_queue_v1", "masarifi_notification_queue_metadata_v3")
 
   fun add(record: CapturedNotification) = synchronized(TrackingOwner) {
     check(!TrackingOwner.isSuspended(context)) {"tracking_suspended"}
@@ -213,7 +211,7 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
     val admission=notificationAdmission(notification.packageName,packageName,true,packages("packages"),blocked,
       policy,title+"\n"+text,
       extras.containsKey(Notification.EXTRA_MESSAGES) || extras.getString(Notification.EXTRA_TEMPLATE)=="android.app.Notification\u0024MessagingStyle")
-    val counters=getSharedPreferences("masarifi_tracking_admission_counters",Context.MODE_PRIVATE)
+    val counters=TrackingOwnerPartitions.ownerPreferences(this,"masarifi_tracking_admission_counters","masarifi_tracking_admission_counters_v3")
     if(admission==NotificationAdmission.DISCARD) {
       counters.edit().putLong("discarded",counters.getLong("discarded",0)+1).apply()
       return@synchronized
@@ -232,7 +230,7 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
         applicationSourceDisplayName(this,notification.packageName)
       ), admission, {NotificationQueue(this).add(it)}, {TrackingScheduler.incoming(this)}
     )} catch(error:Exception) {
-      getSharedPreferences("masarifi_notification_queue_v1",Context.MODE_PRIVATE).edit()
+      TrackingOwnerPartitions.ownerPreferences(this,"masarifi_notification_queue_v1","masarifi_notification_queue_metadata_v3").edit()
         .putString("captureIssue",if(error.message=="tracking_notification_queue_full") error.message else "tracking_notification_storage_failed").commit()
       android.util.Log.w("MasarifiTracking","Notification retention unavailable")
       TrackingScheduler.incoming(this)
