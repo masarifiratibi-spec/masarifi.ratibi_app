@@ -1,10 +1,12 @@
 import React from 'react';
-import { fireEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import { changeLocale } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
+import { financialPlanningKeys } from '@/features/financial-planning/financial-planning-queries';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { ObligationForm } from './ObligationForm';
 
 jest.mock('react-native-safe-area-context', () =>
@@ -321,5 +323,44 @@ it('preserves paid amounts, payment cadence and metadata when editing a yearly p
     notes: 'Preserve notes',
     providerKeywords: ['Loan provider'],
     reminderTiming: 'before_due'
+  });
+});
+
+it('keeps a restored and edited working copy bound to its original version after a background refresh', async () => {
+  const created = await financialPlanningService.createObligation({
+    direction: 'payable', type: 'custom', scheduleKind: 'fixed_term',
+    title: 'Original server name', currencyCode: 'SAR',
+    contractedTotalMinor: 1000, installmentAmountMinor: 1000,
+    installmentCount: 1, startDate: '2026-11-04'
+  }, 'working-copy-create');
+  const id = created.value.id;
+  const original = await financialPlanningService.getObligation(id);
+  await financialPlanningService.saveDraft({
+    id: `planning-form-obligation:${id}`, kind: 'obligation', entityId: id,
+    status: 'editing', updatedAt: Date.now(),
+    payload: { title: 'Restored draft name', amount: '10' }
+  });
+  let client!: QueryClient;
+  function CacheBoundary() {
+    client = useQueryClient();
+    return <ObligationForm obligationId={id} />;
+  }
+  const screen = renderWithQueryData(<CacheBoundary />, [
+    [financialPlanningKeys.obligation(id), original]
+  ]);
+  await screen.findByDisplayValue('Restored draft name');
+  fireEvent.changeText(screen.getByLabelText('Obligation name'), 'Unsaved typed name');
+  await financialPlanningService.updateObligation(id, original.obligation.version, {
+    ...original.obligation, title: 'Concurrent server name'
+  }, 'working-copy-concurrent-update');
+  const refreshed = await financialPlanningService.getObligation(id);
+  await act(async () => {
+    client.setQueryData(financialPlanningKeys.obligation(id), refreshed);
+  });
+  expect(screen.getByLabelText('Obligation name').props.value).toBe('Unsaved typed name');
+  fireEvent.press(screen.getByRole('button', { name: 'Save obligation' }));
+  await screen.findByText(translate('planning.state.error'));
+  expect((await financialPlanningService.getObligation(id)).obligation).toMatchObject({
+    title: 'Concurrent server name', version: refreshed.obligation.version
   });
 });

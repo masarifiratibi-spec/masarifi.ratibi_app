@@ -11,6 +11,54 @@ const tick = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve();
 };
 
+it.each([
+  ['core-finance', 'accounts', true],
+  ['core-finance', 'account-balances', true],
+  ['core-finance', 'home', 'balance-source']
+])(
+  'keeps %s/%s snapshots partitioned when another owner hydrates and persists',
+  async (...prefix) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Infinity } }
+    });
+    const own = [...prefix, { ownerId: 'b' }];
+    const foreign = [...prefix, { ownerId: 'a' }];
+    const save = jest.fn(async () => undefined);
+    const stop = bindLocalReadCache(client, {
+      current: () => ({ ownerId: 'b', locale: 'en' }),
+      load: async () =>
+        [own, foreign, prefix].map((key) => ({
+          key,
+          data: { version: 1 },
+          updatedAt: 100
+        })),
+      save
+    });
+    try {
+      await tick();
+      expect(client.getQueryData(own)).toEqual({ version: 1 });
+      expect(client.getQueryData(foreign)).toBeUndefined();
+      expect(client.getQueryData(prefix)).toBeUndefined();
+      await client.fetchQuery({
+        queryKey: foreign,
+        queryFn: async () => ({ version: 2 })
+      });
+      await client.fetchQuery({
+        queryKey: own,
+        queryFn: async () => ({ version: 2 })
+      });
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(save).toHaveBeenCalledWith(
+        { ownerId: 'b', locale: 'en' },
+        expect.objectContaining({ key: own, data: { version: 2 } })
+      );
+    } finally {
+      stop();
+      client.clear();
+    }
+  }
+);
+
 it('hydrates device-history display data only for the explicitly authorized owner', async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { gcTime: Infinity } }

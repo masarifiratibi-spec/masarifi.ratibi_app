@@ -1,6 +1,6 @@
 import React from 'react';
-import { FeedbackHistoryScreen } from '@/features/support/FeedbackHistoryScreen';
+import { Redirect } from 'expo-router';
 
 export default function FeedbackHistoryRoute() {
-  return <FeedbackHistoryScreen />;
+  return <Redirect href="/support" />;
 }

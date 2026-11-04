@@ -3,7 +3,8 @@ import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
-  type QueryClient
+  type QueryClient,
+  type QueryKey
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { inheritReadProvenance } from '@/services/read-snapshot';
@@ -23,17 +24,32 @@ import type {
 } from '@/services/contracts/core-finance-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { summarizeHomeBalances } from '@/domain/home-balance';
+import { useAppShellStore } from '@/state/app-shell';
+
+const currentQueryOwner = () =>
+  useAppShellStore.getState().session?.userId ?? null;
+
+export async function readForQueryOwner<T>(
+  owner: string | null,
+  read: () => Promise<T>
+) {
+  if (currentQueryOwner() !== owner) throw new Error('Identity changed');
+  const snapshot = await read();
+  if (currentQueryOwner() !== owner) throw new Error('Identity changed');
+  return snapshot;
+}
 
 export const coreFinanceKeys = {
   home: (currency: string, filters?: TransactionFilterSet) =>
     filters
       ? (['core-finance', 'home', currency, filters] as const)
       : (['core-finance', 'home', currency] as const),
-  accounts: (archived = false) =>
-    ['core-finance', 'accounts', archived] as const,
-  homeBalanceSource: ['core-finance', 'home', 'balance-source'] as const,
-  accountBalances: (archived = false) =>
-    ['core-finance', 'account-balances', archived] as const,
+  accounts: (archived = false, owner = currentQueryOwner()) =>
+    ['core-finance', 'accounts', archived, { ownerId: owner }] as const,
+  homeBalanceSource: (owner = currentQueryOwner()) =>
+    ['core-finance', 'home', 'balance-source', { ownerId: owner }] as const,
+  accountBalances: (archived = false, owner = currentQueryOwner()) =>
+    ['core-finance', 'account-balances', archived, { ownerId: owner }] as const,
   account: (id: string) => ['core-finance', 'account', id] as const,
   transactions: (filters: TransactionFilterSet = emptyTransactionFilters) =>
     ['core-finance', 'transactions', filters] as const,
@@ -68,6 +84,7 @@ export function useHomeBalanceSummary(
   currency: string,
   accountId: string | null
 ) {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
   const select = useCallback(
     ({
       accounts,
@@ -97,14 +114,15 @@ export function useHomeBalanceSummary(
   );
   const query = useQuery({
     // Selection is a projection of the same authoritative balances, not a new read.
-    queryKey: coreFinanceKeys.homeBalanceSource,
-    queryFn: async ({ signal }) => {
-      const [accounts, balances] = await Promise.all([
-        coreFinanceService.listAccounts(false, { signal }),
-        coreFinanceService.listAccountBalances(false, { signal })
-      ]);
-      return { accounts, balances };
-    },
+    queryKey: coreFinanceKeys.homeBalanceSource(owner),
+    queryFn: ({ signal }) =>
+      readForQueryOwner(owner, async () => {
+        const [accounts, balances] = await Promise.all([
+          coreFinanceService.listAccounts(false, { signal }),
+          coreFinanceService.listAccountBalances(false, { signal })
+        ]);
+        return { accounts, balances };
+      }),
     select,
     staleTime: 0
   });
@@ -121,11 +139,12 @@ export function useHomeBalanceSummary(
 }
 
 export function useAccounts(includeArchived = false, enabled = true) {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
   const client = useQueryClient();
   const allAccounts = () => {
     if (includeArchived) return;
     const state = client.getQueryState<Account[]>(
-      coreFinanceKeys.accounts(true)
+      coreFinanceKeys.accounts(true, owner)
     );
     return state?.status === 'success' &&
       !state.isInvalidated &&
@@ -134,9 +153,11 @@ export function useAccounts(includeArchived = false, enabled = true) {
       : undefined;
   };
   return useQuery({
-    queryKey: coreFinanceKeys.accounts(includeArchived),
+    queryKey: coreFinanceKeys.accounts(includeArchived, owner),
     queryFn: ({ signal }) =>
-      coreFinanceService.listAccounts(includeArchived, { signal }),
+      readForQueryOwner(owner, () =>
+        coreFinanceService.listAccounts(includeArchived, { signal })
+      ),
     initialData: () =>
       allAccounts()?.data?.filter((account) => account.status === 'active'),
     initialDataUpdatedAt: () => allAccounts()?.dataUpdatedAt,
@@ -145,11 +166,111 @@ export function useAccounts(includeArchived = false, enabled = true) {
 }
 
 export function useAccountBalances(includeArchived = false) {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
+  const client = useQueryClient();
+  const seed = includeArchived ? cachedHomeBalances(client, owner) : undefined;
   return useQuery({
-    queryKey: coreFinanceKeys.accountBalances(includeArchived),
+    queryKey: coreFinanceKeys.accountBalances(includeArchived, owner),
     queryFn: ({ signal }) =>
-      coreFinanceService.listAccountBalances(includeArchived, { signal })
+      readForQueryOwner(owner, () =>
+        coreFinanceService.listAccountBalances(includeArchived, { signal })
+      ),
+    initialData: seed?.data,
+    initialDataUpdatedAt: seed?.dataUpdatedAt
   });
+}
+
+type HomeBalanceSource = {
+  accounts: Account[];
+  balances: AccountBalanceProjection[];
+};
+
+function settledQuery<T>(client: QueryClient, key: QueryKey) {
+  const state = client.getQueryState<T>(key);
+  if (
+    !state ||
+    state.status !== 'success' ||
+    state.isInvalidated ||
+    state.fetchStatus !== 'idle' ||
+    state.data === undefined ||
+    !Number.isFinite(state.dataUpdatedAt) ||
+    state.dataUpdatedAt <= 0 ||
+    state.dataUpdatedAt > Date.now()
+  )
+    return;
+  return { data: state.data, dataUpdatedAt: state.dataUpdatedAt };
+}
+
+function sameActiveAccounts(full: Account[], active: Account[]) {
+  if (
+    !Array.isArray(full) ||
+    !Array.isArray(active) ||
+    active.some((account) => !account)
+  )
+    return false;
+  const byId = new Map(active.map((account) => [account.id, account]));
+  if (
+    full.length !== active.length ||
+    byId.size !== full.length ||
+    new Set(full.map((account) => account?.id)).size !== full.length
+  )
+    return false;
+  return full.every((account) => {
+    const source = account && byId.get(account.id);
+    return (
+      source &&
+      account.status === 'active' &&
+      source.status === account.status &&
+      source.currencyCode === account.currencyCode &&
+      source.updatedAt === account.updatedAt &&
+      Number.isFinite(account.updatedAt)
+    );
+  });
+}
+
+function completeBalances({ accounts, balances }: HomeBalanceSource) {
+  if (!Array.isArray(balances) || balances.some((balance) => !balance))
+    return false;
+  const byId = new Map(balances.map((balance) => [balance.accountId, balance]));
+  if (balances.length !== accounts.length || byId.size !== accounts.length)
+    return false;
+  return accounts.every((account) => {
+    const balance = byId.get(account.id);
+    return (
+      balance?.currencyCode === account.currencyCode &&
+      Number.isSafeInteger(balance.balanceMinor) &&
+      (balance.asOf === null || Number.isFinite(balance.asOf))
+    );
+  });
+}
+
+function cachedHomeBalances(client: QueryClient, owner: string | null) {
+  const shell = useAppShellStore.getState();
+  if (
+    !owner ||
+    shell.session?.status !== 'authenticated' ||
+    shell.logoutQuiescingOwnerId
+  )
+    return;
+  const full = settledQuery<Account[]>(
+    client,
+    coreFinanceKeys.accounts(true, owner)
+  );
+  const source = settledQuery<HomeBalanceSource>(
+    client,
+    coreFinanceKeys.homeBalanceSource(owner)
+  );
+  if (
+    !full ||
+    !source?.data ||
+    !sameActiveAccounts(full.data, source.data.accounts) ||
+    !completeBalances(source.data)
+  )
+    return;
+  return {
+    data: source.data.balances,
+    dataUpdatedAt: Math.min(full.dataUpdatedAt, source.dataUpdatedAt)
+  };
 }
 
 export function useAccount(id: string) {

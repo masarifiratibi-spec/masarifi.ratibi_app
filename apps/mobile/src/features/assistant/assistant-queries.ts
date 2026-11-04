@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { assistantService } from '@/services/assistant-service';
+import type { AssistantResponse } from '@/domain/assistant';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 import { useAppShellStore } from '@/state/app-shell';
 import { withReadContext } from '@/services/live/read-context';
@@ -244,22 +245,31 @@ export function useSetAssistantConsent() {
   );
 }
 
-export function useAskAssistant() {
+type AssistantQuestionInput = {
+  conversationId: string;
+  question: string;
+  operationId: string;
+  intent?: AssistantQuestionIntent;
+};
+
+export function useAskAssistant(
+  publishResponse?: (
+    response: AssistantResponse,
+    input: AssistantQuestionInput
+  ) => void
+) {
   return useAssistantMutation(
     ({
       conversationId,
       question,
       operationId,
       intent
-    }: {
-      conversationId: string;
-      question: string;
-      operationId: string;
-      intent?: AssistantQuestionIntent;
-    }) =>
+    }: AssistantQuestionInput) =>
       intent
         ? assistantService.ask(conversationId, question, operationId, intent)
-        : assistantService.ask(conversationId, question, operationId)
+        : assistantService.ask(conversationId, question, operationId),
+    'background',
+    publishResponse
   );
 }
 
@@ -393,20 +403,22 @@ function useAssistantMutation<TVariables, TValue>(
   mutationFn: (
     variables: TVariables
   ) => Promise<{ value: TValue; affectedScopes: readonly string[] }>,
-  refreshMode: 'complete' | 'background' = 'complete'
+  refreshMode: 'complete' | 'background' = 'complete',
+  publishResult?: (value: TValue, variables: TVariables) => void
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: (result) => {
+    onSuccess: async (result, variables) => {
       const refresh = invalidateAssistantScopes(client, result.affectedScopes);
-      // Creation is already accepted; optional landing reads must not delay opening the conversation.
+      // Accepted conversations and validated answers do not wait for optional background reads.
       if (
         refreshMode === 'complete' ||
         result.affectedScopes.includes('financial.live')
       )
-        return refresh;
-      void refresh;
+        await refresh;
+      else void refresh;
+      publishResult?.(result.value, variables);
     },
     onError: (error) => {
       const scopes = (error as { affectedScopes?: readonly string[] })

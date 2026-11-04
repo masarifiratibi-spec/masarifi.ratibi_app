@@ -9,7 +9,7 @@ import { buildNetWorthTrend } from '@/features/reports/report-net-worth';
 import { registerLiveClerkBridge } from '@/services/live/auth-service';
 
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn() }
+  router: { back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() }
 }));
 
 afterEach(() => jest.restoreAllMocks());

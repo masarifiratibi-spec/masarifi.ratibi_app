@@ -84,9 +84,9 @@ export function SalaryOverviewScreen() {
   const data = query.data;
   const needsSetup = !data?.profileId;
   const money = (calc: Calculation<MoneyValue>) =>
-    needsSetup ? '—' : formatMoney(calc, hideBalances, revealed);
+    needsSetup ? '0' : formatMoney(calc, hideBalances, revealed);
   const nextSalaryDate = needsSetup
-    ? '—'
+    ? '0'
     : data?.projectedNextSalaryDate
       ? formatLocalDate(data.projectedNextSalaryDate, locale)
       : translate('planning.conflict.valueUnavailable');
@@ -116,7 +116,7 @@ export function SalaryOverviewScreen() {
             daily={money(data.suggestedDaily)}
             daysRemaining={
               needsSetup
-                ? '—'
+                ? '0'
                 : translateDynamic('planning.salary.daysRemaining', {
                     count: data.daysRemaining
                   })

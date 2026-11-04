@@ -25,7 +25,7 @@ jest.mock('expo-secure-store', () => ({
 
 
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn() },
+  router: { back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
   useLocalSearchParams: () => ({ id: 'closed-edit-account' })
 }));
 
@@ -398,7 +398,7 @@ describe('AccountForm', () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  it('does not show the discard alert after a new account is saved', async () => {
+  it('returns to the existing account list after saving without a discard alert', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     const dispatch = jest.fn();
     jest.mocked(useNavigation).mockReturnValue({ dispatch } as never);
@@ -414,17 +414,17 @@ describe('AccountForm', () => {
     );
     const preventRemove = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
     jest
-      .mocked(router.replace)
+      .mocked(router.dismissTo)
       .mockImplementation(() =>
-        preventRemove?.({ data: { action: { type: 'REPLACE' } } })
+        preventRemove?.({ data: { action: { type: 'POP_TO' } } })
       );
     fireEvent.press(screen.getByText(translate('coreFinance.accounts.create')));
 
     await waitFor(() =>
-      expect(router.replace).toHaveBeenCalledWith('/accounts')
+      expect(router.dismissTo).toHaveBeenCalledWith('/accounts')
     );
     expect(alert).not.toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith({ type: 'REPLACE' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'POP_TO' });
   });
 });
 

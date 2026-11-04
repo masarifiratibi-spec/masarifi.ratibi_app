@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { router } from 'expo-router';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
@@ -80,18 +79,6 @@ test('support home directly renders contact support form in Arabic and English',
   expect(screen.getByText(t('support.form.submit'))).toBeTruthy();
 });
 
-test('opens feedback history after a confirmed feedback submission without creating a ticket conversation', async () => {
-  const original = mockDraft.useSupportDraft.getMockImplementation()!();
-  mockDraft.useSupportDraft.mockReturnValue({ ...original, values: { ...original.values, category: 'feedback', subject: 'My feedback', description: 'Original feedback text' } });
-  const submit = jest.fn(async () => ({ value: { ticketId: null, kind: 'feedback' } }));
-  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutateAsync: submit, isPending: false });
-  renderWithProviders(<SupportHomeScreen />);
-  fireEvent.press(screen.getByRole('button', { name: t('support.form.submit') }));
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/support/feedback'));
-  expect(submit).toHaveBeenCalledTimes(1);
-  expect(router.back).not.toHaveBeenCalled();
-});
-
 test('support form validates, flushes latest draft before submit, reviews/removes optional context, and excludes attachments', async () => {
   const update = jest.fn();
   const save = jest.fn(async (draft) => draft);
@@ -158,21 +145,40 @@ test('support form validates, flushes latest draft before submit, reviews/remove
     )
   );
   await waitFor(() => expect(markSubmitted).toHaveBeenCalled());
-  expect(screen.getByText(t('support.form.failure.offline'))).toBeTruthy();
+  expect(screen.getByText('Message sent')).toBeTruthy();
 });
 
 test('a rejected submission keeps its text and distinguishes sending from draft saving', async () => {
-  const submit = jest.fn().mockRejectedValue(Object.assign(new Error('unavailable'), { code: 'unavailable' }));
-  mockQueries.useSubmitSupportDraft.mockReturnValue({ mutateAsync: submit, isPending: false });
+  const submit = jest
+    .fn()
+    .mockRejectedValue(
+      Object.assign(new Error('unavailable'), { code: 'unavailable' })
+    );
+  mockQueries.useSubmitSupportDraft.mockReturnValue({
+    mutateAsync: submit,
+    isPending: false
+  });
   renderWithProviders(<SupportFormScreen />);
-  fireEvent.changeText(screen.getByLabelText(t('support.form.subject')), 'Feedback stays');
-  fireEvent.changeText(screen.getByLabelText(t('support.form.description')), 'Keep this text for the same submission.');
+  fireEvent.changeText(
+    screen.getByLabelText(t('support.form.subject')),
+    'Feedback stays'
+  );
+  fireEvent.changeText(
+    screen.getByLabelText(t('support.form.description')),
+    'Keep this text for the same submission.'
+  );
   fireEvent.press(screen.getByText(t('support.form.submit')));
 
-  await waitFor(() => expect(screen.getByText(t('support.form.submitFailure'))).toBeTruthy());
-  expect(screen.queryByText(t('support.form.failure.representative_failure'))).toBeNull();
+  await waitFor(() =>
+    expect(screen.getByText(t('support.form.submitFailure'))).toBeTruthy()
+  );
+  expect(
+    screen.queryByText(t('support.form.failure.representative_failure'))
+  ).toBeNull();
   expect(screen.getByDisplayValue('Feedback stays')).toBeTruthy();
-  expect(screen.getByDisplayValue('Keep this text for the same submission.')).toBeTruthy();
+  expect(
+    screen.getByDisplayValue('Keep this text for the same submission.')
+  ).toBeTruthy();
   expect(submit).toHaveBeenCalledTimes(1);
 });
 

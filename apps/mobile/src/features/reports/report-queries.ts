@@ -20,7 +20,7 @@ import { reportsService } from '@/services/reports-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { buildNetWorthTrend } from './report-net-worth';
-import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
+import { coreFinanceKeys, readForQueryOwner } from '@/features/core-finance/core-finance-queries';
 import { useAppShellStore } from '@/state/app-shell';
 import { assertReadActive } from '@/services/live/read-context';
 
@@ -119,10 +119,10 @@ export function useNetWorthTrend({
       const owner = useAppShellStore.getState().session?.userId;
       const [accounts, home, transactions] = await Promise.all([
         client.fetchQuery({
-          queryKey: coreFinanceKeys.accounts(false),
+          queryKey: coreFinanceKeys.accounts(false, owner ?? null),
           staleTime: Infinity,
           queryFn: ({ signal: active }) =>
-            coreFinanceService.listAccounts(false, { signal: active })
+            readForQueryOwner(owner ?? null, () => coreFinanceService.listAccounts(false, { signal: active }))
         }),
         client.fetchQuery({
           queryKey: coreFinanceKeys.home(currencyCode, filters),

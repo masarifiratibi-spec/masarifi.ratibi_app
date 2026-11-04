@@ -95,8 +95,12 @@ export function ApplicationSettingsScreen() {
         </View>
       ) : null}
 
-      <View style={styles.card}>
-        <StyledText>{t('settings.application.theme')}</StyledText>
+      <View style={styles.themeSection}>
+        <StyledText
+          style={[styles.fieldLabel, { color: theme.colors.content.primary }]}
+        >
+          {t('settings.application.theme')}
+        </StyledText>
         <ChipSelector
           options={['light', 'dark', 'system'].map((mode) =>
             t(`common.${mode}`)
@@ -411,11 +415,11 @@ export function ApplicationSettingsScreen() {
                 styles.dropdownTrigger,
                 {
                   borderColor: isDropdownOpen
-                    ? colorTokens.raw['103F37']
+                    ? theme.colors.primary
                     : theme.colors.border,
                   backgroundColor: isDropdownOpen
-                    ? colorTokens.raw['F6FAF8']
-                    : colorTokens.raw['FAFCFB'],
+                    ? theme.colors.surfaceMuted
+                    : theme.colors.surface,
                   flexDirection: isRtl ? 'row-reverse' : 'row'
                 },
                 pressed && { opacity: 0.85 }
@@ -427,11 +431,16 @@ export function ApplicationSettingsScreen() {
                   { flexDirection: isRtl ? 'row-reverse' : 'row' }
                 ]}
               >
-                <View style={styles.dropdownIconBadge}>
+                <View
+                  style={[
+                    styles.dropdownIconBadge,
+                    { backgroundColor: theme.colors.surfaceMuted }
+                  ]}
+                >
                   <DesignIcon
                     name="accounts"
                     label="Account"
-                    color={colorTokens.raw['1F7A5A']}
+                    color={theme.colors.primary}
                     size="control"
                     decorative
                   />
@@ -446,6 +455,7 @@ export function ApplicationSettingsScreen() {
                     style={[
                       styles.dropdownSelectedText,
                       {
+                        color: theme.colors.content.primary,
                         textAlign: isRtl ? 'right' : 'left',
                         writingDirection: direction
                       }
@@ -456,7 +466,12 @@ export function ApplicationSettingsScreen() {
                       t('settings.application.defaultAccount.placeholder')}
                   </StyledText>
                   {selectedAccount ? (
-                    <StyledText style={styles.subtext}>
+                    <StyledText
+                      style={[
+                        styles.subtext,
+                        { color: theme.colors.content.secondary }
+                      ]}
+                    >
                       {selectedAccount.currencyCode}
                       {selectedAccount.lastFour
                         ? ` · ****${selectedAccount.lastFour}`
@@ -469,7 +484,7 @@ export function ApplicationSettingsScreen() {
               <DesignIcon
                 name="chevronDown"
                 label="Expand"
-                color={colorTokens.raw['707870']}
+                color={theme.colors.content.secondary}
                 size="control"
                 decorative
               />
@@ -499,14 +514,20 @@ export function ApplicationSettingsScreen() {
                   }}
                   style={({ pressed }) => [
                     styles.dropdownItem,
-                    { flexDirection: isRtl ? 'row-reverse' : 'row' },
-                    !defaultAccountId && styles.dropdownItemActive,
-                    pressed && { backgroundColor: colorTokens.raw['F0F6F3'] }
+                    {
+                      flexDirection: isRtl ? 'row-reverse' : 'row',
+                      borderBottomColor: theme.colors.border,
+                      backgroundColor:
+                        pressed || !defaultAccountId
+                          ? theme.colors.surfaceMuted
+                          : theme.colors.surface
+                    }
                   ]}
                 >
                   <StyledText
                     style={[
                       styles.dropdownItemText,
+                      { color: theme.colors.content.primary },
                       !defaultAccountId && styles.dropdownItemTextActive
                     ]}
                   >
@@ -516,7 +537,7 @@ export function ApplicationSettingsScreen() {
                     <DesignIcon
                       name="check"
                       label="Selected"
-                      color={colorTokens.raw['103F37']}
+                      color={theme.colors.primary}
                       size="sm"
                       decorative
                     />
@@ -538,10 +559,13 @@ export function ApplicationSettingsScreen() {
                       }}
                       style={({ pressed }) => [
                         styles.dropdownItem,
-                        { flexDirection: isRtl ? 'row-reverse' : 'row' },
-                        isSelected && styles.dropdownItemActive,
-                        pressed && {
-                          backgroundColor: colorTokens.raw['F0F6F3']
+                        {
+                          flexDirection: isRtl ? 'row-reverse' : 'row',
+                          borderBottomColor: theme.colors.border,
+                          backgroundColor:
+                            pressed || isSelected
+                              ? theme.colors.surfaceMuted
+                              : theme.colors.surface
                         }
                       ]}
                     >
@@ -554,12 +578,18 @@ export function ApplicationSettingsScreen() {
                         <StyledText
                           style={[
                             styles.dropdownItemText,
+                            { color: theme.colors.content.primary },
                             isSelected && styles.dropdownItemTextActive
                           ]}
                         >
                           {acc.name}
                         </StyledText>
-                        <StyledText style={styles.dropdownItemSub}>
+                        <StyledText
+                          style={[
+                            styles.dropdownItemSub,
+                            { color: theme.colors.content.secondary }
+                          ]}
+                        >
                           {acc.currencyCode}
                         </StyledText>
                       </View>
@@ -567,7 +597,7 @@ export function ApplicationSettingsScreen() {
                         <DesignIcon
                           name="check"
                           label="Selected"
-                          color={colorTokens.raw['103F37']}
+                          color={theme.colors.primary}
                           size="sm"
                           decorative
                         />
@@ -578,7 +608,12 @@ export function ApplicationSettingsScreen() {
 
                 {accounts.length === 0 ? (
                   <View style={styles.emptyItem}>
-                    <StyledText style={styles.subtext}>
+                    <StyledText
+                      style={[
+                        styles.subtext,
+                        { color: theme.colors.content.secondary }
+                      ]}
+                    >
                       {t('settings.application.defaultAccount.empty')}
                     </StyledText>
                   </View>
@@ -622,6 +657,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingHorizontal: 4
   },
+  themeSection: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    width: '100%'
+  },
   card: {
     borderRadius: radius.card,
     borderWidth: StyleSheet.hairlineWidth,
@@ -638,7 +679,6 @@ const styles = StyleSheet.create({
   },
   subtext: {
     fontSize: 12,
-    color: colorTokens.raw['707870'],
     lineHeight: 16
   },
   divider: {
@@ -664,7 +704,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: colorTokens.raw['EBF5EC'],
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -674,8 +713,7 @@ const styles = StyleSheet.create({
   },
   dropdownSelectedText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colorTokens.raw['10231F']
+    fontWeight: '600'
   },
   dropdownMenu: {
     marginTop: spacing.xs,
@@ -695,11 +733,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colorTokens.raw['F0F4F2'],
-    minHeight: 46
-  },
-  dropdownItemActive: {
-    backgroundColor: colorTokens.raw['F3F9F6']
+    minHeight: 48
   },
   dropdownItemTextStack: {
     flex: 1,
@@ -707,16 +741,13 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colorTokens.raw['2A332F']
+    fontWeight: '600'
   },
   dropdownItemTextActive: {
-    fontWeight: '700',
-    color: colorTokens.raw['103F37']
+    fontWeight: '700'
   },
   dropdownItemSub: {
-    fontSize: 12,
-    color: colorTokens.raw['707870']
+    fontSize: 12
   },
   emptyItem: {
     padding: spacing.md,

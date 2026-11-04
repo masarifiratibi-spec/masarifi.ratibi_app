@@ -291,7 +291,7 @@ it('shows receipt undo failures instead of leaving an unexplained old receipt', 
 });
 
 it.each(['ar', 'en'] as const)(
-  'keeps the salary cycle design before setup without invented values in %s',
+  'shows zero placeholders until the salary cycle is configured in %s',
   async (locale) => {
     changeLocale(locale);
     const timeZone = 'Asia/Riyadh';
@@ -309,7 +309,7 @@ it.each(['ar', 'en'] as const)(
         name: translate('planning.salary.yourCycle')
       })).toBeTruthy();
       expect(overview.getByLabelText(translate('planning.salary.cycleDetails'))).toBeTruthy();
-      expect(overview.getAllByText('—')).toHaveLength(7);
+      expect(overview.getAllByText('0')).toHaveLength(7);
       expect(overview.queryByText(translate('planning.salary.emptyTitle'))).toBeNull();
       expect(overview.getByText(translate('planning.salary.emptySubtitle'))).toBeTruthy();
       fireEvent.press(overview.getByRole('button', {

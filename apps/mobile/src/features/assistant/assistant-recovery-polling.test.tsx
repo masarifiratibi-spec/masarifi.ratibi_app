@@ -3,14 +3,22 @@ import {
   act,
   fireEvent,
   renderHook,
-  screen
+  screen,
+  within
 } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { AssistantConversationScreen } from './AssistantHomeScreen';
+import { AssistantMessageBubble } from './components/AssistantMessageBubble';
 import { AppState, type AppStateStatus } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createLiveAssistantApiService } from '@/services/live/assistant-api-service';
-import { createMemoryAssistantJournal } from '@/storage/assistant-operation-journal';
+import { AssistantOperationJournal } from '@/storage/assistant-operation-journal';
+import { useAppShellStore } from '@/state/app-shell';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import {
+  configureAppShellStorageOwner,
+  clearAppShellStorageOwner
+} from '@/storage/app-shell-storage';
 import {
   assistantKeys,
   useAssistantConversation,
@@ -26,6 +34,16 @@ jest.mock('@/services/assistant-service', () => ({
     return mockLiveService;
   }
 }));
+jest.mock('expo-crypto', () => {
+  const crypto =
+    jest.requireActual<typeof import('node:crypto')>('node:crypto');
+  return {
+    ...jest.requireActual('expo-crypto'),
+    randomUUID: crypto.randomUUID,
+    digestStringAsync: async (_algorithm: string, text: string) =>
+      crypto.createHash('sha256').update(text).digest('hex')
+  };
+});
 
 const conversationId = '99100000-0000-4000-8000-000000000001';
 const messageId = '99100000-0000-4000-8000-000000000002';
@@ -33,9 +51,20 @@ const at = '2026-09-03T00:00:00.000Z';
 
 async function recoveryHarness(
   phase: 'accepted' | 'prepared' | 'empty' = 'accepted',
-  conversationOnly = false
+  conversationOnly = false,
+  slowRefresh = false
 ) {
-  const journal = createMemoryAssistantJournal();
+  let completionPaused = false;
+  const completionReleases: (() => void)[] = [];
+  const storage = new Map<string, string>();
+  const journal = new AssistantOperationJournal({
+    read: async (key) => storage.get(key) ?? null,
+    write: async (key, serialized) => {
+      storage.set(key, serialized);
+      if (completionPaused && JSON.parse(serialized).phase === 'completed')
+        await new Promise<void>((resolve) => completionReleases.push(resolve));
+    }
+  });
   const saved =
     phase === 'empty'
       ? null
@@ -57,6 +86,10 @@ async function recoveryHarness(
     question = 'Spend?',
     hasUser = phase !== 'empty';
   const calls: { method?: string; owner: string; question?: string }[] = [];
+  let refreshPaused = false;
+  const refreshReleases: (() => void)[] = [];
+  let refreshFailure: number | null = null;
+  let malformedAnswer = false;
   const request: typeof fetch = async (url, init) => {
     if (init?.method === 'POST') {
       question = JSON.parse(String(init.body)).content;
@@ -88,18 +121,37 @@ async function recoveryHarness(
       content: 'Spend 13 SAR',
       status: 'completed',
       failureCode: null,
-      snapshot: {
-        id: '99100000-0000-4000-8000-000000000004',
-        schemaVersion: 1,
-        evidenceRefs: [],
-        model: 'test-model',
-        provider: 'test-provider',
-        createdAt: at
-      },
+      snapshot: malformedAnswer
+        ? null
+        : {
+            id: '99100000-0000-4000-8000-000000000004',
+            schemaVersion: 1,
+            evidenceRefs: slowRefresh
+              ? [{ kind: 'ledger', alias: 'LEDGER-1', version: 1, asOf: at }]
+              : [],
+            model: 'test-model',
+            provider: 'test-provider',
+            createdAt: at
+          },
       preview: null,
       createdAt: at
     };
     const path = new URL(String(url)).pathname;
+    if (
+      owner !== 'owner-a' ||
+      (path.includes('/assistant/conversations/') &&
+        !path.startsWith('/api/v1/assistant/conversations/' + conversationId))
+    )
+      return new Response(JSON.stringify({ code: 'NOT_FOUND' }), {
+        status: 404
+      });
+    if (refreshFailure && init?.method === 'GET' && !path.endsWith('/result'))
+      return new Response(
+        JSON.stringify({
+          code: refreshFailure === 403 ? 'AI_CONSENT_REQUIRED' : 'UNAVAILABLE'
+        }),
+        { status: refreshFailure }
+      );
     const payload = path.endsWith('/availability')
       ? { status: 'available', limit: 30, used: 0, remaining: 30, resetsAt: at }
       : path.endsWith('/result')
@@ -131,6 +183,8 @@ async function recoveryHarness(
                 createdAt: at,
                 updatedAt: at
               };
+    if (refreshPaused && init?.method === 'GET' && !path.endsWith('/result'))
+      await new Promise<void>((resolve) => refreshReleases.push(resolve));
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { 'content-type': 'application/json' }
@@ -140,7 +194,7 @@ async function recoveryHarness(
     baseUrl: 'https://api.test',
     journal,
     request,
-    requestTimeoutMs: 10,
+    requestTimeoutMs: slowRefresh ? 15000 : 10,
     identity: async () => {
       if (authStalled) return new Promise<never>(() => undefined);
       const captured = owner;
@@ -195,6 +249,26 @@ async function recoveryHarness(
     calls,
     journal,
     tick,
+    pauseRefresh: () => {
+      refreshPaused = true;
+    },
+    releaseRefresh: () => {
+      refreshPaused = false;
+      refreshReleases.splice(0).forEach((release) => release());
+    },
+    pauseCompletion: () => {
+      completionPaused = true;
+    },
+    releaseCompletion: () => {
+      completionPaused = false;
+      completionReleases.splice(0).forEach((release) => release());
+    },
+    failRefresh: (status: number) => {
+      refreshFailure = status;
+    },
+    malformedReply: () => {
+      malformedAnswer = true;
+    },
     showPending: () => {
       hasUser = true;
       status = 'processing';
@@ -218,9 +292,210 @@ async function recoveryHarness(
 }
 
 beforeEach(() => jest.useFakeTimers());
+const previousSession = useAppShellStore.getState().session;
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+  useAppShellStore.setState({ session: previousSession });
+  clearAppShellStorageOwner();
+});
+
+it('shows the validated reply and clears its composer while history and availability refresh are still blocked', async () => {
+  const h = await recoveryHarness('empty', false, true);
+  h.client.removeQueries({
+    queryKey: assistantKeys.conversation(conversationId)
+  });
+  const chat = renderWithProviders(
+    <QueryClientProvider client={h.client}>
+      <AssistantConversationScreen conversationId={conversationId} />
+    </QueryClientProvider>
+  );
+  try {
+    await h.tick(30);
+    h.setStatus('completed');
+    h.pauseRefresh();
+    fireEvent.changeText(
+      screen.getByTestId('assistant-composer-input'),
+      'Spend?'
+    );
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await h.tick(100);
+    expect((await h.journal.read('owner-a', 'question'))?.phase).toBe(
+      'completed'
+    );
+    expect(screen.getByText('Spend 13 SAR')).toBeTruthy();
+    expect(
+      within(screen.getByTestId('user-message-bubble')).getByText('Spend?')
+    ).toBeTruthy();
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
+      'value',
+      ''
+    );
+    expect(h.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+    const delivered = screen.UNSAFE_getByType(AssistantMessageBubble).props
+      .response;
+    expect(delivered.snapshot.sources).toEqual([
+      { kind: 'ledger', id: 'LEDGER-1', version: 1, asOf: at }
+    ]);
+    h.releaseRefresh();
+    await h.tick(100);
+    expect(screen.getAllByText('Spend 13 SAR')).toHaveLength(1);
+  } finally {
+    h.releaseRefresh();
+    await h.tick(30);
+    chat.unmount();
+    h.hook.unmount();
+    h.client.clear();
+  }
+});
+
+it('publishes the reply even when journal recovery has already resolved its acknowledgement', async () => {
+  const h = await recoveryHarness('empty', false, true);
+  h.client.removeQueries({
+    queryKey: assistantKeys.conversation(conversationId)
+  });
+  const chat = renderWithProviders(
+    <QueryClientProvider client={h.client}>
+      <AssistantConversationScreen conversationId={conversationId} />
+    </QueryClientProvider>
+  );
+  try {
+    await h.tick(30);
+    h.setStatus('completed');
+    h.pauseRefresh();
+    h.pauseCompletion();
+    fireEvent.changeText(
+      screen.getByTestId('assistant-composer-input'),
+      'Spend?'
+    );
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await h.tick(100);
+    expect((await h.journal.read('owner-a', 'question'))?.phase).toBe(
+      'completed'
+    );
+    await act(async () => {
+      await h.client.invalidateQueries({
+        queryKey: assistantKeys.questionOperation()
+      });
+    });
+    await h.tick(30);
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
+      'value',
+      ''
+    );
+    expect(screen.queryByText('Spend 13 SAR')).toBeNull();
+    h.releaseCompletion();
+    await h.tick(100);
+    expect(screen.getByText('Spend 13 SAR')).toBeTruthy();
+  } finally {
+    h.releaseCompletion();
+    h.releaseRefresh();
+    await h.tick(30);
+    chat.unmount();
+    h.hook.unmount();
+    h.client.clear();
+  }
+});
+
+it.each(['owner', 'conversation', 'denial', 'unavailable'] as const)(
+  'handles %s changing after the result is durable and before its publication',
+  async (change) => {
+    await configureAppShellStorageOwner('owner-a');
+    useAppShellStore.setState({
+      session: { ...authenticatedSession, userId: 'owner-a' }
+    });
+    const h = await recoveryHarness('empty', false, true);
+    let switchConversation!: (id: string) => void;
+    function ConversationHost() {
+      const [id, setId] = React.useState(conversationId);
+      switchConversation = setId;
+      return (
+        <QueryClientProvider client={h.client}>
+          <AssistantConversationScreen conversationId={id} />
+        </QueryClientProvider>
+      );
+    }
+    const chat = renderWithProviders(<ConversationHost />);
+    try {
+      await h.tick(30);
+      h.setStatus('completed');
+      h.pauseCompletion();
+      fireEvent.changeText(
+        screen.getByTestId('assistant-composer-input'),
+        'Spend?'
+      );
+      fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+      await h.tick(100);
+      expect((await h.journal.read('owner-a', 'question'))?.phase).toBe(
+        'completed'
+      );
+      if (change === 'owner')
+        act(() => {
+          h.switchOwner();
+          useAppShellStore.setState({
+            session: { ...authenticatedSession, userId: 'owner-b' }
+          });
+        });
+      if (change === 'conversation')
+        act(() => switchConversation('99100000-0000-4000-8000-000000000099'));
+      if (change === 'denial' || change === 'unavailable') {
+        h.failRefresh(change === 'denial' ? 403 : 503);
+        await act(async () => {
+          await h.client.invalidateQueries({
+            queryKey: assistantKeys.conversation(
+              conversationId,
+              undefined,
+              'owner-a'
+            )
+          });
+        });
+      }
+      h.releaseCompletion();
+      await h.tick(100);
+      if (change === 'unavailable')
+        expect(screen.getByText('Spend 13 SAR')).toBeTruthy();
+      else expect(screen.queryByText('Spend 13 SAR')).toBeNull();
+      expect(h.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+    } finally {
+      h.releaseCompletion();
+      h.releaseRefresh();
+      await h.tick(30);
+      chat.unmount();
+      h.hook.unmount();
+      h.client.clear();
+    }
+  }
+);
+
+it('keeps a malformed completed result unpublished and preserves the recoverable question', async () => {
+  const h = await recoveryHarness('empty', false, true);
+  const chat = renderWithProviders(
+    <AssistantConversationScreen conversationId={conversationId} />
+  );
+  try {
+    await h.tick(30);
+    h.setStatus('completed');
+    h.malformedReply();
+    fireEvent.changeText(
+      screen.getByTestId('assistant-composer-input'),
+      'Spend?'
+    );
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    await h.tick(100);
+    expect(screen.queryByText('Spend 13 SAR')).toBeNull();
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
+      'value',
+      'Spend?'
+    );
+    expect((await h.journal.read('owner-a', 'question'))?.phase).toBe(
+      'accepted'
+    );
+    expect(h.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  } finally {
+    chat.unmount();
+    h.hook.unmount();
+    h.client.clear();
+  }
 });
 
 it('gives a fresh pending question its own polling window in a conversation left open over five minutes', async () => {

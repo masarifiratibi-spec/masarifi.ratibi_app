@@ -84,6 +84,13 @@ export function readBelongsToScope(
   key: QueryKey,
   scope: ReadCacheScope
 ): boolean {
+  if (key[0] === 'core-finance' &&
+      (key[1] === 'accounts' || key[1] === 'account-balances' ||
+       (key[1] === 'home' && key[2] === 'balance-source'))) {
+    const owner = key[3];
+    return key.length === 4 && typeof owner === 'object' && owner !== null &&
+      'ownerId' in owner && owner.ownerId === scope.ownerId;
+  }
   if (key[0] === 'support') {
     const ownerIndex = key[1] === 'tickets' ? 2 : key[1] === 'ticket' ? 3 : 4;
     return isOfflineReadableKey(key) && key[ownerIndex] === scope.ownerId;

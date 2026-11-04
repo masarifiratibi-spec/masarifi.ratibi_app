@@ -82,7 +82,8 @@ it('creates stable isolated query keys', () => {
   expect(coreFinanceKeys.accountBalances(true)).toEqual([
     'core-finance',
     'account-balances',
-    true
+    true,
+    { ownerId: null }
   ]);
   expect(coreFinanceKeys.transactionPages(emptyTransactionFilters)).toEqual([
     'core-finance',

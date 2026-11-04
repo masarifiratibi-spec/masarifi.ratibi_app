@@ -44,6 +44,7 @@ import {
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
+import { useAppShellStore } from '@/state/app-shell';
 import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
@@ -94,20 +95,35 @@ function kindFor(
         : 'installments';
 }
 
-export function ObligationForm({
-  obligationId = '',
-  onBack
-}: {
+type ObligationFormProps = {
   obligationId?: string;
   onBack?: () => void;
-}) {
+};
+
+export function ObligationForm(props: ObligationFormProps) {
+  const ownerId = useAppShellStore((state) => state.session?.userId);
+  return (
+    <ObligationFormContent
+      key={JSON.stringify([ownerId ?? null, props.obligationId ?? ''])}
+      {...props}
+    />
+  );
+}
+
+function ObligationFormContent({
+  obligationId = '',
+  onBack
+}: ObligationFormProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const direction = usePreferenceStore((state) => state.direction);
   const existing = useObligation(obligationId);
   const accounts = useAccounts();
-  const item = existing.data?.obligation;
+  const readableItem = hasReadableSnapshot(existing)
+    ? existing.data?.obligation
+    : undefined;
+  const [item, setItem] = useState<Obligation>();
   const owningCurrencyCode = item?.currencyCode ?? currencyCode;
   const [paymentKind, setPaymentKind] = useState<PaymentKind>('once');
   const [obligationDirection, setObligationDirection] =
@@ -135,51 +151,57 @@ export function ObligationForm({
   const [saved, setSaved] = useState(false);
   const saveLock = useRef(false);
   const save = usePlanningMutation(
-    (input: Parameters<typeof financialPlanningService.createObligation>[0]) =>
-      item
-        ? financialPlanningService.updateObligation(
+    (input: Parameters<typeof financialPlanningService.createObligation>[0]) => {
+      if (obligationId) {
+        if (!item) throw new Error('Edit metadata is not available');
+        return financialPlanningService.updateObligation(
             obligationId,
             item.version,
             input,
             `obligation:${obligationId}:${Date.now()}`
-          )
-        : financialPlanningService.createObligation(
-            input,
-            `obligation:new:${Date.now()}`
-          )
+          );
+      }
+      return financialPlanningService.createObligation(
+        input,
+        `obligation:new:${Date.now()}`
+      );
+    }
   );
 
   useEffect(() => {
-    if (!item) return;
+    if (item || !readableItem || readableItem.id !== obligationId) return;
+    // Keep fields and their expected version together through background reads.
+    const initialItem = readableItem;
     const total =
-      item.contractedTotalMinor === null
+      initialItem.contractedTotalMinor === null
         ? ''
-        : minorToMajorAmountText(item.contractedTotalMinor, item.currencyCode);
+        : minorToMajorAmountText(initialItem.contractedTotalMinor, initialItem.currencyCode);
     const payment =
-      item.installmentAmountMinor === null
+      initialItem.installmentAmountMinor === null
         ? ''
         : minorToMajorAmountText(
-            item.installmentAmountMinor,
-            item.currencyCode
+            initialItem.installmentAmountMinor,
+            initialItem.currencyCode
           );
-    setPaymentKind(kindFor(item.scheduleKind, item.installmentCount));
-    setObligationDirection(item.direction);
-    setType(item.type);
-    setFrequency(item.frequency ?? 'monthly');
-    setTitle(item.title);
-    setProvider(item.provider ?? '');
-    setAmount(item.scheduleKind === 'open_ended' ? payment : total);
+    setPaymentKind(kindFor(initialItem.scheduleKind, initialItem.installmentCount));
+    setObligationDirection(initialItem.direction);
+    setType(initialItem.type);
+    setFrequency(initialItem.frequency ?? 'monthly');
+    setTitle(initialItem.title);
+    setProvider(initialItem.provider ?? '');
+    setAmount(initialItem.scheduleKind === 'open_ended' ? payment : total);
     setInstallment(payment);
-    setRecurringPrincipal(item.contractedTotalMinor ?? 0);
+    setRecurringPrincipal(initialItem.contractedTotalMinor ?? 0);
     setRetainedPlan(
-      item.installmentCount
-        ? { amount: total, installment: payment, count: item.installmentCount }
+      initialItem.installmentCount
+        ? { amount: total, installment: payment, count: initialItem.installmentCount }
         : null
     );
-    if (item.startDate) setStartDate(item.startDate);
-    setAccountId(item.fundingAccountId ?? '');
-    setAutomaticMatchingEnabled(item.automaticMatchingEnabled);
-  }, [item]);
+    if (initialItem.startDate) setStartDate(initialItem.startDate);
+    setAccountId(initialItem.fundingAccountId ?? '');
+    setAutomaticMatchingEnabled(initialItem.automaticMatchingEnabled);
+    setItem(initialItem);
+  }, [item, readableItem, obligationId]);
 
   const { draftReady, discardDraft } = usePlanningFormDraft({
     id: `planning-form-obligation:${obligationId || 'new'}`,
@@ -449,7 +471,7 @@ export function ObligationForm({
         />
       </PlanningScreen>
     );
-  if ((obligationId && existing.isLoading) || accounts.isLoading || !draftReady)
+  if ((obligationId && (!item || existing.isLoading)) || accounts.isLoading || !draftReady)
     return (
       <PlanningScreen titleKey="planning.obligations.new">
         <PlanningState state="loading" />

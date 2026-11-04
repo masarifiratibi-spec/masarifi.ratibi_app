@@ -1,8 +1,9 @@
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { screen } from '@testing-library/react-native';
 import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
+import { ThemeContext } from '@/state/theme-context';
+import { resolveTheme } from '@/design-system/theme';
 import { SupportHomeScreen } from './SupportHomeScreen';
 
 jest.mock('expo-router', () => ({
@@ -10,28 +11,36 @@ jest.mock('expo-router', () => ({
 }));
 
 test.each(['ar', 'en'] as const)(
-  'opens existing ticket history from Support in %s',
+  'offers contact support without ticket or feedback history in %s',
   async (locale) => {
     changeLocale(locale);
-    renderWithProviders(<SupportHomeScreen />);
-    fireEvent.press(
-      await screen.findByRole('button', {
+    const theme = resolveTheme('dark');
+    renderWithProviders(
+      <ThemeContext.Provider value={{ theme }}>
+        <SupportHomeScreen />
+      </ThemeContext.Provider>
+    );
+    expect(
+      await screen.findByLabelText(translate('support.form.subject'))
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText(translate('support.form.description'))
+    ).toBeTruthy();
+    for (const field of ['subject', 'description'] as const) {
+      expect(
+        screen.getByLabelText(translate(`support.form.${field}`)).props
+          .placeholderTextColor
+      ).toBe(theme.colors.content.muted);
+    }
+    expect(
+      screen.queryByRole('button', {
         name: translate('support.home.ticketHistory')
       })
-    );
-    expect(router.push).toHaveBeenCalledWith('/support/tickets');
-    expect(router.replace).not.toHaveBeenCalled();
-  }
-);
-
-test.each(['ar', 'en'] as const)(
-  'opens a separate feedback history from Support in %s',
-  async (locale) => {
-    changeLocale(locale);
-    renderWithProviders(<SupportHomeScreen />);
-    fireEvent.press(await screen.findByRole('button', {
-      name: locale === 'ar' ? 'سجل الملاحظات' : 'Feedback history'
-    }));
-    expect(router.push).toHaveBeenCalledWith('/support/feedback');
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: translate('support.feedback.history')
+      })
+    ).toBeNull();
   }
 );

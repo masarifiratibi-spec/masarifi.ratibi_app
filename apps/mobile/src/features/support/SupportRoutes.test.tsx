@@ -2,10 +2,12 @@ import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import FeedbackHistoryRoute from '@app/support/feedback';
-import { FeedbackHistoryScreen } from './FeedbackHistoryScreen';
+import { Redirect } from 'expo-router';
 
 jest.mock('@/config/demo-mode', () => ({ isFixtureModeEnabled: () => false }));
-jest.mock('@/services/engagement-service', () => ({ supportService: { metadata: { availability: 'available' } } }));
+jest.mock('@/services/engagement-service', () => ({
+  supportService: { metadata: { availability: 'available' } }
+}));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const SupportLayout = require('@app/support/_layout')
@@ -35,10 +37,6 @@ const { SupportFormScreen } = require('./SupportFormScreen') as {
   SupportFormScreen: React.ComponentType<{ mode?: string; context?: unknown }>;
 };
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { TicketListScreen } = require('./TicketListScreen') as {
-  TicketListScreen: React.ComponentType;
-};
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { TicketDetailScreen } = require('./TicketDetailScreen') as {
   TicketDetailScreen: React.ComponentType<{ ticketId: string }>;
 };
@@ -51,6 +49,7 @@ let mockParams = {
 };
 
 jest.mock('expo-router', () => ({
+  Redirect: () => null,
   Stack: Object.assign(() => null, { Screen: () => null }),
   useLocalSearchParams: () => mockParams
 }));
@@ -75,8 +74,8 @@ test('support routes are thin render-only modules with typed report-mode paramet
       }}
     />
   );
-  expect(TicketsRoute()).toEqual(<TicketListScreen />);
-  expect(FeedbackHistoryRoute()).toEqual(<FeedbackHistoryScreen />);
+  expect(TicketsRoute()).toEqual(<Redirect href="/support" />);
+  expect(FeedbackHistoryRoute()).toEqual(<Redirect href="/support" />);
   expect(TicketDetailRoute()).toEqual(
     <TicketDetailScreen ticketId="ticket-1" />
   );

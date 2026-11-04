@@ -310,7 +310,7 @@ export function AccountForm({
         ? await coreFinanceService.updateAccount(account.id, input)
         : await coreFinanceService.createAccount(input);
       await invalidateCoreFinanceScopes(client, result.affectedScopes);
-      leaveAfterSave(() => router.replace('/accounts'));
+      leaveAfterSave(() => router.dismissTo('/accounts'));
     } catch {
       setError(translate('coreFinance.state.error'));
       setErrorField('form');

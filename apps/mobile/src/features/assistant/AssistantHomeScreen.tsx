@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, AppState } from 'react-native';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { AssistantLanding } from './AssistantLanding';
 import { AssistantConversationView } from './AssistantConversationView';
 import { AssistantActionPreviewScreen } from './AssistantActionPreviewScreen';
@@ -256,6 +257,7 @@ function AssistantConversationContent({
   initialUserTurn,
   onBack
 }: ConversationProps) {
+  const queryClient = useQueryClient();
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const latest = queries.useAssistantConversation(conversationId);
   const older = queries.useAssistantConversation(conversationId, cursor);
@@ -275,7 +277,39 @@ function AssistantConversationContent({
     operationId: string;
     resolve: (accepted: boolean) => void;
   } | null>(null);
-  const ask = queries.useAskAssistant();
+  const latestSubmission = React.useRef<{
+    operationId: string;
+    ownerId: string | null;
+    conversationId: string;
+  } | null>(null);
+  const publicationScope = React.useRef({ cursor, accessDenied: false });
+  const ask = queries.useAskAssistant((response, input) => {
+    const submission = latestSubmission.current;
+    if (
+      !submission ||
+      submission.operationId !== input.operationId ||
+      submission.conversationId !== input.conversationId ||
+      response.conversationId !== submission.conversationId ||
+      (useAppShellStore.getState().session?.userId ?? null) !==
+        submission.ownerId ||
+      publicationScope.current.accessDenied
+    )
+      return;
+    const deniedRead = [undefined, publicationScope.current.cursor].some(
+      (readCursor) =>
+        isAuthoritativeReadDenial(
+          queryClient.getQueryState(
+            queries.assistantKeys.conversation(
+              submission.conversationId,
+              readCursor,
+              submission.ownerId
+            )
+          )?.error
+        )
+    );
+    if (!deniedRead)
+      setResponses((current) => mergeAssistantRows(current, [response]));
+  });
   const resetAsk = ask.reset;
   const rename = queries.useRenameAssistantConversation();
   const remove = queries.useDeleteAssistantConversation();
@@ -286,6 +320,7 @@ function AssistantConversationContent({
   const accessDenied =
     isAuthoritativeReadDenial(latest.error) ||
     isAuthoritativeReadDenial(page.error);
+  publicationScope.current = { cursor, accessDenied };
   const conversation = latestData?.conversation ?? data?.conversation;
   const nextCursor = data?.responses.nextCursor ?? null;
   const pageItems: AssistantResponse[] = [
@@ -412,6 +447,7 @@ function AssistantConversationContent({
 
   React.useEffect(
     () => () => {
+      latestSubmission.current = null;
       pendingAcknowledgement.current?.resolve(false);
       pendingAcknowledgement.current = null;
     },
@@ -432,6 +468,13 @@ function AssistantConversationContent({
     resume?.reset?.();
     retry?.reset?.();
     const operationId = `ask-${Date.now()}`;
+    const submittedOwner = useAppShellStore.getState().session?.userId ?? null;
+    const submittedConversation = conversation?.id ?? conversationId;
+    latestSubmission.current = {
+      operationId,
+      ownerId: submittedOwner,
+      conversationId: submittedConversation
+    };
     setOptimisticTurn({
       id: operationId,
       content: questionText,
@@ -442,7 +485,7 @@ function AssistantConversationContent({
       pendingAcknowledgement.current = { operationId, resolve };
       ask.mutate(
         {
-          conversationId: conversation?.id ?? conversationId,
+          conversationId: submittedConversation,
           question: questionText,
           operationId
         },
