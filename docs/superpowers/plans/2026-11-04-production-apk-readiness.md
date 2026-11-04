@@ -54,10 +54,10 @@ Same workspace/branch; preserve all existing data/keys/sessions/pending work/UI/
 
 ## Task 4: Current-app acceptance and specific defect closure
 
-- [ ] Reconcile existing crosswalks against current evidence without repeating accepted unchanged work or reviving cancelled comparisons.
+- [x] Reconcile existing crosswalks:69refs/88units,62clientIDs,29legacytasks; historical evidence is not current APK acceptance. English ledger: `docs/evidence/2026-11-04-production-apk-readiness/functional-acceptance.md`.
 - [ ] Test safe current-account reads and named reversible QA writes across core finance/planning/reports/export/notifications/support/settings/security/assistant/voice, preserving original records and avoiding deferred financial/provider actions.
 - [ ] Reconcile Voice001 read-only; do not replay. Each reproduced new defect gets RED→GREEN regression, minimal fix and applicable phone proof. Keep unverified capabilities explicitly open.
-- [ ] Maintain an English acceptance ledger; accepted exceptions/deferred scope never count as passes. Commit only specific supported repairs.
+- [x] English acceptance ledger records accepted exceptions/deferred scope separately; source repairs have behavioral RED→GREEN proof. Physical acceptance and Voice001 remain open. Source checkpoint67813aa4:final Mobile611suites/4877tests, focused217cleanup cases,132individually qualified opt-in API cases, types/lint/boundaries pass. Voice001 is strongly correlated read-only to a completed empty batch with no linked financial effects; intended final-APK voice correctness remains unverified.
 
 ## Task 5: Hosted compatibility, recovery and rollout package
 

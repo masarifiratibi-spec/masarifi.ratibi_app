@@ -1,0 +1,2190 @@
+{
+  "atUtc": "2026-11-04T21:27:55.380520+00:00",
+  "sourceBaseCommit": "a674c15cda86038e6ba0a3c158edffa6406be830",
+  "sourceRepairsUncommitted": false,
+  "productionReady": false,
+  "finalApkAvailable": false,
+  "finalApkInstalled": false,
+  "currentPhoneAcceptanceIsFinalCandidate": false,
+  "qaNamespace": "PRDQA-20261105-<case>",
+  "qaWritesExecuted": 0,
+  "sources": [
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.json",
+      "sha256": "c0b50a52a034d84b03b078c70118e709a937198dff1bcc4309decf258dfc350c"
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.json",
+      "sha256": "b2836f240bfb1faf78b66ade6adaf15229f11cdadd6be59d5a651a41bb960e1d"
+    },
+    {
+      "path": "docs/handoffs/2026-10-31-client-plan-crosswalk.json",
+      "sha256": "388edfb72bd0ee8394ca056fa534128c2a44ff48841c6f1c56a8251d0effbeec"
+    }
+  ],
+  "coverage": {
+    "originalReferences": 69,
+    "acceptanceUnits": 88,
+    "separateClientIds": 62,
+    "legacyTaskIds": 29,
+    "missingIds": [],
+    "extraIds": []
+  },
+  "scopeRulings": [
+    "Latest approved plan includes current budget and savings function acceptance; this supersedes the older batch exclusion only for functional acceptance. Closed performance comparisons stay closed.",
+    "Payments, subscriptions, iOS and Google Play publication remain deferred. APK delivery is the current distribution scope; historical Play/AAB requirements are retained as historical context.",
+    "Accepted PIN 30/60-second manual timing disposition and cancelled TalkBack acceptance are retained as exceptions, never fresh passes. Previously cancelled ZIP acceptance is not reopened by generic export wording.",
+    "No primary account deletion, logout, data reset, original-record modification or Voice001 replay is authorized by a generic test case.",
+    "Task4 source/fixture qualification cannot establish Task7 final APK/device acceptance. Historical passes are never copied into a current pass status."
+  ],
+  "requirements": [
+    {
+      "id": "1.1",
+      "originalReportReference": "1.1",
+      "title": "Release signing",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Match the existing approved upload key to the intended Play publisher and verify the final AAB certificate and package. DEV signing is not release signing acceptance.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.2.a",
+      "originalReportReference": "1.2",
+      "title": "Production API and Clerk binding",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Approve and qualify the final production API/Clerk binding. The inspected working setup is Staging with a Clerk live instance on a Staging domain.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.2.b",
+      "originalReportReference": "1.2",
+      "title": "Production app-lock flag",
+      "legacyTasks": [
+        "T02",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify the resolved final release configuration and artifact. PIN works in DEV, but that does not qualify the production build.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.2.c",
+      "originalReportReference": "1.2",
+      "title": "Production automation/diagnostics flags",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify disabled automation/diagnostics in the final production artifact. Enabled DEV tools are intentional.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.2.d",
+      "originalReportReference": "1.2",
+      "title": "Release version and build number",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Check intended Play/EAS release history and approve next identifiers; DEV remains 0.0.1/versionCode 1.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.3",
+      "originalReportReference": "1.3",
+      "title": "R8 and resource shrinking",
+      "legacyTasks": [
+        "T20",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Exercise startup, SQLCipher, Clerk, voice, notifications and tracking in the final signed/minified artifact.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.4",
+      "originalReportReference": "1.4",
+      "title": "SMS disclosure and Play declaration",
+      "legacyTasks": [
+        "T15",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete permission grant/revocation and real capture tests, then obtain applicable Play approval and verify Data safety/disclosures.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.5",
+      "originalReportReference": "1.5",
+      "title": "Playback foreground permission",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Inspect the final merged release manifest and verify recording/playback after permission removal.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.6.a",
+      "originalReportReference": "1.6",
+      "title": "Storage/overlay permission removal",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify supported file sharing and notification flows in the final artifact without unjustified permissions.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.6.b",
+      "originalReportReference": "1.6",
+      "title": "Unrelated wallet queries",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Inspect the final merged release manifest for reintroduced unrelated package queries.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.7.a",
+      "originalReportReference": "1.7",
+      "title": "Immediate and delayed server erasure",
+      "legacyTasks": [
+        "T12"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify actual eligible-data erasure after both deletion paths against an authorized candidate schema; do not delete this real owner for testing.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.7.b",
+      "originalReportReference": "1.7",
+      "title": "Deletion/provider retry safety",
+      "legacyTasks": [
+        "T12"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify cancellation, expiry, retries, partial-provider failures and truthful completion across all configured providers.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.7.c",
+      "originalReportReference": "1.7",
+      "title": "Public deletion request page",
+      "legacyTasks": [
+        "T12",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Publish/verify the correct public deletion request/status route and retention copy through a separately authorized release action.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.8",
+      "originalReportReference": "1.8",
+      "title": "Public-repository privacy review",
+      "legacyTasks": [
+        "T20",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Preserve the targeted text scan's limits; investigate confirmed exposures individually. No broad asset deletion or history rewrite is authorized.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.9",
+      "originalReportReference": "1.9",
+      "title": "Integration PR and required CI",
+      "legacyTasks": [
+        "T20",
+        "T22"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Run exact-candidate CI after including local PIN changes and have a repository administrator configure required checks. Historical green CI does not cover uncommitted changes.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "1.10",
+      "originalReportReference": "1.10",
+      "title": "Closed-testing eligibility",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify the intended Play publisher's account eligibility, required tester history and production-access decision.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.1",
+      "originalReportReference": "2.1",
+      "title": "Cached offline access and queued edits",
+      "legacyTasks": [
+        "T03",
+        "T04"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Resolve the observed offline note-save failure, then test cold unlock, durable supported edits, restart, sync and owner switching.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.2",
+      "originalReportReference": "2.2",
+      "title": "Startup performance",
+      "legacyTasks": [
+        "T02",
+        "T03"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Record complete cold/warm startup timings. PIN latency improved, but the interrupted cold-offline launch is not startup acceptance.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.3",
+      "originalReportReference": "2.3",
+      "title": "Saudi/Gulf assistant wording",
+      "legacyTasks": [
+        "T17"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify varied generated and deterministic/error responses on the intended server version, beyond the limited sampled wording.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.4",
+      "originalReportReference": "2.4",
+      "title": "Intermittent assistant failures",
+      "legacyTasks": [
+        "T17",
+        "T18"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correlate redacted request/model diagnostics and exercise actual provider success, timeout, rate limit, cancellation and idempotent recovery.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.5",
+      "originalReportReference": "2.5",
+      "title": "Support submission safety",
+      "legacyTasks": [
+        "T10"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Test local-save failure, offline retry, double-tap and successful server creation followed by cleanup failure, without sending unapproved support messages.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.6.a",
+      "originalReportReference": "2.6",
+      "title": "Tracking activation persistence",
+      "legacyTasks": [
+        "T15",
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Enable tracking with controlled fixtures and verify reload/restart persistence and stale-response fencing.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.6.b",
+      "originalReportReference": "2.6",
+      "title": "OEM battery/settings guidance",
+      "legacyTasks": [
+        "T15",
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify contextual guidance and background behavior on Xiaomi/Samsung and another available OEM.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.6.c",
+      "originalReportReference": "2.6",
+      "title": "Tracking permission lifecycle",
+      "legacyTasks": [
+        "T15",
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete grant, denial, revocation and return-from-settings flows. Only disclosure cancellation was accepted in this round.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.7",
+      "originalReportReference": "2.7",
+      "title": "Planning journeys",
+      "legacyTasks": [
+        "T07"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct the invalid-month form trap later; complete planning retrieval, interrupted retries and version conflicts beyond the successful QA budget/obligation saves.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.8",
+      "originalReportReference": "2.8",
+      "title": "First onboarding save",
+      "legacyTasks": [
+        "T07"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete interruption/double-submit/server-durability acceptance; the observed online restart is only a bounded positive result.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.9",
+      "originalReportReference": "2.9",
+      "title": "Opening-balance leading zero",
+      "legacyTasks": [
+        "T07"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Finish decimal/Arabic/Persian and applicable account-type coverage; the basic 50 and 50.25 paths passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.10.a",
+      "originalReportReference": "2.10",
+      "title": "Period presentation",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct the observed cross-year clipping and verify narrow widths, RTL and larger fonts.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "2.10.b",
+      "originalReportReference": "2.10",
+      "title": "Assistant narrative dates",
+      "legacyTasks": [
+        "T17"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct the observed raw ISO date bounds in Arabic responses and retest both languages.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R4",
+      "originalReportReference": "R4",
+      "title": "Malformed SMS rows",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete JS/native integration and cursor/queue-failure tests with controlled capture; synthetic production-scanner cases already passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "fix-01",
+      "originalReportReference": "fix-01",
+      "title": "Voice database acceptance",
+      "legacyTasks": [
+        "T05",
+        "T18"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify the exact authorized schema target and applicable voice/posting/idempotency/RLS cases; no hosted reset or migration was executed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R5",
+      "originalReportReference": "R5",
+      "title": "Lost SQLCipher key recovery",
+      "legacyTasks": [
+        "T04"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Use an isolated owner/test data set to verify quarantine, explicit recovery and unsynced-data warnings; do not remove the real owner's key.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R6",
+      "originalReportReference": "R6",
+      "title": "AI model identity validation",
+      "legacyTasks": [
+        "T17",
+        "T18"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify missing/incorrect/valid identities against actual configured provider contracts on the candidate API.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "New-1",
+      "originalReportReference": "جديد 1 (New-1)",
+      "title": "Ambiguous bare riyal",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify actual tracking/account evidence and conflicts in both modes; the synthetic parser probes are not real sender/account acceptance.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J1",
+      "originalReportReference": "ج1 (J1)",
+      "title": "Linked refunds",
+      "legacyTasks": [
+        "T06"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Restore normal access to the eligible-expense refund flow later, then test full/partial refunds, remaining balance, currency/account checks and over-refund rejection.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J7",
+      "originalReportReference": "ج7 (J7)",
+      "title": "Arabic brand/greeting spelling",
+      "legacyTasks": [
+        "T13",
+        "T17"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Review every affected onboarding/screen string visually; language switching and the welcome sample do not cover all occurrences.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J8.a",
+      "originalReportReference": "ج8 (J8)",
+      "title": "Obligation layout",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete Arabic and English layout checks at larger fonts and narrow widths; inspect the observed excessive shrinking of a long list name.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J8.b",
+      "originalReportReference": "ج8 (J8)",
+      "title": "Obligation date locale",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete date/missing-date/cross-year coverage. The observed Arabic and English obligation dates were localized.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J8.c",
+      "originalReportReference": "ج8 (J8)",
+      "title": "Net-worth comparison",
+      "legacyTasks": [
+        "T05",
+        "T09",
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Unblock reports and verify balances, liabilities, FX/missing rates and zero/near-zero comparison bases.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J8.d",
+      "originalReportReference": "ج8 (J8)",
+      "title": "Subscription capability",
+      "legacyTasks": [
+        "D00"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Deferred to the final billing phase; purchases and entitlement acceptance remain open.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "21",
+      "originalReportReference": "21",
+      "title": "Budget/subscription date presentation",
+      "legacyTasks": [
+        "T07",
+        "T13",
+        "D00"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Finish budget transaction headings, missing/cross-year dates and renewal-date formatting; formatting is separate from deferred billing.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "16",
+      "originalReportReference": "16",
+      "title": "Assistant timestamp locale/clock",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct the observed failure to honor 24-hour preference; Arabic and English timestamp localization passed bounded checks.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "20",
+      "originalReportReference": "20",
+      "title": "Period-chip clipping",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct ending-year clipping later and retest same-year/cross-year ranges, RTL and larger fonts.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "26",
+      "originalReportReference": "26",
+      "title": "Budget validation and correction",
+      "legacyTasks": [
+        "T07"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Keep invalid month input editable instead of replacing the entire form; retest all fields and successful recovery. Missing name/amount focus checks passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "24",
+      "originalReportReference": "24",
+      "title": "Category mini-bars",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Unblock the actual report and test zero, one, two and more than seven values; preserve legitimate zero time buckets.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "47",
+      "originalReportReference": "47",
+      "title": "Demo banks and verified sender registry",
+      "legacyTasks": [
+        "T15",
+        "T19"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify the effective published registry and verified Saudi/UAE fixtures; apply candidate migration only through an authorized server release.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R10",
+      "originalReportReference": "R10",
+      "title": "Recent-auth step-up",
+      "legacyTasks": [
+        "T04",
+        "T11",
+        "T12"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Finish cancellation, failure, expiry and idempotent resume across protected operations; export replay progressed beyond 403 but then failed with 500.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R11",
+      "originalReportReference": "R11",
+      "title": "Route-specific AI deadlines",
+      "legacyTasks": [
+        "E00",
+        "T18"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retain the supported existing deadlines; verify a real long voice request. The original blanket three-second claim remains unsupported.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R13",
+      "originalReportReference": "R13",
+      "title": "Pinned Admin dependencies",
+      "legacyTasks": [
+        "T20"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retain prior clean-install/build/test evidence and rerun relevant checks for the exact integration candidate; this is not a phone test.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R14",
+      "originalReportReference": "R14",
+      "title": "Validated Node/npm toolchain",
+      "legacyTasks": [
+        "T20"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retain the validated Node 24.16.0/npm 11.17.0 setup and investigate bounded peer warnings; qualify exact-candidate installation/CI.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J9",
+      "originalReportReference": "ج9 (J9)",
+      "title": "System theme and contrast",
+      "legacyTasks": [
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct dark regional-label contrast later; complete remaining release-build theme and override scenarios.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J10",
+      "originalReportReference": "ج10 (J10)",
+      "title": "Per-currency largest expense",
+      "legacyTasks": [
+        "T05",
+        "T09",
+        "T17"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify the forward SQL change and real SAR/JPY/KWD ranking. A single-SAR assistant response does not close this finding.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "J11",
+      "originalReportReference": "ج11 (J11)",
+      "title": "API formatting",
+      "legacyTasks": [
+        "T20"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retain prior read-only formatting evidence and recheck affected exact-candidate changes; no phone-specific acceptance applies.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R16",
+      "originalReportReference": "R16",
+      "title": "Controlled feeMinor SQL errors",
+      "legacyTasks": [
+        "T05"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify the forward migration with malformed, fractional, negative, overflow, missing and valid values in a verified database target.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R17",
+      "originalReportReference": "R17",
+      "title": "Unknown sync-operation rejection",
+      "legacyTasks": [
+        "E00",
+        "T04",
+        "T05"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Preserve API/direct-SQL rejection and reverify it; the original restore-fallback claim remains unsupported.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R18",
+      "originalReportReference": "R18",
+      "title": "Dedicated cursor signing key",
+      "legacyTasks": [
+        "T04"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Configure the separate server key through approved secret handling and verify tampering, rotation and explicit resync without losing queued work.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R19",
+      "originalReportReference": "R19",
+      "title": "Execution-time authentication age",
+      "legacyTasks": [
+        "T04"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Qualify delayed queued protected operations, legacy entries and retry after re-verification on the intended API/schema.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R20",
+      "originalReportReference": "R20",
+      "title": "Replica-aware circuit/rate semantics",
+      "legacyTasks": [
+        "T17",
+        "T18",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify deployed replica topology and actual provider limits before requiring shared enforcement; no speculative Redis service was added.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "R21",
+      "originalReportReference": "R21",
+      "title": "Recoverable Admin mock bootstrap",
+      "legacyTasks": [
+        "T20"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retain prior failed-import/start/retry tests and production MSW exclusion; this is an Admin development check, not a DEV phone journey.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.1",
+      "originalReportReference": "4.1",
+      "title": "Arabic morphology",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete real controlled JS/native capture parity beyond the passing synthetic parser/discovery cases.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.2",
+      "originalReportReference": "4.2",
+      "title": "Promotional context",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retest controlled real receipts/merchant near-matches in both tracking modes; synthetic merchant-preservation checks passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.3",
+      "originalReportReference": "4.3",
+      "title": "OTP/security context",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Retest controlled receipt/OTP capture and merchant near-matches; synthetic classification cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.4",
+      "originalReportReference": "4.4",
+      "title": "Encrypted SMS/voice payload storage",
+      "legacyTasks": [
+        "T15",
+        "T16",
+        "T18",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Preserve the prior verified closure and automated migration/isolation evidence; inspect encryption in the final release artifact. No replacement storage was needed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.5",
+      "originalReportReference": "4.5",
+      "title": "Bills, requests and URLs",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete real controlled tracking of posted receipts versus non-posted obligations; synthetic cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.6",
+      "originalReportReference": "4.6",
+      "title": "Transaction versus balance/limit amounts",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete real multi-amount receipt capture/order/decimal cases; synthetic role-separation cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.7",
+      "originalReportReference": "4.7",
+      "title": "Merchant suffix boundaries",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete real Arabic/English merchant capture and missing-name cases; synthetic boundary cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.8.a",
+      "originalReportReference": "4.8",
+      "title": "Pending-notification retention",
+      "legacyTasks": [
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify more than 200 pending entries on the actual capture/acknowledgment path without eviction.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.8.b",
+      "originalReportReference": "4.8",
+      "title": "Parsed policy caching",
+      "legacyTasks": [
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify owner/generation/release invalidation on the actual listener path and safe missing-policy behavior.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.8.c",
+      "originalReportReference": "4.8",
+      "title": "Queue performance and compaction",
+      "legacyTasks": [
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Measure processing/capacity and acknowledged-entry compaction on the phone without dropping pending entries.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.9",
+      "originalReportReference": "4.9",
+      "title": "Persistent escalating PIN lockout",
+      "legacyTasks": [
+        "T02"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete owner-specific 30s/5m/30m/60m escalation, restart/expiry and successful-unlock reset. Fast existing-PIN verification is only one accepted subcase.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.10",
+      "originalReportReference": "4.10",
+      "title": "Botim/imo exclusions",
+      "legacyTasks": [
+        "T15",
+        "T16"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify real package notifications and legitimate-bank controls in both tracking modes; shared/native synthetic exclusions passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.11",
+      "originalReportReference": "4.11",
+      "title": "Release deep-link allowlist",
+      "legacyTasks": [
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify final release schemes/auth callbacks; DEV intentionally retains its development scheme.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "4.12",
+      "originalReportReference": "4.12",
+      "title": "Native financial SMS pagination",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete controlled integration with queue failure, crashes and owner changes. Native synthetic scanning/filtering/tie traversal passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.1",
+      "originalReportReference": "8.1",
+      "title": "Currency aliases and bare dinar",
+      "legacyTasks": [
+        "T15"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify published policy version, trustworthy account evidence and actual tracking in both modes; synthetic alias/precision/conflict cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.2.a",
+      "originalReportReference": "8.2",
+      "title": "Billing/subscriptions",
+      "legacyTasks": [
+        "D00"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Explicitly deferred to the final phase. Review intended Stripe flow against applicable Play rules/programs before selecting/enabling the real integration.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.2.b",
+      "originalReportReference": "8.2",
+      "title": "Reports/output/schedules/history",
+      "legacyTasks": [
+        "T08",
+        "T09"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Diagnose unavailable report reads; then verify preview, download, email, create/edit/pause schedules, conflicts, retries and delivery history.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.2.c",
+      "originalReportReference": "8.2",
+      "title": "Support workflow",
+      "legacyTasks": [
+        "T10"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correct raw status translation later and complete mobile-to-Admin reply/refresh/owner-isolation acceptance using authorized support messages.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.2.d",
+      "originalReportReference": "8.2",
+      "title": "Security event retrieval",
+      "legacyTasks": [
+        "T06"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Remove the observed live-route/menu blocks later, then test owner-only retrieval, ordering, pagination and safe metadata rendering.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.2.e",
+      "originalReportReference": "8.2",
+      "title": "Export lifecycle",
+      "legacyTasks": [
+        "T11"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Correlate hosted HTTP 500 request IDs, then verify request/status/download, expiry, contents, retries and owner-only access.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.3",
+      "originalReportReference": "8.3",
+      "title": "Localized amount input",
+      "legacyTasks": [
+        "T07"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete remaining voice, allocation, filter and edit-comparison UI paths and 0/2/3-decimal currency boundaries; observed budget/payoff and module cases passed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.4",
+      "originalReportReference": "8.4",
+      "title": "Monthly financial cycle",
+      "legacyTasks": [
+        "T09"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Unblock report totals and establish client/server period parity, historical/calendar-preset stability and the November 3/day-25 example.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.5",
+      "originalReportReference": "8.5",
+      "title": "Timezone-aware civil today",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify Riyadh/Dubai midnight, month/year rollover and inclusive/exclusive conversion boundaries; normal daytime/zone propagation is insufficient.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.6.a",
+      "originalReportReference": "8.6",
+      "title": "Salary timezone fallback",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Verify valid profile zone, valid device fallback, persisted server zone and explicit selection when neither is valid; normal QA salary save alone is insufficient.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.6.b",
+      "originalReportReference": "8.6",
+      "title": "Budget timezone fallback",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Independently verify the budget profile/device/no-valid-zone cases and the persisted server operation zone.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.7",
+      "originalReportReference": "8.7",
+      "title": "Screenshots intentionally permitted",
+      "legacyTasks": [
+        "E00",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Preserve the approved scope exception and verify remaining screens in the release build; observed screenshots including PIN were allowed.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.8",
+      "originalReportReference": "8.8",
+      "title": "Production/demo entrypoint separation",
+      "legacyTasks": [
+        "T20",
+        "T21"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Inspect the actual final release bundle for excluded fixtures/mock purchase/session paths. DEV diagnostics are intentional and not release-bundle proof.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.9",
+      "originalReportReference": "8.9",
+      "title": "Sync-first logout and removal",
+      "legacyTasks": [
+        "T04"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Test cancellation, offline/failed sync, unsynced financial/tracking/voice work, explicit removal and owner switching in an isolated owner context.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    },
+    {
+      "id": "8.10",
+      "originalReportReference": "8.10",
+      "title": "Truthful privacy lifecycle copy",
+      "legacyTasks": [
+        "T11",
+        "T12"
+      ],
+      "historicalSourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "historicalNextAcceptance": "Complete English and all lifecycle/error states, including Security Settings; observed Arabic privacy distinctions do not prove actual erasure/export completion.",
+      "finalApkStatus": "NOT_RUN",
+      "owner": "Task7 exact APK; scope rulings apply"
+    }
+  ],
+  "clientItems": [
+    {
+      "clientId": 1,
+      "title": "Account deletion",
+      "legacyTasks": [
+        "T12"
+      ],
+      "sourceAreas": [
+        "apps/api/src/security/security.service.ts",
+        "apps/api/src/security/security.worker.ts",
+        "apps/mobile/src/features/settings/AccountDeletionPanel.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 2,
+      "title": "Default EGP",
+      "legacyTasks": [
+        "T07",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 3,
+      "title": "Inconsistent expense totals/refund",
+      "legacyTasks": [
+        "T05",
+        "T09"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 4,
+      "title": "Assistant card contradicts itself",
+      "legacyTasks": [
+        "T09",
+        "T17"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/assistant/AssistantActionPreviewScreen.tsx",
+        "apps/mobile/src/domain/assistant-actions.test.ts",
+        "apps/api/src/ai/ai.gateway.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 5,
+      "title": "Obligation total mismatch",
+      "legacyTasks": [
+        "T07a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 6,
+      "title": "Net worth excludes/mis-signs accounts",
+      "legacyTasks": [
+        "T05",
+        "T09"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 7,
+      "title": "Egyptian account-creation heading",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 8,
+      "title": "Egyptian account-type descriptions",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 9,
+      "title": "“Almost done” Egyptian wording",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 10,
+      "title": "Egyptian last-four explanation",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 11,
+      "title": "Non-Gulf bank examples",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 12,
+      "title": "Colloquial loanword used instead of the standard Arabic term for card",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 13,
+      "title": "“House money” wording",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 14,
+      "title": "Currency ordering",
+      "legacyTasks": [
+        "T07",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 15,
+      "title": "Dialect inconsistency",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 16,
+      "title": "English AM/PM in Arabic",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 17,
+      "title": "English demo data in Arabic",
+      "legacyTasks": [
+        "T13",
+        "T21"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 18,
+      "title": "Truncated financial amounts",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 19,
+      "title": "Leading-side ellipsis",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 20,
+      "title": "Clipped date-period chip",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 21,
+      "title": "Raw ISO dates",
+      "legacyTasks": [
+        "T13",
+        "T17"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 22,
+      "title": "Ambiguous numeric date",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 23,
+      "title": "Broken net-worth change badge",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 24,
+      "title": "Empty/broken cash-flow chart",
+      "legacyTasks": [
+        "T09",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 25,
+      "title": "Mixed Arabic/Latin bidi reversal",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 26,
+      "title": "Disabled save without explanation",
+      "legacyTasks": [
+        "T07"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 27,
+      "title": "Transfer styled as income",
+      "legacyTasks": [
+        "T05",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 28,
+      "title": "Off-brand blue chart controls",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 29,
+      "title": "Plan naming inconsistency",
+      "legacyTasks": [
+        "D00"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "DEFERRED billing/subscriptions; no entitlement/storefront implementation",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 30,
+      "title": "Category deletion without confirmation",
+      "legacyTasks": [
+        "T07c"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 31,
+      "title": "Home does not surface planning cards",
+      "legacyTasks": [
+        "T01",
+        "T13"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 32,
+      "title": "Clipped filter strip lacks affordance",
+      "legacyTasks": [
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 33,
+      "title": "Profile image upload absent",
+      "legacyTasks": [
+        "T01",
+        "T13"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 34,
+      "title": "Account detail navigation",
+      "legacyTasks": [
+        "T07",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 35,
+      "title": "Refund entry flow absent",
+      "legacyTasks": [
+        "T06",
+        "T05"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 36,
+      "title": "Savings goals missing",
+      "legacyTasks": [
+        "T07a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/savings/SavingsJourney.test.tsx",
+        "apps/mobile/src/storage/financial-planning-savings.test.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 37,
+      "title": "Statement PDF/CSV import missing",
+      "legacyTasks": [
+        "T01",
+        "T15"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 38,
+      "title": "Card payoff/interest calculator",
+      "legacyTasks": [
+        "T07b"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/domain/credit-card-payoff.ts",
+        "apps/mobile/src/domain/credit-card-payoff.test.ts",
+        "apps/api/src/reference/credit-card-payoff.ts"
+      ],
+      "historicalDisposition": "preserve delivered calculator/terms; old open labels superseded; qualify current artifact",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 39,
+      "title": "Card statement terms",
+      "legacyTasks": [
+        "T07b",
+        "T16"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/domain/credit-card-payoff.ts",
+        "apps/mobile/src/domain/credit-card-payoff.test.ts",
+        "apps/api/src/reference/credit-card-payoff.ts"
+      ],
+      "historicalDisposition": "preserve delivered calculator/terms; old open labels superseded; qualify current artifact",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 40,
+      "title": "Merchant rules missing",
+      "legacyTasks": [
+        "T15a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 41,
+      "title": "Saudi VAT missing",
+      "legacyTasks": [
+        "T01"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 42,
+      "title": "Notification center/preferences missing",
+      "legacyTasks": [
+        "T16",
+        "T16a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/notifications/notification-response-controller.ts",
+        "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+        "apps/api/src/engagement/notification.policy.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 43,
+      "title": "Zakat",
+      "legacyTasks": [
+        "T01"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 44,
+      "title": "Phone notifications/quick actions",
+      "legacyTasks": [
+        "T16a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/notifications/notification-response-controller.ts",
+        "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+        "apps/api/src/engagement/notification.policy.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 45,
+      "title": "Merchant rules and ignored cards",
+      "legacyTasks": [
+        "T15a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 46,
+      "title": "Generic bank keywords",
+      "legacyTasks": [
+        "T15"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 47,
+      "title": "Sender-ID binding missing",
+      "legacyTasks": [
+        "T15"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 48,
+      "title": "Assistant cannot execute",
+      "legacyTasks": [
+        "T17a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/assistant/AssistantActionPreviewScreen.tsx",
+        "apps/mobile/src/domain/assistant-actions.test.ts",
+        "apps/api/src/ai/ai.gateway.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 49,
+      "title": "Weekly report/family/referral",
+      "legacyTasks": [
+        "T01",
+        "T09"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 50,
+      "title": "Real customer data in screenshot bundle",
+      "legacyTasks": [
+        "T01",
+        "T21"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "external historical archive/privacy claim; request existing redaction/distribution disposition, no assumed current incident",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 51,
+      "title": "Investments missing",
+      "legacyTasks": [
+        "T01"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 52,
+      "title": "Budget income/savings targets missing",
+      "legacyTasks": [
+        "T07a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 53,
+      "title": "Recurring transactions entity missing",
+      "legacyTasks": [
+        "T01",
+        "T07a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "historicalDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 54,
+      "title": "Card payment concept missing",
+      "legacyTasks": [
+        "T05",
+        "T07b",
+        "D00"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "ledger intent/invariants fixture-only; actual payment execution DEFERRED",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 55,
+      "title": "Wallet account type missing",
+      "legacyTasks": [
+        "T07",
+        "T05"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 56,
+      "title": "Custom category lacks income/expense kind",
+      "legacyTasks": [
+        "T07c"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 57,
+      "title": "Feedback channel missing",
+      "legacyTasks": [
+        "T10",
+        "T19a"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/support/SupportJourney.test.tsx",
+        "apps/admin-web/src/app/admin/feedback/page.tsx",
+        "apps/api/src/engagement/engagement.service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 58,
+      "title": "Transfers modeled as expense category",
+      "legacyTasks": [
+        "T07c",
+        "T05"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 59,
+      "title": "Base44 six currencies/AED default",
+      "legacyTasks": [
+        "T07",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 60,
+      "title": "Subscription-tier count mismatch",
+      "legacyTasks": [
+        "D00"
+      ],
+      "sourceAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "historicalDisposition": "DEFERRED billing/subscriptions; no entitlement/storefront implementation",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 61,
+      "title": "Transaction time missing",
+      "legacyTasks": [
+        "T05",
+        "T13"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    },
+    {
+      "clientId": 62,
+      "title": "External remittance category missing",
+      "legacyTasks": [
+        "T07c"
+      ],
+      "sourceAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "historicalDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "historicalEvidenceIsCurrentAcceptance": false,
+      "finalApkStatus": "NOT_RUN"
+    }
+  ],
+  "protectedOperations": [
+    {
+      "name": "Voice001",
+      "status": "CORRELATED_COMPLETED_NO_FINANCIAL_EFFECT",
+      "evidencePath": ".superpowers/sdd/2026-11-02-measured-application-performance/interactive-core-workflows-20261104/voice-recording-001-reconciled-unresolved.json",
+      "verified": "Unique matching server session, native timing/duration and original QA account. Confirmed session, completed empty batch/provider attempt; zero linked financial effects.",
+      "next": "Preserve the original. Final APK intended voice acceptance remains NOT_RUN; no replay or replacement recording.",
+      "correlationLimit": "Original client did not retain immutable operation/session ID; inference is strongly corroborated, not a cryptographic media match.",
+      "newEvidence": "docs/evidence/2026-11-04-production-apk-readiness/voice001-read-only-reconciliation.json"
+    }
+  ],
+  "sourceCommit": "67813aa4bd45c9d706132776e6ad55a81cb2375e",
+  "sourceQualification": {
+    "mobileSuites": 611,
+    "mobileTests": 4877,
+    "focusedCleanupTests": 217,
+    "individuallyPassedOptInApiCases": 132,
+    "formattedApiFixtureTests": 12,
+    "nativeTestsFromUnchangedQualifiedSource": 85,
+    "physicalPhoneAcceptance": false
+  }
+}
