@@ -5,12 +5,25 @@ const { getDefaultConfig } = require('expo/metro-config');
 const config = getDefaultConfig(__dirname);
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const {
   productionFile,
   developmentRoutes,
   isLiveProduction
 } = require('./scripts/production-entrypoints.cjs');
 const liveProduction = isLiveProduction(process.env);
+const runtimeBindings = Object.keys(process.env)
+  .filter(
+    (name) =>
+      name.startsWith('EXPO_PUBLIC_') ||
+      ['NODE_ENV', 'EAS_BUILD_PROFILE', 'MASARIFI_APP_VARIANT'].includes(name)
+  )
+  .sort()
+  .map((name) => [name, process.env[name]]);
+// Expo inlines public values in Release; profiles must not share those transforms.
+config.cacheVersion = `${config.cacheVersion}:${createHash('sha256')
+  .update(JSON.stringify(runtimeBindings))
+  .digest('hex')}`;
 config.watchFolders = [
   path.resolve(__dirname, '../../packages/transaction-parser')
 ];

@@ -8,6 +8,64 @@ const {
   isLiveProduction
 } = require('./production-entrypoints.cjs');
 const root = path.resolve(__dirname, '..');
+
+function runtimeCacheVersion(bindings) {
+  const { execFileSync } = require('node:child_process');
+  const profileNames = ['NODE_ENV', 'EAS_BUILD_PROFILE', 'MASARIFI_APP_VARIANT'];
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name]) => !name.startsWith('EXPO_PUBLIC_') && !profileNames.includes(name)
+    )
+  );
+  return JSON.parse(execFileSync(process.execPath, [
+    '-e',
+    "console.log(JSON.stringify(require('./metro.config.js').cacheVersion))"
+  ], {
+    cwd: root,
+    env: { ...inherited, EXPO_NO_DOTENV: '1', ...bindings },
+    encoding: 'utf8'
+  }).trim().split(/\r?\n/).at(-1));
+}
+
+const liveCacheBindings = {
+  NODE_ENV: 'production',
+  EAS_BUILD_PROFILE: 'staging-client',
+  EXPO_PUBLIC_CLIENT_MODE: 'live',
+  EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
+  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_cacheFixture123456789'
+};
+
+test('Release transforms cannot reuse a Benchmark cache or a different owner binding', () => {
+  const { benchmarkProfile } = require('./benchmark-build-policy.cjs');
+  const benchmark = {
+    ...liveCacheBindings,
+    ...benchmarkProfile.env,
+    EAS_BUILD_PROFILE: 'benchmark',
+    EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_cacheownerone'
+  };
+  const ordinaryKey = runtimeCacheVersion(liveCacheBindings);
+  const benchmarkKey = runtimeCacheVersion(benchmark);
+  assert.notEqual(ordinaryKey, benchmarkKey);
+  assert.notEqual(benchmarkKey, runtimeCacheVersion({
+    ...benchmark, EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_cacheownertwo'
+  }));
+  assert.ok(!benchmarkKey.includes('user_cacheownerone'));
+});
+
+test('runtime cache bindings are stable but distinguish absent, empty and false values', () => {
+  const ordinaryKey = runtimeCacheVersion(liveCacheBindings);
+  const reordered = Object.fromEntries(Object.entries(liveCacheBindings).reverse());
+  assert.equal(ordinaryKey, runtimeCacheVersion({
+    ...reordered, TASK_UNRELATED_SECRET: 'inert-test-value'
+  }));
+  const emptyKey = runtimeCacheVersion({
+    ...liveCacheBindings, EXPO_PUBLIC_APP_LOCK_ENABLED: ''
+  });
+  const falseKey = runtimeCacheVersion({
+    ...liveCacheBindings, EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
+  });
+  assert.equal(new Set([ordinaryKey, emptyKey, falseKey]).size, 3);
+});
 test('live production resolves actual providers while keeping demo builds available', () => {
   assert.equal(
     isLiveProduction({
