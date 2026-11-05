@@ -186,12 +186,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             />
           </View>
 
-          {!reportQuery.data && reportQuery.isPending ? (
-            <StateView
-              state="loading"
-              title={translate('reports.state.loading')}
-            />
-          ) : !reportQuery.data ? (
+          {!reportQuery.data && !reportQuery.isPending ? (
             <StateView
               state="error"
               title={translate('reports.state.error')}
@@ -206,15 +201,19 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
             <AnalyticsContent
               direction={direction}
               hidden={hideBalances}
+              currencyCode={currencyCode}
               report={reportQuery.data}
               netWorthMinor={
-                trendQuery.data?.at(-1)?.minorUnits ??
-                home.data?.totalBalanceMinor ??
-                null
+                reportQuery.data
+                  ? (trendQuery.data?.at(-1)?.minorUnits ??
+                    home.data?.totalBalanceMinor ??
+                    null)
+                  : null
               }
               stackMetrics={stackMetrics}
               timeframe={timeframe}
-              trend={trendQuery.data ?? []}
+              trend={reportQuery.data ? (trendQuery.data ?? []) : []}
+              trendPending={reportQuery.isPending || trendQuery.isPending}
               trendFeedback={
                 trendQuery.isError && hasReadableSnapshot(trendQuery) ? (
                   <FinancialRefreshStatus query={trendQuery} />
@@ -224,11 +223,6 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
                     title={translate('reports.state.error')}
                     actionLabel={translate('reports.action.retry')}
                     onAction={() => void trendQuery.refetch()}
-                  />
-                ) : trendQuery.isPending ? (
-                  <StateView
-                    state="loading"
-                    title={translate('reports.state.loading')}
                   />
                 ) : undefined
               }
@@ -398,6 +392,7 @@ function ReportCard({ style, ...props }: React.ComponentProps<typeof View>) {
 }
 
 function AnalyticsContent({
+  currencyCode,
   direction,
   hidden,
   netWorthMinor,
@@ -406,40 +401,48 @@ function AnalyticsContent({
   stackMetrics,
   timeframe,
   trend,
+  trendPending,
   trendFeedback
 }: {
+  currencyCode: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
   netWorthMinor: number | null;
   onTimeframeChange: (value: ReportTimeframe) => void;
-  report: FinancialReport;
+  report?: FinancialReport;
   stackMetrics: boolean;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendPending: boolean;
   trendFeedback?: React.ReactNode;
 }) {
-  const income = report.summary.income.value?.minorUnits ?? null;
-  const expense = report.summary.expense.value?.minorUnits ?? null;
-  const netCashFlow = report.summary.netCashFlow.value?.minorUnits ?? null;
-  const savingsRate = report.summary.savingsRateBasisPoints.value ?? null;
-  const budgetBreakdown = report.breakdowns.find(
+  const currency = report?.currencyCode ?? currencyCode;
+  const income = report?.summary.income.value?.minorUnits ?? null;
+  const expense = report?.summary.expense.value?.minorUnits ?? null;
+  const netCashFlow = report?.summary.netCashFlow.value?.minorUnits ?? null;
+  const savingsRate = report?.summary.savingsRateBasisPoints.value ?? null;
+  const budgetBreakdown = report?.breakdowns.find(
     (breakdown) => breakdown.dimension === 'budget'
   );
-  const budgetValue = report.insights.find(
+  const budgetValue = report?.insights.find(
     (insight) => insight.kind === 'budget_performance'
   )?.value.value;
   const budgetRemaining =
     typeof budgetValue === 'number' ? undefined : budgetValue?.minorUnits;
 
   return (
-    <View style={styles.contentStack}>
+    <View
+      style={styles.contentStack}
+      accessibilityState={{ busy: report === undefined }}
+    >
       <NetWorthCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
         netWorthMinor={netWorthMinor}
         timeframe={timeframe}
         trend={trend}
+        trendPending={trendPending}
         trendFeedback={trendFeedback}
         onTimeframeChange={onTimeframeChange}
       />
@@ -448,10 +451,11 @@ function AnalyticsContent({
         {translate('reports.analytics.cashFlow')}
       </SectionTitle>
       <ExpenseCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
-        breakdownItems={report.breakdowns[0]?.items ?? []}
+        pending={report === undefined}
+        breakdownItems={report?.breakdowns[0]?.items ?? []}
         value={expense}
       />
       <View
@@ -468,7 +472,7 @@ function AnalyticsContent({
         ]}
       >
         <SmallMetricCard
-          currency={report.currencyCode}
+          currency={currency}
           direction={direction}
           hidden={hidden}
           label={translate('reports.metric.income')}
@@ -476,7 +480,7 @@ function AnalyticsContent({
           value={income}
         />
         <SmallMetricCard
-          currency={report.currencyCode}
+          currency={currency}
           direction={direction}
           hidden={hidden}
           label={translate('reports.metric.netCashFlow')}
@@ -486,11 +490,12 @@ function AnalyticsContent({
       </View>
 
       <SavingsRateCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         expense={expense}
         hidden={hidden}
         income={income}
+        pending={report === undefined}
         savingsRateBasisPoints={savingsRate}
       />
 
@@ -498,9 +503,10 @@ function AnalyticsContent({
         {translate('reports.analytics.budget')}
       </SectionTitle>
       <BudgetCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
+        pending={report === undefined}
         remainingMinor={
           budgetBreakdown?.items.length ? budgetRemaining : undefined
         }
@@ -517,6 +523,7 @@ function NetWorthCard({
   onTimeframeChange,
   timeframe,
   trend,
+  trendPending,
   trendFeedback
 }: {
   currency: string;
@@ -526,6 +533,7 @@ function NetWorthCard({
   onTimeframeChange: (value: ReportTimeframe) => void;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendPending: boolean;
   trendFeedback?: React.ReactNode;
 }) {
   const theme = useTheme();
@@ -584,6 +592,11 @@ function NetWorthCard({
         <>
           <NetWorthLine trend={trend} />
           <ChartDateLabels trend={trend} />
+        </>
+      ) : trendPending ? (
+        <>
+          <View style={styles.chartPlaceholder} />
+          <View style={styles.chartDatesPlaceholder} />
         </>
       ) : null}
       <View
@@ -724,12 +737,14 @@ function ExpenseCard({
   currency,
   direction,
   hidden,
+  pending,
   value
 }: {
   breakdownItems: readonly ReportBreakdownItem[];
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
+  pending: boolean;
   value: number | null;
 }) {
   return (
@@ -744,7 +759,11 @@ function ExpenseCard({
         size="large"
         value={value}
       />
-      <MiniBars breakdownItems={breakdownItems} />
+      {pending ? (
+        <View style={styles.miniBars} />
+      ) : (
+        <MiniBars breakdownItems={breakdownItems} />
+      )}
     </ReportCard>
   );
 }
@@ -845,6 +864,7 @@ function SavingsRateCard({
   expense,
   hidden,
   income,
+  pending,
   savingsRateBasisPoints
 }: {
   currency: string;
@@ -852,6 +872,7 @@ function SavingsRateCard({
   expense: number | null;
   hidden: boolean;
   income: number | null;
+  pending: boolean;
   savingsRateBasisPoints: number | null;
 }) {
   const theme = useTheme();
@@ -936,12 +957,14 @@ function SavingsRateCard({
       <DirectionalText direction={direction} style={styles.savingsFooter} muted>
         {hidden
           ? translate('designSystem.privacy.hidden')
-          : expense === null || income === null
-            ? translate('reports.state.unavailable')
-            : translateDynamic('reports.analytics.spentOfIncome', {
-                expense: moneyInline(expense, currency),
-                income: moneyInline(income, currency)
-              })}
+          : pending
+            ? '—'
+            : expense === null || income === null
+              ? translate('reports.state.unavailable')
+              : translateDynamic('reports.analytics.spentOfIncome', {
+                  expense: moneyInline(expense, currency),
+                  income: moneyInline(income, currency)
+                })}
       </DirectionalText>
     </ReportCard>
   );
@@ -951,18 +974,21 @@ function BudgetCard({
   currency,
   direction,
   hidden,
+  pending,
   remainingMinor
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
+  pending: boolean;
   remainingMinor?: number;
 }) {
   const theme = useTheme();
   const hasBudget = remainingMinor !== undefined;
-  const label = hasBudget
-    ? translate('reports.insight.budget_performance')
-    : translate('reports.analytics.setBudget');
+  const label =
+    pending || hasBudget
+      ? translate('reports.insight.budget_performance')
+      : translate('reports.analytics.setBudget');
   return (
     <Pressable
       accessibilityRole="button"
@@ -1002,15 +1028,19 @@ function BudgetCard({
           style={styles.navigationSubtitle}
           muted
         >
-          {hasBudget
+          {pending
             ? hidden
               ? translate('designSystem.privacy.hidden')
-              : formatMinorAmount(
-                  remainingMinor,
-                  currency,
-                  usePreferenceStore.getState().locale
-                )
-            : translate('reports.analytics.setBudgetHint')}
+              : '—'
+            : hasBudget
+              ? hidden
+                ? translate('designSystem.privacy.hidden')
+                : formatMinorAmount(
+                    remainingMinor,
+                    currency,
+                    usePreferenceStore.getState().locale
+                  )
+              : translate('reports.analytics.setBudgetHint')}
         </DirectionalText>
       </View>
       <AppIcon
@@ -1378,6 +1408,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 18,
     writingDirection: 'ltr'
+  },
+  chartPlaceholder: {
+    height: 150
+  },
+  chartDatesPlaceholder: {
+    height: 18
   },
   chartDateRow: {
     direction: 'ltr',

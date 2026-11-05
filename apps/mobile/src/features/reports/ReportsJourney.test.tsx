@@ -14,6 +14,7 @@ import { renderWithProviders } from '@/test-utils/render';
 import { ReportsScreen } from './ReportsScreen';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { reportsService } from '@/services/reports-service';
+import { buildFinancialReport, resolveReportPeriod } from '@/domain/reports';
 import { usePreferenceStore } from '@/state/preferences';
 
 jest.mock('expo-router', () => ({
@@ -245,7 +246,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   expect(screen.getByText('التدفق المالي')).toBeTruthy();
   expect(screen.getByText('نسبة التوفير')).toBeTruthy();
   expect(screen.getByText('الميزانية')).toBeTruthy();
-  expect(screen.getByText('تعيين الميزانية الشهرية')).toBeTruthy();
+  expect(await screen.findByText('تعيين الميزانية الشهرية')).toBeTruthy();
   expect(screen.getByTestId('reports-assistant-card')).toBeTruthy();
   expect(screen.getByText('المساعد الذكي')).toBeTruthy();
   expect(
@@ -296,6 +297,59 @@ test('report AI action opens the assistant with the current report context', asy
       returnTo: '/(tabs)/reports'
     }
   });
+});
+
+test('keeps report cards and timeframe controls visible during the first pending report without invented zero values', async () => {
+  changeLocale('en');
+  useReportsViewState.setState({
+    followToday: false,
+    anchorDate: '2026-08-09'
+  });
+  const report = buildFinancialReport({
+    period: resolveReportPeriod({
+      kind: 'monthly',
+      anchorDate: '2026-08-09',
+      timeZone: 'Asia/Riyadh',
+      now: Date.now()
+    }),
+    transactions: [],
+    categories: [],
+    currencyCode: 'SAR'
+  });
+  let finish!: (value: typeof report) => void;
+  const pending = new Promise<typeof report>((resolve) => {
+    finish = resolve;
+  });
+  const read = jest.spyOn(reportsService, 'getReport').mockReturnValue(pending);
+  const balances = jest
+    .spyOn(coreFinanceService, 'getHomeSummary')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithProviders(<ReportsScreen />);
+  try {
+    expect(view.getByTestId('reports-net-worth')).toBeOnTheScreen();
+    expect(view.getByText('Cash flow')).toBeOnTheScreen();
+    expect(view.getByRole('button', { name: '1W' })).toBeEnabled();
+    expect(view.queryByText(translate('reports.state.loading'))).toBeNull();
+    expect(view.queryByText('0.00')).toBeNull();
+    expect(view.queryByText(translate('reports.state.empty'))).toBeNull();
+    expect(
+      view.queryByText(translate('reports.analytics.setBudgetHint'))
+    ).toBeNull();
+    fireEvent.press(view.getByRole('button', { name: '1W' }));
+    expect(view.getByRole('button', { name: '1W' })).toHaveAccessibilityState({
+      selected: true
+    });
+    await act(async () => finish(report));
+    await waitFor(() =>
+      expect(view.getAllByText('0.00').length).toBeGreaterThan(0)
+    );
+    expect(view.queryByText(translate('reports.state.loading'))).toBeNull();
+  } finally {
+    view.unmount();
+    finish(report);
+    read.mockRestore();
+    balances.mockRestore();
+  }
 });
 
 test('shows the financial report and assistant before unrelated balances finish loading', async () => {
@@ -369,13 +423,11 @@ test('keeps scoped assistant analysis available when an account report fails', a
   const account = accounts[0];
   expect(account).toBeDefined();
   useCoreFinanceViewState.setState({ selectedAccountId: account.id });
-  const spy = jest
-    .spyOn(reportsService, 'getReport')
-    .mockRejectedValue(
-      Object.assign(new Error('Unsupported scope'), {
-        code: 'report_account_scope_unavailable'
-      })
-    );
+  const spy = jest.spyOn(reportsService, 'getReport').mockRejectedValue(
+    Object.assign(new Error('Unsupported scope'), {
+      code: 'report_account_scope_unavailable'
+    })
+  );
   try {
     const view = renderWithProviders(<ReportsScreen />);
     expect(
@@ -513,7 +565,7 @@ test('budget card shows the aggregate remaining value when the month has budgets
   const screen = renderWithProviders(<ReportsScreen />);
 
   expect(await screen.findByText('Budget remaining')).toBeTruthy();
-  expect(screen.getByText(/1,000\.00/)).toBeTruthy();
+  expect(await screen.findByText(/1,000\.00/)).toBeTruthy();
 });
 
 test('2026-08-10 native regression preserves report scroll context after drill-down navigation', async () => {
