@@ -1,0 +1,208 @@
+# Current checkpoint — 5 November 2026, customer 104 SMS and notification proved; latency open
+
+This prefix supersedes the historical checkpoints below. Speak Arabic, record evidence in English, preserve all original data, keys, sessions, pending operations, Voice001, UI/Accounts changes and inherited documents. Read private receipts before any repeat.
+
+- Actual application source is `ed0ab5e1a63a12676c945de57f926469038dc9a0` on the same `codex/voice-promoted-operating-2026-10-13` branch. Later documentation commits may follow. Customer 104 APK SHA-256 is `4636466ad136f655ad747701d3c7b3dc2f5379a6a652efac8da7491d488b5b66`, 49,503,110 bytes; Hermes `831e925ad21dc370525ce46fd01f048a78d3945d69890aaf5a8e6a3f83c00c8d`. Normal in-place installation preserved owner user 0, appId 10321, original first-install time, saved owner session and original balances. Installed equals delivered at `D:/Masarifi-delivery-2026-11-04/مصاريفي وراتبي.apk`. The adjacent identity file records limits; older delivery bytes were verified and retained privately.
+- R8 startup cause was proved in the actual 101 DEX: Expo background notification consumer became abstract and lost its reflection constructor. The narrow keep rule is physically qualified in 103/104. The production-only local confirmation omission is fixed by the exact-origin guard correction. Consent uses a fresh identity per command, reused at most 15 seconds inside that scope with every owner/session check retained. Five changed app files passed 97 focused tests/types/scoped lint/format and independent review with no Critical/Important issue. Reuse the unchanged full 611-suite/4889-test and 88-native-test evidence; do not rerun full tests or rebuild merely to resume.
+- Actual 104 OS notification completed one owned synthetic -243 SAR minor-unit posting, one accepted history and one confirmation event; native V4 notice was visibly present. Real SMS sent by the user from another phone also completed on its first attempt with exact fixture reference, one owned -257 SAR posting/history/event, and Android notice `دفع · 2.57 SAR`. Notifications were OFF during the SMS test. Real SMS session `1d5a081d-a7ff-483a-983a-4e5169bcb82c`; notification session `de72da0c-1030-43dd-b6cc-6c94fcbf43fc`. These are owned synthetic cases, not replays of original pending work.
+- Synthetic expenses were refunded through the primary UI: eight fixture transactions, net zero, matching owners. Original cash default and both sources OFF/revoked were restored. Retain all rows/audit trails. Android secondary user 10 remains untouched; no fresh OAuth was performed, and it remains out of scope.
+- SPEED IS STILL OPEN. Real SMS receipt to hosted completion was approximately 11.06 seconds; receipt to local notice 17.00 seconds. Release-104 source-toggle XML completion observations improved partially but still take roughly 9–16 seconds including capture overhead. A bounded metadata-only passive loopback probe during SMS-off measured eight upstream responses in 18.96–172.01 ms; no service/firewall configuration changed, no payload/header/token was logged. Most observed waiting is outside those API execution intervals. Do not invent a server bottleneck or remove identity/lease/consent checks to improve a number.
+- The latest user explicitly requested continuing on the SAME INSTALLED VERSION. No additional build/install is authorized by that instruction. Native SMS scheduling delay and client request composition are inside the binary; a future client correction requires resolving that constraint before applying another update. Do not create a new app, new Android profile, new test variant, or resume historical Benchmark campaigns. Delivery 104 is a tested correction with an explicit remaining latency gate, not unrestricted Production readiness.
+- Hosted forward/API/import.parse/DNS/TLS are already executed under the reviewed package approval. Never replay the committed forward or old original imports. SSH remains closed: a later console read showed 32 rules and no temporary rule. Browser 4 console access worked during this continuation; do not repeat the earlier claim that Browser Use is unavailable without checking current state. The 50-second passive timing process terminated naturally; its own files remain in `/var/tmp/masarifi-production-artifacts-20261105-97e66588/response-probe-v1`. No new service or firewall change was made.
+- Public exact scope/evidence: `docs/releases/2026-11-05-customer-104-acceptance.md`. Private `W` remains the workspace defined below. Main receipts include `task9-customer-104-speed-*-qualified.json`, `task9-customer-104-source-index-qualified.json`, `task9-customer-104-physical-qualified.json`, `task9-customer-104-delivery-qualified.json`, the real-SMS receipts and USB action markers. The first malformed 104 notification contained only `Paid` due to ADB quoting and created no financial import; preserve that harness failure. Refund input automation also stopped before save when its assertion detected incorrect text; correction used observed native keyboard keys and only the verified 2.57 amount was submitted.
+- Publish only the owned source/evidence documentation to correct remote `ratibi`, preserving inherited dirty files. Source commit is already local; publication must be verified through `git ls-remote` after the evidence commit. Keep Production readiness false while latency and the explicitly listed remaining acceptance/recovery/legal gates remain open. Recovery APK 102 and previous 103 are lower counters and cannot be installed over 104; never use downgrade flags.
+
+## Historical checkpoint — Redmi tracking acceptance was open at this point
+
+This section is authoritative. The checkpoints below are historical. Read the full handoff and reconcile the private receipts before any repeat.
+
+- The user approved the concrete release package at 09:42 UTC. The five-file hosted forward committed at 09:59 UTC after a guarded first attempt rolled back. The corrected guard froze three equivalent host metadata representations and preserved every ownership, lease, and identity check. The original migration history, membership graph, and all 22 bounded original table fingerprints matched across the commit. The API, public DNS/TLS route, and scoped `import.parse` worker are running. The original 27 services were preserved. Receipts are in `W/task8-live-forward-committed-qualified.json`, `W/task8-production-routing-reconcile-stdout.private.json`, and `W/task8-import-worker-start-v1-stdout.private.json`. Do not replay the forward or original pending operations. Voice001 was preserved.
+- The primary Redmi app was updated in place through bridge 100 and then final 101. Exact final APK SHA-256 is `29f087f9994016e21821629a9ca79802b83559886b18b1c936d65227427f0f19`. Android application ID and original first-install time matched throughout. Saved authentication, Home, and all three original account balances were visible after both updates. The ordinary UI and a read-only hosted query confirmed a synthetic SAR ledger account, an expense of 137 minor units, an edit to 152, and a refund of 152. Posting amounts `-137`, `-15`, and `+152` sum to zero on the test account. See `W/task9-customer-ledger-qualified.json`. The named synthetic account and its audit trail are retained.
+- Physical Tracking acceptance remains open. The owner app showed a sync error and the SMS source stayed off. Android logged `tracking_sync_failed`, phase `status`, code `unknown`, including after the existing owner session returned. A bounded hosted read confirmed tracking preferences remain paused and no production tracking installation was created for this owner. The authenticated client error is not yet attributed to HTTP response handling or native configuration. Hosted readiness responds 200 and unauthenticated Tracking status responds 401 over verified TLS. Neither is a substitute for the physical journey.
+- The user narrowed scope to their existing primary session. Android is back on owner user 0 and the primary APK opened Home with the saved session. An isolated secondary user was created under the previous explicit approval, with the same qualified APK enabled for that user. Fresh Google OAuth was not executed and is out of the current scope. Keep the secondary profile untouched. No primary clear, uninstall, logout, credential change, or identity override occurred. See `W/task9-return-to-owner-result.json`.
+- The exact temporary SSH rule `masarifi-approved-20261105-09c2` was removed, 33 to 32 rules, with all four original firewall files verified. See `W/task8-close-approved-09c2-ssh-stdout.private.json`. Browser control reported disabled in Work settings. Further hosted diagnosis should use bounded log access when available. The immediate task is to correlate the existing owner app's Tracking failure with the actual request and native phase. Keep the delivery file and remote branch at their last verified state until customer Tracking evidence is available. No repeat build, full suite, or Benchmark campaign is warranted by this checkpoint.
+
+## Earlier preparation checkpoint — approval was pending at that point
+
+This checkpoint supersedes the historical “NEXT” and current-state instructions below. The original handoff is retained beneath this section and in the private evidence backup. Read the complete document, but do not replay completed stages.
+
+- Branch remains `codex/voice-promoted-operating-2026-10-13`. Latest mobile application code is local commit `2d8b5dfefedecd62ff8c48b01c12f89dfee43867`; subsequent review-package documentation may add local commits without changing that application code. Remote was read at `bc2c9c6489f6b31c72d719d5d31dd839d407723f`; NO PUSH.
+- The proved finalizer chain is fixed on the isolated current restore. Owner context was inserted while retaining lease/owner/date/correlation/ACL layers. Essential helper/domain/semantic and exact production consent forwards are qualified. Tests18/23/40/43 pass; the combined five-file transaction reproduces the full qualified catalog and rolls back, with original logical data/history/memberships unchanged. No hosted SQL/deployment/activation was executed. Do not rerun qualified fixtures or rebuild the restore.
+- Independent review exposed and closed latest-offline-consent, cold-native-purge and interrupted-database-purge composition defects. Latest desired consent is durable before network/local preference writes. Cleanup-only recovery preserves exact owner/session/disposition/revision and native generation checks without capture admission. The database-purge-ready phase is written only after native/audio removal. Native and recovery APKs include the same new durable record format. No verified Critical/Important finding remains from the focused re-review.
+- FINAL SOURCE GATES COMPLETE:611 mobile suites/4889tests, natural exit0;88 native tests; types/lint0; exact sourcepins checked. Do NOT rerun these unchanged inputs. Prior unchanged API/source checks remain reusable. Strict Gitleaks8.24.3 history scan0findings; staged release-package scan is recorded separately.
+- CURRENT CUSTOMER ARTIFACTS COMPLETE and statically qualified, not installed: bridge100/API33 SHA0872d72fcb5a5d4b5463ad54dc9e453d6292e1844460aff07580b55fbe93ab5a; final101/API24 SHA29f087f9994016e21821629a9ca79802b83559886b18b1c936d65227427f0f19; compatible recovery102/API24 SHA1d73c7e4f3bb13564288a5cdf431f2463aee4a16e94d22826de889bdcef555f2. All three share Hermes439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41 and embedded config. Exact paths/certs/lineage/static proof are in `ops/releases/2026-11-05-production-core/signing-manifest.json`. Same original keys/lineage, installed-data capability only. Customer source tree `C:/mrc1105`; source2d8,2968pins. Obsolete97 candidates/evidence are retained but must not be installed as current. All known build/test jobs are settled.
+- Backend image/source97 is reusable because2d8 changes no backend/image input. Exact OCI digest/config hashes/routing and bootstrap syntax are qualified; all27 original serving containers and effective Nginx remained unchanged. Execution inputs staged ONLY in own `/var/tmp/masarifi-production-artifacts-20261105-97e66588/release-execution-inputs-v1`. No services started/stopped/reloaded. Certbot4.0.0/two existingACMEaccounts; production DNS/certificate absent.
+- COMPLETE REVIEW PACKET: `docs/releases/2026-11-05-production-core-review.md`, package README/runbook/qualification/signing manifests, and SHA256SUMS.json SHA256 `68000f297d4eb08ad2bc052971849757dcd9e4b571149c197c5061b2a127524d`. This is a prepared execution package, NOT a production-readiness declaration. Obtain the explicit final approval the user requested before executing hosted changes or primary transition; no such approval has been received.
+- PRIMARY AND DELIVERY UNCHANGED, freshly read09:18Z: primarya437.../0.0.1/code2; deliverye9d2... remains old. No primary clear/uninstall/logout/install/lifecycle action. Preserve all original data/keys/sessions/pending work/Voice001 and inherited docs/UI/Accounts changes. No delivery replacement before actual current customer proof. No Voice001 replay.
+- ACCESS IS CLOSED AGAIN: removed ONLY new temporary rule comment `masarifi-readiness-20261105-b27d0803` at09:22:56Z,33→32rules and all4UFWfiles exact original bytes/mode/UID/GID. Receipt `W/task5-close-current-temporary-ssh-stdout.private.json`. DO NOT repeat cleanup or old consumed dispatches. Browser4 WebConsole415619057 and hPanel415619053 closed; final inventory onlyNewTab415619048. No authenticated console continuity. On approved execution, verify source and restore only the same bounded /32 procedure; root/password SSH remain off.
+- Next action is package approval, then fresh preflight/current backup, one approved hosted execution, actual primary bridge→final continuity/core/Tracking tests, then delivery/handoff and same-branch push to `ratibi` after proof. Proposed fresh OAuth target is one new secondary Android test user (phone reports max4), after slot/session-policy checks and explicit scope approval; no profile was created/switched. Google private inputs/legal acceptance remain human-only. Primary must not be logged out. FreshOAuth/distinctVoice/public legal operator/notices/Storage-provider-key recovery limitations remain OPEN.
+- Essential new receipts: `task7-final-code-gates-qualified.json`, `task7-final-source-review-qualified.json`, `task5-ledger-compensation-v4-*`, `task6-customer-v2-*-static-qualified.json`, `task6-customer-v2-redmi-readonly-baseline-qualified.json`, `task5-final-release-stage-v1-*`, and `task5-close-current-temporary-ssh-*`. `W/progress.md` contains chronological failures and corrections. Read receipts before any action; no automatic readiness inference.
+
+## Historical handoff, preserved
+
+# Production core handoff — 5 November 2026
+
+Read this document completely before acting. Evidence is English; speak Arabic with the user. This supersedes the source, device, authentication and SSH state in the historical `2026-11-04-google-signin-loading-handoff-en.md`. Keep that original document and all private evidence unchanged.
+
+## User direction: prioritize essentials
+
+The user approved the production-readiness implementation plan and safe owner separation, and now explicitly requests a new-chat handoff focused on essential work to save time. Finish Google/session continuity, safe Tracking end to end, ordinary core financial reads/writes, backend compatibility, and the exact final APK. Defer incidental polish and unrelated broad audits. Do not restart closed performance/Benchmark campaigns, rebuild already-qualified databases, or repeat full suites merely because this is a new chat. Reuse completed proof when its inputs still match. Never turn untested essential paths into passes to shorten the schedule.
+
+**Production remains NOT READY.** The real customer APK has not been updated to current code, the hosted corrections have not been deployed, the final feature/Tracking matrix has not run, delivery is old, and the branch has not been pushed.
+
+## Exact starting state
+
+Repository: `D:/Masarifi-integration-2026-10-10`.
+
+- Branch: `codex/voice-promoted-operating-2026-10-13`.
+- HEAD: `97e66588b2b516ae8c67e285f8439be591439dd6`, local only. Index empty at handoff.
+- Correct remote: **ratibi**, `https://github.com/masarifiratibi-spec/masarifi.ratibi_app.git`. Do not use origin; it points to a different repository.
+- Latest commit binds Production builds to the exact retained Clerk instance/key hash/package/EAS project; it does not alter sessions or owner identities.
+- Preserve all inherited dirty/untracked documents, release files, UI and Accounts improvements. Do not bulk stage docs or discard/stash/reset/clean anything. The original preflight and preservation manifests are in the private workspace.
+
+Authoritative implementation plan: `docs/superpowers/plans/2026-11-04-production-apk-readiness.md`.
+Design: `docs/superpowers/specs/2026-11-04-production-apk-readiness-design.md`.
+Private workspace, abbreviated **W** below:
+`D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-11-04-production-apk-readiness`.
+Read W/progress.md, especially its final entries, and the active task briefs. Tasks1–3 are source-qualified; Task4 physical acceptance, Task5 hosted package, Task6 customer transition and Task7 final delivery remain open.
+
+## Hard preservation boundaries
+
+No primary app clear, uninstall, logout, key replacement, identity adoption/aliasing, weakened owner checks, deletion/replay of pending operations, or Voice001 replay/replacement. No hosted migration/deployment/Production activation before the concrete package is reviewed and approved. Actual primary signer transition also waits for its concrete customer artifacts and approval. Synthetic signing authorization does not authorize that primary update. Keep existing Clerk identities/domain, all original data, keys, sessions and pending work.
+
+Payments/subscriptions/iOS/Play publication remain outside this APK release. Accepted PIN timing/TalkBack/ZIP dispositions are exceptions, not fresh passes. Do not resume Benchmark, capacity or performance comparisons.
+
+Protected Metro originally PID25876, start2026-11-03T15:27:37.2846681Z, port19081. On this resume that PID and listener were already absent. No agent stop/restart was sent. Do not blindly restart it or run the old consumed C7 builder. Reconcile current processes before any new build. All new fixture builds and device steps listed below reached terminal receipts; no known build is still running.
+
+## Authentication and primary phone
+
+Google SDK session restoration succeeds. The original Welcome/loading failure was an owner-restoration boundary: retained Tracking data carried an owner identity different from the current SDK principal, and its protection blocked the whole shell. The user says the same Google account was always used; do not infer that they switched accounts or reassign retained data. Approved separation gives the verified current owner its own namespaces while preserving foreign/unknown records and keys.
+
+Physical session restoration/Home/Accounts access was proved earlier on the fa13 build. This is not fresh OAuth proof or proof that the latest code is installed.
+
+Fresh read-only handoff check, 5Nov07:49Z:
+
+- Redmi serial `f66a40694eca`, model23076RN8DY/API35.
+- Primary `com.masarifi.mobile`: still fa13cc0f, Staging0.0.1/code2, APK SHA256 `a4378391e829540fb4c4e7f6345c2806b6c5da10e9437dd65e5e1eb2d391f89a`.
+- Delivery `D:/Masarifi-delivery-2026-11-04/مصاريفي وراتبي.apk`: still old bc2 build, SHA `e9d2dbb77ab98447ed7287b41f6f22a305acacc6e968d74b0275ed3c282d10d3`. Do not present it as current or ready.
+- No primary lifecycle action was used during this continuation. Current status is recorded in W/handoff-20261105-current-state.private.json.
+
+## NEXT: repair the proved Tracking finalizer chain on the clone
+
+This is the most important unfinished technical step. No new phone build is needed to diagnose it.
+
+Current restored chain: top `finalize_import_session` calls `before_correlation_review`, whose body is the date-ambiguity review layer calling `before_date_review`. The canonical chain additionally inserts owner context between those names. Do not replace/drop the existing date or correlation layer.
+
+Read W/task5-worker-context-red-stdout.private.json. A new synthetic-namespace copy of canonical test067 ran16TAP cases: three behavior failures, then an absent-signature error stopped the final two cases:
+
+- Valid server lease fails `AUTH_TOKEN_INVALID` in guarded configuration lookup.
+- No expected `configuration_stale` review is produced.
+- Frozen-owner finalization returns authentication error instead of `PROFILE_INACTIVE`.
+- `private.finalize_import_session_before_owner_context(uuid,uuid)` is absent.
+
+All bounded original data/history/membership fingerprints were equal after rollback. This is genuine behavioral RED, not a fixture setup failure.
+
+Exact source/reference facts:
+
+- Current `before_correlation_review` body MD5-LF `e00e5e7789512e91d241e88dce1cd686` equals the canonical intended `before_owner_context` inner **exactly**.
+- Current top body `9f19a8e2d79483b9695bebc213367ec9` equals canonical `before_production` base.
+- Canonical owner-context wrapper body `d63e554c1f83c4ccd9a57db153c294aa` comes from `supabase/migrations/20261024080700_report_closure_tracking_worker_context.sql`.
+
+Smallest planned correction: under frozen metadata/advisory lock and exact temporary-membership restoration, rename only the existing `before_correlation_review` to `before_owner_context`; create the canonical owner-context wrapper at `before_correlation_review`; retain owner-only execution on both inner wrappers and preserve the top/date/correlation bodies. Derive context from a valid server lease; preserve prior claims on success/failure. Do not bypass assert_active_profile.
+
+CLI2.116.0 already generated an **EMPTY** private file, not yet populated or dispatched:
+`W/task5-forward-owner-context/supabase/migrations/20261105074648_guarded_tracking_owner_context_chain.sql`.
+Receipt: task5-owner-context-migration-create-exit.json. Do not execute the empty file or repeat migration creation.
+
+Reuse the reviewed transaction/membership packaging pattern from the qualified domain artifact below. Freeze the top, date and current correlation definitions/grants; require the new inner name absent; preserve the old inner body/ACL byte semantics; assert exact postconditions. Qualify rollback and the real PostgreSQL NOSUPERUSER executor, then commit only on the current clone. Rerun W/task5-current-worker-context.test.sql under a NEW stage. Expected complete GREEN is18TAP cases. W/task5-run-current-clone-suite.py captures real results and rejects `not ok`, SQL errors and original data/history/membership drift. Never replay an existing stage name.
+
+## SSH, browser and server access
+
+SSH was restored using the existing operator key and strict known-host pinning. Network root/password SSH remain disabled; only masarifi is admitted. No key/reset/reboot was performed.
+
+**The temporary firewall rule has now been removed.** Exact source was2.88.146.124/32 ->187.77.81.97:22/tcp, comment `masarifi-readiness-20261105-977c81b7`. Cleanup at07:49Z removed only that rule, returned33rules to32, and all four UFW files matched original bytes/mode/UID/GID. Evidence: W/task5-close-temporary-ssh-stdout.private.json and terminal/dispatch. Do not repeat cleanup. New SSH connections are expected to be blocked until bounded access is restored.
+
+Before-state file retained on guest: `/root/masarifi-readiness-20261105-ssh-before.json`, root0600, with exact original UFW files. Do not blindly restore whole firewall files or remove old rules.
+
+The user authorized continuing bounded SSH access from this computer for this work. For continuation, verify the current direct workstation source and reopen only that /32 to the same host22 as needed; never broaden recipients or allow password/root SSH. Follow current tool confirmation rules if scope changes. Remove only the new rule again at session end.
+
+Computer Use now works through mcp__cua_repl; do not return to standalone Playwright for UI. Chrome browser3/profilemasarifi.ratibi was used. **Old console/hPanel tabs auto-closed after interruptions**: final inventory has only New Tab415619048. Old handles415618954/415618950 are stale. Do not assume an authenticated root console still exists. Reuse browser3, reopen hPanel and its actual VPS Web Console; normal browser authentication may persist. If guest credentials are needed, user enters them privately; never request password in chat, reset it or automate changing it.
+
+VPS2006836 /187.77.81.97 /srv2006836. hPanel overview known URL `https://hpanel.hostinger.com/vps/2006836/overview`. Use visible navigation for a new console, not stale auth tokens. After CUA outcome, obey its completion_summary rule.
+
+Strict SSH pattern is implemented in W/task5-ssh-readonly-run.py: OpenSSH `-F NUL`, identity `C:/Users/DELL/.ssh/masarifi_staging_ed25519`, known hosts `C:/Users/DELL/.ssh/known_hosts_masarifi_staging`, BatchMode/StrictHostKeyChecking, UpdateHostKeys=no, no forwardings, usermasarifi, `sudo -n python3 -B -`. Do not print key bytes or weaken host verification. The very first task5-read-host.py is consumed and failed before remote execution; do not rerun it.
+
+## Current restore and backup: completed proof to reuse
+
+Project `qcffvfbpzvpwcwxwjyro`, PG17.6, hosted history174. Hosted schema/history has NOT been changed by this work.
+
+Current full custom backup was taken5Nov06:25Z using existing cached PG17.6 clients, TLSverify-full plus the existing CA. Client TLS1.3 was verified with conninfo; pg_stat_ssl on the pooler's backend showsfalse and is not client TLS evidence. Pooler startup read-only options were ignored, so explicit read-only transactions were used for probes; pg_dump uses its own consistent transaction.
+
+Encrypted off-host artifacts are under W/task5-current-backups, ACL limited to this Windows user/SYSTEM. Database24950395bytes plaintext, SHA `2bbb3d121c9e815c38e6c6331383cd0642f29d43d45206b548434fefbe1678b0`; roles7582bytes; configuration115816bytes. All authenticated age decryption and exact length/SHA checks passed before pg_restore. Config includes existing server configuration/private deployment state; never display or commit it. Age1.3.2 uses the existing SSH identity/recipient; no new production key. Decryption can emit partial plaintext before final authentication: never pipe unqualified output into SQL.
+
+Roles snapshot excludes role passwords; existing app credentials are in the encrypted config backup. Storage object bytes and provider-managed external/Vault recovery material are NOT established by pg_dump. Do not call this complete disaster recovery yet.
+
+Current isolated clone:
+
+- Container `masarifi-readiness-restore-20261105-97e66588-bootstrap-v3`.
+- ID `a12f5e8af595de2c4ec88d1e446a101028426613b119f8e21b1bfa8153f79a99`.
+- Volume same name + `-data`; system identifier7704573521841889297.
+- Image `sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b`, actual PG17.6 Nix binaries under `/nix/var/nix/profiles/default/bin`.
+- Network NONE, no ports, read-only root, no capabilities/no-new-privileges, postgres OS user,1GB/.5CPU/128PID, restartno, socket/tmp. Cron active-job launch OFF. Connect only using docker exec psql -X -h/tmp -U supabase_admin -dpostgres. Never attach a worker/provider.
+- Full custom restore succeeded in one transaction, exit0/no stderr. Original supabase_admin bootstrap OID10 is required to preserve GRANTED BY semantics; only its duplicate CREATE ROLE was omitted. Hosted OID10 was independently verified by read-only Supabase query.
+- pg_dump omitted one equivalent explicit owner-only default ACL. A guarded owner self-GRANT on private.account_upload_erasure_tombstones restored exact original representation; no new grantee/privilege. Then ALL frozen helper prerequisite metadata matched.
+- Three exact missing helpers were added on this clone only, SHA8544f0d66e294ccaea96ef53739895ed2e594c6c1891804a5ea9a4db2db56e6a. Membership/history hashes unchanged. New-namespace contract passed45parser cases,9lease rejections, nonsuperuser worker/API/owner isolation and selector cases; all synthetic writes rolled back and six bounded data/history hashes equal.
+- The three domain corrections below are now committed on this clone too. Production installation consent is NOT applied.
+
+Failed new targets were retained: initial socket bootstrap container55f27088 exited; socket-v2 container40449a7a remains with partially restored roles, no application restore. Do not reuse/reset them. Do not restart old November1/2 comparison containers.
+
+Local Docker Desktop still fails on sailor-ingest.sock access. Do not factory-reset, delete sockets, wipe volumes or shut down WSL. Do not spend the next chat debugging Docker unless essential; the current network-none remote clone is usable once SSH is restored.
+
+## Domain corrections already qualified — do not redo
+
+Current-clone RED: malformed transfer fees3/3 failed controlled error contract; reminder delivery4/5failed. All8cases GREEN after the exact selective patch. Valid PostgreSQL timestamp now works; malformed dates/offsets safely exclude; fee parsing occurs inside controlled validation while preserving existing tracked provenance/multiline notes.
+
+Qualified private artifact:
+`W/task5-forward-domain-corrections-reviewed/supabase/migrations/20261105073730_guarded_existing_domain_corrections.sql`, SHA `5f881bd55f0ca13bb432d4bd909983cad75882f89ddefe2cf8b4d4b60a89e23d`.
+Only list_reminder_candidates, reminder_delivery_eligible and transfer_funds change. Frozen complete target metadata, PG17.6, advisory lock5574319470126001 and exact grantor-specific membership restoration are enforced. Actual session/current rolepostgres NOSUPERUSER was used for qualification, Migration owner for DDL. Rollback restored all target metadata; separate commit and8GREEN cases passed; nine bounded data/history/member fingerprints unchanged. Old unqualified draft is retained separately; never use it.
+
+Receipts: task5-domain-corrections-rollback, task5-domain-corrections-apply, task5-fee-validation-red/green, task5-reminder-delivery-red/green. Green source SQL is reusable; no further rerun without change is needed. No historical migration was stamped, no canonical migration file edited, no hosted SQL dispatched.
+
+## Remaining backend essentials after owner context
+
+Comparison evidence: task5-current-history-capability-map-v2.private.json; task5-retained-canonical-comparison-v2.private.json; task5-legacy-function-body-comparison.private.diff. The first provisional map and zero-function extraction are NOT accepted. The corrected retained snapshot has183history names/SQL cores matching current Git and521function bodies; no old DB/controller was started. Treat it as a comparison guide; check actual behavior/grants.
+
+Three further meaningful legacy body differences remain to reconcile: detect_salary_receipts date-edit handling, read_assistant_agent_data currency-separated largest ordering, tracking_original_compensation exact committed UUID lookup. Reuse committed fixes and focused tests, not whole historical migrations or speed campaigns. The fee and reminder differences are already fixed on the clone.
+
+Then qualify exact `20261104180948_tracking_production_installation_consent.sql` against the current restored state with guards, preserving existing DEV rows/old callers. Its new table is absent; this migration was previously qualified on canonical fresh targets, not current hosted state. Do not blindly invoke migration up/push or bypass ordered-history guards. Prepare accurate selective-forward/history provenance separately.
+
+All27original serving containers retained exact image/start timestamps at07:01Z. W/task5-effective-host-routing-workers-stdout.private.json captures current routing and job scopes. Effective Nginx SHA b61f04efa6f90533354705a1e4f8cdd4b6c68d77433449189d505eccf50ae35b. Several old route-specific APIs/workers remain necessary; do not stop them by name or start an unrestricted replacement worker. Production package needs exact images/config/job ownership, existing pending-work preservation, legacy development-route restriction, DNS/TLS/privacy/deletion pages and rollback. Hosted execution still needs approval of that concrete package.
+
+## Physical signing qualification COMPLETE for the separate fixture
+
+W/task6-redmi-signing-sequence-qualified.json is the aggregate. Six real Redmi outcomes:
+
+1. Repaired Dev1 baseline PASS.
+2. Plain Production2 without lineage rejected; data unchanged.
+3. API33 bridge2 PASS, signing history Dev->Production.
+4. Production-only/min24 manifest3 PASS.
+5. Higher Production rollback4 PASS.
+6. Higher Dev5 retake rejected; data unchanged.
+
+Fixture package `com.masarifi.signingqa20261105`, labelMasarifi SIGNING QA, offline/nondebuggable/no Internet/SMS/audio intake. Still installed at version4, APK SHA `b965f279a0bc73504c9b8f16fb2e8c7f74f9e47ee3fdf606398e4a6b41867bc4`. UID10336 and firstInstallTime stayed equal. SecureStore keys, synthetic Clerk token/resource caches, SQLCipher pending rows and native encrypted current/foreign records retained exact fingerprints. Primary APK stayed unchanged. These are synthetic sessions, not a new real OAuth acceptance.
+
+Two important failed attempts are preserved: the initial fixture had a raw-path/File URI bug (customer code already normalizes it); repaired private fixture uses the same normalization. The original bridge was rejected DUPLICATE_PERMISSION for the AndroidX self signature permission. The qualified bridge-only min33 overlay removes the pre33 fallback permission; native RECEIVER_NOT_EXPORTED protects API33+. Final min24 APK keeps the fallback. **Do not enable old-key permission/rollback/auth capabilities** to make the bridge install. Lineage retains installedData only. Static bridge/final Hermes match is recorded in task6-bridge-overlay-static-qualified.json. Do not copy SigningQualification.kt or the private QA entry into customer artifacts.
+
+Existing Dev certfac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c; existing Production cert886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57. Credentials/lineage/backups are under W/task6-credentials-only with restricted ACL. Never print/store passwords or keys in Git; generate no new signing key. Existing lineage SHA378b4af8b8e6021728711a8c001dcc960a368e6d6ee1c532ba79d160560dff06. Synthetic source frozen58bdf163 plus fixture-only URI/bridge repair; customer code97 is not yet built. API24–32 legacy upgrades remain separately unqualified; Redmi proof is API35 only.
+
+## Source gates to reuse, final obligations
+
+- Task4 source67813aa4: Mobile611suites/4877tests; native85;217focused cleanup cases;132opt-in API cases individually passed; type/lint/boundaries green. Whole API earlier475suites/3630tests passed with132skips separately qualified later. These are not exact-final-customer-artifact acceptance.
+- Build policy97:12policy cases/20related cases green; exact retained Clerk binding, Arabic/package identity, version1.0.0 config and all automation/diagnostics false. Production API origin used in config proof is proposed, not deployed DNS/TLS proof. Clerk issuer/JWKS/Google/Firebase continuity still needs final checks.
+- Voice001 was strongly correlated read-only to a completed empty batch with no linked financial effect. No immutable media/operation hash correlation and no utterance/parser acceptance. No replay or substitute recording. Keep final voice acceptance open until the permitted distinct test is settled.
+- Build customer bridge/final/higher-version rollback from the exact current source using existing production key; keep all QA code out. Qualify actual primary transition only after concrete approval. Version1.0.0, unused counters above all primary builds; do not call a Staging build Production.
+- Actual final Redmi core reads/writes and Tracking SMS/notification->queue->API->worker->ledger->confirmation, dedup/offline/restart/permission/re-enable; preserve original user rows. Test saved Google session and fresh OAuth on an independent clean target without phone logout.
+- Finish required exact-source checks and one fresh whole-change review at the end per approved plan; do not start parallel agents for unrelated work.
+- Only after actual final proof: replace delivery APK/identity, verify installed=delivered=latest code, push this same branch to ratibi, verify remote. Until then report open gates plainly.
+
+This handoff and the Arabic restart prompt are new local files; no source commit, push or production activation was made for this handoff. Keep private W intact.
