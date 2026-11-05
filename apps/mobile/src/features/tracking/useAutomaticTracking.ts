@@ -23,8 +23,43 @@ import {
   automaticTrackingReadKey
 } from '@/state/automatic-tracking-view-state';
 import { useAppShellStore } from '@/state/app-shell';
+import {
+  captureTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 import { TrackingError } from '@/services/contracts/automatic-tracking-service';
 import { withReadContext } from '@/services/live/read-context';
+
+function assertTrackingReadOwner(ownerId: string | null) {
+  if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+    throw new TrackingError('permission_required');
+}
+
+export async function prefetchTrackingKeywords(
+  client: QueryClient,
+  ownerId: string
+) {
+  if (
+    !useTrackingAdmission.getState().ready ||
+    useAppShellStore.getState().session?.userId !== ownerId
+  )
+    return;
+  await client.prefetchQuery({
+    queryKey: automaticTrackingReadKey(
+      automaticTrackingKeys.keywords(),
+      ownerId
+    ),
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        const assertAdmission = captureTrackingAdmission(ownerId);
+        assertTrackingReadOwner(ownerId);
+        const rules = await automaticTrackingService.listKeywordRules();
+        assertAdmission();
+        assertTrackingReadOwner(ownerId);
+        return rules;
+      })
+  });
+}
 
 function useTrackingRead<T>({
   queryKey,
@@ -38,19 +73,15 @@ function useTrackingRead<T>({
   refetchOnMount?: 'always';
 }) {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
-  const assertOwner = () => {
-    if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
-      throw new TrackingError('permission_required');
-  };
   return useQuery({
     queryKey: automaticTrackingReadKey(queryKey, ownerId),
     enabled,
     refetchOnMount,
     queryFn: () =>
       withReadContext(undefined, async () => {
-        assertOwner();
+        assertTrackingReadOwner(ownerId);
         const data = await queryFn();
-        assertOwner();
+        assertTrackingReadOwner(ownerId);
         return data;
       })
   });

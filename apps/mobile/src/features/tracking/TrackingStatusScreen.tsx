@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -37,8 +43,10 @@ import {
   automaticTrackingReadKey
 } from '@/state/automatic-tracking-view-state';
 import { useAppShellStore } from '@/state/app-shell';
-import { useTrackingAdmission } from '@/state/tracking-admission';
-import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import {
+  captureTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
@@ -49,6 +57,11 @@ import type {
 import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
+import {
+  setTrackingSourceFailure,
+  setTrackingSourceIntent,
+  useTrackingSourceCommands
+} from './tracking-source-command-state';
 import {
   syncAutomaticTracking,
   resyncAutomaticTracking,
@@ -83,9 +96,9 @@ function TrackingStatusContent() {
     automaticTrackingKeys.status,
     ownerId
   );
-  const keywordsKey = automaticTrackingReadKey(
-    automaticTrackingKeys.keywords(),
-    ownerId
+  const keywordsKey = useMemo(
+    () => automaticTrackingReadKey(automaticTrackingKeys.keywords(), ownerId),
+    [ownerId]
   );
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
@@ -98,21 +111,33 @@ function TrackingStatusContent() {
   const permissionService = useMemo(createTrackingPermissionService, []);
 
   const [isUpdating, setUpdating] = useState(false);
-  const updating = isUpdating || query.isError || query.isFetching;
-  const [sourceChange, setSourceChange] = useState<{
-    source: 'sms' | 'notification';
-    enabled: boolean;
-  } | null>(null);
+  const updating = isUpdating;
+  const { scope: sourceCommands, snapshot: sourceSnapshot } =
+    useTrackingSourceCommands(ownerId);
+  const sourceIntents = sourceSnapshot.intents;
+  const contentMounted = useRef(true);
   const [actionFailed, setActionFailed] = useState(false);
   const [pendingConsent, setPendingConsent] = useState(false);
-  const keywordRules = keywords.data ?? [];
+  const keywordRules = useMemo(() => keywords.data ?? [], [keywords.data]);
   const keywordLoadState = hasReadableSnapshot(keywords)
     ? 'ready'
     : keywords.isLoading
       ? 'loading'
       : 'error';
-  const awaitingNotificationAccess = useRef(false);
+  const awaitingNotificationAccess = useRef<{
+    assertCurrent: () => void;
+    isCurrent: () => boolean;
+  } | null>(null);
   const loadKeywords = keywords.refetch;
+  const queueSourceChangeRef = useRef(queueSourceChange);
+  queueSourceChangeRef.current = queueSourceChange;
+
+  useEffect(() => {
+    contentMounted.current = true;
+    return () => {
+      contentMounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let current = true;
@@ -127,7 +152,13 @@ function TrackingStatusContent() {
     return () => {
       current = false;
     };
-  }, [ownerId, isUpdating, query.dataUpdatedAt, syncState.status]);
+  }, [
+    ownerId,
+    isUpdating,
+    query.dataUpdatedAt,
+    syncState.status,
+    sourceIntents
+  ]);
 
   async function publishSavedLocalSources() {
     try {
@@ -154,6 +185,7 @@ function TrackingStatusContent() {
     if (updating) return;
     setUpdating(true);
     setActionFailed(false);
+    setTrackingSourceFailure(sourceCommands, false);
     try {
       const result = await resyncAutomaticTracking();
       if (result.status === 'error') setActionFailed(true);
@@ -165,67 +197,75 @@ function TrackingStatusContent() {
     }
   }
 
-  function setKeywordRules(rules: KeywordRule[]) {
-    // The callback only publishes a server-confirmed save/conflict result. Manual
-    // updates are not persisted as reads; evict the superseded disk projection.
-    queryClient.setQueryData(keywordsKey, rules);
-    void queryClient.invalidateQueries({
-      queryKey: keywordsKey,
-      exact: true,
-      refetchType: 'none'
-    });
-  }
+  const setKeywordRules = useCallback(
+    (rules: KeywordRule[]) => {
+      // The callback only publishes a server-confirmed save/conflict result. Manual
+      // updates are not persisted as reads; evict the superseded disk projection.
+      queryClient.setQueryData(keywordsKey, rules);
+      void queryClient.invalidateQueries({
+        queryKey: keywordsKey,
+        exact: true,
+        refetchType: 'none'
+      });
+    },
+    [queryClient, keywordsKey]
+  );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        const admissionRevision = useTrackingAdmission.getState().revision;
         void (async () => {
-          if (awaitingNotificationAccess.current) {
-            awaitingNotificationAccess.current = false;
+          if (awaitingNotificationAccess.current !== null) {
+            const pending = awaitingNotificationAccess.current;
+            awaitingNotificationAccess.current = null;
             if (
-              (await bankNotificationService.getAccessState()) === 'granted'
+              (await bankNotificationService.getAccessState()) === 'granted' &&
+              pending.isCurrent()
             ) {
-              const current = await automaticTrackingService.getStatus();
-              await enableTrackingSource('notification', current.mode);
+              pending.assertCurrent();
+              queueSourceChangeRef.current('notification', true);
             }
           }
           await resyncAutomaticTracking();
           await refetchTrackingStatus();
-        })().catch(() => setActionFailed(true));
+        })().catch(() => {
+          if (
+            contentMounted.current &&
+            (useAppShellStore.getState().session?.userId ?? null) === ownerId &&
+            useTrackingAdmission.getState().revision === admissionRevision
+          )
+            setActionFailed(true);
+        });
         void loadKeywords();
       }
     });
     return () => subscription.remove();
-  }, [refetchTrackingStatus, loadKeywords]);
+  }, [refetchTrackingStatus, loadKeywords, ownerId]);
 
-  async function handleKeywordsChange(newRules: KeywordRule[]) {
-    if (
-      updating ||
-      keywords.isError ||
-      keywords.isFetching ||
-      keywordLoadState !== 'ready'
-    )
-      return;
-    const previousRules = keywordRules;
-    setActionFailed(false);
-    setUpdating(true);
-    try {
-      await trackingKeywordConfiguration.save(
-        newRules,
-        previousRules,
-        (rules) => {
-          setKeywordRules(rules);
-        }
-      );
-    } catch {
-      setActionFailed(true);
-    } finally {
-      setUpdating(false);
-    }
-  }
+  const handleKeywordsChange = useCallback(
+    async (newRules: KeywordRule[]) => {
+      if (updating || keywordLoadState !== 'ready') return;
+      const previousRules = keywordRules;
+      setActionFailed(false);
+      setUpdating(true);
+      try {
+        await trackingKeywordConfiguration.save(
+          newRules,
+          previousRules,
+          setKeywordRules
+        );
+      } catch {
+        setActionFailed(true);
+      } finally {
+        setUpdating(false);
+      }
+    },
+    [updating, keywordLoadState, keywordRules, setKeywordRules]
+  );
 
-  async function restoreKeywords() {
-    if (updating || keywords.isError || keywords.isFetching) return;
+  const restoreKeywords = useCallback(async () => {
+    if (updating || keywordLoadState !== 'ready') return;
     setActionFailed(false);
     setUpdating(true);
     try {
@@ -235,7 +275,7 @@ function TrackingStatusContent() {
     } finally {
       setUpdating(false);
     }
-  }
+  }, [updating, keywordLoadState, setKeywordRules]);
 
   async function recoverPermission() {
     if (updating) return;
@@ -253,46 +293,147 @@ function TrackingStatusContent() {
     }
   }
 
-  async function toggleSmsTracking(nextValue: boolean) {
+  function queueSourceChange(source: 'sms' | 'notification', enabled: boolean) {
     if (updating) return;
-    setActionFailed(false);
-    setUpdating(true);
-    setSourceChange({ source: 'sms', enabled: nextValue });
+    const request = ++sourceCommands.requests[source];
+    const configurationRequest = ++sourceCommands.configurationRequest;
+    const admissionRevision = sourceCommands.admissionRevision;
+    const sameOwner = () =>
+      (useAppShellStore.getState().session?.userId ?? null) === ownerId;
+    const currentRequest = () =>
+      sourceCommands.requests[source] === request &&
+      sameOwner() &&
+      useTrackingAdmission.getState().revision === admissionRevision;
+    let assertAdmission: () => void;
     try {
-      let sources: TrackingSourceState;
-      let mode = query.data?.mode;
-      if (nextValue) {
-        const permissionStatus =
-          query.data?.smsPermissionStatus ?? query.data?.permissionStatus;
-        if (permissionStatus !== 'granted') {
-          await recoverPermission();
-          return;
-        }
-        sources = await enableTrackingSource('sms', mode);
-        if (mode === 'paused') mode = 'automatic_clear';
-      } else {
-        sources = await trackingSourcePreferences.set('sms', false);
-        if (!sources.notificationEnabled) {
-          await automaticTrackingService.setMode('paused');
-          mode = 'paused';
-        }
-      }
-      await showSavedSources(sources, mode);
+      assertAdmission = captureTrackingAdmission(ownerId ?? undefined);
+      if (!currentRequest()) throw new Error('tracking_source_context_changed');
     } catch {
-      await publishSavedLocalSources();
       setActionFailed(true);
-    } finally {
-      setUpdating(false);
-      setSourceChange(null);
+      return;
     }
+    const assertContext = () => {
+      assertAdmission();
+      if (!sameOwner()) throw new Error('tracking_source_context_changed');
+    };
+    const assertIntent = () => {
+      assertContext();
+      if (!currentRequest()) throw new Error('tracking_source_intent_changed');
+    };
+    setActionFailed(false);
+    setTrackingSourceIntent(sourceCommands, source, enabled);
+    // Queue durable revocation immediately, before a slower ON/mode job settles.
+    const disabling = !enabled
+      ? Promise.all([
+          trackingSourcePreferences.set(source, false),
+          source === 'notification'
+            ? bankNotificationService.setCaptureEnabled(false)
+            : Promise.resolve()
+        ]).then(([sources]) => sources)
+      : null;
+    // The queued job observes this rejection; attach a handler while it waits.
+    void disabling?.catch(() => undefined);
+    const run = async () => {
+      try {
+        let sources: TrackingSourceState;
+        let mode =
+          queryClient.getQueryData<TrackingStatusSnapshot>(statusKey)?.mode;
+        if (disabling) {
+          sources = await disabling;
+          assertIntent();
+          if (!sources.smsEnabled && !sources.notificationEnabled) {
+            await automaticTrackingService.setMode('paused');
+            assertIntent();
+            mode = 'paused';
+          }
+        } else {
+          assertIntent();
+          if (source === 'sms') {
+            const permission = await permissionService.getState();
+            assertIntent();
+            queryClient.setQueryData<TrackingStatusSnapshot>(
+              statusKey,
+              (current) =>
+                current && {
+                  ...current,
+                  smsPermissionStatus: permission.status,
+                  permissionStatus:
+                    permission.status === 'granted' ||
+                    current.notificationAccessStatus === 'granted'
+                      ? 'granted'
+                      : permission.status
+                }
+            );
+            if (permission.status === 'unavailable')
+              throw new Error('tracking_sms_unavailable');
+            if (permission.status !== 'granted') {
+              await recoverPermission();
+              return;
+            }
+          } else {
+            const access = await bankNotificationService.getAccessState();
+            assertIntent();
+            if (access !== 'granted') {
+              awaitingNotificationAccess.current = {
+                assertCurrent: assertIntent,
+                isCurrent: currentRequest
+              };
+              await bankNotificationService.openSettings();
+              return;
+            }
+          }
+          sources = await enableTrackingSource(
+            source,
+            mode,
+            assertIntent,
+            assertContext
+          );
+          if (mode === 'paused') mode = 'automatic_clear';
+        }
+        assertIntent();
+        await showSavedSources(sources, mode, assertIntent);
+        if (configurationRequest === sourceCommands.configurationRequest)
+          void resyncAutomaticTracking()
+            .then(() => {
+              if (
+                currentRequest() &&
+                configurationRequest === sourceCommands.configurationRequest
+              )
+                return refetchTrackingStatus();
+            })
+            .catch(() => {
+              if (
+                currentRequest() &&
+                configurationRequest === sourceCommands.configurationRequest
+              )
+                setTrackingSourceFailure(sourceCommands, true);
+            });
+      } catch {
+        if (currentRequest()) {
+          await publishSavedLocalSources();
+          if (currentRequest()) setTrackingSourceFailure(sourceCommands, true);
+        }
+      } finally {
+        if (currentRequest())
+          setTrackingSourceIntent(sourceCommands, source, undefined);
+      }
+    };
+    sourceCommands.tail = sourceCommands.tail.then(run, run);
+  }
+
+  function toggleSmsTracking(nextValue: boolean) {
+    queueSourceChange('sms', nextValue);
   }
 
   async function showSavedSources(
     sources: TrackingSourceState,
-    mode: TrackingMode | undefined
+    mode: TrackingMode | undefined,
+    assertIntent: () => void
   ) {
     // A previous status request must not overwrite the preference just saved.
+    assertIntent();
     await queryClient.cancelQueries({ queryKey: statusKey, exact: true });
+    assertIntent();
     queryClient.setQueryData<TrackingStatusSnapshot>(
       statusKey,
       (current) =>
@@ -303,10 +444,6 @@ function TrackingStatusContent() {
           notificationTrackingEnabled: sources.notificationEnabled
         }
     );
-    // Capture and server reconciliation can take time; they do not hold the switches locked.
-    void resyncAutomaticTracking()
-      .then(() => refetchTrackingStatus())
-      .catch(() => setActionFailed(true));
   }
 
   async function toggleTrackingMode(nextValue: boolean) {
@@ -326,39 +463,8 @@ function TrackingStatusContent() {
     }
   }
 
-  async function toggleNotificationTracking(nextValue: boolean) {
-    if (updating) return;
-    setActionFailed(false);
-    setUpdating(true);
-    setSourceChange({ source: 'notification', enabled: nextValue });
-    try {
-      let sources: TrackingSourceState;
-      let mode = query.data?.mode;
-      if (nextValue) {
-        const access = await bankNotificationService.getAccessState();
-        if (access !== 'granted') {
-          awaitingNotificationAccess.current = true;
-          await bankNotificationService.openSettings();
-          return;
-        }
-        sources = await enableTrackingSource('notification', mode);
-        if (mode === 'paused') mode = 'automatic_clear';
-      } else {
-        await bankNotificationService.setCaptureEnabled(false);
-        sources = await trackingSourcePreferences.set('notification', false);
-        if (!sources.smsEnabled) {
-          await automaticTrackingService.setMode('paused');
-          mode = 'paused';
-        }
-      }
-      await showSavedSources(sources, mode);
-    } catch {
-      await publishSavedLocalSources();
-      setActionFailed(true);
-    } finally {
-      setUpdating(false);
-      setSourceChange(null);
-    }
+  function toggleNotificationTracking(nextValue: boolean) {
+    queueSourceChange('notification', nextValue);
   }
 
   const handleBack = () => {
@@ -398,7 +504,9 @@ function TrackingStatusContent() {
       : 'tracking.permission.warning'
   );
   const smsPermission = status.smsPermissionStatus ?? status.permissionStatus;
-  const notificationAccess = status.notificationAccessStatus ?? 'denied';
+  const notificationAccess =
+    status.notificationAccessStatus ??
+    (permissionUnavailable ? 'unavailable' : 'denied');
   const smsEnabled =
     isEnabled &&
     smsPermission === 'granted' &&
@@ -422,8 +530,7 @@ function TrackingStatusContent() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <FinancialRefreshStatus query={query} />
-        {pendingConsent ? (
+        {pendingConsent && !Object.keys(sourceIntents).length ? (
           <SurfaceCard style={styles.card}>
             <StyledText accessibilityRole="alert">
               {translate('tracking.sources.pendingConsent')}
@@ -502,13 +609,13 @@ function TrackingStatusContent() {
                 isRtl={isRtl}
                 label={translate('tracking.source.smsTracking')}
                 description={translate(
-                  sourceChange?.source === 'sms'
-                    ? sourceChange.enabled
-                      ? 'tracking.source.enabling'
-                      : 'tracking.source.disabling'
-                    : 'tracking.source.smsTrackingDescription'
+                  'tracking.source.smsTrackingDescription'
                 )}
-                value={smsEnabled}
+                value={
+                  smsPermission === 'granted'
+                    ? (sourceIntents.sms ?? smsEnabled)
+                    : smsEnabled
+                }
                 disabled={updating || smsPermission === 'unavailable'}
                 onValueChange={(value) => void toggleSmsTracking(value)}
               />
@@ -518,13 +625,13 @@ function TrackingStatusContent() {
                 isRtl={isRtl}
                 label={translate('tracking.source.notificationTracking')}
                 description={translate(
-                  sourceChange?.source === 'notification'
-                    ? sourceChange.enabled
-                      ? 'tracking.source.enabling'
-                      : 'tracking.source.disabling'
-                    : 'tracking.source.notificationTrackingDescription'
+                  'tracking.source.notificationTrackingDescription'
                 )}
-                value={notificationEnabled}
+                value={
+                  notificationAccess === 'granted'
+                    ? (sourceIntents.notification ?? notificationEnabled)
+                    : notificationEnabled
+                }
                 disabled={updating || notificationAccess === 'unavailable'}
                 onValueChange={(value) =>
                   void toggleNotificationTracking(value)
@@ -535,7 +642,9 @@ function TrackingStatusContent() {
 
           {Platform.OS === 'android' && (smsEnabled || notificationEnabled) ? (
             <View style={{ gap: 8 }}>
-              <StyledText>tracking.background.oemGuidance</StyledText>
+              <StyledText>
+                {translate('tracking.background.oemGuidance')}
+              </StyledText>
               <ActionButton
                 label="appShell.permission.openSettings"
                 variant="secondary"
@@ -544,12 +653,14 @@ function TrackingStatusContent() {
             </View>
           ) : null}
           <TrackingDemoNotice />
-          <TrackingSyncPanel
-            state={syncState}
-            onRetry={() => {
-              if (!updating) void syncAutomaticTracking();
-            }}
-          />
+          {!Object.keys(sourceIntents).length ? (
+            <TrackingSyncPanel
+              state={syncState}
+              onRetry={() => {
+                if (!updating) void syncAutomaticTracking();
+              }}
+            />
+          ) : null}
 
           {/* Actionable Permission Warning: START = Warning Icon, MIDDLE = Warning Text, END = Chevron */}
           {!hasPermission && (
@@ -714,18 +825,12 @@ function TrackingStatusContent() {
           testID="tracking-keywords-card"
           style={[styles.card, styles.keywordCard]}
         >
-          <FinancialRefreshStatus query={keywords} />
           {keywordLoadState === 'ready' ? (
             <TrackingKeywordChips
               rules={keywordRules}
-              onChange={(rules) => void handleKeywordsChange(rules)}
-              onRestore={() => void restoreKeywords()}
-              disabled={
-                updating ||
-                keywords.isError ||
-                keywords.isFetching ||
-                permissionUnavailable
-              }
+              onChange={handleKeywordsChange}
+              onRestore={restoreKeywords}
+              disabled={updating || permissionUnavailable}
             />
           ) : (
             <StateView
@@ -750,7 +855,7 @@ function TrackingStatusContent() {
         </SurfaceCard>
 
         {/* Error notification if action fails */}
-        {actionFailed ? (
+        {actionFailed || sourceSnapshot.failed ? (
           <View style={styles.errorBanner}>
             <StyledText accessibilityRole="alert" style={styles.errorText}>
               {translate('tracking.state.error')}
@@ -764,21 +869,36 @@ function TrackingStatusContent() {
 
 async function enableTrackingSource(
   source: 'sms' | 'notification',
-  mode: TrackingMode | undefined
+  mode: TrackingMode | undefined,
+  assertIntent: () => void,
+  assertContext: () => void
 ) {
   // Both switches appear off while paused; activating one must not revive the hidden other preference.
+  assertIntent();
   if (mode === 'paused') {
     if (source === 'sms')
       await bankNotificationService.setCaptureEnabled(false);
+    assertIntent();
     await trackingSourcePreferences.set(
       source === 'sms' ? 'notification' : 'sms',
       false
     );
+    assertIntent();
     await automaticTrackingService.setMode('automatic_clear');
+    assertIntent();
   }
-  if (source === 'notification')
-    await bankNotificationService.setCaptureEnabled(true);
+  if (source === 'notification') {
+    try {
+      await bankNotificationService.setCaptureEnabled(true);
+      assertIntent();
+    } catch (error) {
+      assertContext();
+      await bankNotificationService.setCaptureEnabled(false);
+      throw error;
+    }
+  }
   const sources = await trackingSourcePreferences.set(source, true);
+  assertIntent();
   return sources;
 }
 
@@ -858,18 +978,7 @@ export function TrackingSyncPanel({
   state: AutomaticTrackingSyncState;
   onRetry: () => void;
 }) {
-  if (state.status === 'idle') return null;
-  if (state.status === 'scanning' || state.status === 'processing')
-    return (
-      <StateView
-        state="loading"
-        title={translate(
-          state.status === 'scanning'
-            ? 'tracking.sync.scanning'
-            : 'tracking.sync.processing'
-        )}
-      />
-    );
+  if (['idle', 'scanning', 'processing'].includes(state.status)) return null;
   if (state.status === 'queued')
     return (
       <StateView

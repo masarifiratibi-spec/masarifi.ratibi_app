@@ -400,7 +400,7 @@ export const HomeSummary = React.memo(function HomeSummary({
             />
           </View>
         </View>
-        {voiceProcessing ? (
+        {voiceProcessing && !voice.automatic ? (
           <View
             accessibilityLabel={progressLabel}
             accessibilityLiveRegion="polite"
@@ -480,7 +480,7 @@ export const HomeSummary = React.memo(function HomeSummary({
           <VoiceBatchStatus
             batches={voice.batches}
             showEmpty={false}
-            showProgress={!batchProcessing}
+            showProgress={false}
           />
         ) : null}
         <VoiceAnalysisResults />

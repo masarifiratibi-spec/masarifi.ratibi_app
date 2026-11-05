@@ -407,7 +407,6 @@ export function useVoiceBatches(owner: string | null) {
               session === row.sessionId
           )
       ),
-    ...(foregroundSessionId ? { foregroundSessionId } : {}),
     latest:
       results.find((row) => row.sessionId === foregroundSessionId) ??
       results.at(-1) ??

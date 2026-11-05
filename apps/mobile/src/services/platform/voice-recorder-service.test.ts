@@ -211,6 +211,18 @@ it('owns preparation before permission resolves so concurrent starts allocate on
   }
 });
 
+it('checks the current native grant before starting audio even after a prior UI grant', async () => {
+  mockGetRecordingPermissions.mockResolvedValue({
+    granted: false,
+    canAskAgain: true
+  });
+  const service = createVoiceRecorderService();
+  await expect(service.start()).rejects.toMatchObject({
+    code: 'permission_denied'
+  });
+  expect(mockRecord).not.toHaveBeenCalled();
+});
+
 it('releases an allocated recorder when native preparation fails', async () => {
   mockGetRecordingPermissions.mockResolvedValue({
     granted: true,

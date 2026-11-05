@@ -27,6 +27,7 @@ import { resolvePublicDisplayName } from '@/services/live/clerk-name';
 import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
 import { localDateInTimeZone } from '@/domain/financial-period';
 import { prefetchPlanningDestinations } from '@/features/financial-planning/financial-planning-queries';
+import { prefetchTrackingKeywords } from '@/features/tracking/useAutomaticTracking';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { SocialMediaFooter } from '@/features/settings/SocialMediaLinks';
 
@@ -75,12 +76,14 @@ export default function MoreRoute() {
   const ownerId = session?.status === 'authenticated' ? session.userId : null;
   useFocusEffect(
     useCallback(() => {
-      if (ownerId)
+      if (ownerId) {
         void prefetchPlanningDestinations(
           client,
           localDateInTimeZone(Date.now(), timeZone),
           timeZone
         );
+        void prefetchTrackingKeywords(client, ownerId);
+      }
     }, [client, ownerId, timeZone])
   );
   const profile = useSettingsProfile(Boolean(ownerId));

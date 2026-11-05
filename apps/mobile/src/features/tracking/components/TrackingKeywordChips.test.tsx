@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { render, fireEvent, screen } from '@testing-library/react-native';
+import { act, render, fireEvent, screen } from '@testing-library/react-native';
+import { Dimensions, PixelRatio } from 'react-native';
 import type { KeywordRule } from '@/domain/app-shell';
 import { TrackingKeywordChips } from './TrackingKeywordChips';
 const builtin: KeywordRule = {
@@ -21,6 +22,26 @@ function Harness() {
     />
   );
 }
+it('updates the memoized keyword layout when the phone font scale changes', () => {
+  const window = Dimensions.get('window');
+  const display = Dimensions.get('screen');
+  const font = jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);
+  Dimensions.set({ window: { ...window, fontScale: 1 }, screen: display });
+  const view = render(<Harness />);
+  try {
+    act(() => {
+      font.mockReturnValue(2);
+      Dimensions.set({ window: { ...window, fontScale: 2 }, screen: display });
+    });
+    expect(screen.getByTestId('tracking-keyword-header')).toHaveStyle({
+      flexDirection: 'column'
+    });
+  } finally {
+    view.unmount();
+    act(() => Dimensions.set({ window, screen: display }));
+    font.mockRestore();
+  }
+});
 it('can toggle a default off and on independently from deletion', () => {
   render(<Harness />);
   expect(screen.queryByTestId('tracking-keyword-edit-builtin')).toBeNull();

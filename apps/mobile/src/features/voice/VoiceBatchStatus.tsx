@@ -24,14 +24,6 @@ export function VoiceBatchStatus({
     ).length ?? 0;
   const saved = finished && !result.analysis && result.addedCount > 0;
   const partial = saved && (notSaved > 0 || result.status !== 'completed');
-  const acknowledged =
-    saved &&
-    result.ledgerVersion > 0 &&
-    !partial &&
-    batches.foregroundSessionId === result.sessionId &&
-    !batches.processing &&
-    !batches.localFailure &&
-    !batches.rateLimited;
   const progress = showProgress && batches.processing;
   const empty =
     showEmpty &&
@@ -41,20 +33,9 @@ export function VoiceBatchStatus({
   const failure =
     (!saved && result?.status === 'failed') || batches.localFailure;
   const rateLimited = batches.rateLimited;
-  if (
-    !acknowledged &&
-    !partial &&
-    !progress &&
-    !empty &&
-    !failure &&
-    !rateLimited
-  )
-    return null;
+  if (!partial && !progress && !empty && !failure && !rateLimited) return null;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
-      {acknowledged ? (
-        <StyledText>{translate('voice.batch.event.committed')}</StyledText>
-      ) : null}
       {partial ? (
         <StyledText>
           {notSaved > 0

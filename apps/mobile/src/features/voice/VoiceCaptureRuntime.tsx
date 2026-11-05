@@ -296,7 +296,12 @@ function useOwnedVoiceCapture() {
       phase: 'start'
     });
     try {
-      const permission = await voiceRecorderService.getPermission();
+      // Native start still checks the current grant; avoid a duplicate bridge
+      // round trip when the UI already has a granted permission hint.
+      const permission =
+        voiceAnalyzerService.queueBatch && current.permission === 'granted'
+          ? current.permission
+          : await voiceRecorderService.getPermission();
       if (!valid(attempt)) return;
       session.patch({ permission });
       if (permission !== 'granted') {
@@ -348,6 +353,19 @@ function useOwnedVoiceCapture() {
         if (valid(attempt)) void stop(recording.id);
       });
     } catch (error) {
+      if (
+        valid(attempt) &&
+        error instanceof VoiceCaptureError &&
+        (error.code === 'permission_denied' ||
+          error.code === 'permission_permanent')
+      ) {
+        session.patch({
+          permission:
+            error.code === 'permission_permanent'
+              ? 'permanently_denied'
+              : 'denied'
+        });
+      }
       fail(error, attempt);
     } finally {
       startInFlight.current = false;

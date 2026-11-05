@@ -37,7 +37,10 @@ let mockNotificationPermission:
   | 'unavailable' = 'not_requested';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('./useAutomaticTracking', () => ({ useTrackingStatus: jest.fn() }));
+jest.mock('./useAutomaticTracking', () => ({
+  useTrackingStatus: jest.fn(),
+  prefetchTrackingKeywords: jest.fn()
+}));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
@@ -250,14 +253,27 @@ it.each(['not_requested', 'denied', 'permanently_denied'] as const)(
   (permissionState) => {
     jest.mocked(isMobileAutomationEnabled).mockReturnValue(false);
     mockNotificationPermission = permissionState;
-    mockUseTrackingStatus.mockReturnValue({ data: status(), isLoading: false, isError: false });
+    mockUseTrackingStatus.mockReturnValue({
+      data: status(),
+      isLoading: false,
+      isError: false
+    });
     renderWithProviders(<TrackingHomeCard />);
-    fireEvent.press(within(screen.getByTestId('notification-home-card')).getByRole('button', {
-      name: permissionState === 'not_requested' ? 'Enable notifications' : 'Open notification settings'
-    }));
+    fireEvent.press(
+      within(screen.getByTestId('notification-home-card')).getByRole('button', {
+        name:
+          permissionState === 'not_requested'
+            ? 'Enable notifications'
+            : 'Open notification settings'
+      })
+    );
     expect(router.push).not.toHaveBeenCalled();
-    expect(mockRequestPermission).toHaveBeenCalledTimes(permissionState === 'not_requested' ? 1 : 0);
-    expect(mockOpenSettings).toHaveBeenCalledTimes(permissionState === 'not_requested' ? 0 : 1);
+    expect(mockRequestPermission).toHaveBeenCalledTimes(
+      permissionState === 'not_requested' ? 1 : 0
+    );
+    expect(mockOpenSettings).toHaveBeenCalledTimes(
+      permissionState === 'not_requested' ? 0 : 1
+    );
   }
 );
 

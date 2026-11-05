@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ScrollView,
   Pressable,
@@ -26,13 +27,17 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useHomeSetupCardDismissals } from '@/state/home-setup-card-dismissals';
 import { useTheme } from '@/state/theme-context';
-import { useTrackingStatus } from './useAutomaticTracking';
+import {
+  prefetchTrackingKeywords,
+  useTrackingStatus
+} from './useAutomaticTracking';
 import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 
 const CARD_SCALE = 1.05;
 
 export function TrackingHomeCard() {
+  const client = useQueryClient();
   const trackingQuery = useTrackingStatus();
   const notificationPermission = useNotificationPermission();
   const requestNotificationPermission = useRequestNotificationPermission();
@@ -60,6 +65,11 @@ export function TrackingHomeCard() {
       ? 'ready'
       : 'pending'
   );
+
+  useEffect(() => {
+    if (ownerId && profileSetupStatus === 'complete' && initialReadsReady)
+      void prefetchTrackingKeywords(client, ownerId);
+  }, [client, ownerId, profileSetupStatus, initialReadsReady]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -170,8 +180,8 @@ export function TrackingHomeCard() {
               managedNotifications
                 ? router.push('/settings/application')
                 : canRequestNotificationPermission
-                ? requestNotificationPermission.mutate()
-                : openNotificationSettings.mutate()
+                  ? requestNotificationPermission.mutate()
+                  : openNotificationSettings.mutate()
             }
             testID="notification-home-card"
             title={translate('notifications.home.enableTitle')}

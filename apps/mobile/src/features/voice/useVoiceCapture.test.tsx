@@ -31,6 +31,70 @@ import { createLiveVoiceApiService } from '@/services/live/voice-api-service';
 
 const mockCreateFromSource = jest.fn();
 
+it('starts an automatic native recorder directly from a granted hint without a redundant UI probe', async () => {
+  const previousQueue = voiceAnalyzerService.queueBatch;
+  voiceAnalyzerService.queueBatch = jest
+    .fn()
+    .mockResolvedValue('unused-capture');
+  jest
+    .spyOn(voiceRecorderService, 'getPermission')
+    .mockRejectedValue(new Error('redundant UI permission probe'));
+  jest
+    .spyOn(voiceRecorderService, 'start')
+    .mockResolvedValue({ id: 'direct-recording', startedAt: Date.now() });
+  jest.spyOn(voiceRecorderService, 'cancel').mockResolvedValue();
+  const { result, unmount } = renderVoiceHook('on-demand');
+  try {
+    await act(async () => {});
+    act(() =>
+      useVoiceCaptureStore
+        .getState()
+        .patch({ state: 'ready', permission: 'granted' })
+    );
+    await act(async () => result.current.start());
+    expect(result.current.session).toMatchObject({
+      state: 'recording',
+      recordingId: 'direct-recording'
+    });
+  } finally {
+    unmount();
+    voiceAnalyzerService.queueBatch = previousQueue;
+  }
+});
+
+it.each([
+  ['permission_denied', 'denied'],
+  ['permission_permanent', 'permanently_denied']
+] as const)(
+  'retires a stale granted hint when native start reports %s',
+  async (code, permission) => {
+    jest
+      .spyOn(voiceRecorderService, 'getPermission')
+      .mockResolvedValue('granted');
+    jest
+      .spyOn(voiceRecorderService, 'start')
+      .mockRejectedValue(new VoiceCaptureError(code));
+    const { result, unmount } = renderVoiceHook('on-demand');
+    try {
+      await act(async () => {});
+      act(() =>
+        useVoiceCaptureStore
+          .getState()
+          .patch({ state: 'ready', permission: 'granted' })
+      );
+      await act(async () => result.current.start());
+      expect(result.current.session).toMatchObject({
+        state: 'failed',
+        permission,
+        errorCode: code,
+        recordingId: null
+      });
+    } finally {
+      unmount();
+    }
+  }
+);
+
 it('keeps the account selected at recording start when selection changes before release', async () => {
   const account = '10000000-0000-4000-8000-000000000001';
   const previousQueue = voiceAnalyzerService.queueBatch;
@@ -46,14 +110,12 @@ it('keeps the account selected at recording start when selection changes before 
   jest
     .spyOn(voiceRecorderService, 'start')
     .mockResolvedValue({ id: 'account-recording', startedAt: Date.now() });
-  jest
-    .spyOn(voiceRecorderService, 'stop')
-    .mockResolvedValue({
-      uri: 'file://account.m4a',
-      durationMs: 1000,
-      recordedAt: Date.now(),
-      contentType: 'audio/m4a'
-    });
+  jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
+    uri: 'file://account.m4a',
+    durationMs: 1000,
+    recordedAt: Date.now(),
+    contentType: 'audio/m4a'
+  });
   useCoreFinanceViewState.setState({ selectedAccountId: account });
   const { result, unmount } = renderVoiceHook('on-demand');
   try {
@@ -1747,7 +1809,7 @@ it('keeps an admitted locked local owner while automatic Voice recovery waits fo
     enabled: true,
     autoLockDuration: 'immediate' as const,
     appLockStatus: 'locked' as const
-};
+  };
   useAppShellStore.setState({
     hydrated: true,
     session: localSession,

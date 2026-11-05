@@ -172,7 +172,13 @@ export function VoiceCaptureScreen({
           />
         ) : null}
 
-        {voice.automatic ? <VoiceBatchStatus batches={voice.batches} /> : null}
+        {voice.automatic ? (
+          <VoiceBatchStatus
+            batches={voice.batches}
+            showProgress={false}
+            showEmpty={false}
+          />
+        ) : null}
 
         {session.state === 'transcript_review' && session.transcript ? (
           <View style={styles.stack}>

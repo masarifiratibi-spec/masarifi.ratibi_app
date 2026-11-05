@@ -4,7 +4,8 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View
+  View,
+  useWindowDimensions
 } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
@@ -27,12 +28,14 @@ export interface TrackingKeywordChipsProps {
   disabled?: boolean;
 }
 
-export function TrackingKeywordChips({
+export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
   rules,
   onChange,
   onRestore,
   disabled = false
 }: TrackingKeywordChipsProps) {
+  // Memoization must still respond to native font and layout changes.
+  useWindowDimensions();
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const largeText = PixelRatio.getFontScale() >= 1.5;
@@ -458,7 +461,7 @@ export function TrackingKeywordChips({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

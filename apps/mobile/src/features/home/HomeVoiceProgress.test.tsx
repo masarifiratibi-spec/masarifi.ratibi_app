@@ -30,19 +30,24 @@ const summary: Summary = {
 };
 
 it.each([
-  ['ar', false],
-  ['en', false],
-  ['ar', true],
-  ['en', true]
+  ['ar', 'ready', false],
+  ['en', 'ready', false],
+  ['ar', 'ready', true],
+  ['en', 'ready', true],
+  ['ar', 'preparing', false],
+  ['en', 'preparing', false],
+  ['ar', 'requesting_permission', false],
+  ['en', 'requesting_permission', false],
+  ['ar', 'uploading', false],
+  ['en', 'uploading', false]
 ] as const)(
-  'shows actual new analysis, rather than old recovery, in %s with current processing %s',
-  (locale, processing) => {
+  'keeps automatic Voice quiet in %s during %s with batch processing %s',
+  (locale, state, processing) => {
     changeLocale(locale);
+    mockVoice.session.state = state;
     mockVoice.batches.processing = processing;
     renderWithProviders(<HomeSummary summary={summary} />);
-    if (processing)
-      expect(screen.getByTestId('home-voice-processing-inline')).toBeTruthy();
-    else
-      expect(screen.queryByTestId('home-voice-processing-inline')).toBeNull();
+    expect(screen.queryByTestId('home-voice-processing-inline')).toBeNull();
+    expect(screen.getByTestId('home-quick-action-voice')).toBeEnabled();
   }
 );

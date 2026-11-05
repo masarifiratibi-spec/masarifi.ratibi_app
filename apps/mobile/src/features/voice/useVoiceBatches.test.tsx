@@ -458,7 +458,7 @@ it('keeps the authoritative receipt without announcing a saved count', async () 
 });
 
 it.each(['ar', 'en'] as const)(
-  'acknowledges a fresh committed recording before finance reads finish in %s',
+  'keeps a fresh committed recording quiet while finance reads finish in %s',
   async (locale) => {
     const previousLocale = currentLocale();
     changeLocale(locale);
@@ -494,10 +494,11 @@ it.each(['ar', 'en'] as const)(
         })
       );
       expect(
-        screen.getByText(translate('voice.batch.event.committed'))
-      ).toBeTruthy();
+        screen.queryByText(translate('voice.batch.event.committed'))
+      ).toBeNull();
+      expect(view.batches.latest?.transactionIds).toEqual([capture]);
       expect(view.batches.processing).toBe(false);
-      // Starting another recording retires the previous acknowledgement.
+      // New recording and owner changes must keep prior results quiet.
       act(() => view.batches.submit('66666666-6666-4666-8666-666666666666'));
       expect(
         screen.queryByText(translate('voice.batch.event.committed'))
@@ -522,7 +523,7 @@ it.each(['ar', 'en'] as const)(
   }
 );
 
-it('acknowledges the current capture recovered after a lost response', async () => {
+it('recovers the current saved capture quietly after a lost response', async () => {
   const completed = {
     ...receipt('completed'),
     addedCount: 1,
@@ -558,8 +559,9 @@ it('acknowledges the current capture recovered after a lost response', async () 
     await act(async () => view.batches.submit(capture));
     await act(async () => view.batches.recover());
     expect(
-      screen.getByText(translate('voice.batch.event.committed'))
-    ).toBeTruthy();
+      screen.queryByText(translate('voice.batch.event.committed'))
+    ).toBeNull();
+    expect(view.batches.results).toContainEqual(completed);
   } finally {
     view.unmount();
   }
@@ -588,11 +590,7 @@ it.each([
   'does not claim financial saving from an incomplete or analysis-only receipt %#',
   (fields) => {
     const latest = { ...receipt('completed'), ...fields } as VoiceBatchResult;
-    render(
-      <VoiceBatchStatus
-        batches={{ ...statusFixture(latest), foregroundSessionId: session }}
-      />
-    );
+    render(<VoiceBatchStatus batches={statusFixture(latest)} />);
     expect(
       screen.queryByText(
         translateDynamic('voice.batch.saved', { count: latest.addedCount })
