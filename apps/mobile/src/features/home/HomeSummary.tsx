@@ -132,6 +132,9 @@ export const HomeSummary = React.memo(function HomeSummary({
   const batchProcessing =
     !voiceRecording && voice.automatic && voice.batches.processing;
   const voiceProcessing = captureProcessing || batchProcessing;
+  const preparingAutomaticRecording =
+    voice.automatic &&
+    ['requesting_permission', 'preparing'].includes(voice.session.state);
   const progressLabel = translate('voice.state.processing');
   const unclearAudio =
     voice.session.state === 'failed' &&
@@ -400,7 +403,7 @@ export const HomeSummary = React.memo(function HomeSummary({
             />
           </View>
         </View>
-        {voiceProcessing && !voice.automatic ? (
+        {voiceProcessing && !preparingAutomaticRecording ? (
           <View
             accessibilityLabel={progressLabel}
             accessibilityLiveRegion="polite"
