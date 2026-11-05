@@ -640,10 +640,12 @@ function TrackingStatusContent() {
             </View>
           )}
 
-          {Platform.OS === 'android' && (smsEnabled || notificationEnabled) ? (
+          {Platform.OS === 'android' &&
+          (smsEnabled || notificationEnabled) &&
+          status.serviceState === 'battery_restricted' ? (
             <View style={{ gap: 8 }}>
               <StyledText>
-                {translate('tracking.background.oemGuidance')}
+                {translate('tracking.howItWorks.background')}
               </StyledText>
               <ActionButton
                 label="appShell.permission.openSettings"
@@ -784,37 +786,6 @@ function TrackingStatusContent() {
                 ]}
               >
                 {translate('tracking.howItWorks.privacy')}
-              </StyledText>
-            </View>
-
-            {/* Background Execution */}
-            <View
-              testID="tracking-explanation-row"
-              style={[
-                styles.explanationItem,
-                styles.physicalLtr,
-                { flexDirection: isRtl ? 'row-reverse' : 'row' }
-              ]}
-            >
-              <View style={styles.iconCircle}>
-                <DesignIcon
-                  name="settings"
-                  size="sm"
-                  color={colorTokens.teal['700']}
-                  direction={direction}
-                  decorative
-                />
-              </View>
-              <StyledText
-                style={[
-                  styles.explanationItemText,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {translate('tracking.howItWorks.background')}
               </StyledText>
             </View>
           </View>

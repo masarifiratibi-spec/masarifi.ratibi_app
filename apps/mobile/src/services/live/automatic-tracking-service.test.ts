@@ -153,6 +153,9 @@ describe('live automatic tracking adapter', () => {
       process.env.EXPO_PUBLIC_API_URL = developmentBuild.apiUrl;
       process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
         'pk_live_bWFzYXJpZmkudGVzdCQ';
+      const getToken = jest.fn(
+        async (_options?: { skipCache?: boolean }) => 'token'
+      );
       registerIdentity({
         getSession: async () => ({
           id: 'session-any',
@@ -161,7 +164,7 @@ describe('live automatic tracking adapter', () => {
           issuedAt: 1,
           expiresAt: 9999999999999
         }),
-        getToken: async () => 'token'
+        getToken
       });
       usePreferenceStore.setState({
         ...buildPreferences({}),
@@ -183,6 +186,7 @@ describe('live automatic tracking adapter', () => {
         const [url, init] = request.mock.calls[0];
         expect(init.method).toBe(method);
         if (method === 'POST') {
+          expect(getToken.mock.calls).toEqual([[{ skipCache: true }]]);
           expect(url).toBe(baseUrl + '/api/v1/tracking/device/rule-snapshot');
           expect(init.headers).not.toHaveProperty('x-masarifi-client-variant');
           expect(JSON.parse(init.body)).toMatchObject({

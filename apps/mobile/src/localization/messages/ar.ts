@@ -76,8 +76,6 @@ const ar: MessageCatalog = {
   'reports.export.opened.download': 'تم فتح التنزيل',
   'reports.export.opened.share': 'تم فتح خيارات المشاركة',
   'reports.action.more': 'عرض المزيد',
-  'tracking.background.oemGuidance':
-    'في أجهزة سامسونج، تأكد أن مصاريفي خارج التطبيقات في وضع السكون وأن البطارية تسمح بالنشاط في الخلفية. في الأجهزة الأخرى قد تحتاج إلى تفعيل التشغيل التلقائي أو نشاط الخلفية من إعدادات التطبيق. ارجع إلى مصاريفي بعد تعديل الإعدادات.',
   'reports.schedule.liveSettings':
     'تُرسل التقارير المجدولة الساعة 08:00 في أول يوم من الفترة التقويمية المختارة، حسب المنطقة الزمنية المعروضة. تستخدم عملة ملفك في الخادم وإعدادات التقرير الافتراضية. أعد إدخال بريد حسابك والتحقق منه عند تعديل المستلم.',
   'settings.privacy.exportExplanation':
@@ -1202,19 +1200,19 @@ const ar: MessageCatalog = {
   'notifications.home.enableAction': 'تفعيل الإشعارات',
   'notifications.home.dismissAction': 'إخفاء اقتراح الإشعارات',
   'notifications.home.enableFailed': 'تعذر تفعيل الإشعارات. حاول مرة أخرى.',
-  'tracking.header.title': 'التتبع التلقائي للرسائل',
+  'tracking.header.title': 'التتبع التلقائي',
   'tracking.status.label': 'الحالة',
   'tracking.status.enabled': 'مفعّل',
   'tracking.status.disabled': 'معطّل',
   'tracking.status.unavailable': 'غير متاح',
   'tracking.source.bankNotifications': 'إشعارات البنوك',
   'tracking.source.financialSms': 'الرسائل المالية',
-  'tracking.source.smsTracking': 'تتبع الرسائل النصية (\u2068SMS\u2069)',
+  'tracking.source.smsTracking': 'تتبع الرسائل النصية',
   'tracking.source.smsTrackingDescription':
-    'قراءة الرسائل على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
+    'معاملاتك تتسجّل تلقائيًا من الرسائل المالية.',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'قراءة الإشعارات المالية على جهازك ومزامنة تفاصيل المعاملات المكتشفة مع خوادم مصاريفي',
+    'معاملاتك تتسجّل تلقائيًا من إشعارات البنوك والمحافظ.',
   'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
   'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
   'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
@@ -1226,13 +1224,14 @@ const ar: MessageCatalog = {
     'التتبع التلقائي للرسائل غير متاح في هذا الإصدار. يظل الإدخال اليدوي متاحًا.',
   'tracking.howItWorks.title': 'كيف يعمل التتبع التلقائي؟',
   'tracking.howItWorks.detection':
-    'تُضاف المعاملات الواضحة تلقائيًا، وما يحتاج تأكيدًا يظهر للمراجعة.',
+    'المعاملات الواضحة تتسجّل تلقائيًا، واللي تحتاج تأكيد تلقاها في المراجعة.',
   'tracking.howItWorks.privacy':
-    'يتم تحليل الرسائل على جهازك ومزامنة التفاصيل المالية المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب، وفق إعدادات الاحتفاظ بالبيانات.',
-  'tracking.howItWorks.background': 'اسمح بالعمل في الخلفية لاستمرار التتبع.',
+    'نحلّل الرسائل المالية ونزامن معاملاتك مع حسابك في مصاريفي.',
+  'tracking.howItWorks.background':
+    'اسمح لمصاريفي بالعمل في الخلفية عشان يستمر التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
   'tracking.keywords.explanation':
-    'تساعد العبارات المفعّلة في اكتشاف الرسائل النصية وإشعارات التطبيقات المالية. العبارة وحدها لا تحفظ معاملة. تظل قواعد الحالة الآمنة فعّالة دائماً.',
+    'هالكلمات تساعد التطبيق يتعرّف على الرسائل المالية.',
   'tracking.keywords.addTitle': 'إضافة كلمة مفتاحية',
   'tracking.keywords.filterAll': 'الكل',
   'tracking.status.title': 'حالة التتبع',

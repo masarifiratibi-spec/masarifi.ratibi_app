@@ -527,7 +527,7 @@ export function createLiveAutomaticTrackingService({
             reminderLocale: preferences.locale,
             reminderTimeZone: preferences.timeZone
           },
-          { expectedOwnerId: identity.userId }
+          { expectedOwnerId: identity.userId, preparedIdentity: identity }
         );
       } else {
         value = await get(

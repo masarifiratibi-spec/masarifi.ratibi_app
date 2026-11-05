@@ -79,8 +79,6 @@ const en = {
   'reports.export.opened.download': 'Download opened',
   'reports.export.opened.share': 'Sharing options opened',
   'reports.action.more': 'Load more',
-  'tracking.background.oemGuidance':
-    'On Samsung, check that Masarifi is outside Sleeping apps and battery use allows background activity. Other phones may need Auto-start or background activity enabled in app settings. Reopen Masarifi after changing settings.',
   'reports.schedule.liveSettings':
     'Scheduled reports run at 08:00 on the first day of the selected calendar period, in the shown timezone. They use your server profile currency and report defaults. Re-enter and verify your account email when editing the recipient.',
   'settings.privacy.exportExplanation':

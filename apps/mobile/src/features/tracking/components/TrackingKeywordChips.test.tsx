@@ -1,6 +1,7 @@
+import { renderWithProviders } from '@/test-utils/render';
 import React, { useState } from 'react';
 import { act, render, fireEvent, screen } from '@testing-library/react-native';
-import { Dimensions, PixelRatio } from 'react-native';
+import { Dimensions, PixelRatio, View } from 'react-native';
 import type { KeywordRule } from '@/domain/app-shell';
 import { TrackingKeywordChips } from './TrackingKeywordChips';
 const builtin: KeywordRule = {
@@ -86,4 +87,35 @@ it('new wording is a neutral financial signal', () => {
       value: 'MyBank alert'
     })
   ]);
+});
+
+it('bounds native view work for 113 keywords while keeping every keyword actionable', () => {
+  const rules: KeywordRule[] = Array.from({ length: 113 }, (_, index) => ({
+    id: `keyword-${index}`,
+    value: `merchant${index}`,
+    normalizedValue: `merchant${index}`,
+    group: 'financial',
+    language: 'en',
+    origin: index < 6 ? 'custom' : 'default',
+    enabled: true
+  }));
+  let changed: KeywordRule[] | undefined;
+  const view = renderWithProviders(
+    <TrackingKeywordChips
+      rules={rules}
+      onChange={(next) => {
+        changed = next;
+      }}
+      onRestore={() => undefined}
+    />
+  );
+
+  // The Redmi incident had long mount/draw frames even with warm data.
+  // This is a native-view work budget, not a Jest timing or device-speed claim.
+  expect(view.UNSAFE_getAllByType(View).length).toBeLessThanOrEqual(492);
+  expect(screen.getAllByRole('switch')).toHaveLength(113);
+  fireEvent.press(screen.getByTestId('tracking-keyword-toggle-keyword-112'));
+  expect(changed?.find((rule) => rule.id === 'keyword-112')?.enabled).toBe(
+    false
+  );
 });

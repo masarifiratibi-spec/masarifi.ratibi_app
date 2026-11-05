@@ -411,13 +411,15 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
                   }
                   accessibilityRole="button"
                 >
-                  <DesignIcon
-                    name="close"
-                    size="xs"
-                    color={colorTokens.ink['700']}
-                    direction={direction}
-                    decorative
-                  />
+                  <StyledText
+                    accessible={false}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    allowFontScaling={false}
+                    style={styles.chipActionSymbol}
+                  >
+                    ×
+                  </StyledText>
                 </Pressable>
               }
               <Pressable
@@ -442,13 +444,15 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
                 hitSlop={6}
                 style={styles.chipRemoveButton}
               >
-                <DesignIcon
-                  name={rule.enabled ? 'check' : 'add'}
-                  size="xs"
-                  color={colorTokens.ink['700']}
-                  direction={direction}
-                  decorative
-                />
+                <StyledText
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  allowFontScaling={false}
+                  style={styles.chipActionSymbol}
+                >
+                  {rule.enabled ? '✓' : '+'}
+                </StyledText>
               </Pressable>
             </View>
           );
@@ -633,5 +637,13 @@ const styles = StyleSheet.create({
     height: 18,
     justifyContent: 'center',
     width: 18
+  },
+  chipActionSymbol: {
+    color: colorTokens.ink['700'],
+    fontSize: 12,
+    lineHeight: 14,
+    includeFontPadding: false,
+    textAlign: 'center',
+    writingDirection: 'ltr'
   }
 });
