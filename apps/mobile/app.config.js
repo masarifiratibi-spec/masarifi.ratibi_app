@@ -51,7 +51,7 @@ module.exports = ({ config }) => {
       'Privacy development requires its isolated Staging API, test key, variant and build profile'
     );
   if (!variant) {
-    if (process.env.EAS_BUILD_PROFILE === 'production') {
+    if (['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)) {
       const version = process.env.MASARIFI_RELEASE_VERSION_NAME;
       if (!/^\d+\.\d+\.\d+$/.test(version ?? ''))
         throw new Error('Approved release version required');

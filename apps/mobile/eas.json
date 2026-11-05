@@ -61,6 +61,14 @@
         "EXPO_PUBLIC_RELEASE_CHANNEL": "production"
       }
     },
+    "ios-ad-hoc": {
+      "extends": "production",
+      "developmentClient": false,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
     "benchmark": {
       "developmentClient": false,
       "distribution": "internal",

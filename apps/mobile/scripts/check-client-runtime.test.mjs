@@ -23,6 +23,48 @@ const live = {
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from(`${retainedClerkDomain}$`).toString('base64url')}`
 };
 
+const iosAdHoc = {
+  ...live,
+  EAS_BUILD_PROFILE: 'ios-ad-hoc',
+  EAS_BUILD_PLATFORM: 'ios'
+};
+
+test('accepts a standalone iPhone candidate with the retained production identity', () => {
+  assert.doesNotThrow(() => validateClientBuildEnvironment(iosAdHoc));
+});
+
+test('iPhone profile cannot target Android or bypass production checks outside NODE_ENV=production', () => {
+  for (const NODE_ENV of ['production', 'development', undefined]) {
+    for (const patch of [
+      { EAS_BUILD_PLATFORM: 'android' },
+      { EAS_BUILD_PLATFORM: undefined },
+      { EXPO_PUBLIC_APP_LOCK_ENABLED: 'false' },
+      { EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'true' },
+      { EXPO_PUBLIC_API_URL: 'https://api.staging.example.com' },
+      { MASARIFI_RELEASE_VERSION_NAME: undefined }
+    ]) {
+      assert.throws(() => validateClientBuildEnvironment({ ...iosAdHoc, NODE_ENV, ...patch }));
+    }
+  }
+});
+
+test('iPhone profile rejects a different bundle while retaining the Android and EAS identity checks', () => {
+  const identity = {
+    android: { package: 'com.masarifi.mobile' },
+    ios: { bundleIdentifier: 'com.masarifi.mobile' },
+    extra: { eas: { projectId: 'c8cc3dd3-a7e9-4737-ac4d-32f076107600' } }
+  };
+  assert.doesNotThrow(() => validateClientBuildEnvironment(iosAdHoc, identity));
+  for (const patch of [
+    { ios: { bundleIdentifier: 'com.masarifi.mobile.dev' } },
+    { ios: undefined },
+    { android: { package: 'com.masarifi.mobile.dev' } },
+    { extra: { eas: { projectId: 'different' } } }
+  ]) {
+    assert.throws(() => validateClientBuildEnvironment(iosAdHoc, { ...identity, ...patch }));
+  }
+});
+
 test('accepts the free-only production client environment', () => {
   assert.doesNotThrow(() => validateClientBuildEnvironment(live));
 });
