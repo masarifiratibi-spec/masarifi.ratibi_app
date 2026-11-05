@@ -438,19 +438,17 @@ describe('live automatic tracking adapter', () => {
         notificationActivatedAt: '2026-11-04T11:00:00Z'
       }
     };
-    const request = jest
-      .fn()
-      .mockResolvedValue(
-        response({
-          snapshot: defaultSnapshot,
-          configurationHash: 'event-source-digest',
-          configurationAvailable: true,
-          installation,
-          rolloutMode: 'automatic',
-          keywords: [],
-          senders: []
-        })
-      );
+    const request = jest.fn().mockResolvedValue(
+      response({
+        snapshot: defaultSnapshot,
+        configurationHash: 'event-source-digest',
+        configurationAvailable: true,
+        installation,
+        rolloutMode: 'automatic',
+        keywords: [],
+        senders: []
+      })
+    );
     const service = createLiveAutomaticTrackingService({
       token: async () => 'token',
       request
@@ -681,6 +679,208 @@ describe('live automatic tracking adapter', () => {
         body: JSON.stringify(input)
       })
     );
+  });
+
+  it('passes an observation cancellation signal to the HTTP transport', async () => {
+    const controller = new AbortController();
+    const request = jest
+      .fn()
+      .mockResolvedValue(response(importSession('processing')));
+    const service = createLiveAutomaticTrackingService({
+      token: async () => 'token',
+      request
+    });
+    await service.getImportSession('session-1', undefined, controller.signal);
+    expect(request).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
+  it('prepares a fresh owned import token without sending an import and reuses it within that command', async () => {
+    const getToken = jest.fn(async () => 'fresh-token');
+    registerIdentity({
+      getSession: async () => ({
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 99
+      }),
+      getToken
+    });
+    const request = jest
+      .fn()
+      .mockImplementation(async () =>
+        response({ resource: importSession('received') })
+      );
+    const service = createLiveAutomaticTrackingService({ request });
+    const submit = await service.prepareImportSubmission!('owner-a');
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(getToken).toHaveBeenCalledWith({ skipCache: true });
+    expect(request).not.toHaveBeenCalled();
+    await submit(
+      { schemaVersion: 1, sourceType: 'sms', events: [] },
+      'sms:prepared',
+      'owner-a'
+    );
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][1].headers).toMatchObject({
+      Authorization: 'Bearer fresh-token',
+      'Idempotency-Key': 'sms:prepared'
+    });
+  });
+
+  it.each(['owner', 'session'])(
+    'rejects a prepared import after its SDK %s changes',
+    async (change) => {
+      let current = {
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google' as const,
+        issuedAt: 1,
+        expiresAt: 99
+      };
+      registerIdentity({
+        getSession: async () => current,
+        getToken: async () => 'fresh-token'
+      });
+      const request = jest.fn();
+      const service = createLiveAutomaticTrackingService({ request });
+      const submit = await service.prepareImportSubmission!('owner-a');
+      current = {
+        ...current,
+        ...(change === 'owner' ? { userId: 'owner-b' } : { id: 'session-b' })
+      };
+      await expect(
+        submit(
+          { schemaVersion: 1, sourceType: 'sms', events: [] },
+          'sms:prepared',
+          'owner-a'
+        )
+      ).rejects.toThrow();
+      expect(request).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([16001, -1])(
+    'refreshes a stale prepared token at clock %s and still rejects another expected owner',
+    async (now) => {
+      const getToken = jest
+        .fn()
+        .mockResolvedValueOnce('first-token')
+        .mockResolvedValue('refreshed-token');
+      registerIdentity({
+        getSession: async () => ({
+          id: 'session-a',
+          userId: 'owner-a',
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 99
+        }),
+        getToken
+      });
+      const request = jest
+        .fn()
+        .mockImplementation(async () =>
+          response({ resource: importSession('received') })
+        );
+      const service = createLiveAutomaticTrackingService({ request });
+      const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+      try {
+        const submit = await service.prepareImportSubmission!('owner-a');
+        await expect(
+          submit(
+            { schemaVersion: 1, sourceType: 'sms', events: [] },
+            'sms:wrong-owner',
+            'owner-b'
+          )
+        ).rejects.toThrow();
+        expect(request).not.toHaveBeenCalled();
+        clock.mockReturnValue(now);
+        await submit(
+          { schemaVersion: 1, sourceType: 'sms', events: [] },
+          'sms:expired',
+          'owner-a'
+        );
+        expect(getToken).toHaveBeenCalledTimes(2);
+        expect(request.mock.calls[0][1].headers.Authorization).toBe(
+          'Bearer refreshed-token'
+        );
+      } finally {
+        clock.mockRestore();
+      }
+    }
+  );
+
+  it('rejects a prepared import result if its SDK session changes during the HTTP request', async () => {
+    let id = 'session-a';
+    registerIdentity({
+      getSession: async () => ({
+        id,
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 99
+      }),
+      getToken: async () => 'fresh-token'
+    });
+    const request = jest.fn(async () => {
+      id = 'session-b';
+      return response({ resource: importSession('received') });
+    });
+    const service = createLiveAutomaticTrackingService({ request });
+    const submit = await service.prepareImportSubmission!('owner-a');
+    await expect(
+      submit(
+        { schemaVersion: 1, sourceType: 'sms', events: [] },
+        'sms:prepared',
+        'owner-a'
+      )
+    ).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a stale prepared command adopt a different same-owner SDK session during reacquisition', async () => {
+    let id = 'session-a';
+    let revalidating = false;
+    let reads = 0;
+    registerIdentity({
+      getSession: async () => {
+        if (revalidating && ++reads === 2) id = 'session-b';
+        return {
+          id,
+          userId: 'owner-a',
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 99
+        };
+      },
+      getToken: async () => 'fresh-token'
+    });
+    const request = jest
+      .fn()
+      .mockImplementation(async () =>
+        response({ resource: importSession('received') })
+      );
+    const service = createLiveAutomaticTrackingService({ request });
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+    try {
+      const submit = await service.prepareImportSubmission!('owner-a');
+      clock.mockReturnValue(16001);
+      revalidating = true;
+      await expect(
+        submit(
+          { schemaVersion: 1, sourceType: 'sms', events: [] },
+          'sms:expired-session',
+          'owner-a'
+        )
+      ).rejects.toThrow();
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each([

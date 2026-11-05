@@ -77,6 +77,9 @@ export type DuplicateResolution =
   'keep_existing' | 'keep_new' | 'keep_both' | 'merge_details';
 
 export interface AutomaticTrackingService {
+  prepareImportSubmission?(
+    expectedOwnerId: string
+  ): Promise<AutomaticTrackingService['submitImport']>;
   submitImport(
     input: TrackingImportSubmission,
     idempotencyKey: string,
@@ -84,12 +87,11 @@ export interface AutomaticTrackingService {
   ): Promise<TrackingImportSession>;
   getImportSession(
     id: string,
-    expectedOwnerId?: string
+    expectedOwnerId?: string,
+    signal?: AbortSignal
   ): Promise<TrackingImportSession>;
   listImportItemIds(sessionId: string): Promise<string[]>;
-  listImportOutcomes?(
-    sessionId: string
-  ): Promise<
+  listImportOutcomes?(sessionId: string): Promise<
     {
       itemId: string;
       status: string;

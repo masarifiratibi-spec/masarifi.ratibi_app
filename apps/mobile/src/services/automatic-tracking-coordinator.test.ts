@@ -499,6 +499,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     listCachedAccounts: jest.fn().mockResolvedValue([ownerAccount]),
     queue,
     prepare,
+    waitForImport: jest.fn(async () => undefined),
     now: () => 1_757_678_500_000,
     ...overrides
   };
@@ -517,6 +518,293 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('prepares fresh import identity alongside configuration and uses it only after capture is authorized', async () => {
+    let resolveRules!: (value: unknown) => void;
+    const rules = new Promise((resolve) => {
+      resolveRules = resolve;
+    });
+    let resolveSubmit!: (value: typeof context.tracking.submitImport) => void;
+    const prepared = new Promise<typeof context.tracking.submitImport>(
+      (resolve) => {
+        resolveSubmit = resolve;
+      }
+    );
+    const context = setup();
+    const submit = jest.fn(async () => session('complete'));
+    const prepareSubmission = jest.fn(() => prepared);
+    Object.assign(context.tracking, {
+      prepareImportSubmission: prepareSubmission,
+      getRuleConfiguration: jest.fn(() => rules)
+    });
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(prepareSubmission).toHaveBeenCalledWith('owner-1');
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
+      resolveRules({ snapshot: defaultSnapshot, keywords: [], senders: [] });
+      for (let turn = 0; turn < 200; turn++) await Promise.resolve();
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    } finally {
+      resolveRules({ snapshot: defaultSnapshot, keywords: [], senders: [] });
+      resolveSubmit(submit);
+      await sync;
+    }
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceType: 'sms' }),
+      expect.any(String),
+      'owner-1'
+    );
+  });
+
+  it('handles failed identity preparation without submitting or losing the queued capture', async () => {
+    const context = setup();
+    Object.assign(context.tracking, {
+      prepareImportSubmission: jest.fn(async () => {
+        throw new Error('identity_unavailable');
+      })
+    });
+    expect((await context.coordinator.sync()).status).toBe('error');
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+    expect(
+      (await context.queue.load('owner-1')).pending[0].sessionId
+    ).toBeNull();
+  });
+
+  it('does not submit when the owner changes while prepared identity is pending', async () => {
+    let owner = 'owner-1';
+    const context = setup({
+      session: () => ({ status: 'authenticated', userId: owner })
+    });
+    let resolveSubmit!: (value: typeof context.tracking.submitImport) => void;
+    const prepared = new Promise<typeof context.tracking.submitImport>(
+      (resolve) => {
+        resolveSubmit = resolve;
+      }
+    );
+    Object.assign(context.tracking, {
+      prepareImportSubmission: jest.fn(() => prepared)
+    });
+    const submit = jest.fn(async () => session('complete'));
+    const sync = context.coordinator.sync();
+    for (let turn = 0; turn < 300; turn++) await Promise.resolve();
+    owner = 'owner-2';
+    resolveSubmit(submit);
+    await sync;
+    expect(submit).not.toHaveBeenCalled();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it('overlaps owned account reads with rules without capturing before both are ready', async () => {
+    let resolveRules!: (value: unknown) => void;
+    let resolveAccounts!: (value: Account[]) => void;
+    const rules = new Promise((resolve) => {
+      resolveRules = resolve;
+    });
+    const accounts = new Promise<Account[]>((resolve) => {
+      resolveAccounts = resolve;
+    });
+    const listAccounts = jest.fn(() => accounts);
+    const readRules = jest.fn(() => rules);
+    const context = setup({ listAccounts });
+    Object.assign(context.tracking, { getRuleConfiguration: readRules });
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(readRules).toHaveBeenCalledTimes(1);
+      expect(listAccounts).toHaveBeenCalledTimes(1);
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+      resolveRules({ snapshot: defaultSnapshot, keywords: [], senders: [] });
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    } finally {
+      resolveRules({ snapshot: defaultSnapshot, keywords: [], senders: [] });
+      resolveAccounts([ownerAccount]);
+      await sync;
+    }
+  });
+
+  it('observes a newly posted import in the same pass instead of scheduling another native wake', async () => {
+    const onSaved = jest.fn(async () => true);
+    const followUp = jest.fn(async () => undefined);
+    const context = setup({ onSaved, scheduleFollowUp: followUp });
+    context.tracking.getImportSession
+      .mockResolvedValueOnce(session('processing'))
+      .mockResolvedValue(session('complete'));
+    expect((await context.coordinator.sync()).status).toBe('imported');
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(2);
+    expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+    expect(followUp).not.toHaveBeenCalled();
+  });
+
+  it('bounds new-import settling and retains its receipt for the ordinary durable follow-up', async () => {
+    const pause = jest.fn(async () => undefined);
+    const followUp = jest.fn(async () => undefined);
+    const context = setup({ waitForImport: pause, scheduleFollowUp: followUp });
+    expect((await context.coordinator.sync()).status).toBe('processing');
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(3);
+    expect(pause).toHaveBeenCalledTimes(2);
+    expect(followUp).toHaveBeenCalledTimes(1);
+    expect((await context.queue.load('owner-1')).pending[0].sessionId).toBe(
+      'session-1'
+    );
+  });
+
+  it('stops the new-import settling read if the owner changes while waiting', async () => {
+    let owner = 'owner-1';
+    const onSaved = jest.fn(async () => true);
+    const context = setup({
+      session: () => ({ status: 'authenticated', userId: owner }),
+      waitForImport: async () => {
+        owner = 'owner-2';
+      },
+      onSaved
+    });
+    expect((await context.coordinator.sync()).status).toBe('error');
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending[0].sessionId).toBe(
+      'session-1'
+    );
+  });
+
+  it('keeps slow import reads on the existing durable follow-up instead of adding network waits', async () => {
+    const realNow = Date.now;
+    let elapsed = realNow();
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => elapsed);
+    const pause = jest.fn(async () => undefined);
+    const context = setup({ waitForImport: pause });
+    context.tracking.getImportSession.mockImplementation(async () => {
+      elapsed += 1500;
+      return session('processing');
+    });
+    try {
+      expect((await context.coordinator.sync()).status).toBe('processing');
+      expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+      expect(pause).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it('stops settling when capture consent changes during its wait', async () => {
+    const onSaved = jest.fn(async () => true);
+    const context = setup({
+      waitForImport: async () => {
+        invalidateTrackingConsent();
+      },
+      onSaved
+    });
+    expect((await context.coordinator.sync()).status).toBe('error');
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect((await context.queue.load('owner-1')).pending[0].sessionId).toBe(
+      'session-1'
+    );
+  });
+
+  it('handles a rejected concurrent account read without scanning or submitting', async () => {
+    let resolveRules!: (value: unknown) => void;
+    const rules = new Promise((resolve) => {
+      resolveRules = resolve;
+    });
+    const listAccounts = jest.fn(async () => {
+      throw new Error('offline');
+    });
+    const context = setup({ listAccounts });
+    Object.assign(context.tracking, {
+      getRuleConfiguration: jest.fn(() => rules)
+    });
+    const sync = context.coordinator.sync();
+    for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+    expect(listAccounts).toHaveBeenCalledTimes(1);
+    resolveRules({ snapshot: defaultSnapshot, keywords: [], senders: [] });
+    expect((await sync).status).toBe('error');
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it('shares the extra-read budget across a batch rather than multiplying it by pending entries', async () => {
+    const context = setup();
+    context.inbox.readRecent.mockResolvedValue([]);
+    for (let index = 0; index < 3; index++) {
+      await context.queue.enqueue('owner-1', {
+        idempotencyKey: `new-batch-${index}`,
+        submission: {
+          schemaVersion: 1,
+          sourceType: 'sms',
+          events: [
+            {
+              sourceItemKey: `new-${index}`,
+              amountMinor: -1,
+              receivedAt: '2026-01-01T00:00:00Z'
+            }
+          ]
+        },
+        cursor: index + 1,
+        fingerprints: []
+      });
+    }
+    let submitted = 0;
+    context.tracking.submitImport.mockImplementation(async () => ({
+      ...session('processing'),
+      id: `new-session-${++submitted}`
+    }));
+    context.tracking.getImportSession.mockImplementation(
+      async (id: string) => ({ ...session('processing'), id })
+    );
+    expect((await context.coordinator.sync()).status).toBe('processing');
+    expect(context.tracking.submitImport).toHaveBeenCalledTimes(3);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(5);
+    expect((await context.queue.load('owner-1')).pending).toHaveLength(3);
+  });
+
+  it('cancels a stalled extra observation at the deadline and ignores its late completion', async () => {
+    jest.useFakeTimers();
+    let release!: (value: TrackingImportSession) => void;
+    const stalled = new Promise<TrackingImportSession>((resolve) => {
+      release = resolve;
+    });
+    let extraSignal: AbortSignal | undefined;
+    const followUp = jest.fn(async () => undefined);
+    const onSaved = jest.fn(async () => true);
+    const context = setup({ scheduleFollowUp: followUp, onSaved });
+    context.tracking.getImportSession
+      .mockResolvedValueOnce(session('processing'))
+      .mockImplementationOnce(
+        (_id: string, _owner: string, signal?: AbortSignal) => {
+          extraSignal = signal;
+          return stalled;
+        }
+      )
+      .mockResolvedValue(session('processing'));
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 300; turn++) await Promise.resolve();
+      expect(context.tracking.getImportSession).toHaveBeenCalledTimes(2);
+      expect(extraSignal).toBeDefined();
+      await jest.advanceTimersByTimeAsync(1200);
+      expect((await sync).status).toBe('processing');
+      expect(extraSignal!.aborted).toBe(true);
+      expect(followUp).toHaveBeenCalledTimes(1);
+      release(session('complete'));
+      for (let turn = 0; turn < 30; turn++) await Promise.resolve();
+      expect(context.coordinator.getState().status).toBe('processing');
+      expect(onSaved).not.toHaveBeenCalled();
+      expect((await context.queue.load('owner-1')).pending[0].sessionId).toBe(
+        'session-1'
+      );
+    } finally {
+      release(session('processing'));
+      await sync;
+      jest.useRealTimers();
+    }
+  });
+
   const installation = {
     deviceId: 'aaaaaaaa-1111-4111-8111-111111111111',
     version: 1,
@@ -737,14 +1025,14 @@ describe('automatic tracking coordinator', () => {
     expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
   });
 
-  it('bounds the live recheck and retains the normal durable follow-up for slow processing', async () => {
+  it('bounds new live rechecks to three reads and retains the normal durable follow-up for slow processing', async () => {
     const scheduleFollowUp = jest.fn(async () => undefined);
     const context = setup({ scheduleFollowUp });
     context.tracking.submitImport.mockResolvedValue(session('received'));
 
     expect((await context.coordinator.sync()).status).toBe('processing');
     expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
-    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(1);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(3);
     expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
     expect((await context.queue.load('owner-1')).pending).toEqual([
       expect.objectContaining({ sessionId: 'session-1' })

@@ -84,6 +84,7 @@ interface CoordinatorDependencies {
     | 'listKeywordRules'
     | 'listSenderRules'
     | 'submitImport'
+    | 'prepareImportSubmission'
     | 'getImportSession'
     | 'listImportItemIds'
     | 'listReviewItems'
@@ -100,6 +101,7 @@ interface CoordinatorDependencies {
   queue: SmsImportQueue;
   prepare: typeof prepareFinancialMessageImport;
   now(): number;
+  waitForImport?(milliseconds: number): Promise<void>;
   deviceId?(): Promise<string>;
   onSaved?(ownerId: string, sessionId: string): Promise<boolean | void>;
   scheduleFollowUp?(ownerId: string): Promise<void>;
@@ -118,6 +120,11 @@ const idleState: AutomaticTrackingSyncState = {
   duplicateId: null,
   errorCode: null
 };
+
+interface ImportObservationBudget {
+  remaining: number;
+  deadline: number | null;
+}
 
 export function createAutomaticTrackingCoordinator(
   dependencies: CoordinatorDependencies
@@ -170,6 +177,10 @@ export function createAutomaticTrackingCoordinator(
       };
       let last: AutomaticTrackingSyncState | null = null;
       const attempted = new Set<string>();
+      const observationBudget: ImportObservationBudget = {
+        remaining: 2,
+        deadline: null
+      };
       // An accepted session is an owned receipt even after its capture capability is revoked.
       if (online && queue.pending.some((entry) => entry.sessionId !== null)) {
         const receipts = queue.pending.filter(
@@ -183,7 +194,8 @@ export function createAutomaticTrackingCoordinator(
           stillOwner,
           (step) => {
             phase = step;
-          }
+          },
+          observationBudget
         );
         receipts.forEach((entry) => attempted.add(entry.idempotencyKey));
         stillOwner();
@@ -221,6 +233,32 @@ export function createAutomaticTrackingCoordinator(
         dependencies.permission.getState(),
         dependencies.bankNotifications.getAccessState()
       ]);
+      stillOwner();
+      // These owned reads are independent. Capture still waits for the complete
+      // configuration, consent check and account result below.
+      const accountsRequest = online
+        ? dependencies.listAccounts().then(
+            (accounts) => ({ ok: true as const, accounts }),
+            (error: unknown) => ({ ok: false as const, error })
+          )
+        : null;
+      const submissionRequest =
+        online && dependencies.tracking.prepareImportSubmission
+          ? dependencies.tracking.prepareImportSubmission(ownerId).then(
+              (submit) => ({ ok: true as const, submit }),
+              (error: unknown) => ({ ok: false as const, error })
+            )
+          : null;
+      const submitImport: AutomaticTrackingService['submitImport'] = async (
+        ...args
+      ) => {
+        const prepared = submissionRequest ? await submissionRequest : null;
+        stillOwner();
+        if (prepared && !prepared.ok) throw prepared.error;
+        return prepared?.ok
+          ? prepared.submit(...args)
+          : dependencies.tracking.submitImport(...args);
+      };
       let config = queue.rules;
       if (online) {
         try {
@@ -290,7 +328,9 @@ export function createAutomaticTrackingCoordinator(
           stillOwner,
           (step) => {
             phase = step;
-          }
+          },
+          observationBudget,
+          submitImport
         );
         waiting.forEach((entry) => attempted.add(entry.idempotencyKey));
       }
@@ -337,8 +377,11 @@ export function createAutomaticTrackingCoordinator(
         ? await dependencies.deviceId()
         : 'legacy-device';
       phase = 'accounts';
-      const accounts = online
-        ? await dependencies.listAccounts()
+      const accountResult = accountsRequest ? await accountsRequest : null;
+      stillOwner();
+      if (accountResult && !accountResult.ok) throw accountResult.error;
+      const accounts = accountResult?.ok
+        ? accountResult.accounts
         : await dependencies.listCachedAccounts();
       stillOwner();
       phase = 'native_configuration';
@@ -582,7 +625,9 @@ export function createAutomaticTrackingCoordinator(
           stillOwner,
           (step) => {
             phase = step;
-          }
+          },
+          observationBudget,
+          submitImport
         );
       return (
         last ??
@@ -776,9 +821,14 @@ async function flush(
     patch?: Partial<AutomaticTrackingSyncState>
   ) => AutomaticTrackingSyncState,
   fence: () => void = () => undefined,
-  setPhase: (phase: string) => void = () => undefined
+  setPhase: (phase: string) => void = () => undefined,
+  budget: ImportObservationBudget = { remaining: 2, deadline: null },
+  submitImport: AutomaticTrackingService['submitImport'] = (...args) =>
+    dependencies.tracking.submitImport(...args)
 ): Promise<AutomaticTrackingSyncState> {
   let last = update('idle');
+  // A small shared settling budget avoids a second native wake for a new save.
+  // Retained receipts keep their existing bounded observation policy.
   for (const entry of pending) {
     fence();
     if (
@@ -795,7 +845,7 @@ async function flush(
       );
     } else {
       setPhase('submit_import');
-      current = await dependencies.tracking.submitImport(
+      current = await submitImport(
         entry.submission,
         entry.idempotencyKey,
         ownerId
@@ -812,6 +862,9 @@ async function flush(
       (current.status === 'received' || current.status === 'processing')
     ) {
       // One owned read can observe a committed effect without another native wake.
+      if (!entry.sessionId && budget.deadline === null)
+        budget.deadline = Date.now() + 1200;
+      let observationFailed = false;
       fence();
       try {
         const observed = await dependencies.tracking.getImportSession(
@@ -819,10 +872,55 @@ async function flush(
           ownerId
         );
         if (observed.id === current.id) current = observed;
+        else observationFailed = true;
       } catch {
         // The optional read cannot replace the receipt's durable processing follow-up.
+        observationFailed = true;
       }
       fence();
+      while (
+        !entry.sessionId &&
+        !observationFailed &&
+        current.acceptedCount === 0 &&
+        (current.status === 'received' || current.status === 'processing') &&
+        budget.remaining > 0 &&
+        budget.deadline !== null &&
+        Date.now() < budget.deadline
+      ) {
+        fence();
+        await (dependencies.waitForImport?.(200) ??
+          new Promise<void>((resolve) => setTimeout(resolve, 200)));
+        fence();
+        if (Date.now() >= budget.deadline) break;
+        budget.remaining--;
+        const controller = new AbortController();
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const observed = await Promise.race([
+            dependencies.tracking.getImportSession(
+              current.id,
+              ownerId,
+              controller.signal
+            ),
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(
+                () => {
+                  controller.abort();
+                  reject(new Error('tracking_observation_timeout'));
+                },
+                Math.max(1, budget.deadline! - Date.now())
+              );
+            })
+          ]);
+          if (observed.id === current.id) current = observed;
+          else observationFailed = true;
+        } catch {
+          observationFailed = true;
+        } finally {
+          if (timeout !== undefined) clearTimeout(timeout);
+        }
+        fence();
+      }
     }
     setPhase('confirm_saved');
     if (

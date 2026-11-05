@@ -212,30 +212,33 @@ export function createLiveAutomaticTrackingService({
       idempotencyKey,
       expectedOwnerId,
       assertIntent,
-      signal
+      signal,
+      preparedIdentity
     }: {
       idempotencyKey?: string;
       expectedOwnerId?: string;
-      assertIntent?: () => void;
+      assertIntent?: () => void | Promise<void>;
       signal?: AbortSignal;
+      preparedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
     } = {}
   ): Promise<unknown> => {
     const assertTrackingCurrent = captureTrackingAdmission(expectedOwnerId);
     assertBenchmarkRead(method);
-    assertIntent?.();
+    await assertIntent?.();
     const identity =
-      expectedOwnerId === undefined
+      preparedIdentity ??
+      (expectedOwnerId === undefined
         ? null
         : await (method === 'GET'
             ? captureLiveReadClerkIdentity()
-            : captureLiveClerkIdentity());
+            : captureLiveClerkIdentity()));
     if (identity && identity.userId !== expectedOwnerId)
       throw new TrackingError('permission_required');
     const accessToken = identity
       ? identity.token
       : await token(method === 'GET');
     await identity?.assertCurrent();
-    assertIntent?.();
+    await assertIntent?.();
     assertReadActive(signal);
     assertTrackingCurrent();
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
@@ -255,7 +258,7 @@ export function createLiveAutomaticTrackingService({
     const value: unknown =
       response.status === 204 ? null : await response.json();
     await identity?.assertCurrent();
-    assertIntent?.();
+    await assertIntent?.();
     assertReadActive(signal);
     if (!response.ok) {
       if (response.status === 401 || response.status === 403)
@@ -414,6 +417,23 @@ export function createLiveAutomaticTrackingService({
         lastUpdatedAt: requiredEpoch(value.lastUpdatedAt)
       };
     });
+  const submitImport = async (
+    input: Parameters<AutomaticTrackingService['submitImport']>[0],
+    idempotencyKey: string,
+    expectedOwnerId?: string,
+    preparedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>,
+    assertIntent?: () => Promise<void>
+  ) =>
+    importSession(
+      resource(
+        await send('POST', '/api/v1/imports', input, {
+          idempotencyKey,
+          expectedOwnerId,
+          preparedIdentity,
+          assertIntent
+        })
+      )
+    );
   return {
     metadata: {
       id: 'phase08-tracking-http',
@@ -422,24 +442,44 @@ export function createLiveAutomaticTrackingService({
       kind: 'live',
       availability: 'available'
     },
-    async submitImport(input, idempotencyKey, expectedOwnerId) {
-      return importSession(
-        resource(
-          await send('POST', '/api/v1/imports', input, {
-            idempotencyKey,
-            expectedOwnerId
-          })
-        )
-      );
+    async prepareImportSubmission(expectedOwnerId) {
+      const assertAdmission = captureTrackingAdmission(expectedOwnerId);
+      const capturedAt = Date.now();
+      const identity = await captureLiveClerkIdentity();
+      await identity.assertCurrent();
+      assertAdmission();
+      if (identity.userId !== expectedOwnerId)
+        throw new TrackingError('permission_required');
+      const assertPrepared = async () => {
+        assertAdmission();
+        await identity.assertCurrent();
+        assertAdmission();
+      };
+      // One command may prepare its fresh SDK identity while configuration is read.
+      // Every submission still checks admission and the exact SDK session again.
+      return async (input, idempotencyKey, ownerId) => {
+        await assertPrepared();
+        if (ownerId !== expectedOwnerId)
+          throw new TrackingError('permission_required');
+        const age = Date.now() - capturedAt;
+        return submitImport(
+          input,
+          idempotencyKey,
+          expectedOwnerId,
+          age >= 0 && age < 15_000 ? identity : undefined,
+          assertPrepared
+        );
+      };
     },
-    getImportSession: async (id, expectedOwnerId) =>
+    submitImport,
+    getImportSession: async (id, expectedOwnerId, signal) =>
       importSession(
         record(
           await send(
             'GET',
             `/api/v1/imports/${encodeURIComponent(id)}`,
             undefined,
-            { expectedOwnerId }
+            { expectedOwnerId, signal }
           )
         )
       ),
