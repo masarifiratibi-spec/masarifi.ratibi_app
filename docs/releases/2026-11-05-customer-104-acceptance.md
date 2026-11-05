@@ -1,5 +1,7 @@
 # Customer 104: physical core and Tracking acceptance
 
+Historical104 evidence follows. The current installed and delivered correction is105; see [SMS latency correction and actual105 results](2026-11-05-sms-latency-correction.md). Do not downgrade to104 or use its former delivery identity as the current release identity.
+
 The primary Redmi application was updated in place and tested on Android owner user 0. Customer 104 uses the existing Production signing key and retains the original application ID, first-install time, saved owner session, and original accounts. The installed and delivered APK SHA-256 is `4636466ad136f655ad747701d3c7b3dc2f5379a6a652efac8da7491d488b5b66` (49,503,110 bytes). Hermes SHA-256 is `831e925ad21dc370525ce46fd01f048a78d3945d69890aaf5a8e6a3f83c00c8d`.
 
 Application source is commit `ed0ab5e1a63a12676c945de57f926469038dc9a0`. The APK was built from base `790fd6a07ab3fada76e7086d12f2b2d799d0c3a8` plus the five individually pinned changes committed in that source commit. Git normalizes only the Proguard file's CRLF line endings; the exact built raw inputs and index qualification are retained privately. No new build or installation followed the user's subsequent instruction to continue on the installed release 104.
