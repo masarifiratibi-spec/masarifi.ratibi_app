@@ -78,6 +78,7 @@ internal object TrackingOwnerPartitions {
     TrackingOwner.suspend(context)
     val lease = transition.lease
     check(!admission(context).contains("purging:" + lease.owner)) { "tracking_owner_partition_unavailable" }
+    check(admission(context).getString("purged:" + lease.owner, null) != lease.generation) { "tracking_owner_partition_unavailable" }
     val next = preparedRecord(context, transition)
     check(ownerStorage(context, lease.owner).edit().putString("prepared", next.toString()).commit()) { "tracking_owner_storage_failed" }
     select(context, lease, "prepared", true)
@@ -241,13 +242,42 @@ internal object TrackingOwnerPartitions {
   }
 
   fun purge(context: Context, lease: TrackingPartitionLease): Unit = synchronized(TrackingOwner) {
+    purgePartition(context, lease) { assertCurrent(context, lease) }
+  }
+
+  /** Cleanup authority comes from the pinned JS logout journal, never capture admission. */
+  fun resumePurge(context: Context, owner: String, generation: String?): Unit = synchronized(TrackingOwner) {
+    require(owner.matches(Regex("[a-f0-9]{64}")))
+    val registry = admission(context)
+    if (generation == null) {
+      // JS may already have removed its generation after native completion. A
+      // missing capability can acknowledge only an entirely absent partition.
+      check(ownerStorage(context, owner).all.isEmpty() && !hasUnboundCiphertext(context, owner) &&
+        !registry.contains("committed:" + owner) && !registry.contains("purging:" + owner)) { "tracking_owner_lease_stale" }
+      return@synchronized
+    }
+    val lease = TrackingPartitionLease(owner, generation)
+    purgePartition(context, lease) {
+      check(journal(context)!!.optString("phase") == "committed" && matches(selectedContext(context), lease)) {
+        "tracking_owner_lease_stale"
+      }
+    }
+  }
+
+  private fun purgePartition(context: Context, lease: TrackingPartitionLease, authorize: () -> Unit) {
     check(context.packageName in listOf("com.masarifi.mobile", "com.masarifi.mobile.dev", "com.masarifi.mobile.dev.privacy")) {
       "privacy_development_required"
     }
     val registry = admission(context)
-    if (registry.getString("purged:" + lease.owner, null) == lease.generation) return@synchronized
+    if (registry.getString("purged:" + lease.owner, null) == lease.generation) {
+      check(ownerStorage(context, lease.owner).all.isEmpty() && !hasUnboundCiphertext(context, lease.owner) &&
+        !registry.contains("committed:" + lease.owner) && !registry.contains("purging:" + lease.owner)) { "tracking_owner_lease_stale" }
+      return
+    }
     check(matches(journal(context), lease)) { "tracking_owner_lease_stale" }
-    if (registry.getString("purging:" + lease.owner, null) != lease.generation) assertCurrent(context, lease)
+    if (registry.getString("purging:" + lease.owner, null) != lease.generation) {
+      authorize()
+    }
     check(registry.edit().putString("purging:" + lease.owner, lease.generation).putBoolean("suspended", true).commit()) {
       "tracking_owner_storage_failed"
     }

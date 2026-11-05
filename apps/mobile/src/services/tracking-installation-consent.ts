@@ -202,7 +202,7 @@ const bodySchema = z
     sources: trackingInstallationSourcesSchema
   })
   .strict();
-const pendingSchema = z
+const preparedCommandSchema = z
   .object({
     id: z.string().uuid(),
     sessionBinding: z.string().regex(/^[a-f0-9]{64}$/),
@@ -210,6 +210,16 @@ const pendingSchema = z
     receipt: trackingInstallationReceiptSchema.optional()
   })
   .strict();
+const preparingCommandSchema = z
+  .object({
+    id: z.string().uuid(),
+    sessionBinding: z.string().regex(/^[a-f0-9]{64}$/),
+    preparing: z.literal(true),
+    sources: trackingInstallationSourcesSchema
+  })
+  .strict();
+// Existing v1 prepared commands remain readable, including ambiguous PUT receipts.
+const pendingSchema = z.union([preparedCommandSchema, preparingCommandSchema]);
 const journalSchema = z
   .object({
     version: z.literal(1),
@@ -381,6 +391,35 @@ export class TrackingInstallationConsentJournal {
     if (pending.sessionBinding !== scope.sessionBinding)
       throw new Error('tracking_consent_session_changed');
     await scope.assertCurrent();
+    if ('preparing' in pending) {
+      // Registration can invalidate a previous binding and advance its version.
+      const deviceRegistration = registrationSchema.parse(
+        await this.ports.registerDevice(scope)
+      );
+      await scope.assertCurrent();
+      const configuration = await this.ports.readConfiguration(scope);
+      await scope.assertCurrent();
+      const previous =
+        configuration &&
+        typeof configuration === 'object' &&
+        'installation' in configuration
+          ? receivedReceipt(configuration)
+          : null;
+      if (previous && previous.deviceId !== scope.deviceId)
+        throw new Error('tracking_consent_response_invalid');
+      const prepared = {
+        id: pending.id,
+        sessionBinding: pending.sessionBinding,
+        body: {
+          expectedVersion: previous?.version ?? 0,
+          deviceRegistration,
+          sources: pending.sources
+        }
+      };
+      const next = { ...journal, pending: prepared };
+      await this.write(scope, next);
+      return this.send(scope, next, prepared);
+    }
     const receipt =
       pending.receipt ??
       receivedReceipt(await this.ports.putConsent(scope, pending.body));
@@ -409,48 +448,27 @@ export class TrackingInstallationConsentJournal {
       await this.write(scope, { ...journal, pending: { ...pending, receipt } });
     return { commandId: pending.id, sources: localSources(receipt) };
   }
-  async apply(sources: TrackingSourceState): Promise<AppliedTrackingConsent> {
+  private async prepareIntent(sources: TrackingSourceState) {
     const scope = await this.ports.scope();
     const journal = await this.read(scope);
     const desired = serverSources(sources);
     if (
       journal.pending?.sessionBinding === scope.sessionBinding &&
-      canonicalJson(journal.pending.body.sources) === canonicalJson(desired)
+      canonicalJson(
+        'preparing' in journal.pending
+          ? journal.pending.sources
+          : journal.pending.body.sources
+      ) === canonicalJson(desired)
     ) {
-      const result = await this.send(scope, journal, journal.pending);
-      return {
-        ...result,
-        sources: {
-          ...result.sources,
-          ...(sources.notificationAccountId
-            ? { notificationAccountId: sources.notificationAccountId }
-            : {})
-        }
-      };
+      return { scope, journal, pending: journal.pending };
     }
-    // Register the SDK binding before reading the version that binding invalidation may advance.
-    const deviceRegistration = registrationSchema.parse(
-      await this.ports.registerDevice(scope)
-    );
-    await scope.assertCurrent();
-    const configuration = await this.ports.readConfiguration(scope);
-    await scope.assertCurrent();
-    const previous =
-      configuration &&
-      typeof configuration === 'object' &&
-      'installation' in configuration
-        ? receivedReceipt(configuration)
-        : null;
-    if (previous && previous.deviceId !== scope.deviceId)
-      throw new Error('tracking_consent_response_invalid');
+    // The newest explicit intent must fence older commands even when the very
+    // first network operation fails. Retain superseded bytes as evidence.
     const pending: Pending = {
       id: randomUUID(),
       sessionBinding: scope.sessionBinding,
-      body: {
-        expectedVersion: previous?.version ?? 0,
-        deviceRegistration,
-        sources: desired
-      }
+      preparing: true,
+      sources: desired
     };
     const next: Journal = {
       ...journal,
@@ -461,7 +479,14 @@ export class TrackingInstallationConsentJournal {
       ]
     };
     await this.write(scope, next);
-    const applied = await this.send(scope, next, pending);
+    return { scope, journal: next, pending };
+  }
+  async stage(sources: TrackingSourceState): Promise<void> {
+    await this.prepareIntent(sources);
+  }
+  async apply(sources: TrackingSourceState): Promise<AppliedTrackingConsent> {
+    const { scope, journal, pending } = await this.prepareIntent(sources);
+    const applied = await this.send(scope, journal, pending);
     return {
       ...applied,
       sources: {
@@ -480,7 +505,11 @@ export class TrackingInstallationConsentJournal {
   async acknowledge(commandId: string): Promise<void> {
     const scope = await this.ports.scope();
     const journal = await this.read(scope);
-    if (journal.pending?.id !== commandId || !journal.pending.receipt)
+    if (
+      journal.pending?.id !== commandId ||
+      !('body' in journal.pending) ||
+      !journal.pending.receipt
+    )
       throw new Error('tracking_consent_response_invalid');
     if (journal.pending.sessionBinding !== scope.sessionBinding)
       throw new Error('tracking_consent_session_changed');
@@ -522,6 +551,7 @@ export class TrackingInstallationConsentJournal {
 }
 
 export interface TrackingSourceConsentPort {
+  stage?(sources: TrackingSourceState): Promise<void>;
   apply(sources: TrackingSourceState): Promise<AppliedTrackingConsent | null>;
   retry(): Promise<AppliedTrackingConsent | null>;
   acknowledge(commandId: string): Promise<void>;
@@ -540,6 +570,10 @@ export function productionTrackingConsentRequired(): boolean {
   );
 }
 export const productionTrackingConsent: TrackingSourceConsentPort = {
+  stage: (sources) =>
+    productionTrackingConsentRequired()
+      ? liveJournal.stage(sources)
+      : Promise.resolve(),
   apply: (sources) =>
     productionTrackingConsentRequired()
       ? liveJournal.apply(sources)

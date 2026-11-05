@@ -257,6 +257,8 @@ export class TrackingSourcePreferences {
       };
       // Consent changes invalidate all queued native work; the next authenticated pass installs a new generation.
       await disableTrackingBackground(true);
+      // Fence older consent before a crash can interrupt the local preference write.
+      await this.consent.stage?.(next);
       // A local disable is effective even while its durable server revocation is offline.
       if (!enabled) await this.write(scope, next, revision);
       const applied = await this.consent.apply(next);

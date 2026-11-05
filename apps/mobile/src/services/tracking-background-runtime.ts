@@ -497,18 +497,33 @@ export async function disableTrackingBackground(
 }
 
 export async function purgeDeletedOwnerTracking(
-  ownerId: string
+  ownerId: string,
+  recovery?: { assertCurrent(): void; assertOwner(): Promise<void> }
 ): Promise<void> {
-  const assertCurrent = captureTrackingAdmission(ownerId);
+  const assertCurrent =
+    recovery?.assertCurrent ?? captureTrackingAdmission(ownerId);
   if (Platform.OS !== 'android') return;
   const native = trackingNativeRuntime;
   if (supportsTrackingOwnerPartitions()) {
     const state = useTrackingAdmission.getState();
-    const lease = state.nativeLease;
+    const context = recovery ? await readTrackingOwnerContext(ownerId) : null;
+    assertCurrent();
+    const ownerDigest = recovery
+      ? await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          ownerId
+        )
+      : state.nativeLease?.ownerDigest;
+    assertCurrent();
+    const lease = recovery
+      ? { ownerDigest, generation: context?.generation ?? null }
+      : state.nativeLease;
     if (
-      !lease ||
-      state.admittedOwnerId !== ownerId ||
-      !native?.purgeTrackingOwnerDataV4
+      !lease?.ownerDigest ||
+      (!recovery &&
+        (state.admittedOwnerId !== ownerId ||
+          !native?.purgeTrackingOwnerDataV4)) ||
+      (recovery && !native?.resumeTrackingOwnerPurgeV4)
     )
       throw new Error('tracking_restore_unavailable');
     nativeGeneration++;
@@ -523,10 +538,18 @@ export async function purgeDeletedOwnerTracking(
           if (context && context.generation !== lease.generation)
             throw new Error('tracking_restore_unavailable');
           assertCurrent();
-          await native.purgeTrackingOwnerDataV4!(
-            lease.ownerDigest,
-            lease.generation
-          );
+          if (recovery) {
+            await recovery.assertOwner();
+            await native!.resumeTrackingOwnerPurgeV4!(
+              lease.ownerDigest!,
+              lease.generation
+            );
+            await recovery.assertOwner();
+          } else
+            await native!.purgeTrackingOwnerDataV4!(
+              lease.ownerDigest!,
+              lease.generation!
+            );
           assertCurrent();
           await clearSources();
           if (context) {

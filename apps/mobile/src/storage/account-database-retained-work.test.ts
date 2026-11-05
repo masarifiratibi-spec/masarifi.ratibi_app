@@ -1,4 +1,16 @@
 import { createHash } from 'node:crypto';
+import { retryPendingLogout } from '@/services/owner-lifecycle';
+import { registerLiveClerkBridge } from '@/services/live/auth-service';
+import {
+  beginTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
+import { useAppShellStore } from '@/state/app-shell';
+import {
+  prepareLogoutDisposition,
+  markLogoutCleanupReady,
+  loadLogoutDisposition
+} from './app-shell-storage';
 import {
   configureDatabaseOwner,
   openDatabase,
@@ -25,6 +37,8 @@ const mockSecrets = new Map<string, string>();
 let mockNextKey = 1;
 let mockDeleteFailure: string | null = null;
 let mockLegacyClaims: string[] | null = null;
+let mockKeyDeleteFailure = false;
+const mockRemovedAudio: string[] = [];
 const owner = 'user_purge_a';
 const other = 'user_purge_b';
 const hash = (id: string) => createHash('sha256').update(id).digest('hex');
@@ -33,6 +47,7 @@ const key = (id: string) => `masarifi.database.key.${hash(id)}`;
 const previousMode = process.env.EXPO_PUBLIC_CLIENT_MODE;
 
 jest.mock('expo-crypto', () => ({
+  randomUUID: () => jest.requireActual('node:crypto').randomUUID(),
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   digestStringAsync: async (_algorithm: string, text: string) =>
     jest
@@ -51,7 +66,27 @@ jest.mock('expo-secure-store', () => ({
     mockSecrets.set(name, value);
   },
   deleteItemAsync: async (name: string) => {
+    if (mockKeyDeleteFailure && name === key(owner))
+      throw new Error('synthetic key interruption');
     mockSecrets.delete(name);
+  }
+}));
+jest.mock('../../modules/masarifi-sms-inbox', () => ({
+  MasarifiSmsInbox: {
+    prepareTrackingOwnerV4: async () => {
+      throw new Error('ordinary admission must stay closed');
+    },
+    commitTrackingOwnerV4: async () => {
+      throw new Error('ordinary admission must stay closed');
+    },
+    resumeTrackingOwnerPurgeV4: async () => undefined
+  }
+}));
+jest.mock('@/services/platform/voice-recorder-service', () => ({
+  voiceRecorderService: {
+    remove: async (uri: string) => {
+      mockRemovedAudio.push(uri);
+    }
   }
 }));
 jest.mock('expo-file-system', () => ({
@@ -135,11 +170,66 @@ beforeEach(async () => {
   mockNextKey = 1;
   mockDeleteFailure = null;
   mockLegacyClaims = null;
+  mockKeyDeleteFailure = false;
+  mockRemovedAudio.length = 0;
   mockFiles.add(filename(other));
   mockSecrets.set(key(other), 'b'.repeat(64));
   await configureDatabaseOwner(owner);
   await openDatabase(owner);
 });
+
+it.each(['wal', 'key'] as const)(
+  'resumes the actual approved cold logout after %s removal interruption without reopening its purging database',
+  async (cut) => {
+    mockDatabases
+      .get(filename(owner))!
+      .prepare(
+        "INSERT INTO voice_operation_journal(id,attempt_id,revision,payload) VALUES('singleton','synthetic-attempt',1,?)"
+      )
+      .run(
+        JSON.stringify({ audioReference: 'file://synthetic-owned-audio.m4a' })
+      );
+    registerLiveClerkBridge({ getSession: async () => null } as never);
+    useAppShellStore.setState({
+      session: null,
+      logoutQuiescingOwnerId: null,
+      logoutRecoveryOwnerId: null
+    });
+    useTrackingAdmission.setState({ isolatedForOwnerId: null });
+    beginTrackingAdmission();
+    const record = await prepareLogoutDisposition({
+      ownerId: owner,
+      sessionId: 'synthetic-database-session',
+      scope: 'local',
+      dataDisposition: 'remove'
+    });
+    await markLogoutCleanupReady(record);
+    if (cut === 'wal') mockDeleteFailure = filename(owner) + '-wal';
+    else mockKeyDeleteFailure = true;
+    await expect(retryPendingLogout(owner)).rejects.toThrow(
+      cut === 'wal'
+        ? 'synthetic filesystem interruption'
+        : 'synthetic key interruption'
+    );
+    expect((await loadLogoutDisposition(owner))?.localCleanupPhase).toBe(
+      'database-purge-ready'
+    );
+    expect(mockRemovedAudio).toEqual(['file://synthetic-owned-audio.m4a']);
+    resetDatabaseForTests();
+    mockDeleteFailure = null;
+    mockKeyDeleteFailure = false;
+    beginTrackingAdmission();
+    await retryPendingLogout(owner);
+    expect(await loadLogoutDisposition(owner)).toBeNull();
+    expect(mockFiles.has(filename(owner))).toBe(false);
+    expect(mockFiles.has(filename(owner) + '-wal')).toBe(false);
+    expect(mockSecrets.has(key(owner))).toBe(false);
+    expect(mockFiles.has(filename(other))).toBe(true);
+    expect(mockSecrets.get(key(other))).toBe('b'.repeat(64));
+    expect(useTrackingAdmission.getState().ready).toBe(false);
+    expect(mockRemovedAudio).toEqual(['file://synthetic-owned-audio.m4a']);
+  }
+);
 afterEach(async () => {
   await clearDatabaseOwner(undefined, { preservePendingWork: true });
   for (const db of mockDatabases.values()) db.close();

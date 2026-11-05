@@ -214,6 +214,17 @@ jest.mock('../../modules/masarifi-sms-inbox', () => ({
     purgeTrackingOwnerDataV4: jest.fn(async () => {
       mockNative.suspended = true;
     }),
+    resumeTrackingOwnerPurgeV4: jest.fn(async () => {
+      if (
+        jest
+          .requireActual('@/state/tracking-admission')
+          .useTrackingAdmission.getState().ready
+      )
+        throw new Error('cleanup_must_not_admit_capture');
+      mockNative.suspended = true;
+      mockNative.committed = null;
+      mockNative.pending = null;
+    }),
     clearTrackingOwnerV4: async () => {
       mockNative.suspended = true;
     },
@@ -872,6 +883,87 @@ it('finishes only a durable approved cold logout preservation after its SDK sess
   expect(mockNative.suspended).toBe(true);
   expect(mockSecureValues.get(legacyKey)).toBe(retained);
 });
+
+it.each(['purging', 'purged', 'js-cleared'] as const)(
+  'recovers approved cold removal after native %s without preparing capture again',
+  async (cut) => {
+    await restoreAppShellSession(verifiedSession(), () => true, {
+      getProfileSetup: async () => ({ complete: true })
+    } as never);
+    const lease = useTrackingAdmission.getState().nativeLease!;
+    const record = await prepareLogoutDisposition({
+      ownerId: owner,
+      sessionId: 'sess_currentA',
+      scope: 'local',
+      dataDisposition: 'remove'
+    });
+    await markLogoutCleanupReady(record);
+    if (cut === 'js-cleared') mockSecureValues.delete(contextKey);
+    const databasePurge = jest
+      .spyOn(database, 'purgeAccountDatabase')
+      .mockResolvedValue(undefined);
+    const prepare = jest
+      .spyOn(MasarifiSmsInbox!, 'prepareTrackingOwnerV4')
+      .mockImplementation(async () => {
+        throw new Error(
+          cut === 'purging'
+            ? 'tracking_owner_partition_unavailable'
+            : 'purged_generation_must_not_be_recreated'
+        );
+      });
+    sdkUser = null;
+    mockNative.suspended = true;
+    useAppShellStore.setState({ session: null });
+    beginTrackingAdmission();
+    await retryPendingLogout(owner);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(databasePurge).toHaveBeenCalledWith(owner);
+    expect(mockSecureValues.has(contextKey)).toBe(false);
+    expect(await loadLogoutDisposition(owner)).toBeNull();
+    expect(useTrackingAdmission.getState().ready).toBe(false);
+    expect(mockSecureValues.get(legacyKey)).toBe(retained);
+    expect(lease.ownerDigest).toBe(digest);
+    expect(
+      MasarifiSmsInbox!.resumeTrackingOwnerPurgeV4
+    ).toHaveBeenLastCalledWith(
+      digest,
+      cut === 'js-cleared' ? null : lease.generation
+    );
+  }
+);
+
+it.each(['other-owner', 'new-session'] as const)(
+  'leaves cold removal untouched when SDK identity changes: %s',
+  async (changed) => {
+    await restoreAppShellSession(verifiedSession(), () => true, {
+      getProfileSetup: async () => ({ complete: true })
+    } as never);
+    const record = await prepareLogoutDisposition({
+      ownerId: owner,
+      sessionId: 'sess_currentA',
+      scope: 'local',
+      dataDisposition: 'remove'
+    });
+    const ready = await markLogoutCleanupReady(record);
+    const raw = mockSecureValues.get(contextKey);
+    const calls = jest.mocked(MasarifiSmsInbox!.resumeTrackingOwnerPurgeV4!)
+      .mock.calls.length;
+    registerLiveClerkBridge({
+      getSession: async () => ({
+        userId: changed === 'other-owner' ? 'user_foreign' : owner,
+        id: 'sess_replaced'
+      })
+    } as never);
+    useAppShellStore.setState({ session: null });
+    beginTrackingAdmission();
+    await expect(retryPendingLogout(owner)).rejects.toThrow();
+    expect(mockSecureValues.get(contextKey)).toBe(raw);
+    expect(await loadLogoutDisposition(owner)).toEqual(ready);
+    expect(MasarifiSmsInbox!.resumeTrackingOwnerPurgeV4).toHaveBeenCalledTimes(
+      calls
+    );
+  }
+);
 
 it('presents an owned accepted save using the exact native generation', async () => {
   await restoreAppShellSession(verifiedSession(), () => true, {

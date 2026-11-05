@@ -37,6 +37,9 @@ class MasarifiSmsInboxModule : Module() {
     AsyncFunction("purgeTrackingOwnerDataV4") { owner: String,generation: String ->
       TrackingOwnerPartitions.purge(trackingContext(),TrackingPartitionLease(owner,generation))
     }
+    AsyncFunction("resumeTrackingOwnerPurgeV4") { owner: String,generation: String? ->
+      TrackingOwnerPartitions.resumePurge(trackingContext(),owner,generation)
+    }
     AsyncFunction("notificationCaptureIssueV4") { owner: String,generation: String ->
       currentPartition(TrackingPartitionLease(owner,generation)) {
         TrackingOwnerPartitions.ownerPreferences(it,"masarifi_notification_queue_v1","masarifi_notification_queue_metadata_v3").getString("captureIssue",null)

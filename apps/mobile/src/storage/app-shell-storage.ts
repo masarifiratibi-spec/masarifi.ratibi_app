@@ -63,8 +63,10 @@ let logoutAdmissionRevision = 0;
 const logoutDispositionSchema = z.object({
   id: z.string().uuid(), ownerId: z.string().min(1), sessionId: z.string().min(1).nullable(),
   scope: z.enum(['local', 'all']), phase: z.enum(['prepared', 'cleanup-ready']),
-  dataDisposition: z.enum(['preserve', 'remove']).default('preserve')
-}).strict();
+  dataDisposition: z.enum(['preserve', 'remove']).default('preserve'),
+  localCleanupPhase: z.literal('database-purge-ready').optional()
+}).strict().refine(record => !record.localCleanupPhase ||
+  record.phase === 'cleanup-ready' && record.dataDisposition === 'remove');
 export type LogoutDisposition = z.infer<typeof logoutDispositionSchema>;
 export const currentLogoutAdmissionRevision = () => logoutAdmissionRevision;
 function serializeLocalOwner(change: () => Promise<void>): Promise<void> {
@@ -142,6 +144,19 @@ export async function completeLogoutDisposition(record: LogoutDisposition): Prom
     await removeSensitive(logoutRecoveryKey).catch(() => undefined);
     logoutAdmissionRevision++;
   });
+}
+
+/** Audio and native removal finish before the database becomes unavailable to ordinary readers. */
+export async function markLogoutDatabasePurgeReady(record: LogoutDisposition): Promise<LogoutDisposition> {
+  const ready = logoutDispositionSchema.parse({ ...record, localCleanupPhase: 'database-purge-ready' });
+  await serializeLocalOwner(async () => {
+    const current = await loadLogoutDisposition(record.ownerId);
+    if (JSON.stringify(current) !== JSON.stringify(record)) throw new Error('LOGOUT_DISPOSITION_CHANGED');
+    await writeSensitive(await logoutDispositionKey(record.ownerId), ready);
+    if (JSON.stringify(await loadLogoutDisposition(record.ownerId)) !== JSON.stringify(ready))
+      throw new Error('LOGOUT_PERSISTENCE_UNCONFIRMED');
+  });
+  return ready;
 }
 
 /** Save only after an authenticated server bootstrap confirms profile completion. */

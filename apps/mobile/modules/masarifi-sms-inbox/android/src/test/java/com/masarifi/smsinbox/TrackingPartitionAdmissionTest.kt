@@ -318,6 +318,53 @@ class TrackingPartitionAdmissionTest {
     assertEquals("opaque foreign sentinel", prefs("masarifi_notification_queue_v2_" + ownerB).getString("ciphertext", null))
   }
 
+  @Test fun completedPurgeGenerationCannotBePreparedAgainAfterProcessReconstruction() {
+    TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA))
+    TrackingOwnerPartitions.commit(context, leaseA)
+    TrackingOwnerPartitions.purge(context, leaseA)
+    expectRejected("tracking_owner_partition_unavailable") {
+      TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA))
+    }
+    assertTrue(prefs("masarifi_tracking_owner_v3_" + ownerA).all.isEmpty())
+    assertFalse(TrackingOwner.active(context))
+  }
+
+  @Test fun cleanupRecoveryResumesDurablePurgeWithoutOrdinaryAdmission() {
+    val retained = seedLegacy(ownerB, generationB)
+    TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA))
+    TrackingOwnerPartitions.commit(context, leaseA)
+    TrackingEncryptedStore(context, "masarifi_notification_queue_v2").write("[public retained A]")
+    expectRejected("tracking_owner_storage_failed") {
+      TrackingOwnerPartitions.purge(failingContext("masarifi_tracking_owner_v3_" + ownerA), leaseA)
+    }
+    expectRejected("tracking_owner_partition_unavailable") { TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA)) }
+    expectRejected("tracking_owner_lease_stale") { TrackingOwnerPartitions.resumePurge(context, ownerB, generationB) }
+    TrackingOwnerPartitions.resumePurge(context, ownerA, generationA)
+    TrackingOwnerPartitions.resumePurge(context, ownerA, generationA)
+    TrackingOwnerPartitions.resumePurge(context, ownerA, null)
+    assertTrue(prefs("masarifi_tracking_owner_v3_" + ownerA).all.isEmpty())
+    assertFalse(TrackingOwner.active(context))
+    assertEquals(retained, prefs("masarifi_tracking_owner_v2").getString("context", null))
+    assertEquals("opaque foreign sentinel", prefs("masarifi_notification_queue_v2_" + ownerB).getString("ciphertext", null))
+    // A later admission may use a new generation, never the completed one.
+    val successor = TrackingPartitionLease(ownerA, generationB)
+    TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(successor))
+    TrackingOwnerPartitions.commit(context, successor)
+    expectRejected("tracking_owner_lease_stale") { TrackingOwnerPartitions.resumePurge(context, ownerA, generationA) }
+    expectRejected("tracking_owner_lease_stale") { TrackingOwnerPartitions.resumePurge(context, ownerA, null) }
+    TrackingOwnerPartitions.assertCurrent(context, successor)
+  }
+
+  @Test fun pinnedCleanupCanPurgeAnExistingCommittedPartitionWhileCaptureRemainsSuspended() {
+    TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA))
+    TrackingOwnerPartitions.commit(context, leaseA)
+    TrackingOwner.suspend(context)
+    expectRejected("tracking_owner_lease_stale") { TrackingOwnerPartitions.resumePurge(context, ownerA, generationB) }
+    TrackingOwnerPartitions.resumePurge(context, ownerA, generationA)
+    assertTrue(prefs("masarifi_tracking_owner_v3_" + ownerA).all.isEmpty())
+    assertFalse(TrackingOwner.active(context))
+  }
+
   @Test fun captureRequiresAPolicyAndAValidExplicitConsentBoundary() {
     TrackingOwnerPartitions.prepare(context, TrackingPartitionTransition(leaseA))
     TrackingOwnerPartitions.commit(context, leaseA)

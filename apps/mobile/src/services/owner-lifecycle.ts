@@ -7,6 +7,7 @@ import {
 import type { AuthenticationSession } from '@/domain/app-shell';
 import type { AuthService } from '@/services/contracts/app-shell-service';
 import { resolveClientMode } from '@/config/client-runtime';
+import { supportsTrackingOwnerPartitions } from './tracking-owner-context';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 import { useAppShellStore } from '@/state/app-shell';
 import { HttpError } from '@/services/live/http-client';
@@ -22,9 +23,11 @@ import {
   purgeAppShellOwnerData,
   loadLogoutDisposition,
   markLogoutCleanupReady,
+  markLogoutDatabasePurgeReady,
   completeLogoutDisposition,
   createAppShellStorage,
   clearAppShellStorageOwner,
+  currentLogoutAdmissionRevision,
   type LogoutDisposition
 } from '@/storage/app-shell-storage';
 import { isDeletionOwnerFenced } from '@/storage/deletion-completion-journal';
@@ -236,43 +239,56 @@ async function performSignOutAppShellSession(
 }
 
 async function purgeLogoutOwner(
-  record: LogoutDisposition,
-  capturedAudio?: string[]
+  initialRecord: LogoutDisposition,
+  capturedAudio?: string[],
+  recoveryGuard?: () => void
 ): Promise<void> {
+  let record = initialRecord;
   if (record.dataDisposition === 'preserve') return releaseLogoutOwner(record);
   const ownerId = record.ownerId;
-  const assertTrackingCurrent = captureTrackingAdmission();
+  const assertTrackingCurrent = recoveryGuard ?? captureTrackingAdmission();
   const assertOwner = async () => {
     assertTrackingCurrent();
     const current = useAppShellStore.getState().session?.userId;
     if (current && current !== ownerId)
       throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
-    await readLogoutSessionAnchor(ownerId);
+    const anchor = await readLogoutSessionAnchor(ownerId);
+    if (anchor !== null && anchor !== record.sessionId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_SESSION_UNVERIFIED');
     const after = useAppShellStore.getState().session?.userId;
     if (after && after !== ownerId)
       throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
     const stored = await loadLogoutDisposition(ownerId);
     if (
-      stored?.id !== record.id ||
-      stored.phase !== 'cleanup-ready' ||
-      stored.dataDisposition !== record.dataDisposition
+      record.phase !== 'cleanup-ready' ||
+      JSON.stringify(stored) !== JSON.stringify(record)
     )
       throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
-    await readLogoutSessionAnchor(ownerId);
+    const latestAnchor = await readLogoutSessionAnchor(ownerId);
+    if (latestAnchor !== null && latestAnchor !== record.sessionId)
+      throw new HttpError('session_expired', 401, 'LOGOUT_SESSION_UNVERIFIED');
     const latest = useAppShellStore.getState().session?.userId;
     if (latest && latest !== ownerId)
       throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
+    assertTrackingCurrent();
   };
   await assertOwner();
   await configureDatabaseOwner(ownerId);
   await assertOwner();
-  const audio = capturedAudio ?? (await ownerVoiceAudioReferences(ownerId));
-  await assertOwner();
-  await purgeDeletedOwnerTracking(ownerId);
-  await assertOwner();
-  for (const uri of audio) {
+  if (record.localCleanupPhase !== 'database-purge-ready') {
+    const audio = capturedAudio ?? (await ownerVoiceAudioReferences(ownerId));
     await assertOwner();
-    await voiceRecorderService.remove(uri);
+    await purgeDeletedOwnerTracking(
+      ownerId,
+      recoveryGuard ? { assertCurrent: recoveryGuard, assertOwner } : undefined
+    );
+    await assertOwner();
+    for (const uri of audio) {
+      await assertOwner();
+      await voiceRecorderService.remove(uri);
+    }
+    await assertOwner();
+    record = await markLogoutDatabasePurgeReady(record);
   }
   await assertOwner();
   await purgeAccountDatabase(ownerId);
@@ -327,6 +343,26 @@ export async function retryPendingLogout(ownerId: string): Promise<void> {
     await readLogoutSessionAnchor(ownerId);
     const cold = !useTrackingAdmission.getState().ready;
     try {
+      if (
+        cold &&
+        record.dataDisposition === 'remove' &&
+        supportsTrackingOwnerPartitions()
+      ) {
+        const revision = useTrackingAdmission.getState().revision;
+        const logoutRevision = currentLogoutAdmissionRevision();
+        const assertRecovery = () => {
+          const state = useTrackingAdmission.getState();
+          if (
+            state.ready ||
+            state.isolatedForOwnerId ||
+            state.revision !== revision ||
+            currentLogoutAdmissionRevision() !== logoutRevision
+          )
+            throw new Error('tracking_admission_changed');
+        };
+        await retryLogoutDisposition(ownerId, assertRecovery, record);
+        return;
+      }
       if (cold) {
         await restoreTrackingBackground(ownerId, record);
         await commitTrackingOwnerAdmission(ownerId);
@@ -346,19 +382,29 @@ export async function retryPendingLogout(ownerId: string): Promise<void> {
   });
 }
 
-async function retryLogoutDisposition(ownerId: string): Promise<void> {
+async function retryLogoutDisposition(
+  ownerId: string,
+  recoveryGuard?: () => void,
+  expectedRecord?: LogoutDisposition
+): Promise<void> {
   const current = useAppShellStore.getState().session?.userId;
   if (current && current !== ownerId)
     throw new HttpError('session_expired', 401, 'LOGOUT_OWNER_CHANGED');
-  const assertTrackingCurrent = captureTrackingAdmission(ownerId);
+  const assertTrackingCurrent =
+    recoveryGuard ?? captureTrackingAdmission(ownerId);
   let record = await loadLogoutDisposition(ownerId);
   assertTrackingCurrent();
+  if (
+    expectedRecord &&
+    JSON.stringify(record) !== JSON.stringify(expectedRecord)
+  )
+    throw new HttpError('session_expired', 401, 'LOGOUT_DISPOSITION_CHANGED');
   if (!record) return;
   if (record.phase === 'prepared') {
     await terminatePinnedLogout(record, true);
     record = await markLogoutCleanupReady(record);
   }
-  await purgeLogoutOwner(record);
+  await purgeLogoutOwner(record, undefined, recoveryGuard);
   await completeLogoutDisposition(record);
   if (useAppShellStore.getState().logoutRecoveryOwnerId === ownerId)
     useAppShellStore.setState({ logoutRecoveryOwnerId: null });

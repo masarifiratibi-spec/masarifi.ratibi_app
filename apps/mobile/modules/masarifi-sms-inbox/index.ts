@@ -16,6 +16,10 @@ export interface MasarifiSmsInboxModule {
     ownerDigest: string,
     generation: string
   ): Promise<void>;
+  resumeTrackingOwnerPurgeV4?(
+    ownerDigest: string,
+    generation: string | null
+  ): Promise<void>;
   notificationCaptureIssueV4?(
     ownerDigest: string,
     generation: string

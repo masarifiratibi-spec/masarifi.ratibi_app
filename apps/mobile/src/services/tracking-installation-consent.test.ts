@@ -8,6 +8,7 @@ import { registerLiveClerkBridge } from './live/auth-service';
 import { admitTrackingOwner } from '@/state/tracking-admission';
 import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import { canonicalJson } from '@masarifi/transaction-parser';
+import { TrackingSourcePreferences } from './tracking-source-preferences';
 
 jest.mock('./platform/phone-notification-service', () => ({
   getDeviceRegistration: async () => ({
@@ -150,15 +151,92 @@ function fixture() {
 }
 
 describe('durable production Tracking consent', () => {
+  it.each([
+    ['REGISTER', true],
+    ['GET', true],
+    ['REGISTER', false],
+    ['GET', false],
+    ['LOCAL_WRITE', true]
+  ] as const)(
+    'retains the latest offline disable through source and journal reconstruction (%s, older enable=%s)',
+    async (failure, olderEnable) => {
+      const f = fixture();
+      admitTrackingOwner(ownerId);
+      const storage = {
+        ...f.ports.storage,
+        removeItem: async (name: string) => {
+          f.values.delete(name);
+        }
+      };
+      const preferences = () =>
+        new TrackingSourcePreferences(
+          storage,
+          async () => ({ activatedAt: 1000, afterId: '42' }),
+          new TrackingInstallationConsentJournal(f.ports)
+        );
+      const put = f.ports.putConsent;
+      try {
+        if (olderEnable) {
+          f.ports.putConsent = async (...args) => {
+            await put(...args);
+            throw new Error('response_lost');
+          };
+          await expect(preferences().set('sms', true)).rejects.toThrow(
+            'response_lost'
+          );
+        }
+        const oldPending = JSON.parse(f.values.get(key) ?? '{}').pending;
+        const register = f.ports.registerDevice;
+        const read = f.ports.readConfiguration;
+        const write = storage.setItem;
+        if (failure === 'REGISTER')
+          f.ports.registerDevice = async () => {
+            throw new Error('offline');
+          };
+        else if (failure === 'GET')
+          f.ports.readConfiguration = async () => {
+            throw new Error('offline');
+          };
+        else
+          storage.setItem = async (name, value) => {
+            await write(name, value);
+            throw new Error('offline');
+          };
+        await expect(preferences().set('sms', false)).rejects.toThrow(
+          'offline'
+        );
+        storage.setItem = write;
+        f.ports.registerDevice = register;
+        f.ports.readConfiguration = olderEnable ? async () => response() : read;
+        f.ports.putConsent = put;
+        f.server(
+          response({ ...receipt(false), version: olderEnable ? 2 : 1 }, false)
+        );
+        expect(await preferences().hasPendingConsent()).toBe(true);
+        await expect(preferences().retryPendingConsent()).resolves.toBe(true);
+        expect(await preferences().load()).toMatchObject(off);
+        const saved = JSON.parse(f.values.get(key)!);
+        expect(saved.receipt.sources.smsEnabled).toBe(false);
+        expect(saved.superseded).toEqual(olderEnable ? [oldPending] : []);
+        expect(f.requests.at(-1)?.body).toMatchObject({ sources: off });
+      } finally {
+        clearTrackingIsolation();
+      }
+    }
+  );
   it.each(['wrong-version', 'lower-sms-id', 'unavailable-rules'] as const)(
-    'rejects a mismatched server acceptance receipt: %s', async (kind) => {
+    'rejects a mismatched server acceptance receipt: %s',
+    async (kind) => {
       const f = fixture();
       const value = response();
       if (kind === 'wrong-version') value.installation.version = 7;
-      if (kind === 'lower-sms-id') value.installation.sources.smsActivationId = '41';
+      if (kind === 'lower-sms-id')
+        value.installation.sources.smsActivationId = '41';
       if (kind === 'unavailable-rules') value.configurationAvailable = false;
       f.server(value);
-      await expect(f.journal.apply(sms)).rejects.toThrow('tracking_consent_response_invalid');
+      await expect(f.journal.apply(sms)).rejects.toThrow(
+        'tracking_consent_response_invalid'
+      );
       expect(await f.journal.permits(receipt(), sms)).toBe(false);
     }
   );
