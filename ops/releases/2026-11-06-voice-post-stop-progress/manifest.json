@@ -1,0 +1,79 @@
+{
+  "status": "prepared-not-installed-physical-acceptance-open",
+  "applicationSourceCommit": "0110d12b2542657d1c43271cfa9ea381dccc52ed",
+  "buildBaseHead": "65851e0a8f527304fd066da5babd41d574fe36b9",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 111,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "candidateApkBytes": 49509982,
+  "candidateHermesSha256": "62577ad83bae5b278d6e510372d7b254703a8cb18dfdf395c8dee9f8cf8cf4ca",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "currentInstalledVersion": 110,
+  "currentInstalledApkSha256": "879e89bf8061477d9e9c23c2202398bb37ae495932a0a5938002807f47517536",
+  "canonicalDeliveredVersion": 108,
+  "canonicalDeliveredApkSha256": "e946d6071ba3a01b01117253e567b68cbb892c4f3323b934a736868b661220bb",
+  "sameOwnerSdkSessionDataKeysAndExistingQaRequired": true,
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "hostedMutationRequired": false,
+  "changedSource": [
+    {
+      "path": "apps/mobile/src/features/home/HomeSummary.tsx",
+      "sha256": "6907c1e2d7260bb777aaa0321505a9eea18492f664790c0fab21c15485ef9dd9"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeVoiceProgress.test.tsx",
+      "sha256": "b4f2110f7a74e1eb3ac5c951d56ac262b395076b53e3aebdd0da0b71fd700512"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "230a8690ac1a69c1d14ab57cf7a28955c8f0e789f7a5fc4fce873a97ead436c4"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    }
+  ],
+  "focusedTestsPassed": 79,
+  "focusedSuites": 3,
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "formatExitCode": 0,
+  "strictSourceSecretFindings": 0,
+  "verifiedSignerApis": [
+    24,
+    28,
+    32,
+    33,
+    35,
+    36
+  ],
+  "nativeLibraryCount": 23,
+  "nativeLibrariesByteIdenticalTo110": 23,
+  "nativeBuildIdNoteOnlyDifferences": 0,
+  "allNativeExecutableAndDataSectionsUnchanged": true,
+  "alignment16Kb": true,
+  "r8RecordRetained": true,
+  "actualDexNotificationConstructorQualified": true,
+  "native88ReusedUnchanged": true,
+  "unchangedRuntimeTrackingAndWholeSuiteEvidenceReused": true,
+  "existingAnalysisStripAfterStop": true,
+  "automaticStartupProgressSilent": true,
+  "recordingAndFinancialBehaviorUnchanged": true,
+  "foregroundOnlyPendingProgressReused": true,
+  "savedCopyHidden": true,
+  "task16TrackingPreserved": true,
+  "qaTransactionsBeforeFreshFixture": 24,
+  "qaNetMinorBeforeFreshFixture": 0,
+  "freshVoiceOnlyFixtureProposedMinor": 600,
+  "anotherSmsFixtureRequired": false,
+  "physical111UiAcceptanceQualified": false,
+  "newFinancialSpeedOrInstantStartupClaimed": false,
+  "installed": false,
+  "productionReady": false
+}
