@@ -207,13 +207,16 @@ export function createLiveVoiceApiService(
     process.env.EXPO_PUBLIC_API_URL ??
     ''
   ).replace(/\/$/u, '');
-  // DEV always uses automatic capture on Staging, including standalone DEV builds.
-  // Server cohort authorization, Posting and financial validation remain authoritative.
+  // DEV stays on Staging; customer releases can enable the existing financial
+  // transport on either approved API. Server authorization and Posting remain authoritative.
   const devClient =
     Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev';
   const automaticCapture =
-    baseUrl === 'https://api.staging.masarifiratibi.com' &&
-    (devClient || process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true');
+    (baseUrl === 'https://api.staging.masarifiratibi.com' &&
+      (devClient || process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true')) ||
+    (baseUrl === 'https://api.masarifiratibi.com' &&
+      !devClient &&
+      process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING === 'true');
   recordVoiceDiagnostic('transport', {
     phase: automaticCapture ? 'automatic' : 'legacy'
   });

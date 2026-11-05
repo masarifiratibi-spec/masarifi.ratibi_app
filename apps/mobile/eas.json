@@ -51,6 +51,7 @@
       },
       "env": {
         "EXPO_PUBLIC_CLIENT_MODE": "live",
+        "EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING": "true",
         "EXPO_PUBLIC_APP_LOCK_ENABLED": "true",
         "EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED": "false",
         "EXPO_PUBLIC_VOICE_TIMING_ENABLED": "false",

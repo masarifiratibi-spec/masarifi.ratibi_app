@@ -244,13 +244,19 @@ it('selects read-only tokens only for legacy polling and recovery, keeping every
   }
 });
 
-it.each(['ar', 'en'] as const)(
-  'hands %s automatic capture to the durable batch without a confirmation request',
-  async (locale) => {
+it.each([
+  ['ar', 'https://api.staging.masarifiratibi.com'],
+  ['en', 'https://api.staging.masarifiratibi.com'],
+  ['ar', 'https://api.masarifiratibi.com'],
+  ['en', 'https://api.masarifiratibi.com']
+] as const)(
+  'hands %s customer automatic capture on %s to the durable batch without a confirmation request',
+  async (locale, baseUrl) => {
+    Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
     process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
     const request = jest.fn().mockRejectedValue(new Error('network must not be needed to journal'));
     const service = createLiveVoiceApiService({
-      baseUrl: 'https://api.staging.masarifiratibi.com',
+      baseUrl,
       token: async () => 'owner', request
     });
     expect(service.queueBatch).toEqual(expect.any(Function));
@@ -291,18 +297,31 @@ it('does not change the ordinary application default', () => {
   } finally { android.package = previous; }
 });
 
-it('enables the deployment switch only for the Staging API, leaving other environments on their existing flow', () => {
+it('rejects unsupported origins even when customer automatic capture is enabled', () => {
+  Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
   const previous = process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
   process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
   try {
     expect(createLiveVoiceApiService({ baseUrl: 'https://api.staging.masarifiratibi.com' }).queueBatch)
       .toEqual(expect.any(Function));
-    for (const baseUrl of ['https://api.masarifiratibi.com', 'https://api.staging.masarifiratibi.com.evil.test'])
+    for (const baseUrl of [
+      'https://api.staging.masarifiratibi.com.evil.test',
+      'https://api.masarifiratibi.com.evil.test',
+      'http://api.masarifiratibi.com',
+      'https://api.masarifiratibi.com:8443',
+      'https://api.masarifiratibi.com/other'
+    ])
       expect(createLiveVoiceApiService({ baseUrl }).queueBatch).toBeUndefined();
   } finally {
     if (previous === undefined) delete process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING;
     else process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = previous;
   }
+});
+
+it('keeps DEV automatic capture limited to Staging even with the deployment switch enabled', () => {
+  process.env.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING = 'true';
+  expect(createLiveVoiceApiService({ baseUrl: 'https://api.masarifiratibi.com' }).queueBatch)
+    .toBeUndefined();
 });
 
 it('retains the same default DEV recording and create identity while automatic admission is unavailable', async () => {
