@@ -106,6 +106,37 @@ it('does not acknowledge a save without a verified accepted ledger outcome', asy
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
   expect(ensureTrackingSyncDevice).not.toHaveBeenCalled();
 });
+it.each([true, false])(
+  'prioritizes the production notice and still refreshes finance when presentation succeeds=%s',
+  async (succeeds) => {
+    Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
+    jest.mocked(resolveClientRuntime).mockReturnValueOnce({
+      apiUrl: 'https://api.masarifiratibi.com',
+      mode: 'live'
+    } as never);
+    jest
+      .mocked(automaticTrackingService.listImportOutcomes!)
+      .mockResolvedValue([
+        {
+          itemId: 'item',
+          status: 'accepted',
+          transactionId: '10000000-0000-4000-8000-000000000011',
+          notificationId: '20000000-0000-4000-8000-000000000019'
+        }
+      ]);
+    jest
+      .mocked(trackingNativeRuntime!.presentCaptureConfirmation)
+      .mockImplementationOnce(async () => {
+        expect(ensureTrackingSyncDevice).not.toHaveBeenCalled();
+        if (!succeeds) throw new Error('native_unavailable');
+        return true;
+      });
+    const reconciliation = reconcileTrackingSaves('owner', 'session');
+    if (succeeds) await expect(reconciliation).resolves.toBe(true);
+    else await expect(reconciliation).rejects.toThrow('native_unavailable');
+    expect(ensureTrackingSyncDevice).toHaveBeenCalledTimes(1);
+  }
+);
 it.each(['posted', 'pending'] as const)(
   'verifies the production-origin ledger before presenting an ordinary %s capture',
   async (status) => {

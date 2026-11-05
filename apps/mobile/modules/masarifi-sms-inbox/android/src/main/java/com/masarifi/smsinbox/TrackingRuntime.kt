@@ -214,7 +214,9 @@ internal object TrackingScheduler {
       constraints.addContentUriTrigger(Telephony.Sms.Inbox.CONTENT_URI,true)
       "masarifi-tracking-sms"
     }
-    constraints.setTriggerContentUpdateDelay(3,TimeUnit.SECONDS).setTriggerContentMaxDelay(15,TimeUnit.SECONDS)
+    if(supportsFinancialContentCapture(context))
+      constraints.setTriggerContentUpdateDelay(500,TimeUnit.MILLISECONDS).setTriggerContentMaxDelay(2,TimeUnit.SECONDS)
+    else constraints.setTriggerContentUpdateDelay(3,TimeUnit.SECONDS).setTriggerContentMaxDelay(15,TimeUnit.SECONDS)
     manager.enqueueUniqueWork(name,ExistingWorkPolicy.KEEP,
       OneTimeWorkRequestBuilder<TrackingWorker>().setInputData(request(context)).setConstraints(constraints.build())
         .setBackoffCriteria(retryPolicy(context),retryDelay(context),TimeUnit.SECONDS).addTag("masarifi-tracking").build())

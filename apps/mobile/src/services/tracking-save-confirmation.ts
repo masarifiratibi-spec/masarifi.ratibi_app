@@ -180,10 +180,13 @@ export async function reconcileTrackingSaves(
     );
   };
   if (ordinary) {
-    // An owned posted ledger result confirms the save. Unrelated local sync failures
-    // must not block new captures; the regular finance runtime keeps its own retry state.
-    void refreshFinance().catch(() => undefined);
-    return presentVerifiedSaves();
+    // Present the verified save before background registration and full-finance
+    // reads compete for the same SDK and network. Cache failures retain their retry state.
+    try {
+      return await presentVerifiedSaves();
+    } finally {
+      void refreshFinance().catch(() => undefined);
+    }
   }
   // The owned ledger lookup verifies the save; whole-finance synchronization
   // must still finish before acknowledgement, but must not delay its notice.

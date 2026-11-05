@@ -112,6 +112,8 @@ class TrackingSchedulerWakeTest {
     TrackingScheduler.watchSms(ordinary)
     val work = manager.getWorkInfosForUniqueWork("masarifi-tracking-sms").get().single()
     assertEquals(setOf(Telephony.Sms.Inbox.CONTENT_URI), work.constraints.contentUriTriggers.map { it.uri }.toSet())
+    assertEquals(3_000L, work.constraints.contentTriggerUpdateDelayMillis)
+    assertEquals(15_000L, work.constraints.contentTriggerMaxDelayMillis)
     assertEquals(BackoffPolicy.EXPONENTIAL, spec(work).backoffPolicy)
     assertEquals(30_000L, spec(work).backoffDelayDuration)
   }
@@ -133,6 +135,8 @@ class TrackingSchedulerWakeTest {
       watches.single().constraints.contentUriTriggers.map {it.uri}.toSet())
     assertEquals(BackoffPolicy.LINEAR,spec(watches.single()).backoffPolicy)
     assertEquals(10_000L,spec(watches.single()).backoffDelayDuration)
+    assertEquals(500L,watches.single().constraints.contentTriggerUpdateDelayMillis)
+    assertEquals(2_000L,watches.single().constraints.contentTriggerMaxDelayMillis)
   }
 
   @Test fun publicReleaseFollowUpIsDurableAndRejectsAStaleOwner() {
@@ -144,6 +148,7 @@ class TrackingSchedulerWakeTest {
     val work = manager.getWorkInfosForUniqueWork("masarifi-tracking-follow-up").get().single()
     assertEquals(owner,spec(work).input.getString("ownerDigest"))
     assertEquals(generation,spec(work).input.getString("generation"))
+    assertEquals(3_000L,spec(work).initialDelay)
     TrackingOwner.suspend(release)
     assertEquals(WorkInfo.State.CANCELLED,manager.getWorkInfoById(work.id).get()!!.state)
   }
