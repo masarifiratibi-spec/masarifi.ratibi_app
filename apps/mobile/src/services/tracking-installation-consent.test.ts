@@ -447,9 +447,10 @@ describe('ordinary consent SDK and HTTP boundaries', () => {
     const f = fixture();
     const digest = hash(ownerId);
     const sessionId = 'synthetic-live-consent-session';
+    const getToken = jest.fn(async () => 'synthetic-live-token');
     registerLiveClerkBridge({
       getSession: async () => ({ userId: ownerId, id: sessionId }),
-      getToken: async () => 'synthetic-live-token'
+      getToken
     } as never);
     admitTrackingOwner(ownerId, { ownerDigest: digest, generation }, sessionId);
     const actualReceipt = {
@@ -498,6 +499,8 @@ describe('ordinary consent SDK and HTTP boundaries', () => {
       `PUT:/api/v1/tracking/installations/${deviceId}`
     ]);
     expect(await journal.permits(actualReceipt, result.sources)).toBe(true);
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(getToken).toHaveBeenCalledWith({ skipCache: true });
   });
   it('rejects stale SDK identity after the port scope was captured', async () => {
     let sdk = 'synthetic-consent-session';
@@ -514,4 +517,60 @@ describe('ordinary consent SDK and HTTP boundaries', () => {
     sdk = 'different-sdk-session';
     await expect(scope.assertCurrent()).rejects.toThrow();
   });
+  it.each(['session-change', 'expired-scope', 'new-scope'] as const)(
+    'keeps consent credentials fenced across %s',
+    async (scenario) => {
+      let sdk = 'bounded-consent-session';
+      let clock = Date.now();
+      const now = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+      const getToken = jest.fn(async () => 'synthetic-live-token');
+      registerLiveClerkBridge({
+        getSession: async () => ({ userId: ownerId, id: sdk }),
+        getToken
+      } as never);
+      admitTrackingOwner(
+        ownerId,
+        { ownerDigest: hash(ownerId), generation },
+        sdk
+      );
+      const request = jest.fn(async (url: unknown) => {
+        const registration = String(url).endsWith('/register');
+        const content = registration
+          ? { deviceId, registeredAt: new Date().toISOString(), version: 1 }
+          : { snapshot: defaultSnapshot, keywords: [], senders: [] };
+        return new Response(
+          JSON.stringify(
+            registration
+              ? content
+              : { ...content, configurationHash: hash(canonicalJson(content)) }
+          ),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+      });
+      const ports = createLiveTrackingConsentPorts({
+        request,
+        baseUrl: 'https://inert.invalid'
+      });
+      try {
+        const scope = await ports.scope();
+        await ports.registerDevice(scope);
+        expect(getToken).toHaveBeenCalledTimes(1);
+        if (scenario === 'session-change') {
+          sdk = 'replacement-consent-session';
+          await expect(ports.readConfiguration(scope)).rejects.toThrow();
+          expect(request).toHaveBeenCalledTimes(1);
+          expect(getToken).toHaveBeenCalledTimes(1);
+        } else {
+          if (scenario === 'expired-scope') clock += 15_000;
+          await ports.readConfiguration(
+            scenario === 'new-scope' ? await ports.scope() : scope
+          );
+          expect(getToken).toHaveBeenCalledTimes(2);
+          expect(request).toHaveBeenCalledTimes(2);
+        }
+      } finally {
+        now.mockRestore();
+      }
+    }
+  );
 });

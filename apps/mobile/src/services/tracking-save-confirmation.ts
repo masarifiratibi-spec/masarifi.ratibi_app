@@ -73,7 +73,11 @@ export async function reconcileTrackingSaves(
     !['com.masarifi.mobile', 'com.masarifi.mobile.dev'].includes(
       Constants.expoConfig?.android?.package ?? ''
     ) ||
-    apiUrl !== 'https://api.staging.masarifiratibi.com' ||
+    apiUrl === null ||
+    ![
+      'https://api.staging.masarifiratibi.com',
+      'https://api.masarifiratibi.com'
+    ].includes(apiUrl ?? '') ||
     !native
   )
     return refreshFinance();

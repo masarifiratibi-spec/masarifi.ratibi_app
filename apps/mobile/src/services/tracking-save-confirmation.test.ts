@@ -106,6 +106,44 @@ it('does not acknowledge a save without a verified accepted ledger outcome', asy
   expect(await reconcileTrackingSaves('owner', 'session')).toBe(false);
   expect(ensureTrackingSyncDevice).not.toHaveBeenCalled();
 });
+it.each(['posted', 'pending'] as const)(
+  'verifies the production-origin ledger before presenting an ordinary %s capture',
+  async (status) => {
+    Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
+    jest.mocked(resolveClientRuntime).mockReturnValueOnce({
+      apiUrl: 'https://api.masarifiratibi.com',
+      mode: 'live'
+    } as never);
+    jest
+      .mocked(automaticTrackingService.listImportOutcomes!)
+      .mockResolvedValue([
+        {
+          itemId: 'item',
+          status: 'accepted',
+          transactionId: '10000000-0000-4000-8000-000000000011',
+          notificationId: '20000000-0000-4000-8000-000000000019'
+        }
+      ]);
+    const transaction = await coreFinanceService.getTransaction('fixture');
+    jest.mocked(coreFinanceService.getTransaction).mockClear();
+    jest.mocked(coreFinanceService.getTransaction).mockResolvedValue({
+      ...transaction,
+      status
+    });
+    expect(await reconcileTrackingSaves('owner', 'session')).toBe(
+      status === 'posted'
+    );
+    expect(createLiveLedgerService).toHaveBeenCalledWith({
+      baseUrl: 'https://api.masarifiratibi.com'
+    });
+    expect(coreFinanceService.getTransaction).toHaveBeenCalledWith(
+      '10000000-0000-4000-8000-000000000011'
+    );
+    expect(
+      trackingNativeRuntime?.presentCaptureConfirmation
+    ).toHaveBeenCalledTimes(status === 'posted' ? 1 : 0);
+  }
+);
 it('verifies a DEV save independently of category mapping preparation', async () => {
   jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
     {
@@ -212,16 +250,14 @@ it('presents a verified save in the ordinary Staging package', async () => {
 });
 it('finishes an ordinary verified save even when unrelated finance cache synchronization fails', async () => {
   Constants.expoConfig!.android!.package = 'com.masarifi.mobile';
-  jest
-    .mocked(automaticTrackingService.listImportOutcomes!)
-    .mockResolvedValue([
-      {
-        itemId: 'item',
-        status: 'accepted',
-        transactionId: '10000000-0000-4000-8000-000000000011',
-        notificationId: '20000000-0000-4000-8000-000000000019'
-      }
-    ]);
+  jest.mocked(automaticTrackingService.listImportOutcomes!).mockResolvedValue([
+    {
+      itemId: 'item',
+      status: 'accepted',
+      transactionId: '10000000-0000-4000-8000-000000000011',
+      notificationId: '20000000-0000-4000-8000-000000000019'
+    }
+  ]);
   jest
     .mocked(synchronizeLiveCoreFinance)
     .mockRejectedValueOnce(new Error('SYNC_SNAPSHOT_INVALID'));

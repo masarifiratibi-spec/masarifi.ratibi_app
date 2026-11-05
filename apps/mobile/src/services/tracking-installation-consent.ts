@@ -61,6 +61,13 @@ export function createLiveTrackingConsentPorts(
     baseUrl?: string;
   } = {}
 ): TrackingConsentPorts {
+  const identities = new WeakMap<
+    TrackingConsentScope,
+    {
+      capturedAt: number;
+      identity: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
+    }
+  >();
   const send = async (
     scope: TrackingConsentScope,
     method: string,
@@ -68,7 +75,16 @@ export function createLiveTrackingConsentPorts(
     body?: unknown
   ) => {
     await scope.assertCurrent();
-    const identity = await captureLiveClerkIdentity();
+    let captured = identities.get(scope);
+    if (!captured || Date.now() - captured.capturedAt >= 15_000) {
+      captured = {
+        identity: await captureLiveClerkIdentity(),
+        capturedAt: Date.now()
+      };
+      identities.set(scope, captured);
+    }
+    const { identity } = captured;
+    await identity.assertCurrent();
     if (identity.userId !== scope.ownerId)
       throw new Error('tracking_consent_session_changed');
     await scope.assertCurrent();
@@ -86,6 +102,7 @@ export function createLiveTrackingConsentPorts(
           }
         : {})
     });
+    await identity.assertCurrent();
     await scope.assertCurrent();
     return value;
   };

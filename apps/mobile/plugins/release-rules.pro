@@ -6,3 +6,8 @@
 # Keep runtime-proxy Record annotations (including validation), not all Record implementations.
 # Supporting independent trace (Oct 28): https://github.com/expo/expo/issues/49081
 -keep @interface expo.modules.kotlin.records.** { *; }
+
+# Expo TaskService restores this consumer by class name and constructs it by reflection.
+-keep class expo.modules.notifications.notifications.background.BackgroundRemoteNotificationTaskConsumer {
+    public <init>(android.content.Context, expo.modules.interfaces.taskManager.TaskManagerUtilsInterface);
+}
