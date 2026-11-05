@@ -1,12 +1,29 @@
 import { URL } from 'node:url';
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import benchmarkPolicy from './benchmark-build-policy.cjs';
 import performanceQaExclusion from './performance-qa-exclusion.cjs';
 
 const clerkKeyPattern = /^pk_(?:live|test)_[A-Za-z0-9_-]{10,}$/;
 const publicSecretPattern = /^EXPO_PUBLIC_.*(?:API_KEY|SECRET|SERVICE_ROLE)/;
+const applicationIdentity = JSON.parse(
+  readFileSync(new URL('../app.json', import.meta.url), 'utf8')
+).expo;
+// Retain the verified existing identity even though its domain has a legacy name.
+// A different live key/domain would move customers to another Clerk instance.
+const retainedClerkInstance = Object.freeze({
+  domain: 'clerk.staging.masarifiratibi.com',
+  publishableKeySha256:
+    'b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475',
+  androidPackage: 'com.masarifi.mobile',
+  easProjectId: 'c8cc3dd3-a7e9-4737-ac4d-32f076107600'
+});
 
-export function validateClientBuildEnvironment(environment = process.env) {
+export function validateClientBuildEnvironment(
+  environment = process.env,
+  identity = applicationIdentity
+) {
   performanceQaExclusion.assertNormalBuildComposition(environment);
   const exposed = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
@@ -97,12 +114,12 @@ export function validateClientBuildEnvironment(environment = process.env) {
     'base64url'
   ).toString('utf8');
   if (
-    !approvedClerkHost ||
-    !/^[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}$/i.test(approvedClerkHost) ||
+    approvedClerkHost !== retainedClerkInstance.domain ||
     decodedClerkHost !== `${approvedClerkHost}$` ||
-    /(?:^|[.-])(?:staging|dev|test|preview|localhost)(?:[.-]|$)/i.test(
-      approvedClerkHost
-    )
+    createHash('sha256').update(clerkKey).digest('hex') !==
+      retainedClerkInstance.publishableKeySha256 ||
+    identity?.android?.package !== retainedClerkInstance.androidPackage ||
+    identity?.extra?.eas?.projectId !== retainedClerkInstance.easProjectId
   )
     throw new Error(
       'production requires the approved production Clerk instance'

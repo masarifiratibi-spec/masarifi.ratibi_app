@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
+const retainedClerkDomain = 'clerk.staging.masarifiratibi.com';
 const live = {
   NODE_ENV: 'production',
   EAS_BUILD_PROFILE: 'production',
@@ -11,7 +12,7 @@ const live = {
   EXPO_PUBLIC_CLIENT_MODE: 'live',
   EXPO_PUBLIC_API_URL: 'https://api.example.com',
   MASARIFI_PRODUCTION_API_ORIGIN: 'https://api.example.com',
-  MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: 'clerk.example.com',
+  MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: retainedClerkDomain,
   MASARIFI_RELEASE_VERSION_NAME: '1.2.3',
   EXPO_PUBLIC_APP_LOCK_ENABLED: 'true',
   EXPO_PUBLIC_DEMO_MODE: '0',
@@ -19,11 +20,56 @@ const live = {
   EXPO_PUBLIC_VOICE_TIMING_ENABLED: 'false',
   EXPO_PUBLIC_VOICE_DIAGNOSTICS_ENABLED: 'false',
   EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'false',
-  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from('clerk.example.com$').toString('base64url')}`
+  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from(`${retainedClerkDomain}$`).toString('base64url')}`
 };
 
 test('accepts the free-only production client environment', () => {
   assert.doesNotThrow(() => validateClientBuildEnvironment(live));
+});
+
+test('accepts the retained production Clerk instance despite its legacy domain name', () => {
+  const domain = 'clerk.staging.masarifiratibi.com';
+  for (const EAS_BUILD_PROFILE of ['production', undefined])
+    assert.doesNotThrow(() =>
+      validateClientBuildEnvironment({
+        ...live,
+        EAS_BUILD_PROFILE,
+        MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: domain,
+        EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from(`${domain}$`).toString('base64url')}`
+      })
+    );
+});
+
+test('production cannot silently switch to a different live Clerk instance', () => {
+  const domain = 'clerk.other.example.com';
+  assert.throws(
+    () =>
+      validateClientBuildEnvironment({
+        ...live,
+        MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: domain,
+        EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from(`${domain}$`).toString('base64url')}`
+      }),
+    /approved production Clerk instance/
+  );
+});
+
+test('retained production identity requires the customer package and EAS project', () => {
+  const identity = {
+    android: { package: 'com.masarifi.mobile' },
+    extra: { eas: { projectId: 'c8cc3dd3-a7e9-4737-ac4d-32f076107600' } }
+  };
+  assert.doesNotThrow(() => validateClientBuildEnvironment(live, identity));
+  for (const other of [
+    { ...identity, android: { package: 'com.masarifi.mobile.dev' } },
+    { ...identity, android: { package: 'com.masarifi.mobile.benchmark' } },
+    { ...identity, extra: { eas: { projectId: 'another-project' } } },
+    { ...identity, extra: {} },
+    {}
+  ])
+    assert.throws(
+      () => validateClientBuildEnvironment(live, other),
+      /approved production Clerk instance/
+    );
 });
 
 test('rejects demo mode and every secret-shaped public variable', () => {
@@ -165,7 +211,7 @@ test('an arbitrary profile cannot bypass production safeguards', () => {
   );
 });
 
-test('binds the production Clerk key to its approved non-staging instance', () => {
+test('binds the production Clerk key to its approved retained instance', () => {
   for (const patch of [
     { MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: undefined },
     { MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN: 'clerk.other.example.com' },
