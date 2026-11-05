@@ -30,6 +30,9 @@ export function useVoiceBatches(owner: string | null) {
   const recovering = useRef<number | null>(null);
   const active = useRef(new Set<string>());
   const foregroundCaptures = useRef(new Set<string>());
+  const latestForeground = useRef<{ owner: string | null; id: string } | null>(
+    null
+  );
   const settled = useRef(new Set<string>());
   const receipts = useRef(new Map<string, VoiceBatchResult>());
   const localSessions = useRef<Record<string, string>>({});
@@ -224,6 +227,7 @@ export function useVoiceBatches(owner: string | null) {
     setFinanceRefreshPending(false);
     active.current.clear();
     foregroundCaptures.current.clear();
+    latestForeground.current = null;
     settled.current.clear();
     receipts.current.clear();
     localSessions.current = {};
@@ -251,6 +255,7 @@ export function useVoiceBatches(owner: string | null) {
   }, [owner, recover, invalidateGeneration, client]);
   const submit = (id: string) => {
     const expected = generation.current;
+    latestForeground.current = { owner, id };
     foregroundCaptures.current.add(id);
     active.current.add(id);
     setLocalFailure(false);
@@ -357,6 +362,10 @@ export function useVoiceBatches(owner: string | null) {
         setUncertainIds((previous) => [...new Set([...previous, id])]);
     }
   };
+  const foregroundSessionId =
+    latestForeground.current?.owner === owner && latestForeground.current
+      ? localSessions.current[latestForeground.current.id]
+      : undefined;
   return {
     submit,
     recover,
@@ -398,6 +407,10 @@ export function useVoiceBatches(owner: string | null) {
               session === row.sessionId
           )
       ),
-    latest: results.at(-1) ?? null
+    ...(foregroundSessionId ? { foregroundSessionId } : {}),
+    latest:
+      results.find((row) => row.sessionId === foregroundSessionId) ??
+      results.at(-1) ??
+      null
   };
 }

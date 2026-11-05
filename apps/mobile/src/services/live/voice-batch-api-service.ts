@@ -418,8 +418,9 @@ export function createVoiceBatchApi(options: {
   };
   const poll = async (b: { owner: string; epoch: number }, session: string) => {
     let current = await result(b, session);
-    for (let n = 0; n < 125 && !terminal(current.status); n++) {
-      await sleep(1000);
+    // Observe short completions sooner, retaining the same125-second wait budget.
+    for (let n = 0; n < 127 && !terminal(current.status); n++) {
+      await sleep(n < 4 ? 500 : 1000);
       await check(b);
       current = await result(b, session);
     }

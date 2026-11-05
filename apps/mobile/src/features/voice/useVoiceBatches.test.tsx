@@ -116,6 +116,9 @@ it.each(['ar', 'en'] as const)(
       expect(
         screen.queryByText(translate('voice.state.processing'))
       ).toBeNull();
+      expect(
+        screen.queryByText(translate('voice.batch.event.committed'))
+      ).toBeNull();
       Object.assign(voiceAnalyzerService, {
         recoverBatches: async () => ({
           ...empty,
@@ -454,6 +457,114 @@ it('keeps the authoritative receipt without announcing a saved count', async () 
   }
 });
 
+it.each(['ar', 'en'] as const)(
+  'acknowledges a fresh committed recording before finance reads finish in %s',
+  async (locale) => {
+    const previousLocale = currentLocale();
+    changeLocale(locale);
+    let finish!: (value: VoiceBatchResult) => void;
+    let finishRefresh!: () => void;
+    const financeRead = new Promise<void>((resolve) => {
+      finishRefresh = resolve;
+    });
+    Object.assign(voiceAnalyzerService, {
+      recoverBatches: async () => empty,
+      runBatch: () =>
+        new Promise<VoiceBatchResult>((resolve) => {
+          finish = resolve;
+        }),
+      pauseBatches: () => undefined
+    });
+    const view = mount();
+    try {
+      await act(async () => {});
+      jest
+        .spyOn(view.client, 'invalidateQueries')
+        .mockImplementation(() => financeRead);
+      act(() => view.batches.submit(capture));
+      expect(
+        screen.queryByText(translate('voice.batch.event.committed'))
+      ).toBeNull();
+      await act(async () =>
+        finish({
+          ...receipt('completed'),
+          addedCount: 1,
+          transactionIds: [capture],
+          ledgerVersion: 1
+        })
+      );
+      expect(
+        screen.getByText(translate('voice.batch.event.committed'))
+      ).toBeTruthy();
+      expect(view.batches.processing).toBe(false);
+      // Starting another recording retires the previous acknowledgement.
+      act(() => view.batches.submit('66666666-6666-4666-8666-666666666666'));
+      expect(
+        screen.queryByText(translate('voice.batch.event.committed'))
+      ).toBeNull();
+      await act(async () => view.setOwner('other-owner'));
+      await act(async () =>
+        finish({
+          ...receipt('completed'),
+          addedCount: 1,
+          transactionIds: [capture],
+          ledgerVersion: 1
+        })
+      );
+      expect(
+        screen.queryByText(translate('voice.batch.event.committed'))
+      ).toBeNull();
+    } finally {
+      finishRefresh();
+      view.unmount();
+      changeLocale(previousLocale);
+    }
+  }
+);
+
+it('acknowledges the current capture recovered after a lost response', async () => {
+  const completed = {
+    ...receipt('completed'),
+    addedCount: 1,
+    transactionIds: [capture],
+    ledgerVersion: 1
+  };
+  Object.assign(voiceAnalyzerService, {
+    recoverBatches: jest
+      .fn()
+      .mockResolvedValueOnce(empty)
+      .mockResolvedValue({
+        ...empty,
+        results: [
+          completed,
+          {
+            ...receipt('completed'),
+            sessionId: '77777777-7777-4777-8777-777777777777'
+          }
+        ],
+        localSessions: { [capture]: session }
+      }),
+    runBatch: async () => {
+      throw new Error('response lost');
+    },
+    pauseBatches: () => undefined
+  });
+  const view = mount();
+  try {
+    await act(async () => {});
+    expect(
+      screen.queryByText(translate('voice.batch.event.committed'))
+    ).toBeNull();
+    await act(async () => view.batches.submit(capture));
+    await act(async () => view.batches.recover());
+    expect(
+      screen.getByText(translate('voice.batch.event.committed'))
+    ).toBeTruthy();
+  } finally {
+    view.unmount();
+  }
+});
+
 it.each([
   { addedCount: 2, transactionIds: [capture, capture], ledgerVersion: 2 },
   {
@@ -477,11 +588,18 @@ it.each([
   'does not claim financial saving from an incomplete or analysis-only receipt %#',
   (fields) => {
     const latest = { ...receipt('completed'), ...fields } as VoiceBatchResult;
-    render(<VoiceBatchStatus batches={statusFixture(latest)} />);
+    render(
+      <VoiceBatchStatus
+        batches={{ ...statusFixture(latest), foregroundSessionId: session }}
+      />
+    );
     expect(
       screen.queryByText(
         translateDynamic('voice.batch.saved', { count: latest.addedCount })
       )
+    ).toBeNull();
+    expect(
+      screen.queryByText(translate('voice.batch.event.committed'))
     ).toBeNull();
   }
 );

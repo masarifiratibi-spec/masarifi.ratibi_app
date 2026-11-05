@@ -396,6 +396,64 @@ it('recovers all ten committed transaction receipts without a review step', asyn
   expect((await api.recoverBatches()).results).toEqual([receipt]);
 });
 
+it('returns a newly committed receipt within half a second without replaying financial writes', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const sessionId = '55555555-5555-4555-8555-555555555555';
+  let elapsed = 0;
+  jest.mocked(loadVoiceBatches).mockResolvedValue([
+    {
+      id,
+      revision: 3,
+      phase: 'processing',
+      audioReference: 'file://retained.m4a',
+      locale: 'ar',
+      durationMs: 4240,
+      recordedAt: Date.now(),
+      timezoneOffsetMinutes: -180,
+      createBody: { contentHash: 'frozen-hash' },
+      sessionId,
+      version: 2,
+      processBody: {
+        uploadCompleted: true,
+        expectedVersion: 2,
+        contentHash: 'frozen-hash'
+      }
+    }
+  ]);
+  jest.mocked(saveVoiceBatch).mockResolvedValue(undefined);
+  const api = createVoiceBatchApi({
+    baseUrl: 'https://example.test',
+    owner: async () => 'owner',
+    token: async () => 'token',
+    sleep: async (ms) => {
+      elapsed += ms;
+    },
+    request: (async (_url, init) => {
+      if (init?.method !== 'GET') throw new Error('unexpected write replay');
+      const committed = elapsed >= 300;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          sessionId,
+          batchId: null,
+          status: committed ? 'completed' : 'finalizing',
+          addedCount: committed ? 1 : 0,
+          transactionIds: committed ? [id] : [],
+          ledgerVersion: committed ? 1 : 0
+        })
+      } as Response;
+    }) as typeof fetch
+  });
+  try {
+    const result = await api.runBatch(id);
+    expect(result.transactionIds).toEqual([id]);
+    expect(elapsed).toBeLessThanOrEqual(500);
+  } finally {
+    api.pauseBatches();
+  }
+});
+
 it.each(['AI_QUOTA_EXCEEDED', 'AI_BUDGET_EXHAUSTED'])(
   'preserves a %s recording across restart and automatically resumes after its quota changes',
   async (code) => {
