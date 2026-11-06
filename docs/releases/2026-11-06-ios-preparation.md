@@ -1,6 +1,7 @@
 # iPhone Ad Hoc preparation — 2026-11-06
 
-Status: preparation in progress; no signed IPA or iPhone device acceptance yet.
+Status: source preparation verified; Apple signing/device registration still
+requires completion. No signed IPA or iPhone device acceptance yet.
 
 ## Source and coordination
 
@@ -14,6 +15,12 @@ Status: preparation in progress; no signed IPA or iPhone device acceptance yet.
   integration is explicit, not an automatic chat or Git synchronization.
 - Integrated the report loading improvement `7ee42065` by fast-forward merge.
   It preserves controls/cards while financial reads are loading.
+- Integrated `88d7c5cf81a52874c6efd5a3f1bb93b61e1f0639`: the Android owner's
+  SMS preparation/observation improvement and authoritative-permission test
+  update. Current combined implementation checkpoint is `513ebac3`.
+- The Android owner retains ownership of subsequent UI/loading improvements and
+  the original branch. Fetch/review/merge those committed changes before choosing
+  a signed iOS release candidate; do not move or edit their worktree.
 
 ## Apple and Expo access
 
@@ -27,6 +34,10 @@ Apple login in Chrome does not authenticate the separate EAS Apple session.
 `eas device:create` reached the Apple password prompt and was cancelled without
 entering credentials. An interactive local registration console was opened for
 the user; no password or verification-code entry is recorded by this task.
+The working registration console uses the installed CLI by absolute path and a
+metadata-only helper project in `E:\Masarifi-ios-artifacts\device-registration`,
+so it does not depend on partially installed mobile plugins. Interactive stdin
+was verified. The user must report its final message/link, not credentials.
 
 The E volume is exFAT and rejects local dependency symlinks. Use
 `npm ci --install-links --cache E:\Masarifi-ios-artifacts\npm-cache` in the mobile
@@ -38,9 +49,18 @@ package if the installed packed copy must be refreshed.
 
 `ios-ad-hoc` extends production, uses internal distribution, no development client
 and no simulator. The application keeps `com.masarifi.mobile`, `masarifi` scheme,
-the existing EAS project, production API and retained Clerk identity. Supply the
-approved release version using `MASARIFI_RELEASE_VERSION_NAME` (current customer
-version is `1.0.0`); EAS maintains/increments iOS build numbers independently.
+the existing EAS project, production API and retained Clerk identity. The iOS
+profile pins the approved version `1.0.0` through `MASARIFI_RELEASE_VERSION_NAME`;
+update that profile value when a later release version is approved. EAS maintains
+and increments iOS build numbers independently.
+
+EAS production project/account variable inspection found no required bindings.
+Only the iOS profile therefore supplies the existing public API origin, retained
+Clerk publishable key/domain and approved release version. The publishable key is
+client configuration, not a server credential. No shared EAS environment or
+Android build profile was modified. `MASARIFI_IOS_AD_HOC=true` lets local EAS
+configuration resolve version `1.0.0` before the worker-only profile variable
+exists; conflicting Android or other-profile markers are rejected.
 
 The profile is rejected for Android. Existing production safeguards remain:
 approved origin and Clerk binding, correct identities, app lock enabled, demo and
@@ -60,31 +80,47 @@ is not a reason to introduce new iPhone UI or storage behavior.
 
 ## Verification evidence
 
-- Configuration tests: 30 passing, including iOS acceptance, wrong platform,
+- Configuration tests: 34 passing, including iOS acceptance, wrong platform,
   bundle/project rejection, production safeguards, approved version, unchanged
-  Android configuration and staging/benchmark regressions.
+  Android configuration and staging/benchmark regressions. The actual EAS CLI
+  resolves internal distribution, no development client, physical devices,
+  production environment, version `1.0.0` and bundle `com.masarifi.mobile`.
+- Full mobile suite on the combined `88d7c5cf` source: 613 suites / 4,952 tests
+  passed at the unchanged default timeout. An earlier concurrent run timed out
+  one TransactionForm case; that file then passed all 117 tests unchanged and the
+  full rerun passed. Jest emitted a worker teardown warning; all assertions passed
+  and the command exited zero. This does not qualify device performance.
 - Focused runtime regressions: 5 suites / 166 tests passed, including unavailable
   native capture on iOS and existing Android ownership/background behavior.
 - Expo introspection and production iOS JS/assets export passed. Source-map audit:
   2,099 sources, 13 production entry points, no fixture/development routes or
   explicit Android tracking entry point. This is not a native IPA build.
-- Lint passed with zero errors and 94 inherited warnings. Initial typecheck and
-  one full-suite test exposed missing sibling API dependencies in the fresh
-  worktree (`@nestjs/common` imported by the offline-creation contract test).
-  Installing locked API dependencies locally with lifecycle scripts disabled;
-  full-suite completion and typecheck rerun remain pending. No backend was run.
+- Typecheck passed. Lint passed with zero errors and 94 existing warnings; the
+  changed build/configuration files also passed targeted lint.
+- The fresh-worktree validation environment required locked API dependencies for
+  the offline-creation contract test (`@nestjs/common`); they were installed with
+  lifecycle scripts disabled. The unchanged canonical Android manifest was copied
+  into the ignored native directory for its existing privacy-config regression,
+  with matching SHA256. No new Android native build or backend was run.
+- The old offline tracking snapshot test failed identically in both worktrees;
+  its Android owner updated it in `88d7c5cf`. No Android UI repair was made here.
+- Independent review found one inherited pre-install entry-point bug: manually
+  assembling a file URL skipped validation on POSIX and URL-sensitive paths.
+  `pathToFileURL` now makes the actual CLI execute the validator. A real CLI test
+  from a `#` path reproduced the bypass before the fix and rejection afterward.
 - Full private logs/artifacts live in `E:\Masarifi-ios-artifacts`, not in Git.
 
 ## Before building the signed IPA
 
-1. Confirm membership activation and access to the intended Apple team.
+1. Membership activation was confirmed. Complete Apple signing authentication
+   and select the same intended team; a Chrome session is not an EAS Apple login.
 2. Confirm the final Android source checkpoint with its chat; integrate it into
    `iOS` and run the tests for affected behavior before selecting the iOS candidate.
 3. From `E:\Masarifi-iOS\apps\mobile`, authenticate to the existing Expo account.
    Keep production environment bindings unchanged; do not create another Clerk
-   instance or substitute a staging API. Set the approved release version in the
-   production EAS environment if not already configured; inspect names/visibility
-   without printing private values. No credentials belong in Git or public vars.
+   instance or substitute a staging API. The iOS profile already supplies the
+   approved public bindings/version; do not change the shared Android environment.
+   No signing credentials belong in Git or public variables.
 4. Register owner/client phones using `eas device:create`; check the correct team
    and that both UDIDs are included in the provisioning profile. Provision the
    distribution certificate/profile and the existing app's APNs credential.
@@ -98,6 +134,27 @@ is not a reason to introduce new iPhone UI or storage behavior.
    restore any test preferences; preserve original customer data.
 7. Only after acceptance, share the internal installation link with the client
    whose device is included. No App Store publication is part of this preparation.
+
+## Decisions and remaining limits
+
+- The user explicitly selected branch `iOS` and the E path. A manual Git worktree
+  was used because the managed creator could not choose that path; the desktop
+  app could not attach it as managed. Continue using the explicit E working
+  directory. Its common Git storage remains in the original D repository.
+- E's filesystem requires packed local dependencies. Reinstall after changing a
+  local package; no dependency version, native-script approval or Android runtime
+  implementation was changed to accommodate the filesystem.
+- Validation artifacts and the manual progress ledger are outside Git on E;
+  Windows-native bookkeeping was used instead of the skill's shell helpers.
+- Independent review ran on the stable implementation while environment checks
+  finished. Its material finding was fixed and tested. Subsequent EAS operational
+  preflight fixes have explicit failing/passing regressions and CLI evidence.
+- Generated configuration is insufficient evidence for final Release APNs/ATS
+  settings, provisioning, SQLCipher, biometrics, voice or Google callback behavior.
+  Inspect the signed artifact and test these on iPhone before client acceptance.
+- Android source remains independently developed; synchronization and merge-back
+  require explicit review. The physical speed of Android candidate 114 was not
+  established by this work, and no original phone/session/data was touched.
 
 References: [Expo internal distribution](https://docs.expo.dev/build/internal-distribution/),
 [Apple enrollment](https://developer.apple.com/help/account/membership/program-enrollment/).
