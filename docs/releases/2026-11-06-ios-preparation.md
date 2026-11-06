@@ -2,8 +2,8 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `77aa3d26`, synchronized through published
-documentation head `2bc9dabf`; the existing IPA2 still contains source `2dd23b5b`.
+The current shared source is now `5edca962`, synchronized through published
+documentation head `83f9c563`; the existing IPA2 still contains source `2dd23b5b`.
 
 ## Source and coordination
 
@@ -381,3 +381,41 @@ documents the iOS 17 requirement and official plugin.
   owning chat. The millisecond contribution of these changes and overall iPhone
   startup speed are unmeasured. IPA2 remains source `2dd23b5b`; these startup
   changes require a later signed iPhone build and physical acceptance.
+
+## Home cache and Assistant source synchronization — IPA2 unchanged
+
+- Verified published source
+  `5edca96223264bcf1063d09cf8b61e150833a7e5`. A normal merge into E/iOS
+  preserved the owned iOS report instead of replacing it with the older incoming
+  copy. Verified the complete merged `apps`/`packages` tree equals the qualified
+  source. After checks, merged published review head
+  `83f9c5635337bdc400674a2820af66f6b6f20ff6`; changes after `5ed` are documents
+  only. Signing/native/dependency identities are unchanged.
+- Seven production files retain saved Home display snapshots through ordinary
+  invalidation and hydration races, prioritize them within the existing encrypted
+  64-row/byte-limited cache below denial markers, and wait for the first local
+  attempt rather than network success. The new disabled-lock cache admission
+  requires an explicitly disabled lock and a restored, unexpired session;
+  missing/expired/local-only/locked states and logout/owner/denial fences remain.
+- Assistant next-draft editing is available during response waiting while the
+  existing loading/send/revision guards remain. Formatter/turn memoization does
+  not constitute a measured model-latency improvement or a new financial action.
+- Additional E verification: **125/125 cases in 11/11 selected suites**, one
+  successful command, covering cache races, real SQLite persistence, Home's first
+  cover, privacy/protected navigation, Assistant view/composer/journey and draft
+  retention. Types and actual lint over all 14 changed TS/TSX files passed.
+  No test, timeout, skip or forced-exit change was made here.
+- The [source owner's report](2026-11-06-home-cache-assistant-response.md)
+  separately records the final 381-case / 25-suite command and its retained
+  intermediate failures/updated obsolete editing expectation. This is self-review;
+  local 125-case evidence overlaps it and is not an additive count.
+- Production iOS config/JS export audit passed: **2,100 sources**, 13 production
+  entry points, no forbidden sources and no explicit Android tracking entry point.
+  New diagnostics are isolated in `E:\Masarifi-ios-artifacts\source-5edca962`.
+  The incoming history passes the unchanged strict secret policy with zero
+  findings; the historical raw1/public1/unexpected0 classification remains.
+- Rechecked IPA2's SHA256 unchanged. No new IPA, D-worktree/device, hosted change,
+  question replay or financial fixture was performed here. Android120 review
+  evidence is separate. The current installation link still refers to source
+  `2dd23b5b`; these cache/Assistant changes need a later signed iPhone build and
+  actual-device acceptance, including cache reuse and real response behavior.
