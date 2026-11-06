@@ -443,93 +443,81 @@ test.each(['development', 'production'])(
   }
 );
 
-test('production recent-auth refusal keeps the receipt and payload until same-session verification succeeds', async () => {
-  productionRuntime();
-  const owner = 'user_production_reverification';
-  clerkOwner = owner;
-  session(owner);
-  const ownerFile = seedDeletedOwner(owner);
-  const sdkSession = {
-    id: `session_${owner}`,
-    status: 'active',
-    lastActiveAt: new Date(Date.now() - 1_000),
-    expireAt: new Date(Date.now() + 60_000),
-    startVerification: jest.fn().mockResolvedValue({
-      supportedFirstFactors: [
-        {
-          strategy: 'email_code',
-          emailAddressId: 'email-a',
-          safeIdentifier: 'q***@example.test'
-        }
-      ]
-    }),
-    prepareFirstFactorVerification: jest
-      .fn()
-      .mockResolvedValue({ status: 'needs_first_factor' }),
-    attemptFirstFactorVerification: jest
-      .fn()
-      .mockResolvedValueOnce({ status: 'needs_first_factor' })
-      .mockResolvedValue({ status: 'complete' }),
-    getToken: sdkToken
-  };
-  (getClerkInstance as jest.Mock).mockImplementation(() => ({
-    user: { id: owner },
-    session: sdkSession,
-    status: 'ready',
-    on: () => undefined,
-    off: () => undefined
-  }));
-  fetchBoundary.mockResolvedValueOnce(
-    successful({ code: 'RECENT_AUTH_REQUIRED' }, 403)
-  );
-  const confirmation = jest
-    .spyOn(Alert, 'alert')
-    .mockImplementation((_title, _body, buttons) => {
-      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
-    });
-  try {
-    render(<Runtime />);
-    const button = await screen.findByRole('button', {
-      name: t('appShell.security.deleteAccount')
-    });
-    await waitFor(() => expect(button).toBeEnabled());
-    fireEvent.press(button);
-    const reverify = await screen.findByRole('button', {
-      name: t('settings.deletion.reverify')
-    });
-    const retained = await loadDeletionCompletion(owner);
-    expect(retained?.phase).toBe('verification_required');
-    expect(deletionNative.files.has(ownerFile)).toBe(true);
-    expect(sdkSignOut).not.toHaveBeenCalled();
-    fireEvent.press(reverify);
-    const code = await screen.findByLabelText(t('settings.deletion.code'));
-    fireEvent.changeText(code, '111111');
-    fireEvent.press(
-      screen.getByRole('button', { name: t('settings.deletion.verify') })
-    );
-    await screen.findByText(t('settings.deletion.verificationError'));
-    expect(fetchBoundary).toHaveBeenCalledTimes(1);
-    expect(deletionNative.files.has(ownerFile)).toBe(true);
-    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
-    fireEvent.changeText(code, '222222');
-    fireEvent.press(
-      screen.getByRole('button', { name: t('settings.deletion.verify') })
-    );
-    await waitFor(async () =>
-      expect(await loadDeletionCompletion(owner)).toBeNull()
-    );
-    expect(fetchBoundary.mock.calls[1][1].headers['Idempotency-Key']).toBe(
-      retained?.operationId
-    );
-    expect(
-      JSON.parse(fetchBoundary.mock.calls[1][1].body).completionToken
-    ).toBe(retained?.completionToken);
-    expect(confirmation).toHaveBeenCalledTimes(1);
-    expect(deletionNative.files.has(ownerFile)).toBe(false);
-  } finally {
-    confirmation.mockRestore();
+test.each([false, true])(
+  'continues a persisted Production deletion without a code, while refusing a different SDK owner: %s',
+  async (foreignSdk) => {
+    productionRuntime();
+    const owner = 'user_production_saved_deletion';
+    clerkOwner = owner;
+    session(owner);
+    const file = seedDeletedOwner(owner);
+    const otherFile = seedDeletedOwner('user_other_retained');
+    const retained = {
+      ownerId: owner,
+      operationId: 'd2227d58-f407-4867-89d8-8843d7a6fef6',
+      completionToken: 'e'.repeat(64),
+      phase: 'verification_required' as const,
+      requestId: null,
+      completedAt: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    };
+    await saveDeletionCompletion(retained);
+    const startVerification = jest.fn();
+    (getClerkInstance as jest.Mock).mockImplementation(() => ({
+      user: { id: clerkOwner },
+      session: {
+        id: `session_${clerkOwner}`,
+        status: 'active',
+        lastActiveAt: new Date(Date.now() - 1000),
+        expireAt: new Date(Date.now() + 60000),
+        startVerification
+      },
+      status: 'ready',
+      on: () => undefined,
+      off: () => undefined
+    }));
+    const confirmation = jest.spyOn(Alert, 'alert');
+    try {
+      render(<Runtime />);
+      const resume = await screen.findByRole('button', {
+        name: t('settings.deletion.continue')
+      });
+      expect(
+        screen.queryByRole('button', { name: t('settings.deletion.reverify') })
+      ).toBeNull();
+      expect(screen.queryByLabelText(t('settings.deletion.code'))).toBeNull();
+      expect(fetchBoundary).not.toHaveBeenCalled();
+      if (foreignSdk) clerkOwner = 'user_other_retained';
+      else fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+      fireEvent.press(resume);
+      if (foreignSdk) {
+        await screen.findByText(t('settings.deletion.error'));
+        expect(fetchBoundary).not.toHaveBeenCalled();
+        expect(await loadDeletionCompletion(owner)).toEqual(retained);
+        expect(deletionNative.files.has(file)).toBe(true);
+      } else {
+        await waitFor(async () =>
+          expect(await loadDeletionCompletion(owner)).toBeNull()
+        );
+        expect(fetchBoundary).toHaveBeenCalledTimes(1);
+        expect(fetchBoundary.mock.calls[0][1].headers['Idempotency-Key']).toBe(
+          retained.operationId
+        );
+        expect(
+          JSON.parse(fetchBoundary.mock.calls[0][1].body).completionToken
+        ).toBe(retained.completionToken);
+        expect(deletionNative.files.has(file)).toBe(false);
+      }
+      expect(deletionNative.files.has(otherFile)).toBe(true);
+      expect(startVerification).not.toHaveBeenCalled();
+      expect(confirmation).not.toHaveBeenCalled();
+    } finally {
+      confirmation.mockRestore();
+    }
   }
-});
+);
 
 test.each([false, true])(
   'completes Android receipt recovery without admitting the deleted owner; other active owner=%s',

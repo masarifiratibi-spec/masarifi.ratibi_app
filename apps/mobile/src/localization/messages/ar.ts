@@ -152,6 +152,8 @@ const ar: MessageCatalog = {
   'settings.deletion.recentAuth':
     'تحقق من هويتك مجددًا لمتابعة طلب الحذف الذي أكدته.',
   'settings.deletion.reverify': 'إرسال رمز التحقق',
+  'settings.deletion.continue': 'متابعة الحذف',
+  'settings.deletion.continueConfirmed': 'طلب الحذف محفوظ. تقدر تكمله من هنا.',
   'settings.deletion.retry': 'إعادة المحاولة',
   'settings.deletion.dev.sessionRetry':
     'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',

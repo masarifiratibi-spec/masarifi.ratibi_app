@@ -164,6 +164,9 @@ const en = {
   'settings.deletion.recentAuth':
     'Verify your identity again to continue this confirmed deletion request.',
   'settings.deletion.reverify': 'Send verification code',
+  'settings.deletion.continue': 'Continue deletion',
+  'settings.deletion.continueConfirmed':
+    'Your confirmed deletion request is saved. Continue to finish it.',
   'settings.deletion.retry': 'Try again',
   'settings.deletion.dev.sessionRetry':
     'Deletion could not finish with the current session. Try again; the account has not been deleted.',
