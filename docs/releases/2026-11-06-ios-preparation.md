@@ -1,7 +1,7 @@
 # iPhone Ad Hoc preparation — 2026-11-06
 
-Status: source preparation verified; Apple signing/device registration still
-requires completion. No signed IPA or iPhone device acceptance yet.
+Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
+Installation/login and physical-device feature acceptance remain pending.
 
 ## Source and coordination
 
@@ -48,7 +48,8 @@ requires completion. No signed IPA or iPhone device acceptance yet.
   passed on this application source: 2,099 sources, 13 production entry points,
   no development/fixture routes and no explicit Android tracking entry point.
   No original D-worktree files, services, data, session or phone were changed.
-- IPA signing/device registration and iPhone acceptance remain open. Android115
+- Signed IPA/device-registration results are recorded below; physical iPhone
+  acceptance remains open. Android115
   was not installed by this task, and no new physical SMS speed result is claimed.
 
 ## Apple and Expo access
@@ -197,9 +198,9 @@ is not a reason to introduce new iPhone UI or storage behavior.
 - Independent review ran on the stable implementation while environment checks
   finished. Its material finding was fixed and tested. Subsequent EAS operational
   preflight fixes have explicit failing/passing regressions and CLI evidence.
-- Generated configuration is insufficient evidence for final Release APNs/ATS
-  settings, provisioning, SQLCipher, biometrics, voice or Google callback behavior.
-  Inspect the signed artifact and test these on iPhone before client acceptance.
+- Signed-artifact inspection below verifies APNs/ATS/provisioning metadata.
+  SQLCipher, biometrics, voice, notification delivery and Google callbacks still
+  require iPhone runtime testing before client acceptance.
 - Android source remains independently developed; synchronization and merge-back
   require explicit review. The physical speed of Android candidate 114 was not
   established by this work, and no original phone/session/data was touched.
@@ -237,14 +238,44 @@ References: [Expo internal distribution](https://docs.expo.dev/build/internal-di
   changed-file lint and formatting pass. Actual Expo introspection confirms
   Clerk 4.6.5 native metadata and the retained bundle/version, without adding an
   Apple sign-in entitlement. Full local iOS prebuild is unavailable on Windows;
-  cloud Pods/compilation and physical-device acceptance remain required.
+  the subsequent cloud build below verifies Pods and compilation. Physical-device
+  acceptance remains required.
 - The first cloud doctor's advisory reports four newer Expo patch versions.
   It did not cause the fatal SPM error. Versions and validation policy remain
   unchanged; the warning is retained, not suppressed.
 - The existing encryption declaration remains unspecified. SQLCipher is embedded,
   so no unsupported exemption assertion was made. The noninteractive Ad Hoc build
   path retains current settings; Store export classification is outside this
-  no-Store delivery. No signed IPA or physical iPhone acceptance exists yet.
+  no-Store delivery. Physical iPhone acceptance remains pending.
 
 Clerk's [native configuration guidance](https://clerk.com/articles/clerk-compatibility-in-expo-54-and-55-2)
 documents the iOS 17 requirement and official plugin.
+
+## Signed IPA result
+
+- [EAS build e48bc3f4-220a-45db-a0ef-e9b405acdf7a](https://expo.dev/accounts/masarifiratibi/projects/masarifiratibi/builds/e48bc3f4-220a-45db-a0ef-e9b405acdf7a)
+  finished successfully from `2dd23b5bee72a95a4a56431ec106d9682e539353`:
+  **1.0.0 / build 2**, physical iPhone ARM64, internal Ad Hoc distribution.
+  The official Clerk configuration fixed the first attempt's Pods failure;
+  Pods, JS bundling, Xcode archive/export and artifact upload completed.
+- Downloaded IPA: `E:\Masarifi-ios-artifacts\Masarifi-1.0.0-build2.ipa`,
+  26,680,429 bytes. SHA256:
+  `3ba88fdb01b89cb8c60d92401fc41d83638c66297f023a34a58303e9ea052319`.
+- ZIP metadata, main ARM64 Mach-O and its signed XML entitlements were inspected.
+  Bundle `com.masarifi.mobile`, retained team, version/build, iOS minimum 17.0,
+  microphone/Face ID permission descriptions and owner-device inclusion match.
+  `get-task-allow` is false in app/profile; APNs is `production` in both;
+  arbitrary ATS transport loads are not enabled.
+- The embedded provisioning profile's CMS signature was verified using Windows
+  SignedCms. This did not independently validate the Apple certificate chain or
+  perform full macOS `codesign --verify` over the application/resource graph.
+  The artifact inspection is not a physical runtime acceptance test.
+- Exactly one registered owner iPhone is included. The installation link was
+  given to the user for Safari installation and first login/data verification.
+  Client devices require enrollment and updated provisioning/re-signing before
+  they can install this app. No App Store record/submission was created.
+- Remaining acceptance: installation, existing-account sign-in and restart,
+  account/transaction operations, reports by email, voice, lock, permissions,
+  notifications, offline/reconnect and layout checks on the actual iPhone.
+  Android bank-SMS tracking remains outside iOS scope. No customer-ready runtime
+  acceptance is claimed until those checks complete.
