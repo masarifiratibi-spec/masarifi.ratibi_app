@@ -109,6 +109,14 @@ is not a reason to introduce new iPhone UI or storage behavior.
   `pathToFileURL` now makes the actual CLI execute the validator. A real CLI test
   from a `#` path reproduced the bypass before the fix and rejection afterward.
 - Full private logs/artifacts live in `E:\Masarifi-ios-artifacts`, not in Git.
+- Frontend-quality secrets scan passed. The Android owner's strict Gitleaks
+  8.24.3 policy reported one raw `generic-api-key` finding in `eas.json`, introduced
+  by `0389dff3`: the intentional `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`. Its SHA256
+  matches the existing retained-identity guard. This is a publishable client key;
+  [Clerk documents that it is safe to expose and commit](https://clerk.com/docs/guides/secure/rotate-api-keys).
+  The raw strict scan is **not zero**; the public-configuration classification was
+  sent to the Android owner for review before merge. No scanner policy, ignore
+  list, credential or published history was changed to conceal the finding.
 
 ## Before building the signed IPA
 
