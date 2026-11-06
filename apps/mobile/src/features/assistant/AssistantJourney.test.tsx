@@ -139,6 +139,28 @@ test('withdraws accumulated history after an access denial instead of keeping pr
 });
 
 test.each(['ar', 'en'] as const)(
+  'keeps ordinary Assistant refresh out of the chat header in %s',
+  (locale) => {
+    changeLocale(locale);
+    mockAssistantQueries.useAssistantConversation.mockReturnValue({
+      data: {
+        conversation: conversation(),
+        responses: { items: [response()], nextCursor: null, total: 1 }
+      },
+      isError: false,
+      dataUpdatedAt: 100,
+      isFetching: true
+    });
+    renderWithProviders(
+      <AssistantConversationScreen conversationId="conversation-1" />
+    );
+    expect(screen.getByText(t('assistant.answer.direct'))).toBeOnTheScreen();
+    expect(screen.queryByText(t('coreFinance.state.refreshingSnapshot'))).toBeNull();
+    expect(screen.getByTestId('assistant-composer-input')).toBeOnTheScreen();
+  }
+);
+
+test.each(['ar', 'en'] as const)(
   'keeps saved Assistant answers explicitly stale after a transport failure in %s',
   (locale) => {
     changeLocale(locale);

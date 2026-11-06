@@ -34,7 +34,11 @@ import { AiRepository } from './ai.repository';
 import { redactAiText } from './ai.schemas';
 import { AiStorage } from './ai.storage';
 import { AssistantFinancialTools } from './ai-financial-tools';
-import { routeAssistantMessage, selectConversationHistory } from './ai-routing';
+import {
+  isDirectSpendingTotal,
+  routeAssistantMessage,
+  selectConversationHistory,
+} from './ai-routing';
 import { directAssistantScopeNotice } from './assistant-domain-policy';
 import { zonedDateTimeToInstant } from '../reports/reports.period';
 
@@ -608,7 +612,11 @@ export class AiService {
       requestedIntent.startsWith('update_') ||
       requestedIntent === 'record_obligation_payment' ||
       requestedIntent === 'resolve_tracking_review';
-    if (developmentAgent && !existingAction) {
+    if (
+      developmentAgent &&
+      !existingAction &&
+      !(requestedIntent === 'spending_summary' && isDirectSpendingTotal(input.content))
+    ) {
       await this.available('financial_assistant');
       return this.accepted(
         await this.repository.enqueueMessage(
@@ -669,7 +677,8 @@ export class AiService {
     if (
       this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED') &&
       this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
-      !explicitAction
+      !explicitAction &&
+      !(initialRoute.intent === 'spending_summary' && isDirectSpendingTotal(input.content))
     ) {
       await this.available('financial_assistant');
       return this.accepted(
