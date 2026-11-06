@@ -2,8 +2,8 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `88df9c8a`, synchronized through published
-documentation head `339e9c43`; the existing IPA2 still contains source `2dd23b5b`.
+The current shared source is now `77aa3d26`, synchronized through published
+documentation head `2bc9dabf`; the existing IPA2 still contains source `2dd23b5b`.
 
 ## Source and coordination
 
@@ -348,3 +348,36 @@ documents the iOS 17 requirement and official plugin.
   physical acceptance boundary still refer to source `2dd23b5b`; the Home update
   is prepared for a later signed iPhone build. Android118 review documents are
   the Android owner's evidence, not iPhone or installation acceptance.
+
+## Startup source synchronization — IPA2 unchanged
+
+- Verified and fast-forwarded qualified source
+  `77aa3d2602dc154931949c697e3a767aaa7636ef`, then published review head
+  `2bc9dabf66e6d73ec56cd6938e83f519a190f13f`. The latter range changes only
+  review/handoff documents. No iOS signing, native dependency, bundle identity,
+  package lock or hosted configuration changed.
+- The three production changes start the same local hydration flight alongside
+  fonts, keep the original SDK/navigation admission below FontGate, retain the
+  explicit encrypted-database recovery listener, and defer Home's period sheet
+  until first use while retaining it afterward for iOS dismissal.
+- Additional E-checkout evidence: **109/109 cases in 8/8 selected suites** passed
+  in one command, covering AppShellProvider/store/live-owner admission, privacy,
+  bootstrap/protected/root navigation and Home cached content/iOS period behavior.
+  Types passed. Lint over the eight changed TSX files returned zero errors and
+  the two inherited warnings documented by the source owner. No test content,
+  timeout, skip or forced exit was changed here; no wider suite was repeated.
+- The [source owner's startup report](2026-11-06-home-startup-path.md) retains
+  its genuine RED cases, intermediate harness/path failures and final successful
+  215-case / 16-suite command. Its review is self-review. The local 109 cases
+  overlap that qualification and must not be summed with it.
+- Production iOS introspection/JS export audit passed with 2,099 sources,
+  13 production entry points, no forbidden sources and no explicit Android
+  tracking entry point. Diagnostics are isolated in
+  `E:\Masarifi-ios-artifacts\source-77aa3d26`. Incoming `1ca..77aa` history
+  passes the unchanged strict secret policy with zero findings; the historical
+  raw1/public1/unexpected0 classification remains intact.
+- IPA2 SHA256 was rechecked unchanged. This synchronization produced no IPA and
+  no Android-device/hosted action. Android119 review/physical work belongs to its
+  owning chat. The millisecond contribution of these changes and overall iPhone
+  startup speed are unmeasured. IPA2 remains source `2dd23b5b`; these startup
+  changes require a later signed iPhone build and physical acceptance.
