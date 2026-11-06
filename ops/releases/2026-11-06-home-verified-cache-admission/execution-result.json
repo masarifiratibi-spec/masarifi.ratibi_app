@@ -1,0 +1,44 @@
+{
+  "atUtc": "2026-11-06T15:58:09.634114+00:00",
+  "applicationSourceCommit": "76b68aba08629ebe448bb0254c9b2ac1fd544996",
+  "installedVersionCode": 121,
+  "installedApkSha256": "97fd56eb4d4e40d99d171ee6cab33bd269b5507551569b5f129d87caf74e8e08",
+  "reviewedPinsStillMatch": true,
+  "sameExactOwnerAndSdkAndCapturedRetainedState": true,
+  "deviceLastSeenAfterReopen": "2026-11-06T15:57:09.683417+00:00",
+  "measuredScopeOneFirstLaunchAndOneOrdinaryCachedReopen": true,
+  "laterSystemWebViewUpdateKilledAppAfterObservedPass": true,
+  "unmeasuredFinalHomeRestorationAfterSystemUpdate": true,
+  "ordinaryOwnRecentsDismissalProducedNewProcess": true,
+  "cachedFirstVisibleHomeBalanceAndActivityAcceptedInObservedRun": true,
+  "reviewedOriginalFrame439AtLocal": "18:50:33.545 startup cover",
+  "reviewedOriginalFrame440AtLocal": "18:50:33.800 full Home -16SAR and saved activity",
+  "preReopenInputDeviceLocal": "18:50:29.226",
+  "sampledCachedReopenToUsefulHomeSeconds": 4.574,
+  "nativeActivityTotalTimeMs": 579,
+  "wholeAppStartupInstantOrZeroJankAccepted": false,
+  "phonePrivateLockPreferenceDirectlyRead": false,
+  "nullLockSourceMechanismSupportedByBehaviorNotDirectPrivateStateRead": true,
+  "assistant120QuestionAndDraftProofReusedWithoutNewQuestion": true,
+  "assistantEndToEndSpeedImprovementAccepted": false,
+  "originalDriverExit1WasOnlyAsciiSpaceVsNbspGuard": true,
+  "secondResumeAttemptNoInputBecauseFirstObserverAlreadyEnded": true,
+  "firstLaunchNotRepeatedOnlyUnconsumedCachedStepResumed": true,
+  "videos": {
+    "home": {
+      "sha256": "dea5ef51627c9fd674e9b5a140734d6406e88d6142ce43ecfe2f4a5aeeb5086c",
+      "bytes": 2770881,
+      "exitCode": 0
+    },
+    "cached-home": {
+      "sha256": "5b073f970d061e905a6e179e6d64693529ed8bc1835a68eac55d7c8e1e618f61",
+      "bytes": 8345393,
+      "exitCode": 0
+    }
+  },
+  "allObserversEndedNaturally": true,
+  "noRecorderFinancialOrDraftCleanupPending": true,
+  "phoneEndsHome": true,
+  "canonicalDeliveryStill111": true,
+  "productionReady": false
+}
