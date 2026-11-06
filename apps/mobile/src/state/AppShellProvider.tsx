@@ -42,6 +42,7 @@ const LocalShellHydration = React.createContext<{
 type LiveRestoreCompletion = {
   sessionKey: string | null;
   revision: number;
+  generation: object;
 };
 const LiveShellRestoration = React.createContext<
   LiveRestoreCompletion | null | undefined
@@ -112,6 +113,10 @@ function useLiveShellRestoration(localHydration: {
   const sessionKey = useLiveClerkSessionKey();
   const revision = useAppShellStore((state) => state.bootstrapRevision);
   const mode = resolveClientMode();
+  const generation = React.useMemo(
+    () => ({ sessionKey, revision, mode }),
+    [sessionKey, revision, mode]
+  );
   const queue = useRef(Promise.resolve());
   const [completed, setCompleted] =
     React.useState<LiveRestoreCompletion | null>(null);
@@ -133,7 +138,7 @@ function useLiveShellRestoration(localHydration: {
         await measurePerformance('startup.restore', () =>
           restoreAppShellSession(authService, () => current)
         );
-        if (current) setCompleted({ sessionKey, revision });
+        if (current) setCompleted({ sessionKey, revision, generation });
       })
       .catch((error: unknown) => {
         if (current)
@@ -148,8 +153,10 @@ function useLiveShellRestoration(localHydration: {
     return () => {
       current = false;
     };
-  }, [inherited, mode, sessionKey, revision, localHydration]);
-  return inherited === undefined ? completed : inherited;
+  }, [inherited, mode, sessionKey, revision, localHydration, generation]);
+  if (inherited !== undefined) return inherited;
+  // Returning to the same SDK key must not reuse completion from its older visit.
+  return completed?.generation === generation ? completed : null;
 }
 
 /** Restore identity alongside fonts; navigation and foreground writers stay below. */
