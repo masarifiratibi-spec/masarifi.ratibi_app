@@ -8,7 +8,7 @@ import { publishTrackingSave } from './tracking-save-events';
 import { ensureTrackingSyncDevice } from './tracking-sync-device';
 import Constants from 'expo-constants';
 import { resolveClientRuntime } from '@/config/client-runtime';
-import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
 import { usePreferenceStore } from '@/state/preferences';
 import { translate } from '@/localization/i18n';
 import { formatMinorAmount } from '@/utils/format-financial-value';

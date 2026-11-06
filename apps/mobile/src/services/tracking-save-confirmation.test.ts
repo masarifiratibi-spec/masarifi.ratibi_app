@@ -7,7 +7,7 @@ import {
   createLiveLedgerService,
   synchronizeLiveCoreFinance
 } from './live/core-finance-service';
-import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
 import { subscribeTrackingSaves } from './tracking-save-events';
 import { useAppShellStore } from '@/state/app-shell';
 import { ensureTrackingSyncDevice } from './tracking-sync-device';
@@ -52,7 +52,7 @@ jest.mock('./live/http-client', () => ({
 jest.mock('./platform/phone-notification-service', () => ({
   phoneNotificationService: { getPermission: jest.fn(async () => 'granted') }
 }));
-jest.mock('./platform/tracking-native-runtime.android', () => ({
+jest.mock('./platform/tracking-native-runtime', () => ({
   trackingNativeRuntime: { presentCaptureConfirmation: jest.fn() }
 }));
 beforeEach(() => {

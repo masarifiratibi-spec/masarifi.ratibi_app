@@ -58,4 +58,4 @@ exports.developmentRoutes = new RegExp(
 exports.isLiveProduction = (environment) =>
   environment.EXPO_PUBLIC_CLIENT_MODE === 'live' &&
   (environment.NODE_ENV === 'production' ||
-    environment.EAS_BUILD_PROFILE === 'production');
+    ['production', 'ios-ad-hoc'].includes(environment.EAS_BUILD_PROFILE));

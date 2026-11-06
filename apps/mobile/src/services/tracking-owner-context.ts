@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { z } from 'zod';
-import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
 import type { TrackingNativeLease } from '@/state/tracking-admission';
 
 const contextSchema = z

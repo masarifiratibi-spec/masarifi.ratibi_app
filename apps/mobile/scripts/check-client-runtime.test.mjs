@@ -1,6 +1,11 @@
 import test from 'node:test';
 import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { URL } from 'node:url';
 
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
@@ -22,6 +27,92 @@ const live = {
   EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'false',
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from(`${retainedClerkDomain}$`).toString('base64url')}`
 };
+
+const iosAdHoc = {
+  ...live,
+  EAS_BUILD_PROFILE: 'ios-ad-hoc',
+  EAS_BUILD_PLATFORM: 'ios'
+};
+
+test('the pre-install CLI enforces release checks from an absolute path containing URL-sensitive characters', () => {
+  const scratchRoot = resolve(tmpdir());
+  const fixture = mkdtempSync(join(scratchRoot, 'masarifi#ios-cli-'));
+  const scripts = join(fixture, 'scripts');
+  mkdirSync(scripts);
+  try {
+    for (const name of [
+      'check-client-runtime.mjs',
+      'benchmark-build-policy.cjs',
+      'performance-qa-exclusion.cjs'
+    ]) {
+      copyFileSync(new URL(name, import.meta.url), join(scripts, name));
+    }
+    copyFileSync(
+      new URL('../app.json', import.meta.url),
+      join(fixture, 'app.json')
+    );
+    const run = (patch) =>
+      spawnSync(process.execPath, [join(scripts, 'check-client-runtime.mjs')], {
+        env: { ...process.env, ...iosAdHoc, ...patch },
+        encoding: 'utf8'
+      });
+    assert.equal(run({}).status, 0);
+    const rejected = run({ EAS_BUILD_PLATFORM: 'android' });
+    assert.notEqual(
+      rejected.status,
+      0,
+      'the actual CLI must run its validator'
+    );
+    assert.match(
+      rejected.stderr,
+      /iPhone Ad Hoc requires the ios build platform/
+    );
+  } finally {
+    if (dirname(fixture) !== scratchRoot)
+      throw new Error('Unexpected fixture directory');
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test('accepts a standalone iPhone candidate with the retained production identity', () => {
+  assert.doesNotThrow(() => validateClientBuildEnvironment(iosAdHoc));
+});
+
+test('iPhone profile cannot target Android or bypass production checks outside NODE_ENV=production', () => {
+  for (const NODE_ENV of ['production', 'development', undefined]) {
+    for (const patch of [
+      { EAS_BUILD_PLATFORM: 'android' },
+      { EAS_BUILD_PLATFORM: undefined },
+      { EXPO_PUBLIC_APP_LOCK_ENABLED: 'false' },
+      { EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED: 'true' },
+      { EXPO_PUBLIC_API_URL: 'https://api.staging.example.com' },
+      { MASARIFI_RELEASE_VERSION_NAME: undefined }
+    ]) {
+      assert.throws(() =>
+        validateClientBuildEnvironment({ ...iosAdHoc, NODE_ENV, ...patch })
+      );
+    }
+  }
+});
+
+test('iPhone profile rejects a different bundle while retaining the Android and EAS identity checks', () => {
+  const identity = {
+    android: { package: 'com.masarifi.mobile' },
+    ios: { bundleIdentifier: 'com.masarifi.mobile' },
+    extra: { eas: { projectId: 'c8cc3dd3-a7e9-4737-ac4d-32f076107600' } }
+  };
+  assert.doesNotThrow(() => validateClientBuildEnvironment(iosAdHoc, identity));
+  for (const patch of [
+    { ios: { bundleIdentifier: 'com.masarifi.mobile.dev' } },
+    { ios: undefined },
+    { android: { package: 'com.masarifi.mobile.dev' } },
+    { extra: { eas: { projectId: 'different' } } }
+  ]) {
+    assert.throws(() =>
+      validateClientBuildEnvironment(iosAdHoc, { ...identity, ...patch })
+    );
+  }
+});
 
 test('accepts the free-only production client environment', () => {
   assert.doesNotThrow(() => validateClientBuildEnvironment(live));

@@ -2,6 +2,7 @@ import { URL } from 'node:url';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import benchmarkPolicy from './benchmark-build-policy.cjs';
 import performanceQaExclusion from './performance-qa-exclusion.cjs';
 
@@ -25,6 +26,9 @@ export function validateClientBuildEnvironment(
   identity = applicationIdentity
 ) {
   performanceQaExclusion.assertNormalBuildComposition(environment);
+  const iosAdHoc = environment.EAS_BUILD_PROFILE === 'ios-ad-hoc';
+  if (iosAdHoc && environment.EAS_BUILD_PLATFORM !== 'ios')
+    throw new Error('iPhone Ad Hoc requires the ios build platform');
   const exposed = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
   );
@@ -59,7 +63,7 @@ export function validateClientBuildEnvironment(
       throw new Error('development build requires demo client mode');
     return;
   }
-  if (environment.NODE_ENV !== 'production') return;
+  if (environment.NODE_ENV !== 'production' && !iosAdHoc) return;
   if (environment.EXPO_PUBLIC_CLIENT_MODE !== 'live')
     throw new Error('production requires live client mode');
   let apiUrl;
@@ -90,11 +94,14 @@ export function validateClientBuildEnvironment(
     return;
   if (
     environment.EAS_BUILD_PROFILE &&
-    environment.EAS_BUILD_PROFILE !== 'production'
+    environment.EAS_BUILD_PROFILE !== 'production' &&
+    !iosAdHoc
   )
     throw new Error('unknown release build profile');
   if (environment.EXPO_PUBLIC_RELEASE_CHANNEL !== 'production')
     throw new Error('production requires its release channel');
+  if (iosAdHoc && identity?.ios?.bundleIdentifier !== 'com.masarifi.mobile')
+    throw new Error('iPhone Ad Hoc requires the retained production bundle');
   const approvedOrigin = environment.MASARIFI_PRODUCTION_API_ORIGIN;
   if (
     !approvedOrigin ||
@@ -171,6 +178,6 @@ function isPrivacyApiNamespace(value) {
 if (
   process.argv[1] &&
   import.meta.url ===
-    new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href
+    pathToFileURL(process.argv[1]).href
 )
   validateClientBuildEnvironment();

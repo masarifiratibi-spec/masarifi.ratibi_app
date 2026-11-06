@@ -46,7 +46,7 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(async () => undefined),
   deleteItemAsync: jest.fn(async () => undefined)
 }));
-jest.mock('@/services/platform/tracking-native-runtime.android', () => ({
+jest.mock('@/services/platform/tracking-native-runtime', () => ({
   trackingNativeRuntime: {
     restoreTrackingOwner: jest.fn(async () => 'EMPTY'),
     suspendTrackingOwner: jest.fn(async () => undefined),
