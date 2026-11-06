@@ -178,7 +178,7 @@ export function createAutomaticTrackingCoordinator(
       let last: AutomaticTrackingSyncState | null = null;
       const attempted = new Set<string>();
       const observationBudget: ImportObservationBudget = {
-        remaining: 2,
+        remaining: 4,
         deadline: null
       };
       // An accepted session is an owned receipt even after its capture capability is revoked.
@@ -201,6 +201,25 @@ export function createAutomaticTrackingCoordinator(
         stillOwner();
         queue = await dependencies.queue.load(ownerId);
       }
+      const sources = await dependencies.sources.load();
+      stillOwner();
+      // Prepare independent owned reads while status is checked. Capture and
+      // submission still wait for status, fresh permission and configuration.
+      const prepareOnline =
+        online && (sources.smsEnabled || sources.notificationEnabled);
+      const accountsRequest = prepareOnline
+        ? dependencies.listAccounts().then(
+            (accounts) => ({ ok: true as const, accounts }),
+            (error: unknown) => ({ ok: false as const, error })
+          )
+        : null;
+      const submissionRequest =
+        prepareOnline && dependencies.tracking.prepareImportSubmission
+          ? dependencies.tracking.prepareImportSubmission(ownerId).then(
+              (submit) => ({ ok: true as const, submit }),
+              (error: unknown) => ({ ok: false as const, error })
+            )
+          : null;
       if (online) {
         try {
           phase = 'status';
@@ -221,7 +240,6 @@ export function createAutomaticTrackingCoordinator(
         );
         return last ?? update('idle');
       }
-      const sources = await dependencies.sources.load();
       phase = 'notification_status';
       const captureIssue = sources.notificationEnabled
         ? await dependencies.bankNotifications.getCaptureIssue?.()
@@ -234,21 +252,6 @@ export function createAutomaticTrackingCoordinator(
         dependencies.bankNotifications.getAccessState()
       ]);
       stillOwner();
-      // These owned reads are independent. Capture still waits for the complete
-      // configuration, consent check and account result below.
-      const accountsRequest = online
-        ? dependencies.listAccounts().then(
-            (accounts) => ({ ok: true as const, accounts }),
-            (error: unknown) => ({ ok: false as const, error })
-          )
-        : null;
-      const submissionRequest =
-        online && dependencies.tracking.prepareImportSubmission
-          ? dependencies.tracking.prepareImportSubmission(ownerId).then(
-              (submit) => ({ ok: true as const, submit }),
-              (error: unknown) => ({ ok: false as const, error })
-            )
-          : null;
       const submitImport: AutomaticTrackingService['submitImport'] = async (
         ...args
       ) => {
@@ -377,7 +380,8 @@ export function createAutomaticTrackingCoordinator(
         ? await dependencies.deviceId()
         : 'legacy-device';
       phase = 'accounts';
-      const accountResult = accountsRequest ? await accountsRequest : null;
+      const accountResult =
+        online && accountsRequest ? await accountsRequest : null;
       stillOwner();
       if (accountResult && !accountResult.ok) throw accountResult.error;
       const accounts = accountResult?.ok
@@ -822,7 +826,7 @@ async function flush(
   ) => AutomaticTrackingSyncState,
   fence: () => void = () => undefined,
   setPhase: (phase: string) => void = () => undefined,
-  budget: ImportObservationBudget = { remaining: 2, deadline: null },
+  budget: ImportObservationBudget = { remaining: 4, deadline: null },
   submitImport: AutomaticTrackingService['submitImport'] = (...args) =>
     dependencies.tracking.submitImport(...args)
 ): Promise<AutomaticTrackingSyncState> {
@@ -863,7 +867,7 @@ async function flush(
     ) {
       // One owned read can observe a committed effect without another native wake.
       if (!entry.sessionId && budget.deadline === null)
-        budget.deadline = Date.now() + 1200;
+        budget.deadline = Date.now() + 2000;
       let observationFailed = false;
       fence();
       try {
