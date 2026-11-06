@@ -17,10 +17,39 @@ requires completion. No signed IPA or iPhone device acceptance yet.
   It preserves controls/cards while financial reads are loading.
 - Integrated `88d7c5cf81a52874c6efd5a3f1bb93b61e1f0639`: the Android owner's
   SMS preparation/observation improvement and authoritative-permission test
-  update. Current combined implementation checkpoint is `513ebac3`.
+  update. That earlier combined implementation checkpoint was `513ebac3`.
 - The Android owner retains ownership of subsequent UI/loading improvements and
   the original branch. Fetch/review/merge those committed changes before choosing
   a signed iOS release candidate; do not move or edit their worktree.
+
+## Latest shared UI synchronization
+
+- Published application source `10ad1d74c7dcd1f0f980a870ca1d0fc0007ad615` was
+  verified and fast-forwarded into `iOS`. It includes `ad08cca6` for early page
+  rendering in 15 production components, `21f6836` merging the reviewed iOS
+  preparation, and the corrected Home test expectations in `10ad1d74`.
+- Published `526221f24ac41d2aa11bd779675eb6606c3ec0a9` was then incorporated.
+  Everything after `10ad1d74` in this incoming range is documentation/receipts;
+  no application code changed and those documents did not trigger repeated code
+  tests. Android115's package is reviewed separately by its owning chat.
+- The Android source qualification is **composite**: the first full run retained
+  611 successful complete suites / 4,943 cases, with six obsolete assertions in
+  two other suites. Both corrected suites were rerun in full: 25 passing cases.
+  Together this covers 4,968 cases / 613 suites. The original failure and runner
+  open-handle evidence remain retained; this is not one green full-run command.
+  See [the source audit](2026-11-06-first-read-ui-audit.md).
+- Local E-worktree compatibility verification after integration passed:
+  16 affected UI/iOS suites / 227 cases, 34 configuration cases, typecheck and
+  lint (0 errors / 94 existing warnings). The selected test run warned about
+  asynchronous teardown but exited zero without forcing exit, extending
+  timeouts or skipping cases. These overlapping runs are not extra unique cases
+  to add to the source's 4,968.
+- iOS configuration introspection and the production JS/assets export/audit
+  passed on this application source: 2,099 sources, 13 production entry points,
+  no development/fixture routes and no explicit Android tracking entry point.
+  No original D-worktree files, services, data, session or phone were changed.
+- IPA signing/device registration and iPhone acceptance remain open. Android115
+  was not installed by this task, and no new physical SMS speed result is claimed.
 
 ## Apple and Expo access
 
