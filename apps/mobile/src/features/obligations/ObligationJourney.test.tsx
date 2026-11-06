@@ -12,6 +12,29 @@ import { ObligationDetailScreen } from './ObligationDetailScreen';
 import { ObligationForm } from './ObligationForm';
 import { ObligationOverviewScreen } from './ObligationOverviewScreen';
 
+it('shows obligation cards and filters during the initial read without claiming no upcoming items', () => {
+  changeLocale('en');
+  usePreferenceStore.setState({ hideBalances: false });
+  const read = jest
+    .spyOn(financialPlanningService, 'getObligationsOverview')
+    .mockImplementation(() => new Promise<never>(() => {}));
+  const view = renderWithProviders(<ObligationOverviewScreen />);
+  try {
+    expect(view.getByTestId('obligations-hero')).toBeOnTheScreen();
+    expect(view.getByTestId('obligations-filters')).toBeOnTheScreen();
+    fireEvent.press(
+      view.getByText(translate('planning.obligation.filter.completed'))
+    );
+    expect(
+      view.queryByText(translate('planning.obligation.noUpcoming'))
+    ).toBeNull();
+    expect(view.queryByText(/0\.00/)).toBeNull();
+  } finally {
+    view.unmount();
+    read.mockRestore();
+  }
+});
+
 jest.mock(
   'react-native-safe-area-context',
   () => jest.requireActual('react-native-safe-area-context/jest/mock').default
@@ -232,7 +255,9 @@ it('keeps obligation rows in the native RTL order without reversing them twice',
   expect(screen.getByTestId('obligations-filters')).toHaveStyle({
     flexDirection: 'row'
   });
-  expect(screen.getByTestId('obligation-row-obligation-car')).toHaveStyle({
+  expect(
+    await screen.findByTestId('obligation-row-obligation-car')
+  ).toHaveStyle({
     flexDirection: 'row'
   });
 });
@@ -385,19 +410,31 @@ it('shows an honest schedule state and keeps details and payment history indepen
 });
 
 it.each(['empty', 'reversed', 'unavailable'] as const)(
-  'shows the actual payment history state: %s', async (state) => {
+  'shows the actual payment history state: %s',
+  async (state) => {
     changeLocale('en');
-    const existing = await financialPlanningService.getObligation('obligation-car');
+    const existing =
+      await financialPlanningService.getObligation('obligation-car');
     const detail = renderWithQueryData(
       <ObligationDetailScreen obligationId="obligation-car" />,
-      [[financialPlanningKeys.obligation('obligation-car'), {
-        ...existing,
-        paymentHistoryState: state === 'unavailable' ? 'unavailable' : 'available',
-        payments: state === 'reversed' ? [{ ...fixturePayment, status: 'reversed' }] : []
-      }]]
+      [
+        [
+          financialPlanningKeys.obligation('obligation-car'),
+          {
+            ...existing,
+            paymentHistoryState:
+              state === 'unavailable' ? 'unavailable' : 'available',
+            payments:
+              state === 'reversed'
+                ? [{ ...fixturePayment, status: 'reversed' }]
+                : []
+          }
+        ]
+      ]
     );
     fireEvent.press(detail.getByRole('button', { name: 'Payment history' }));
-    if (state === 'empty') expect(detail.getByText('No payments yet')).toBeTruthy();
+    if (state === 'empty')
+      expect(detail.getByText('No payments yet')).toBeTruthy();
     if (state === 'reversed') {
       expect(detail.getByText('Reversed')).toBeTruthy();
       expect(detail.queryByRole('button', { name: 'Undo' })).toBeNull();

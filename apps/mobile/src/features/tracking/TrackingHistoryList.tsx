@@ -33,11 +33,9 @@ export function TrackingHistoryList() {
     }
   );
   const query = useTrackingHistory();
-  if (query.isLoading && !hasReadableSnapshot(query))
-    return (
-      <StateView state="loading" title={translate('tracking.state.loading')} />
-    );
-  if (!hasReadableSnapshot(query))
+  const pending =
+    (query.isLoading || query.isPending) && !hasReadableSnapshot(query);
+  if (!pending && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -58,10 +56,14 @@ export function TrackingHistoryList() {
         data={items}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          <StateView
-            state="empty"
-            title={translate('tracking.history.empty')}
-          />
+          pending ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView
+              state="empty"
+              title={translate('tracking.history.empty')}
+            />
+          )
         }
         renderItem={({ item }) => {
           const action = translate(`tracking.history.${item.action}` as never);
@@ -82,11 +84,22 @@ export function TrackingHistoryList() {
       <ActionButton
         label={translate('tracking.action.clearHistory')}
         onPress={() => {
-          if (query.isError || query.isFetching || clear.isPending) return;
+          if (
+            !hasReadableSnapshot(query) ||
+            query.isError ||
+            query.isFetching ||
+            clear.isPending
+          )
+            return;
           clear.mutate({ ownerId });
         }}
         loading={clear.isPending}
-        disabled={query.isError || query.isFetching || clear.isPending}
+        disabled={
+          !hasReadableSnapshot(query) ||
+          query.isError ||
+          query.isFetching ||
+          clear.isPending
+        }
         variant="destructive"
       />
     </View>

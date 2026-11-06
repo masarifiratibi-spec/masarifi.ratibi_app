@@ -120,6 +120,9 @@ export function NotificationCenterScreen() {
         <ActionButton
           label={t('notifications.center.markAllRead')}
           variant="secondary"
+          disabled={
+            !hasReadableSnapshot(notifications) || markAllRead.isPending
+          }
           onPress={() =>
             markAllRead.mutate({
               filter: query,
@@ -136,7 +139,7 @@ export function NotificationCenterScreen() {
         }
       />
       <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-        {`${total.toLocaleString('en-US')} ${t('notifications.center.countSuffix')}`}
+        {`${hasReadableSnapshot(notifications) ? total.toLocaleString('en-US') : '—'} ${t('notifications.center.countSuffix')}`}
       </Text>
       <FinancialRefreshStatus query={notifications} />
       {resolveOpen.isError ||
@@ -150,11 +153,6 @@ export function NotificationCenterScreen() {
     </View>
   );
 
-  if (notifications.isLoading && !notifications.data) {
-    return (
-      <StateView state="loading" title={t('notifications.center.loading')} />
-    );
-  }
   if (!hasReadableSnapshot(notifications) && notifications.isError) {
     return (
       <StateView
@@ -179,7 +177,11 @@ export function NotificationCenterScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
-          <StateView state="empty" title={t('notifications.center.empty')} />
+          !hasReadableSnapshot(notifications) ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView state="empty" title={t('notifications.center.empty')} />
+          )
         }
         renderItem={({ item }) =>
           item.kind === 'group' ? (

@@ -2,13 +2,61 @@ import React from 'react';
 import { PixelRatio, SectionList, StyleSheet } from 'react-native';
 import { fireEvent, screen } from '@testing-library/react-native';
 
-import { colorTokens, darkThemeColors, lightThemeColors } from '@/design-system/tokens';
+import {
+  colorTokens,
+  darkThemeColors,
+  lightThemeColors
+} from '@/design-system/tokens';
 import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
 import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
+import { renderWithProviders } from '@/test-utils/render';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { AccountListScreen } from './AccountListScreen';
+
+it('shows account controls before the first read without invented totals or an empty result', () => {
+  const accounts = jest
+    .spyOn(coreFinanceService, 'listAccounts')
+    .mockImplementation(() => new Promise(() => {}));
+  const balances = jest
+    .spyOn(coreFinanceService, 'listAccountBalances')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithProviders(<AccountListScreen />);
+  try {
+    expect(view.getByTestId('accounts-screen-masthead')).toBeOnTheScreen();
+    expect(view.getByTestId('accounts-list-search')).toBeEnabled();
+    expect(
+      view.getByLabelText(translate('coreFinance.accounts.add'))
+    ).toBeEnabled();
+    expect(
+      view.queryByText(translate('coreFinance.accounts.empty'))
+    ).toBeNull();
+    expect(view.queryByText(/0\.00/)).toBeNull();
+  } finally {
+    view.unmount();
+    accounts.mockRestore();
+    balances.mockRestore();
+  }
+});
+
+it('shows received account names while balances are pending without a partial total', () => {
+  const balances = jest
+    .spyOn(coreFinanceService, 'listAccountBalances')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithQueryData(<AccountListScreen />, [
+    [coreFinanceKeys.accounts(true), fixtureAccounts]
+  ]);
+  try {
+    expect(view.getByText(fixtureAccounts[0].name)).toBeOnTheScreen();
+    expect(view.queryByText(/0\.00/)).toBeNull();
+    expect(view.getByTestId('accounts-total-card')).toBeOnTheScreen();
+  } finally {
+    view.unmount();
+    balances.mockRestore();
+  }
+});
 
 it('uses the dark page surface around account cards and section headings', () => {
   usePreferenceStore.setState({ theme: 'dark' });
@@ -17,8 +65,11 @@ it('uses the dark page surface around account cards and section headings', () =>
     [coreFinanceKeys.accountBalances(true), []]
   ]);
   try {
-    expect(StyleSheet.flatten(view.UNSAFE_getByType(SectionList).props.contentContainerStyle).backgroundColor)
-      .toBe(darkThemeColors.surfaces.page);
+    expect(
+      StyleSheet.flatten(
+        view.UNSAFE_getByType(SectionList).props.contentContainerStyle
+      ).backgroundColor
+    ).toBe(darkThemeColors.surfaces.page);
   } finally {
     view.unmount();
     usePreferenceStore.setState({ theme: 'system' });

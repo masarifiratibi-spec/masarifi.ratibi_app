@@ -82,14 +82,21 @@ export function SalaryOverviewScreen() {
   const largeText = PixelRatio.getFontScale() >= 1.25;
 
   const data = query.data;
-  const needsSetup = !data?.profileId;
-  const money = (calc: Calculation<MoneyValue>) =>
-    needsSetup ? '0' : formatMoney(calc, hideBalances, revealed);
-  const nextSalaryDate = needsSetup
-    ? '0'
-    : data?.projectedNextSalaryDate
-      ? formatLocalDate(data.projectedNextSalaryDate, locale)
-      : translate('planning.conflict.valueUnavailable');
+  const pending = !data && (query.isPending || query.isLoading);
+  const needsSetup = data !== undefined && !data.profileId;
+  const money = (calc?: Calculation<MoneyValue>) =>
+    calc === undefined
+      ? '—'
+      : needsSetup
+        ? '0'
+        : formatMoney(calc, hideBalances, revealed);
+  const nextSalaryDate = !data
+    ? '—'
+    : needsSetup
+      ? '0'
+      : data.projectedNextSalaryDate
+        ? formatLocalDate(data.projectedNextSalaryDate, locale)
+        : translate('planning.conflict.valueUnavailable');
 
   return (
     <PlanningScreen
@@ -97,29 +104,29 @@ export function SalaryOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {query.isLoading ? (
-        <PlanningState state="loading" />
-      ) : !data || !hasReadableSnapshot(query) ? (
+      {!pending && (!data || !hasReadableSnapshot(query)) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
-        <View style={styles.screenStack}>
+        <View style={styles.screenStack} accessibilityState={{ busy: pending }}>
           <FinancialRefreshStatus query={query} />
-          {data.dataState === 'offline' ? (
+          {data?.dataState === 'offline' ? (
             <StyledText variant="caption" accessibilityLiveRegion="polite">
               {translate('planning.state.offlineRead')}
             </StyledText>
           ) : null}
           <SalaryCycleHeader
             direction={direction}
-            income={money(data.income)}
-            remaining={money(data.remaining)}
-            daily={money(data.suggestedDaily)}
+            income={money(data?.income)}
+            remaining={money(data?.remaining)}
+            daily={money(data?.suggestedDaily)}
             daysRemaining={
-              needsSetup
-                ? '0'
-                : translateDynamic('planning.salary.daysRemaining', {
-                    count: data.daysRemaining
-                  })
+              !data
+                ? '—'
+                : needsSetup
+                  ? '0'
+                  : translateDynamic('planning.salary.daysRemaining', {
+                      count: data.daysRemaining
+                    })
             }
             largeText={largeText}
           />
@@ -152,12 +159,12 @@ export function SalaryOverviewScreen() {
 
           <SalaryDetailsCard
             direction={direction}
-            spent={money(data.expenses)}
-            reserved={money(data.reservedObligations)}
+            spent={money(data?.expenses)}
+            reserved={money(data?.reservedObligations)}
             nextSalaryDate={nextSalaryDate}
           />
 
-          {!needsSetup ? (
+          {data && !needsSetup ? (
             <>
               <ActionButton
                 label={translate('planning.salary.confirmReceipt')}
@@ -177,6 +184,7 @@ export function SalaryOverviewScreen() {
           ) : null}
 
           <ActionButton
+            disabled={!data}
             label={translate(
               needsSetup
                 ? 'planning.salary.setup'

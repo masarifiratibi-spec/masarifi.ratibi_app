@@ -36,6 +36,25 @@ const preferences = {
   weeklySummary: { enabled: false, weekday: 1, time: '10:00' }
 };
 
+it('shows the preferences title during the first read without invented switch values', () => {
+  mockPreferences.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: jest.fn()
+  });
+  const view = renderWithProviders(<NotificationPreferencesScreen />);
+  try {
+    expect(
+      view.getByText(translate('notifications.preferences.title'))
+    ).toBeOnTheScreen();
+    expect(view.queryAllByRole('switch')).toHaveLength(0);
+    expect(mockSave.mutate).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+  }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermission = 'denied';
@@ -181,7 +200,7 @@ it('reflects granted permission and opens OS settings when the user tries to dis
   expect(mockRequest.mutate).not.toHaveBeenCalled();
 });
 
-it('shows loading and offline recovery states', () => {
+it('shows its pending title and preserves offline recovery', () => {
   mockPreferences.mockReturnValueOnce({
     data: undefined,
     isLoading: true,
@@ -189,7 +208,8 @@ it('shows loading and offline recovery states', () => {
     refetch: jest.fn()
   });
   const loading = renderWithProviders(<NotificationPreferencesScreen />);
-  expect(screen.getByText('Loading notification preferences')).toBeTruthy();
+  expect(screen.getByText('Notification preferences')).toBeTruthy();
+  expect(screen.queryByText('Loading notification preferences')).toBeNull();
   loading.unmount();
 
   const refetch = jest.fn();
@@ -205,9 +225,20 @@ it('shows loading and offline recovery states', () => {
   expect(refetch).toHaveBeenCalledTimes(1);
 });
 
-it.each(['ar', 'en'] as const)('does not claim a network outage for invalid preference data in %s', (locale) => {
-  changeLocale(locale);
-  mockPreferences.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new Error('Invalid preference payload'), refetch: jest.fn() });
-  renderWithProviders(<NotificationPreferencesScreen />);
-  expect(screen.queryByText(translate('notifications.preferences.offline'))).toBeNull();
-});
+it.each(['ar', 'en'] as const)(
+  'does not claim a network outage for invalid preference data in %s',
+  (locale) => {
+    changeLocale(locale);
+    mockPreferences.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('Invalid preference payload'),
+      refetch: jest.fn()
+    });
+    renderWithProviders(<NotificationPreferencesScreen />);
+    expect(
+      screen.queryByText(translate('notifications.preferences.offline'))
+    ).toBeNull();
+  }
+);

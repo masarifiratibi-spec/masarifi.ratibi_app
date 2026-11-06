@@ -28,6 +28,21 @@ jest.mock('./support-queries', () => ({
 
 const mockQueries = queries as unknown as Record<string, jest.Mock>;
 
+it('shows the ticket-history header during the first read without claiming no tickets', () => {
+  mockQueries.useSupportTickets.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false
+  });
+  const view = renderWithProviders(<TicketListScreen />);
+  try {
+    expect(view.getByText(t('support.home.ticketHistory'))).toBeOnTheScreen();
+    expect(view.queryByText(t('support.ticket.empty'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   changeLocale('en');

@@ -5,7 +5,7 @@ import { AppState, type AppStateStatus, PixelRatio } from 'react-native';
 import { router } from 'expo-router';
 
 import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
-import { renderWithQueryData } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import {
   TrackingStatusScreen,
@@ -44,6 +44,23 @@ const responsiveStatus: TrackingStatusSnapshot = {
   activeSenderCount: 0,
   lastUpdatedAt: 1
 };
+
+it('shows the tracking frame during its first status read without inventing source states', () => {
+  const read = jest
+    .spyOn(automaticTrackingService, 'getStatus')
+    .mockImplementation(() => new Promise<never>(() => {}));
+  const view = renderWithProviders(<TrackingStatusScreen />);
+  try {
+    expect(view.getByTestId('tracking-status-screen')).toBeOnTheScreen();
+    expect(
+      view.getByText(translate('tracking.header.title'))
+    ).toBeOnTheScreen();
+    expect(view.queryAllByRole('switch')).toHaveLength(0);
+  } finally {
+    view.unmount();
+    read.mockRestore();
+  }
+});
 
 function renderStatus(
   status: TrackingStatusSnapshot,

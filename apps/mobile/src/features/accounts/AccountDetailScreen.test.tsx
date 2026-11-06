@@ -11,7 +11,7 @@ import {
   fixtureCategories,
   fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
-import { renderWithQueryData } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { AccountDetailScreen } from './AccountDetailScreen';
 import { usePreferenceStore } from '@/state/preferences';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -23,6 +23,46 @@ jest.mock('expo-router', () => ({
 }));
 
 afterEach(() => jest.restoreAllMocks());
+
+it('shows the account shell before its first record read without editable invented data', () => {
+  jest
+    .spyOn(coreFinanceService, 'getAccount')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithProviders(
+    <AccountDetailScreen id={fixtureAccounts[0].id} />
+  );
+  try {
+    expect(view.getByTestId('account-detail-masthead')).toBeOnTheScreen();
+    expect(
+      view.queryByText(translate('coreFinance.accounts.missing'))
+    ).toBeNull();
+    expect(view.queryByText(translate('coreFinance.accounts.edit'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('shows known account details before its separate balance read finishes', () => {
+  const balances = jest
+    .spyOn(coreFinanceService, 'listAccountBalances')
+    .mockImplementation(() => new Promise(() => {}));
+  const account = fixtureAccounts[0];
+  const view = renderWithQueryData(<AccountDetailScreen id={account.id} />, [
+    [coreFinanceKeys.account(account.id), account]
+  ]);
+  try {
+    expect(view.getByTestId('account-detail-masthead-title')).toHaveTextContent(
+      account.name
+    );
+    expect(view.getByTestId('account-detail-hero')).toBeOnTheScreen();
+    expect(view.getByTestId('financial-pulse-statement')).not.toHaveTextContent(
+      '0.00'
+    );
+  } finally {
+    view.unmount();
+    balances.mockRestore();
+  }
+});
 
 it('calculates entered payoff values immediately without a network request', async () => {
   const remote = jest

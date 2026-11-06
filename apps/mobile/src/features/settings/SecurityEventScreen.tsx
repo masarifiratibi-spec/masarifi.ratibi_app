@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import type { SecurityEvent } from '@/domain/settings';
 import { useSecurityEvents } from './settings-queries';
@@ -20,14 +20,8 @@ export function SecurityEventScreen() {
   const events = useSecurityEvents();
   const direction = usePreferenceStore((state) => state.direction);
 
-  if (events.isLoading)
-    return (
-      <StateView
-        state="loading"
-        title={translateDynamic('settings.securityEvents.loading')}
-      />
-    );
-  if (!events.data)
+  const pending = !events.data && (events.isLoading || events.isPending);
+  if (!pending && !events.data)
     return (
       <StateView
         state="error"
@@ -39,8 +33,8 @@ export function SecurityEventScreen() {
 
   const legacyEvents = events.data as unknown as { items?: SecurityEvent[] };
   const items =
-    events.data.pages?.flatMap((page) => page.items) ??
-    legacyEvents.items ??
+    events.data?.pages?.flatMap((page) => page.items) ??
+    legacyEvents?.items ??
     [];
 
   return (
@@ -49,10 +43,14 @@ export function SecurityEventScreen() {
       contentContainerStyle={styles.stack}
       keyExtractor={(event) => event.id}
       ListEmptyComponent={
-        <StateView
-          state="empty"
-          title={translateDynamic('settings.securityEvents.empty')}
-        />
+        pending ? (
+          <View accessibilityState={{ busy: true }} />
+        ) : (
+          <StateView
+            state="empty"
+            title={translateDynamic('settings.securityEvents.empty')}
+          />
+        )
       }
       ListHeaderComponent={
         <AppBar

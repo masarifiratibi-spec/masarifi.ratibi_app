@@ -66,12 +66,29 @@ export function AccountDetailScreen({ id }: { id: string }) {
   const theme = useTheme();
   const { revealed } = useSensitiveVisibility();
   const largeText = PixelRatio.getFontScale() >= 1.5;
-  if (account.isLoading || balances.isLoading)
+  if (account.isLoading)
     return (
-      <StateView
-        state="loading"
-        title={translate('coreFinance.state.loading')}
-      />
+      <ScrollView
+        contentContainerStyle={{
+          backgroundColor: colorTokens.raw.F3F5F3,
+          minHeight: '100%'
+        }}
+      >
+        <BrandedScreenHeader
+          compact
+          direction={direction}
+          testID="account-detail-masthead"
+          title={translate('appShell.shell.accounts')}
+        />
+        <View style={styles.content} accessibilityState={{ busy: true }}>
+          <View style={styles.hero}>
+            <StyledText variant="caption">
+              {translate('coreFinance.accounts.balanceCurrent')}
+            </StyledText>
+            <StyledText variant="title">—</StyledText>
+          </View>
+        </View>
+      </ScrollView>
     );
   if (
     (account.isError && !hasReadableSnapshot(account)) ||

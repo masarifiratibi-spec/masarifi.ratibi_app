@@ -8,6 +8,7 @@ import { permissionState } from '@/services/mocks/tracking-permission-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import { TrackingStatusScreen } from './TrackingStatusScreen';
 import { TrackingHistoryList } from './TrackingHistoryList';
+import { ReviewQueue } from './ReviewQueue';
 import { ReviewDetail } from './ReviewDetail';
 import { DuplicateComparison } from './DuplicateComparison';
 import { SenderRuleList } from './SenderRuleList';
@@ -22,6 +23,8 @@ jest.mock('./useAutomaticTracking', () => ({
   ...jest.requireActual('./useAutomaticTracking'),
   useTrackingStatus: jest.fn(),
   useTrackingHistory: jest.fn(),
+  useReviewItems: jest.fn(),
+  useDuplicateCandidates: jest.fn(),
   useReviewItem: jest.fn(),
   useDuplicateCandidate: jest.fn(),
   useSenderRules: jest.fn()
@@ -42,6 +45,55 @@ beforeEach(() => {
     .mockResolvedValue([]);
 });
 afterEach(() => jest.restoreAllMocks());
+
+it('shows the tracking-history header during the first read without allowing clear', () => {
+  jest.mocked(queries.useTrackingHistory).mockReturnValue({
+    ...snapshot(undefined),
+    isLoading: true,
+    isError: false,
+    error: null
+  } as never);
+  const clear = jest.spyOn(automaticTrackingService, 'clearHistory');
+  const view = renderWithProviders(<TrackingHistoryList />);
+  try {
+    expect(
+      view.getByText(translate('tracking.action.history'))
+    ).toBeOnTheScreen();
+    const action = view.getByRole('button', {
+      name: translate('tracking.action.clearHistory')
+    });
+    expect(action).toBeDisabled();
+    fireEvent.press(action);
+    expect(clear).not.toHaveBeenCalled();
+    expect(view.queryByText(translate('tracking.history.empty'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('shows the review-queue header during the first read without claiming an empty queue', () => {
+  jest.mocked(queries.useReviewItems).mockReturnValue({
+    ...snapshot(undefined),
+    isLoading: true,
+    isError: false,
+    error: null
+  } as never);
+  jest.mocked(queries.useDuplicateCandidates).mockReturnValue({
+    ...snapshot(undefined),
+    isLoading: true,
+    isError: false,
+    error: null
+  } as never);
+  const view = renderWithProviders(<ReviewQueue />);
+  try {
+    expect(
+      view.getByText(translate('tracking.review.title'))
+    ).toBeOnTheScreen();
+    expect(view.queryByText(translate('tracking.review.empty'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
 
 it('keeps history visible and reports a failed clear without an unhandled action or false success', async () => {
   jest.mocked(queries.useTrackingHistory).mockReturnValue({

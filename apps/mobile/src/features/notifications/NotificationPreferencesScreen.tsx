@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, ScrollView, StyleSheet, Text } from 'react-native';
+import { AppState, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   notificationCategorySchema,
@@ -63,32 +63,33 @@ export function NotificationPreferencesScreen() {
     return () => subscription.remove();
   }, [refetchPermission]);
 
-  if (preferences.isLoading) {
-    return (
-      <StateView
-        state="loading"
-        title={t('notifications.preferences.loading')}
-      />
-    );
-  }
+  const pendingFrame = (
+    <ScrollView contentContainerStyle={styles.stack}>
+      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+        {t('notifications.preferences.title')}
+      </Text>
+      <View accessibilityState={{ busy: true }} />
+    </ScrollView>
+  );
+  if (preferences.isLoading || preferences.isPending) return pendingFrame;
   if (preferences.isError || !preferences.data) {
-    const offline = (preferences.error as { code?: string } | null)?.code === 'offline';
+    const offline =
+      (preferences.error as { code?: string } | null)?.code === 'offline';
     return (
       <StateView
         state={offline ? 'offline' : 'error'}
-        title={t(offline ? 'notifications.preferences.offline' : 'notifications.preferences.loadError')}
+        title={t(
+          offline
+            ? 'notifications.preferences.offline'
+            : 'notifications.preferences.loadError'
+        )}
         actionLabel={t('notifications.preferences.retry')}
         onAction={() => preferences.refetch()}
       />
     );
   }
   if (!input) {
-    return (
-      <StateView
-        state="loading"
-        title={t('notifications.preferences.loading')}
-      />
-    );
+    return pendingFrame;
   }
 
   const update = (patch: Partial<NotificationPreferencesInput>) =>

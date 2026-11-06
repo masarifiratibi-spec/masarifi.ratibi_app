@@ -64,14 +64,11 @@ export function InitialHomeLoadingBoundary({
     isHome ? null : 'left_route'
   );
   const recorded = useRef(false);
-  const report = useCallback(
-    (part: Part, readiness: Readiness) => {
-      if (!released.current && readiness === 'failed')
-        releaseOutcome.current ??= 'failed';
-      dispatch({ part, state: readiness });
-    },
-    []
-  );
+  const report = useCallback((part: Part, readiness: Readiness) => {
+    if (!released.current && readiness === 'failed')
+      releaseOutcome.current ??= 'failed';
+    dispatch({ part, state: readiness });
+  }, []);
   const locale = usePreferenceStore((state) => state.locale);
   const themePreference = usePreferenceStore((state) => state.theme);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
@@ -85,12 +82,16 @@ export function InitialHomeLoadingBoundary({
     if (!state.released || recorded.current) return;
     const outcome =
       releaseOutcome.current ??
-      (state.home && state.header && state.notice && state.layout ? 'ready' : null);
+      (state.home && state.header && state.notice && state.layout
+        ? 'ready'
+        : null);
     if (!outcome) return;
     recorded.current = true;
     recordBenchmarkEvent({ kind: 'home', outcome });
   }, [state]);
-  const waiting = isHome && !state.released;
+  // The admitted shell can paint before its optional reads finish. Keep the
+  // aggregate data-readiness outcome above separate from this visual cover.
+  const waiting = isHome && !state.released && !state.layout;
   useStartupReady(!waiting);
   return (
     <InitialHomeReadiness.Provider value={report}>

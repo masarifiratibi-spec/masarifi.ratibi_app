@@ -477,7 +477,67 @@ function TrackingStatusContent() {
 
   if (query.isLoading && !hasReadableSnapshot(query)) {
     return (
-      <StateView state="loading" title={translate('tracking.state.loading')} />
+      <View
+        testID="tracking-status-screen"
+        style={[styles.root, { direction }]}
+      >
+        <AppBar
+          title={translate('tracking.header.title')}
+          onBack={handleBack}
+          direction={direction}
+        />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          accessibilityState={{ busy: true }}
+        >
+          <SurfaceCard style={styles.card}>
+            {Platform.OS === 'android' ? (
+              (['sms', 'notification'] as const).map((source) => (
+                <View
+                  key={source}
+                  style={[
+                    styles.sourceRow,
+                    styles.physicalLtr,
+                    { flexDirection: isRtl ? 'row-reverse' : 'row' }
+                  ]}
+                >
+                  <View style={styles.sourceText}>
+                    <StyledText style={styles.sourceTitle}>
+                      {translate(
+                        source === 'sms'
+                          ? 'tracking.source.smsTracking'
+                          : 'tracking.source.notificationTracking'
+                      )}
+                    </StyledText>
+                    <StyledText style={styles.sourceDescription}>
+                      {translate(
+                        source === 'sms'
+                          ? 'tracking.source.smsTrackingDescription'
+                          : 'tracking.source.notificationTrackingDescription'
+                      )}
+                    </StyledText>
+                  </View>
+                  <View style={styles.pendingSwitch} />
+                </View>
+              ))
+            ) : (
+              <StyledText>{translate('tracking.status.label')} · —</StyledText>
+            )}
+          </SurfaceCard>
+          <SurfaceCard style={[styles.card, styles.keywordCard]}>
+            <StyledText variant="subtitle">
+              {translate('tracking.keywords.sectionTitle')} (
+              {hasReadableSnapshot(keywords)
+                ? keywordRules.filter((rule) => rule.enabled).length
+                : '—'}
+              )
+            </StyledText>
+            <StyledText style={styles.sourceDescription}>
+              {translate('tracking.keywords.explanation')}
+            </StyledText>
+          </SurfaceCard>
+        </ScrollView>
+      </View>
     );
   }
 
@@ -1066,6 +1126,12 @@ const styles = StyleSheet.create({
   },
   sourceList: {
     gap: spacing.sm
+  },
+  pendingSwitch: {
+    width: 52,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colorTokens.sand['300']
   },
   sourceDivider: {
     backgroundColor: colorTokens.sand['300'],

@@ -27,6 +27,38 @@ const { SessionListScreen } = require('./SessionListScreen') as {
   SessionListScreen: React.ComponentType;
 };
 
+it('shows the sessions header during the first read without exposing revoke actions', () => {
+  mockQueries.useSettingsSessions.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false
+  });
+  const view = renderWithProviders(<SessionListScreen />);
+  try {
+    expect(view.getByText(t('settings.sessions.title'))).toBeOnTheScreen();
+    expect(mockQueries.useRevokeSession().mutate).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('shows the security-events header during the first read without a false empty result', () => {
+  mockQueries.useSecurityEvents.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false
+  });
+  const view = renderWithProviders(<SecurityEventScreen />);
+  try {
+    expect(
+      view.getByText(t('settings.securityEvents.title'))
+    ).toBeOnTheScreen();
+    expect(view.queryByText(t('settings.securityEvents.empty'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   changeLocale('en');
@@ -135,16 +167,31 @@ test.each([
   ['ar', 'other', 'نشاط الحساب'],
   ['en', 'session_revocation', 'Session revoked'],
   ['ar', 'session_revocation', 'تم إلغاء الجلسة']
-] as const)('localizes %s %s events without exposing the event code', (locale, type, label) => {
-  changeLocale(locale);
-  mockQueries.useSecurityEvents.mockReturnValue({
-    data: { pages: [{ items: [{ ...events().items[0], type, eventType: 'unmapped.private_event' }] }] }
-  });
-  renderWithProviders(<SecurityEventScreen />);
-  expect(screen.getByText(label)).toBeTruthy();
-  expect(screen.queryByText('settings.securityEvents.other')).toBeNull();
-  expect(screen.queryByText('unmapped.private_event')).toBeNull();
-});
+] as const)(
+  'localizes %s %s events without exposing the event code',
+  (locale, type, label) => {
+    changeLocale(locale);
+    mockQueries.useSecurityEvents.mockReturnValue({
+      data: {
+        pages: [
+          {
+            items: [
+              {
+                ...events().items[0],
+                type,
+                eventType: 'unmapped.private_event'
+              }
+            ]
+          }
+        ]
+      }
+    });
+    renderWithProviders(<SecurityEventScreen />);
+    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.queryByText('settings.securityEvents.other')).toBeNull();
+    expect(screen.queryByText('unmapped.private_event')).toBeNull();
+  }
+);
 
 test('live security event pages retain their rows during a page failure and expose retry and recovery', () => {
   const push = jest.spyOn(router, 'push').mockImplementation(() => undefined);
@@ -180,11 +227,12 @@ test('live security event pages retain their rows during a page failure and expo
   push.mockRestore();
 });
 
-test('security events distinguish loading, failed reads with retry, and a successful empty page', () => {
+test('security events distinguish a pending header, failed reads with retry, and a successful empty page', () => {
   const refetch = jest.fn();
   mockQueries.useSecurityEvents.mockReturnValue({ isLoading: true });
   const view = renderWithProviders(<SecurityEventScreen />);
-  expect(screen.getByText(t('settings.securityEvents.loading'))).toBeTruthy();
+  expect(screen.getByText(t('settings.securityEvents.title'))).toBeTruthy();
+  expect(screen.queryByText(t('settings.securityEvents.empty'))).toBeNull();
   view.unmount();
   mockQueries.useSecurityEvents.mockReturnValue({ isLoading: false, refetch });
   const failed = renderWithProviders(<SecurityEventScreen />);

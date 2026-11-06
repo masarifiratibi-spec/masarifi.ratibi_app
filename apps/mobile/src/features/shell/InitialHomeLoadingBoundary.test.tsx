@@ -33,7 +33,7 @@ function layoutPage() {
 }
 
 it.each(['home', 'header', 'notice'] as const)(
-  'keeps the branded cover while initial %s content is pending, then reveals the laid-out page',
+  'reveals the laid-out page while initial %s data is still pending',
   (part) => {
     const view = render(
       <InitialHomeLoadingBoundary isHome>
@@ -43,6 +43,8 @@ it.each(['home', 'header', 'notice'] as const)(
     expect(screen.getByTestId('startup-loading')).toBeTruthy();
     expect(screen.queryByText('Complete page')).toBeNull();
     layoutPage();
+    expect(screen.queryByTestId('startup-loading')).toBeNull();
+    expect(screen.getByText('Complete page')).toBeTruthy();
     view.rerender(
       <InitialHomeLoadingBoundary isHome>
         <Page />

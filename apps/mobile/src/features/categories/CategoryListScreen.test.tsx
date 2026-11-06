@@ -30,6 +30,32 @@ const customCategory = {
   kind: 'custom' as const
 };
 
+it('shows category search and add controls before its first category read finishes', () => {
+  const read = jest
+    .spyOn(coreFinanceService, 'listCategories')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithProviders(<CategoryListScreen />);
+  try {
+    expect(
+      view.getByLabelText(translate('coreFinance.categories.search'))
+    ).toBeEnabled();
+    expect(
+      view.getByLabelText(translate('coreFinance.categories.add'))
+    ).toBeEnabled();
+    expect(
+      view.queryByText(translate('coreFinance.categories.empty'))
+    ).toBeNull();
+    fireEvent.changeText(
+      view.getByLabelText(translate('coreFinance.categories.search')),
+      'coffee'
+    );
+    expect(view.getByDisplayValue('coffee')).toBeOnTheScreen();
+  } finally {
+    view.unmount();
+    read.mockRestore();
+  }
+});
+
 it('renders system hierarchy, favorites, search, and add action', () => {
   renderWithQueryData(<CategoryListScreen />, categoryListQuerySeeds);
 
@@ -134,9 +160,9 @@ it('deletes an unused custom category after confirmation', async () => {
     { stopPropagation: jest.fn() }
   );
   await waitFor(() => expect(alert).toHaveBeenCalled());
-  const confirm = alert.mock.calls.at(-1)?.[2]?.find(
-    (button) => button.style === 'destructive'
-  );
+  const confirm = alert.mock.calls
+    .at(-1)?.[2]
+    ?.find((button) => button.style === 'destructive');
   confirm?.onPress?.();
 
   await waitFor(() =>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
@@ -19,11 +19,9 @@ import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 export function ReviewQueue() {
   const query = useReviewItems();
   const duplicates = useDuplicateCandidates();
-  if (query.isLoading && !hasReadableSnapshot(query))
-    return (
-      <StateView state="loading" title={translate('tracking.state.loading')} />
-    );
-  if (!hasReadableSnapshot(query))
+  const pending =
+    (query.isLoading || query.isPending) && !hasReadableSnapshot(query);
+  if (!pending && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -48,7 +46,11 @@ export function ReviewQueue() {
         </>
       }
       ListEmptyComponent={
-        <StateView state="empty" title={translate('tracking.review.empty')} />
+        pending ? (
+          <View accessibilityState={{ busy: true }} />
+        ) : (
+          <StateView state="empty" title={translate('tracking.review.empty')} />
+        )
       }
       renderItem={({ item }) => {
         const reason = trackingReasonSummary(item.reasonCodes);

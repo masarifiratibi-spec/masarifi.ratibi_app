@@ -89,6 +89,34 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
+it('shows notification filters before the first read without false counts or bulk writes', () => {
+  mockUseNotifications.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: jest.fn()
+  });
+  mockUseUnreadNotificationCount.mockReturnValue({
+    data: undefined,
+    isLoading: true
+  });
+  const view = renderWithProviders(<NotificationCenterScreen />);
+  try {
+    expect(view.getByTestId('notification-center-header')).toBeOnTheScreen();
+    expect(view.getByText('Unread')).toBeEnabled();
+    fireEvent.press(view.getByText('Unread'));
+    expect(mockUseNotifications).toHaveBeenLastCalledWith({ unreadOnly: true });
+    const markAll = view.getByText('Mark all read');
+    expect(markAll).toBeDisabled();
+    fireEvent.press(markAll);
+    expect(mockMarkAllRead.mutate).not.toHaveBeenCalled();
+    expect(view.queryByText('No notifications yet')).toBeNull();
+    expect(view.queryByText(/^0 /)).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
 it.each(['ar', 'en'] as const)(
   'retains saved notification history with a refresh-failed caption in %s',
   (locale) => {

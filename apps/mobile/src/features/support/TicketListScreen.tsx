@@ -56,13 +56,6 @@ export function TicketListScreen() {
     }));
   }, [cursor, incoming, ownerId, updatedAt]);
 
-  if (tickets.isLoading && !items.length)
-    return (
-      <StateView
-        state="loading"
-        title={translateDynamic('support.ticket.loading')}
-      />
-    );
   if (
     tickets.isError &&
     (isAuthoritativeReadDenial(tickets.error) ||
@@ -72,13 +65,6 @@ export function TicketListScreen() {
       <StateView
         state="error"
         title={translateDynamic('support.ticket.error')}
-      />
-    );
-  if (!items.length)
-    return (
-      <StateView
-        state="empty"
-        title={translateDynamic('support.ticket.empty')}
       />
     );
 
@@ -93,6 +79,16 @@ export function TicketListScreen() {
         data={items}
         contentContainerStyle={styles.stack}
         keyExtractor={(ticket: SupportTicket) => ticket.id}
+        ListEmptyComponent={
+          (tickets.isLoading || tickets.isPending) && !tickets.data ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView
+              state="empty"
+              title={translateDynamic('support.ticket.empty')}
+            />
+          )
+        }
         ListHeaderComponent={
           <>
             <StyledText variant="title">

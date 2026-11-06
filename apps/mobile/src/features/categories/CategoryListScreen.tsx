@@ -192,13 +192,6 @@ export function CategoryListScreen() {
     if (targetCategoryForGroup) await handleSelectGroup(newGroup.id);
   };
 
-  if (query.isLoading)
-    return (
-      <StateView
-        state="loading"
-        title={translate('coreFinance.state.loading')}
-      />
-    );
   if (query.isError && !hasReadableSnapshot(query))
     return (
       <StateView
@@ -358,14 +351,18 @@ export function CategoryListScreen() {
           </View>
         }
         ListEmptyComponent={
-          <StateView
-            state="empty"
-            title={
-              allCategories.length
-                ? translate('coreFinance.categories.noSearchResults')
-                : translate('coreFinance.categories.empty')
-            }
-          />
+          query.isPending ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView
+              state="empty"
+              title={
+                allCategories.length
+                  ? translate('coreFinance.categories.noSearchResults')
+                  : translate('coreFinance.categories.empty')
+              }
+            />
+          )
         }
         renderItem={({ item, index }) => (
           <CategoryRow
@@ -376,9 +373,7 @@ export function CategoryListScreen() {
                 ? (completeTxCounts.get(item.category.id) ?? 0)
                 : undefined
             }
-            onPress={() =>
-              router.push(`/categories/${item.category.id}`)
-            }
+            onPress={() => router.push(`/categories/${item.category.id}`)}
             onDelete={
               item.category.kind === 'custom' &&
               item.category.status === 'active'

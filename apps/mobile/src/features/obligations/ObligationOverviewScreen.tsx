@@ -44,6 +44,7 @@ export function ObligationOverviewScreen() {
   const { revealed } = useSensitiveVisibility();
   const [filter, setFilter] = useState<Filter>('all');
   const hidden = hideBalances && !revealed;
+  const pending = !query.data && (query.isPending || query.isLoading);
   const rtl = direction === 'rtl';
   const amount = (minor: number | null, currency = currencyCode) =>
     minor === null
@@ -51,8 +52,9 @@ export function ObligationOverviewScreen() {
       : hidden
         ? translate('planning.state.hidden')
         : formatMinorAmount(minor, currency, currentLocale());
-  const totals = (values: Record<string, number | null>) => {
+  const totals = (values?: Record<string, number | null>) => {
     if (hidden) return translate('planning.state.hidden');
+    if (values === undefined) return '—';
     const entries = Object.entries(values);
     if (!entries.length)
       return amount(query.data?.dataState === 'offline' ? null : 0);
@@ -83,10 +85,9 @@ export function ObligationOverviewScreen() {
   const nextMeta = nextDate
     ? `${nextDate}${daysUntilNext === null ? '' : ` · ${translateDynamic(daysUntilNext < 0 ? 'planning.obligation.overdueBy' : 'planning.obligation.dueIn', { count: Math.abs(daysUntilNext) })}`}`
     : undefined;
-  const nextDueAmount = amount(
-    query.data?.nextDueAmountMinor ?? null,
-    nextItem?.currencyCode
-  );
+  const nextDueAmount = pending
+    ? '—'
+    : amount(query.data?.nextDueAmountMinor ?? null, nextItem?.currencyCode);
   const filterOptions = (['all', 'upcoming', 'completed'] as const).map(
     (value) => ({
       value,
@@ -100,20 +101,21 @@ export function ObligationOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {query.isLoading ? (
-        <PlanningState state="loading" />
-      ) : !hasReadableSnapshot(query) ? (
+      {!pending && !hasReadableSnapshot(query) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <>
           <FinancialRefreshStatus query={query} />
           <ObligationHeroHeader
-            accessibilityLabel={`${translate('planning.obligation.dueSoon')}, ${nextDueAmount}, ${translate('planning.obligation.currentTotal')}, ${totals(query.data!.payablesByCurrency)}`}
+            accessibilityLabel={`${translate('planning.obligation.dueSoon')}, ${nextDueAmount}, ${translate('planning.obligation.currentTotal')}, ${totals(query.data?.payablesByCurrency)}`}
             title={translate('planning.obligations.title')}
             eyebrow={translate('planning.obligation.dueSoon')}
             amount={nextDueAmount}
             description={
-              nextItem?.title ?? translate('planning.obligation.noUpcoming')
+              query.data
+                ? (nextItem?.title ??
+                  translate('planning.obligation.noUpcoming'))
+                : '—'
             }
             meta={nextMeta}
             onAction={() => router.push('/obligations/new')}
@@ -121,23 +123,25 @@ export function ObligationOverviewScreen() {
             variant="overview"
           >
             <ObligationMetricStrip
-              accessibilityLabel={`${translate('planning.obligation.totalPayable')}, ${totals(query.data!.payablesByCurrency)}, ${translate('planning.obligation.receivables')}, ${totals(query.data!.receivablesByCurrency)}`}
+              accessibilityLabel={`${translate('planning.obligation.totalPayable')}, ${totals(query.data?.payablesByCurrency)}, ${translate('planning.obligation.receivables')}, ${totals(query.data?.receivablesByCurrency)}`}
               metrics={[
                 {
                   label: translate('planning.obligation.totalPayable'),
-                  value: totals(query.data!.payablesByCurrency),
+                  value: totals(query.data?.payablesByCurrency),
                   icon: 'wallet'
                 },
                 {
                   label: translate('planning.obligation.owedToMe'),
-                  value: totals(query.data!.receivablesByCurrency),
+                  value: totals(query.data?.receivablesByCurrency),
                   icon: 'income'
                 },
                 {
                   label: translate('planning.obligation.filter.upcoming'),
-                  value: String(
-                    items.filter((item) => item.status === 'active').length
-                  ),
+                  value: query.data
+                    ? String(
+                        items.filter((item) => item.status === 'active').length
+                      )
+                    : '—',
                   icon: 'calendar'
                 }
               ]}
@@ -159,14 +163,19 @@ export function ObligationOverviewScreen() {
             testID="obligations-filters"
           />
 
-          <View style={styles.sectionHeader}>
+          <View
+            style={styles.sectionHeader}
+            accessibilityState={{ busy: pending }}
+          >
             <StyledText variant="subtitle" style={styles.sectionTitle}>
               {translate('planning.obligation.allObligations')}
             </StyledText>
             <StyledText variant="caption" style={styles.sectionCount}>
-              {translateDynamic('planning.obligation.countLabel', {
-                count: visibleItems.length
-              })}
+              {query.data
+                ? translateDynamic('planning.obligation.countLabel', {
+                    count: visibleItems.length
+                  })
+                : '—'}
             </StyledText>
           </View>
           {visibleItems.map((item) => (

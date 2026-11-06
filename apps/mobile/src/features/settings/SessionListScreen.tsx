@@ -25,14 +25,10 @@ function SessionListContent() {
   const revoke = useRevokeSession();
   const direction = usePreferenceStore((state) => state.direction);
 
-  if (sessions.isLoading && !hasReadableSnapshot(sessions))
-    return (
-      <StateView
-        state="loading"
-        title={translateDynamic('settings.sessions.loading')}
-      />
-    );
-  if (!hasReadableSnapshot(sessions) || !sessions.data)
+  const pending =
+    (sessions.isLoading || sessions.isPending) &&
+    !hasReadableSnapshot(sessions);
+  if (!pending && (!hasReadableSnapshot(sessions) || !sessions.data))
     return (
       <StateView
         state="error"
@@ -41,7 +37,10 @@ function SessionListContent() {
     );
 
   return (
-    <ScrollView contentContainerStyle={styles.stack}>
+    <ScrollView
+      contentContainerStyle={styles.stack}
+      accessibilityState={{ busy: pending }}
+    >
       <AppBar
         direction={direction}
         onBack={() => router.back()}
@@ -60,7 +59,7 @@ function SessionListContent() {
         ?.isCurrentDevice ? (
         <StyledText>settings.sessions.currentCleared</StyledText>
       ) : null}
-      {sessions.data.map((session: RepresentativeSession) => (
+      {sessions.data?.map((session: RepresentativeSession) => (
         <SurfaceCard key={session.id} style={styles.session}>
           <StyledText variant="subtitle">{session.deviceLabel}</StyledText>
           <StyledText>

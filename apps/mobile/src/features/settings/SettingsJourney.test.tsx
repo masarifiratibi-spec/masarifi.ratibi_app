@@ -35,6 +35,22 @@ const { ProfileScreen } = require('./ProfileScreen') as {
   ProfileScreen: React.ComponentType;
 };
 
+it('shows the profile header during the first read without an editable empty profile', () => {
+  mockQueries.useSettingsProfile.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false
+  });
+  const view = renderWithProviders(<ProfileScreen />);
+  try {
+    expect(view.getByText(t('settings.profile.title'))).toBeOnTheScreen();
+    expect(view.queryByRole('textbox')).toBeNull();
+    expect(mockQueries.useSaveSettingsProfile().mutate).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+  }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   changeLocale('en');

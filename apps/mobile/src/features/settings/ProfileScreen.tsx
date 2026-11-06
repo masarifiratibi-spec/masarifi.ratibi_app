@@ -56,10 +56,19 @@ export function ProfileScreen() {
 
   if (profile.isLoading && !profile.data) {
     return (
-      <StateView
-        state="loading"
-        title={translateDynamic('settings.profile.loading')}
-      />
+      <ScrollView
+        contentContainerStyle={[
+          styles.stack,
+          { backgroundColor: theme.colors.surfaces.page }
+        ]}
+      >
+        <AppBar
+          title={translateDynamic('settings.profile.title')}
+          onBack={() => router.back()}
+          direction={direction}
+        />
+        <View accessibilityState={{ busy: true }} />
+      </ScrollView>
     );
   }
 
