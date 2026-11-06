@@ -266,9 +266,16 @@ export function createAutomaticTrackingCoordinator(
       if (online) {
         try {
           phase = 'rules';
-          const candidate = dependencies.tracking.getRuleConfiguration
-            ? await dependencies.tracking.getRuleConfiguration()
-            : await onlineRuleSnapshot(dependencies);
+          const prepared = submissionRequest ? await submissionRequest : null;
+          stillOwner();
+          const readPreparedRules = prepared?.ok
+            ? prepared.submit.getRuleConfiguration
+            : undefined;
+          const candidate = readPreparedRules
+            ? await readPreparedRules()
+            : dependencies.tracking.getRuleConfiguration
+              ? await dependencies.tracking.getRuleConfiguration()
+              : await onlineRuleSnapshot(dependencies);
           stillOwner();
           await dependencies.queue.saveRules(ownerId, candidate);
           config = candidate;

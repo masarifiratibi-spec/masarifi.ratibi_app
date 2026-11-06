@@ -76,10 +76,17 @@ export interface ReviewResolutionInput {
 export type DuplicateResolution =
   'keep_existing' | 'keep_new' | 'keep_both' | 'merge_details';
 
+export type PreparedImportSubmission =
+  AutomaticTrackingService['submitImport'] & {
+    getRuleConfiguration?: NonNullable<
+      AutomaticTrackingService['getRuleConfiguration']
+    >;
+  };
+
 export interface AutomaticTrackingService {
   prepareImportSubmission?(
     expectedOwnerId: string
-  ): Promise<AutomaticTrackingService['submitImport']>;
+  ): Promise<PreparedImportSubmission>;
   submitImport(
     input: TrackingImportSubmission,
     idempotencyKey: string,

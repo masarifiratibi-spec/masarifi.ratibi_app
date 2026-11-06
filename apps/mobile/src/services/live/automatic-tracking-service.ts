@@ -434,6 +434,196 @@ export function createLiveAutomaticTrackingService({
         })
       )
     );
+  const readRuleConfiguration = async (scope?: {
+    ownerId: string;
+    identity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
+    assertCurrent(): Promise<void>;
+  }): Promise<import('@/storage/sms-import-queue').SmsRuleSnapshot> => {
+    await scope?.assertCurrent();
+    const deviceId = await getTrackingDeviceId();
+    let value: unknown;
+    if (Platform.OS === 'android' && isMobileAutomationEnabled(baseUrl)) {
+      const identity = scope?.identity ?? (await captureLiveClerkIdentity());
+      const deviceRegistration = await getDeviceRegistration();
+      if (!deviceRegistration) throw new TrackingError('permission_required');
+      const sources = await trackingSourcePreferences.load();
+      const preferences = usePreferenceStore.getState();
+      const permission = await phoneNotificationService.getPermission();
+      await identity.assertCurrent();
+      value = await send(
+        'POST',
+        '/api/v1/tracking/device/rule-snapshot',
+        {
+          deviceId,
+          deviceRegistration,
+          smsActivationId: sources.smsActivationId ?? '0',
+          remindersEnabled:
+            effectiveReturnRemindersEnabled(identity.userId, preferences) &&
+            permission === 'granted',
+          foreground: AppState.currentState === 'active',
+          reminderLocale: preferences.locale,
+          reminderTimeZone: preferences.timeZone
+        },
+        {
+          expectedOwnerId: scope?.ownerId ?? identity.userId,
+          preparedIdentity: identity,
+          assertIntent: scope?.assertCurrent
+        }
+      );
+    } else {
+      value = await get(
+        listPath('/api/v1/tracking/rule-snapshot', { deviceId })
+      );
+    }
+    const configuration = record(value);
+    const { configurationHash, ...content } = configuration;
+    if (
+      typeof configurationHash !== 'string' ||
+      (await digestStringAsync(
+        CryptoDigestAlgorithm.SHA256,
+        canonicalJson(content)
+      )) !== configurationHash
+    )
+      throw new TrackingError('unknown');
+    const snapshot = validateRuleSnapshot(configuration.snapshot);
+    const installation =
+      configuration.installation === undefined
+        ? undefined
+        : trackingInstallationReceiptSchema.parse(configuration.installation);
+    if (installation && installation.deviceId !== deviceId)
+      throw new TrackingError('unknown');
+    if (
+      configuration.currencyAccountPolicy !== undefined &&
+      (configuration.currencyAccountPolicy !== 'source_currency_v1' ||
+        configuration.sourceAdmissionPolicy !== 'financial_content_v1')
+    )
+      throw new TrackingError('unknown');
+    if (
+      configuration.policySmsActivationId !== undefined &&
+      (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
+        typeof configuration.policySmsActivationId !== 'string' ||
+        !/^\d{1,19}$/.test(configuration.policySmsActivationId))
+    )
+      throw new TrackingError('unknown');
+    if (
+      configuration.sourceAdmissionPolicy !== undefined &&
+      (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
+        !Number.isSafeInteger(configuration.policyActivatedAt) ||
+        Number(configuration.policyActivatedAt) <= 0)
+    )
+      throw new TrackingError('unknown');
+    if (
+      configuration.sourceAdmissionPolicy === undefined &&
+      configuration.policyActivatedAt !== undefined
+    )
+      throw new TrackingError('unknown');
+    const configurationRevision = configuration.configurationRevision;
+    if (
+      configurationRevision !== undefined &&
+      (typeof configurationRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(configurationRevision))
+    )
+      throw new TrackingError('unknown');
+
+    // Rules and overrides are retrieved together below; the legacy list remains the public UI contract.
+    const bundledKeywords = Array.isArray(configuration.keywords)
+      ? configuration.keywords.map(record)
+      : [];
+    const bundledSenders = Array.isArray(configuration.senders)
+      ? configuration.senders.map(record)
+      : [];
+    await scope?.assertCurrent();
+    return {
+      snapshot,
+      ...(installation
+        ? {
+            installation,
+            activation: {
+              smsActivatedAt: installation.sources.smsActivatedAt
+                ? Date.parse(installation.sources.smsActivatedAt)
+                : 0,
+              smsActivationId: installation.sources.smsActivationId ?? '0',
+              notificationActivatedAt: installation.sources
+                .notificationActivatedAt
+                ? Date.parse(installation.sources.notificationActivatedAt)
+                : 0
+            }
+          }
+        : {}),
+      ...(configuration.currencyAccountPolicy === 'source_currency_v1'
+        ? { currencyAccountPolicy: 'source_currency_v1' as const }
+        : {}),
+      ...(configuration.sourceAdmissionPolicy === 'financial_content_v1'
+        ? {
+            sourceAdmissionPolicy: 'financial_content_v1' as const,
+            policyActivatedAt: Number(configuration.policyActivatedAt),
+            ...(typeof configuration.policySmsActivationId === 'string'
+              ? { policySmsActivationId: configuration.policySmsActivationId }
+              : {})
+          }
+        : {}),
+      ...(configuration.accountingPolicy === undefined
+        ? {}
+        : {
+            accountingPolicy: member(configuration.accountingPolicy, [
+              'default_account_nominal_v1'
+            ] as const)
+          }),
+      ...(typeof configurationRevision === 'string'
+        ? { configurationRevision }
+        : {}),
+      rolloutMode: member(configuration.rolloutMode, [
+        'shadow',
+        'review',
+        'automatic'
+      ] as const),
+      keywords: bundledKeywords.map((rule) => ({
+        origin: rule.origin === 'default' ? 'default' : 'custom',
+        id: text(rule.id),
+        value: text(rule.keyword),
+        enabled: boolean(rule.enabled),
+        group: member(rule.group_key ?? rule.groupKey, [
+          'expense',
+          'income',
+          'transfer',
+          'withdrawal',
+          'deposit',
+          'refund',
+          'subscription',
+          'installment',
+          'fee',
+          'financial',
+          'failed_transaction',
+          'reversal'
+        ] as const),
+        language: member(rule.language_code ?? rule.languageCode, [
+          'ar',
+          'en'
+        ] as const)
+      })),
+      senders: bundledSenders.map((rule) => ({
+        normalizedSender: text(rule.sender_pattern ?? rule.senderPattern),
+        enabled: boolean(rule.enabled),
+        trusted: boolean(rule.trusted)
+      })),
+      bindings: Array.isArray(configuration.bindings)
+        ? configuration.bindings.map((value) => {
+            const row = record(value);
+            return {
+              provider: text(row.provider),
+              role: member(row.role, [
+                'card',
+                'account',
+                'cash_card',
+                'cash_account'
+              ]),
+              suffix: text(row.suffix),
+              accountId: text(row.accountId)
+            };
+          })
+        : []
+    };
+  };
   return {
     metadata: {
       id: 'phase08-tracking-http',
@@ -455,21 +645,35 @@ export function createLiveAutomaticTrackingService({
         await identity.assertCurrent();
         assertAdmission();
       };
-      // One command may prepare its fresh SDK identity while configuration is read.
-      // Every submission still checks admission and the exact SDK session again.
-      return async (input, idempotencyKey, ownerId) => {
+      const currentPreparedIdentity = async () => {
         await assertPrepared();
+        const age = Date.now() - capturedAt;
+        return age >= 0 && age < 15_000 ? identity : undefined;
+      };
+      const submit: AutomaticTrackingService['submitImport'] = async (
+        input,
+        idempotencyKey,
+        ownerId
+      ) => {
         if (ownerId !== expectedOwnerId)
           throw new TrackingError('permission_required');
-        const age = Date.now() - capturedAt;
         return submitImport(
           input,
           idempotencyKey,
           expectedOwnerId,
-          age >= 0 && age < 15_000 ? identity : undefined,
+          await currentPreparedIdentity(),
           assertPrepared
         );
       };
+      // One admitted pass shares its fresh actor, never a global credential cache.
+      return Object.assign(submit, {
+        getRuleConfiguration: async () =>
+          readRuleConfiguration({
+            ownerId: expectedOwnerId,
+            identity: await currentPreparedIdentity(),
+            assertCurrent: assertPrepared
+          })
+      });
     },
     submitImport,
     getImportSession: async (id, expectedOwnerId, signal) =>
@@ -500,188 +704,7 @@ export function createLiveAutomaticTrackingService({
           typeof item.notificationId === 'string' ? item.notificationId : null
       }));
     },
-    async getRuleConfiguration(): Promise<
-      import('@/storage/sms-import-queue').SmsRuleSnapshot
-    > {
-      const deviceId = await getTrackingDeviceId();
-      let value: unknown;
-      if (Platform.OS === 'android' && isMobileAutomationEnabled(baseUrl)) {
-        const identity = await captureLiveClerkIdentity();
-        const deviceRegistration = await getDeviceRegistration();
-        if (!deviceRegistration) throw new TrackingError('permission_required');
-        const sources = await trackingSourcePreferences.load();
-        const preferences = usePreferenceStore.getState();
-        const permission = await phoneNotificationService.getPermission();
-        await identity.assertCurrent();
-        value = await send(
-          'POST',
-          '/api/v1/tracking/device/rule-snapshot',
-          {
-            deviceId,
-            deviceRegistration,
-            smsActivationId: sources.smsActivationId ?? '0',
-            remindersEnabled:
-              effectiveReturnRemindersEnabled(identity.userId, preferences) &&
-              permission === 'granted',
-            foreground: AppState.currentState === 'active',
-            reminderLocale: preferences.locale,
-            reminderTimeZone: preferences.timeZone
-          },
-          { expectedOwnerId: identity.userId, preparedIdentity: identity }
-        );
-      } else {
-        value = await get(
-          listPath('/api/v1/tracking/rule-snapshot', { deviceId })
-        );
-      }
-      const configuration = record(value);
-      const { configurationHash, ...content } = configuration;
-      if (
-        typeof configurationHash !== 'string' ||
-        (await digestStringAsync(
-          CryptoDigestAlgorithm.SHA256,
-          canonicalJson(content)
-        )) !== configurationHash
-      )
-        throw new TrackingError('unknown');
-      const snapshot = validateRuleSnapshot(configuration.snapshot);
-      const installation =
-        configuration.installation === undefined
-          ? undefined
-          : trackingInstallationReceiptSchema.parse(configuration.installation);
-      if (installation && installation.deviceId !== deviceId)
-        throw new TrackingError('unknown');
-      if (
-        configuration.currencyAccountPolicy !== undefined &&
-        (configuration.currencyAccountPolicy !== 'source_currency_v1' ||
-          configuration.sourceAdmissionPolicy !== 'financial_content_v1')
-      )
-        throw new TrackingError('unknown');
-      if (
-        configuration.policySmsActivationId !== undefined &&
-        (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
-          typeof configuration.policySmsActivationId !== 'string' ||
-          !/^\d{1,19}$/.test(configuration.policySmsActivationId))
-      )
-        throw new TrackingError('unknown');
-      if (
-        configuration.sourceAdmissionPolicy !== undefined &&
-        (configuration.sourceAdmissionPolicy !== 'financial_content_v1' ||
-          !Number.isSafeInteger(configuration.policyActivatedAt) ||
-          Number(configuration.policyActivatedAt) <= 0)
-      )
-        throw new TrackingError('unknown');
-      if (
-        configuration.sourceAdmissionPolicy === undefined &&
-        configuration.policyActivatedAt !== undefined
-      )
-        throw new TrackingError('unknown');
-      const configurationRevision = configuration.configurationRevision;
-      if (
-        configurationRevision !== undefined &&
-        (typeof configurationRevision !== 'string' ||
-          !/^[a-f0-9]{64}$/.test(configurationRevision))
-      )
-        throw new TrackingError('unknown');
-
-      // Rules and overrides are retrieved together below; the legacy list remains the public UI contract.
-      const bundledKeywords = Array.isArray(configuration.keywords)
-        ? configuration.keywords.map(record)
-        : [];
-      const bundledSenders = Array.isArray(configuration.senders)
-        ? configuration.senders.map(record)
-        : [];
-      return {
-        snapshot,
-        ...(installation
-          ? {
-              installation,
-              activation: {
-                smsActivatedAt: installation.sources.smsActivatedAt
-                  ? Date.parse(installation.sources.smsActivatedAt)
-                  : 0,
-                smsActivationId: installation.sources.smsActivationId ?? '0',
-                notificationActivatedAt: installation.sources
-                  .notificationActivatedAt
-                  ? Date.parse(installation.sources.notificationActivatedAt)
-                  : 0
-              }
-            }
-          : {}),
-        ...(configuration.currencyAccountPolicy === 'source_currency_v1'
-          ? { currencyAccountPolicy: 'source_currency_v1' as const }
-          : {}),
-        ...(configuration.sourceAdmissionPolicy === 'financial_content_v1'
-          ? {
-              sourceAdmissionPolicy: 'financial_content_v1' as const,
-              policyActivatedAt: Number(configuration.policyActivatedAt),
-              ...(typeof configuration.policySmsActivationId === 'string'
-                ? { policySmsActivationId: configuration.policySmsActivationId }
-                : {})
-            }
-          : {}),
-        ...(configuration.accountingPolicy === undefined
-          ? {}
-          : {
-              accountingPolicy: member(configuration.accountingPolicy, [
-                'default_account_nominal_v1'
-              ] as const)
-            }),
-        ...(typeof configurationRevision === 'string'
-          ? { configurationRevision }
-          : {}),
-        rolloutMode: member(configuration.rolloutMode, [
-          'shadow',
-          'review',
-          'automatic'
-        ] as const),
-        keywords: bundledKeywords.map((rule) => ({
-          origin: rule.origin === 'default' ? 'default' : 'custom',
-          id: text(rule.id),
-          value: text(rule.keyword),
-          enabled: boolean(rule.enabled),
-          group: member(rule.group_key ?? rule.groupKey, [
-            'expense',
-            'income',
-            'transfer',
-            'withdrawal',
-            'deposit',
-            'refund',
-            'subscription',
-            'installment',
-            'fee',
-            'financial',
-            'failed_transaction',
-            'reversal'
-          ] as const),
-          language: member(rule.language_code ?? rule.languageCode, [
-            'ar',
-            'en'
-          ] as const)
-        })),
-        senders: bundledSenders.map((rule) => ({
-          normalizedSender: text(rule.sender_pattern ?? rule.senderPattern),
-          enabled: boolean(rule.enabled),
-          trusted: boolean(rule.trusted)
-        })),
-        bindings: Array.isArray(configuration.bindings)
-          ? configuration.bindings.map((value) => {
-              const row = record(value);
-              return {
-                provider: text(row.provider),
-                role: member(row.role, [
-                  'card',
-                  'account',
-                  'cash_card',
-                  'cash_account'
-                ]),
-                suffix: text(row.suffix),
-                accountId: text(row.accountId)
-              };
-            })
-          : []
-      };
-    },
+    getRuleConfiguration: () => readRuleConfiguration(),
     async listDuplicates() {
       return (await allPages('/api/v1/duplicates')).map(duplicate);
     },

@@ -80,6 +80,39 @@ const developmentBuild = JSON.parse(
   ).stdout
 ) as { apiUrl: string; variant: string; mode: string };
 
+function managedTrackingEnvironment() {
+  const previous = { ...process.env };
+  const platform = Platform.OS;
+  const packageName = Constants.expoConfig!.android!.package;
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: 'android'
+  });
+  Constants.expoConfig!.android!.package = 'com.masarifi.mobile.dev';
+  process.env.EXPO_PUBLIC_MOBILE_AUTOMATION_ENABLED = 'true';
+  process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+  process.env.EXPO_PUBLIC_API_URL = developmentBuild.apiUrl;
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_bWFzYXJpZmkudGVzdCQ';
+  return () => {
+    process.env = previous;
+    Constants.expoConfig!.android!.package = packageName;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: platform
+    });
+  };
+}
+
+function managedRuleResponse() {
+  return response({
+    snapshot: defaultSnapshot,
+    configurationHash: 'event-source-digest',
+    rolloutMode: 'automatic',
+    keywords: [],
+    senders: []
+  });
+}
+
 describe('live automatic tracking adapter', () => {
   it.each([401, 403])(
     'withholds saved tracking history after an authoritative HTTP %s denial',
@@ -700,6 +733,146 @@ describe('live automatic tracking adapter', () => {
       expect.objectContaining({ signal: controller.signal })
     );
   });
+
+  it('uses one fresh SDK actor for the managed rules and submission of the same prepared pass', async () => {
+    const restore = managedTrackingEnvironment();
+    const getToken = jest.fn(async () => 'fresh-command-token');
+    registerIdentity({
+      getSession: async () => ({
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 99
+      }),
+      getToken
+    });
+    const request = jest.fn(async (url: string | URL | Request) =>
+      String(url).endsWith('/device/rule-snapshot')
+        ? managedRuleResponse()
+        : response({ resource: importSession('received') })
+    );
+    const service = createLiveAutomaticTrackingService({
+      baseUrl: developmentBuild.apiUrl,
+      request
+    });
+    try {
+      const prepared = await service.prepareImportSubmission!('owner-a');
+      const rules = await (prepared.getRuleConfiguration
+        ? prepared.getRuleConfiguration()
+        : service.getRuleConfiguration!());
+      expect(rules.rolloutMode).toBe('automatic');
+      await expect(
+        prepared(
+          { schemaVersion: 1, sourceType: 'sms', events: [] },
+          'sms:one-prepared-pass',
+          'owner-a'
+        )
+      ).resolves.toMatchObject({ id: 'session-1' });
+      expect(getToken.mock.calls).toEqual([[{ skipCache: true }]]);
+      expect(request).toHaveBeenCalledTimes(2);
+      await service.getRuleConfiguration!();
+      expect(getToken).toHaveBeenCalledTimes(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it.each([
+    ['before', 'owner'],
+    ['before', 'session'],
+    ['during', 'owner'],
+    ['during', 'session']
+  ])(
+    'rejects bound rules for a change %s transport: SDK %s',
+    async (phase, change) => {
+      const restore = managedTrackingEnvironment();
+      let current = {
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google' as const,
+        issuedAt: 1,
+        expiresAt: 99
+      };
+      const replace = () => {
+        current = {
+          ...current,
+          ...(change === 'owner' ? { userId: 'owner-b' } : { id: 'session-b' })
+        };
+      };
+      registerIdentity({
+        getSession: async () => current,
+        getToken: async () => 'fresh-token'
+      });
+      const request = jest.fn(async () => {
+        replace();
+        return managedRuleResponse();
+      });
+      const service = createLiveAutomaticTrackingService({
+        baseUrl: developmentBuild.apiUrl,
+        request
+      });
+      try {
+        const prepared = await service.prepareImportSubmission!('owner-a');
+        if (phase === 'before') replace();
+        await expect(prepared.getRuleConfiguration!()).rejects.toThrow();
+        expect(request).toHaveBeenCalledTimes(phase === 'before' ? 0 : 1);
+      } finally {
+        restore();
+      }
+    }
+  );
+
+  it.each([-1, 16000, 16001])(
+    'refreshes the bound rule actor rather than using its prepared credential at clock %s',
+    async (now) => {
+      const restore = managedTrackingEnvironment();
+      const getToken = jest
+        .fn()
+        .mockResolvedValueOnce('initial-token')
+        .mockResolvedValue('fresh-rule-token');
+      registerIdentity({
+        getSession: async () => ({
+          id: 'session-a',
+          userId: 'owner-a',
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 99
+        }),
+        getToken
+      });
+      const request = jest
+        .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+        .mockImplementation(async () => managedRuleResponse());
+      const service = createLiveAutomaticTrackingService({
+        baseUrl: developmentBuild.apiUrl,
+        request
+      });
+      const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+      try {
+        const prepared = await service.prepareImportSubmission!('owner-a');
+        clock.mockReturnValue(now);
+        await expect(prepared.getRuleConfiguration!()).resolves.toMatchObject({
+          rolloutMode: 'automatic'
+        });
+        expect(getToken.mock.calls).toEqual([
+          [{ skipCache: true }],
+          [{ skipCache: true }]
+        ]);
+        expect(request).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              Authorization: 'Bearer fresh-rule-token'
+            })
+          })
+        );
+      } finally {
+        clock.mockRestore();
+        restore();
+      }
+    }
+  );
 
   it('prepares a fresh owned import token without sending an import and reuses it within that command', async () => {
     const getToken = jest.fn(async () => 'fresh-token');

@@ -518,6 +518,45 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('uses the prepared pass rule response after status admission instead of another rule context', async () => {
+    const context = setup();
+    const readRules = jest.fn(async () => ({
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: [],
+      configurationRevision: 'a'.repeat(64)
+    }));
+    const submit = Object.assign(
+      jest.fn(async () => session('complete')),
+      { getRuleConfiguration: readRules }
+    );
+    let finishStatus!: (value: TrackingStatusSnapshot) => void;
+    context.tracking.getStatus.mockReturnValue(
+      new Promise((resolve) => {
+        finishStatus = resolve;
+      })
+    );
+    Object.assign(context.tracking, {
+      prepareImportSubmission: jest.fn(async () => submit),
+      getRuleConfiguration: jest.fn(async () => {
+        throw new Error('unbound rule read');
+      })
+    });
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(readRules).not.toHaveBeenCalled();
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    } finally {
+      finishStatus(status());
+      await sync;
+    }
+    expect((await sync).status).toBe('imported');
+    expect(
+      (await context.queue.load('owner-1')).rules.configurationRevision
+    ).toBe('a'.repeat(64));
+  });
+
   it('prepares owned prerequisites while status is pending without capturing or submitting early', async () => {
     const accounts = jest.fn(async () => [ownerAccount]);
     const context = setup({ listAccounts: accounts });

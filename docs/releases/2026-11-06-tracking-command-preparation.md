@@ -1,0 +1,19 @@
+# Tracking command preparation
+
+115's real carrier SMS387 committed once after7.558334s and showed its native confirmation after8.334s. The first worker succeeded, but posting speed remains unacceptable. Its exact347minor effect was refunded once and original default/source/session/Voice state fully restored; [device evidence](2026-11-06-first-read-ui-device-check.md) is retained. No old SMS or refund is repeated.
+
+## Narrow source correction
+
+The pass already prepares a fresh command SDK identity while status/accounts load. The later managed Android device/rule POST independently requested another fresh identity, before the prepared import used the first one. Two genuine RED cases reproduced the extra SDK call and the coordinator ignoring a prepared rule response.
+
+The existing callable prepared submission now optionally exposes a bound rule read. The same admitted pass can use one freshly captured exact SDK actor for rules and import while the original15-second age bound is valid. The token remains inside the service closure; no global credential cache, saved-token policy or identity-provider code changes. Standalone/UI rule reads still obtain a fresh actor. Expired, exactly15-second and negative-clock preparation uses the existing fresh acquisition path. Original actor/session/admission checks also surround reacquisition and transport.
+
+The coordinator invokes this capability only at its original rules phase, after status and native permission checks. Owner, exact current SDK session, admission, logout, consent, native lease and configuration validation remain required before capture/submission; SDK/owner changes before or during the rule request reject the result. Original standalone providers retain their callable/fallback behavior. Configuration now waits for the existing preparation before choosing its bound capability; when preparation is unusually slow this can defer the rule request compared with independently refreshing a second actor. Removing a redundant network boundary is not a guarantee of faster latency in every live condition.
+
+Rule parsing/hash/installation/accounting/source-policy validation was moved unchanged into a private shared reader. HTTP payloads/endpoints and financial parsing/posting, idempotency, bounded settling, native capture, source permissions, UI, Voice and hosted services are unchanged. No iOS build/config file is edited by this correction; its separate reviewed preparation can be integrated afterward.
+
+## Verification and execution limits
+
+Fresh provider/coordinator/authority/offline/cancellation/background/native-admission/iOS-availability coverage: **317 unique cases across11 suites**. The provider's77 cases were rerun after changing only a type-invalid test header assertion, without changing its observed credential requirement; they remain part of317, not additional coverage. All original regressions remain. New cases cover one fresh actor for rules+submission, standalone-rule freshness, SDK owner/session changes before/during the bound read and15-second/negative-age fallback. Final types/scoped lint/format passed. Direct review is self-review, not an independent-agent review. Strict exact-source/index/history receipts bind publication.
+
+The unchanged115 physical UI/Reports proof, native88 and broader mobile coverage are reused. No second full mobile/API/native/closed Benchmark campaign was run. Physical response speed of this source is **open**. A new concrete same-app116-or-higher artifact must be signed, reviewed and approved under the user's original primary-package condition before installation or a distinct genuine SMS sample. No new primary update, hosted mutation, account/profile/session change or message request is implied by source publication. Canonical delivery111 remains unchanged until acceptable actual proof and restoration.
