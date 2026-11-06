@@ -350,8 +350,32 @@ describe('Staging account deletion completion admission', () => {
     process.env.EXPO_PUBLIC_API_URL = 'http://api.masarifiratibi.com';
     process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
       liveEnvironment.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-    expect(() => accountDeletionCompletionApiUrl()).toThrow('valid HTTPS API URL');
+    expect(() => accountDeletionCompletionApiUrl()).toThrow(
+      'valid HTTPS API URL'
+    );
   });
+  it.each([undefined, 'staging-development', 'staging-development-privacy'])(
+    'admits the retained production release channel only without a conflicting variant: %s',
+    (variant) => {
+      if (variant === undefined) delete process.env.EXPO_PUBLIC_APP_VARIANT;
+      else process.env.EXPO_PUBLIC_APP_VARIANT = variant;
+      process.env.EXPO_PUBLIC_RELEASE_CHANNEL = 'production';
+      process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+      process.env.EXPO_PUBLIC_API_URL = 'https://api.masarifiratibi.com';
+      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+        liveEnvironment.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+      if (variant === 'staging-development-privacy')
+        expect(() => accountDeletionCompletionApiUrl()).toThrow(
+          'privacy development requires its isolated API'
+        );
+      else {
+        expect(accountDeletionCompletionApiUrl()).toBe(
+          variant === undefined ? 'https://api.masarifiratibi.com' : null
+        );
+        expect(isDevPrivacyDeletionEnabled()).toBe(false);
+      }
+    }
+  );
   it.each([
     ['staging-development', 'https://api.staging.masarifiratibi.com', true],
     [

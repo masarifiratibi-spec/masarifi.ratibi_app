@@ -111,8 +111,13 @@ export function devPrivacyDeletionApiUrl(): string | null {
 export function accountDeletionCompletionApiUrl(): string | null {
   const development = devPrivacyDeletionApiUrl();
   if (development) return development;
+  const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
+  const production =
+    variant === 'production' ||
+    (variant === undefined &&
+      process.env.EXPO_PUBLIC_RELEASE_CHANNEL === 'production');
   if (
-    process.env.EXPO_PUBLIC_APP_VARIANT !== 'production' ||
+    !production ||
     !process.env.EXPO_PUBLIC_API_URL ||
     !process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
   )
