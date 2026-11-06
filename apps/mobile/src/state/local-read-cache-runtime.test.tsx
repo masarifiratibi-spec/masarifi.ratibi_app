@@ -18,6 +18,7 @@ import {
 } from '@/features/core-finance/core-finance-queries';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
+import { resolveProtectedAccessGate } from '@/features/shell/resolve-entry-route';
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -53,96 +54,115 @@ const session = (userId: string) => ({
   expiresAt: 9999999999999
 });
 
-it('reveals the first Home with its saved negative balance after local hydration, while revalidation is pending', async () => {
-  usePreferenceStore.setState({
-    hydrated: true,
-    locale: 'en',
-    direction: 'ltr'
-  });
-  useAppShellStore.setState({
-    hydrated: true,
-    session: session('a'),
-    logoutQuiescingOwnerId: null,
-    privacyLock: {
-      enabled: true,
-      autoLockDuration: 'immediate',
-      appLockStatus: 'unlocked'
+it.each(['enabled', 'disabled', 'not-configured'] as const)(
+  'reveals the first admitted Home with its saved negative balance and %s lock preference while revalidation is pending',
+  async (lockPreference) => {
+    usePreferenceStore.setState({
+      hydrated: true,
+      locale: 'en',
+      direction: 'ltr'
+    });
+    useAppShellStore.setState({
+      hydrated: true,
+      session: session('a'),
+      profileSetupStatus: 'complete',
+      logoutQuiescingOwnerId: null,
+      privacyLock:
+        lockPreference === 'not-configured'
+          ? null
+          : {
+              enabled: lockPreference === 'enabled',
+              autoLockDuration: 'immediate',
+              appLockStatus: 'unlocked'
+            }
+    });
+    expect(
+      resolveProtectedAccessGate({
+        hydrated: true,
+        firstLaunchOnboardingCompleted: true,
+        profileSetupStatus: 'complete',
+        session: session('a'),
+        privacyLock: useAppShellStore.getState().privacyLock,
+        onboarding: null,
+        pendingDestination: null
+      })
+    ).toBeNull();
+    const account = {
+      ...fixtureAccounts[0]!,
+      currencyCode: 'SAR',
+      status: 'active' as const
+    };
+    const balance = {
+      accountId: account.id,
+      currencyCode: 'SAR',
+      balanceMinor: -1600,
+      asOf: 100
+    };
+    let finishLocal!: (rows: unknown[]) => void;
+    mockLoad.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishLocal = resolve;
+        })
+    );
+    jest.spyOn(coreFinanceService, 'listAccounts').mockResolvedValue([account]);
+    let finishLive!: (rows: (typeof balance)[]) => void;
+    jest.spyOn(coreFinanceService, 'listAccountBalances').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishLive = resolve;
+        })
+    );
+    function HomeRead() {
+      const read = useHomeBalanceSummary('SAR', null);
+      return <Text>{read.data?.totalBalanceMinor ?? '—'}</Text>;
     }
-  });
-  const account = {
-    ...fixtureAccounts[0]!,
-    currencyCode: 'SAR',
-    status: 'active' as const
-  };
-  const balance = {
-    accountId: account.id,
-    currencyCode: 'SAR',
-    balanceMinor: -1600,
-    asOf: 100
-  };
-  let finishLocal!: (rows: unknown[]) => void;
-  mockLoad.mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        finishLocal = resolve;
-      })
-  );
-  jest.spyOn(coreFinanceService, 'listAccounts').mockResolvedValue([account]);
-  let finishLive!: (rows: (typeof balance)[]) => void;
-  jest.spyOn(coreFinanceService, 'listAccountBalances').mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        finishLive = resolve;
-      })
-  );
-  function HomeRead() {
-    const read = useHomeBalanceSummary('SAR', null);
-    return <Text>{read.data?.totalBalanceMinor ?? '—'}</Text>;
-  }
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity } }
-  });
-  const view = render(
-    <FoundationProviders client={client}>
-      <InitialHomeLoadingBoundary isHome>
-        <HomeRead />
-      </InitialHomeLoadingBoundary>
-    </FoundationProviders>
-  );
-  try {
-    fireEvent(
-      screen.getByTestId('initial-home-content', {
-        includeHiddenElements: true
-      }),
-      'layout',
-      { nativeEvent: { layout: { width: 360, height: 720, x: 0, y: 0 } } }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } }
+    });
+    const view = render(
+      <FoundationProviders client={client}>
+        <InitialHomeLoadingBoundary isHome>
+          <HomeRead />
+        </InitialHomeLoadingBoundary>
+      </FoundationProviders>
     );
-    expect(screen.queryByText('—')).toBeNull();
-    await act(async () =>
-      finishLocal([
-        {
-          key: coreFinanceKeys.homeBalanceSource('a'),
-          data: { accounts: [account], balances: [balance] },
-          updatedAt: 100
-        }
-      ])
-    );
-    expect(await screen.findByText('-1600')).toBeOnTheScreen();
-    expect(screen.queryByTestId('startup-loading')).toBeNull();
-    expect(
-      client.getQueryState(coreFinanceKeys.homeBalanceSource('a'))?.fetchStatus
-    ).toBe('fetching');
-    expect(
-      client.getQueryState(coreFinanceKeys.homeBalanceSource('a'))
-        ?.dataUpdatedAt
-    ).toBe(100);
-    await act(async () => finishLive([{ ...balance, balanceMinor: -1200 }]));
-    expect(await screen.findByText('-1200')).toBeOnTheScreen();
-  } finally {
-    view.unmount();
-    client.clear();
+    try {
+      fireEvent(
+        screen.getByTestId('initial-home-content', {
+          includeHiddenElements: true
+        }),
+        'layout',
+        { nativeEvent: { layout: { width: 360, height: 720, x: 0, y: 0 } } }
+      );
+      expect(screen.queryByText('—')).toBeNull();
+      await act(async () =>
+        finishLocal([
+          {
+            key: coreFinanceKeys.homeBalanceSource('a'),
+            data: { accounts: [account], balances: [balance] },
+            updatedAt: 100
+          }
+        ])
+      );
+      expect(await screen.findByText('-1600')).toBeOnTheScreen();
+      expect(screen.queryByTestId('startup-loading')).toBeNull();
+      expect(
+        client.getQueryState(coreFinanceKeys.homeBalanceSource('a'))
+          ?.fetchStatus
+      ).toBe('fetching');
+      expect(
+        client.getQueryState(coreFinanceKeys.homeBalanceSource('a'))
+          ?.dataUpdatedAt
+      ).toBe(100);
+      await act(async () => finishLive([{ ...balance, balanceMinor: -1200 }]));
+      expect(await screen.findByText('-1200')).toBeOnTheScreen();
+    } finally {
+      view.unmount();
+      client.clear();
+    }
   }
-});
+);
 
 it('restores saved reads for a verified unexpired SDK session with the privacy lock explicitly disabled', async () => {
   usePreferenceStore.setState({
@@ -186,7 +206,15 @@ it('restores saved reads for a verified unexpired SDK session with the privacy l
   }
 });
 
-it.each(['local', 'expired', 'missing-lock', 'locked'] as const)(
+it.each([
+  'local',
+  'expired',
+  'unverified-missing-lock',
+  'expired-missing-lock',
+  'unverified-profile',
+  'locked',
+  'logout'
+] as const)(
   'does not admit a saved read for the rejected %s session/privacy state',
   async (rejected) => {
     usePreferenceStore.setState({
@@ -198,18 +226,27 @@ it.each(['local', 'expired', 'missing-lock', 'locked'] as const)(
       hydrated: true,
       session: {
         ...session('a'),
-        ...(rejected === 'local' ? { restoration: 'local' as const } : {}),
-        ...(rejected === 'expired' ? { expiresAt: 1 } : {})
+        ...(['local', 'unverified-missing-lock'].includes(rejected)
+          ? { restoration: 'local' as const }
+          : {}),
+        ...(['expired', 'expired-missing-lock'].includes(rejected)
+          ? { expiresAt: 1 }
+          : {})
       },
-      logoutQuiescingOwnerId: null,
-      privacyLock:
-        rejected === 'missing-lock'
-          ? null
-          : {
-              enabled: rejected === 'locked',
-              autoLockDuration: 'immediate',
-              appLockStatus: rejected === 'locked' ? 'locked' : 'unlocked'
-            }
+      profileSetupStatus:
+        rejected === 'unverified-profile' ? 'loading' : 'complete',
+      logoutQuiescingOwnerId: rejected === 'logout' ? 'a' : null,
+      privacyLock: [
+        'unverified-missing-lock',
+        'expired-missing-lock',
+        'unverified-profile'
+      ].includes(rejected)
+        ? null
+        : {
+            enabled: rejected === 'locked',
+            autoLockDuration: 'immediate',
+            appLockStatus: rejected === 'locked' ? 'locked' : 'unlocked'
+          }
     });
     mockLoad.mockResolvedValue([
       { key, data: { label: 'private-saved' }, updatedAt: 100 }

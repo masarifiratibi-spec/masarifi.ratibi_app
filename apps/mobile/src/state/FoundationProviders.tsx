@@ -101,7 +101,11 @@ export function FoundationProviders({
         (!isAppLockEnabled() ||
           (shell.privacyLock?.enabled
             ? shell.privacyLock.appLockStatus === 'unlocked'
-            : shell.privacyLock?.enabled === false &&
+            : (shell.privacyLock?.enabled === false ||
+                // Native storage returns null only when no lock/legacy credential
+                // exists. Match admitted Home only after the SDK/profile checks.
+                (shell.privacyLock === null &&
+                  shell.profileSetupStatus === 'complete')) &&
               shell.session.restoration === 'restored' &&
               shell.session.expiresAt !== null &&
               shell.session.expiresAt > Date.now()))
