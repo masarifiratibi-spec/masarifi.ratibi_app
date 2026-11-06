@@ -2,10 +2,10 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `ab154ebc`, integrated by merge `a36560ce`;
-the existing IPA2 still contains source `2dd23b5b`.
-Android121 observation documents are synchronized through `e540c699`;
-their physical result does not establish iPhone acceptance.
+Repository source `48791e6d` is synchronized through published review `f61d5160`.
+The mobile tree remains `ab154ebc`; existing IPA2 still contains `2dd23b5b`.
+Android122 execution documents are synchronized; their physical results do not
+establish iPhone acceptance.
 
 ## Source and coordination
 
@@ -533,3 +533,47 @@ documents the iOS 17 requirement and official plugin.
   The existing IPA2/installation link still contains `2dd23b5b`; this newer shared
   source needs a later signed build and physical iPhone acceptance. Android121's
   earlier cache proof does not accept these subsequent startup/wait changes.
+
+## Requested-day worker and Android122 evidence synchronization
+
+- Verified published repository source
+  `48791e6d421bf43e6db17e221782c10e0cc0cdb0` and frozen review head
+  `f61d5160ba806579618adfe72be5732831900258`. A normal merge `7bedc57c`
+  retained this iOS report; the full merged `apps`/`packages` tree equals the
+  qualified incoming source. All changes after `48791e6d` in the incoming range
+  are operational/review documents, not application code.
+- The worker prepares its first existing overview with owner-timezone day dates
+  only for positively recognized whole spending-summary questions about today
+  or yesterday. NFKC/whitespace normalization precedes the closed Arabic/English
+  grammar. Other wording keeps the existing overview/model path. No answer,
+  amount, extra data read, expense-kind/currency filter, model, schema or mobile
+  configuration is selected or changed by this predicate.
+- Direct and two independent read-only reviews identified the initial interval
+  and normalization gaps. The source owner reproduced both sets as genuine RED
+  controls and replaced the negative word list with positive eligibility.
+  The final source/test blobs match those reviewed; both follow-up reviews
+  closed the twelve specified interval/NFKC findings within that bounded scope.
+  This is not a claim to parse arbitrary natural-language periods or guarantee
+  one model round or a faster real reply.
+- The [source owner's worker qualification](2026-11-06-assistant-requested-day.md)
+  reports Agent 161 cases plus 84 unchanged context/data/worker cases, totaling
+  245 unique cases across four suites, with types/compilation/lint/format passing.
+  These are the author's execution evidence, not a new local iOS test command.
+  Its twelve operator-proof rejections and isolated-container checks are separate
+  operational evidence and are not added to that source count.
+- Verified the complete mobile and shared-package trees are unchanged from the
+  previously checked `ab154ebc` source. Existing mobile checks and the 2,100-source
+  iOS production JS export remain the relevant evidence; no duplicate mobile/API
+  test campaign, JS export, signing operation or IPA was triggered by this sync.
+  The worker change is server-side and its deployment belongs to the owning
+  chat's separate artifact-bound approval and execution. This iOS integration
+  does not run the imported rollout scripts or activate any hosted component.
+- Imported the [actual Android122 execution report](2026-11-06-startup-assistant-device-check.md).
+  Its approved in-place APK/API update and measured Home/Assistant timings are
+  the Android owner's physical evidence. They do not establish iPhone behavior,
+  whole-production readiness, or acceptance of the subsequently prepared worker.
+- Incoming history passes the unchanged strict secret policy with zero findings;
+  historical raw1/public1/unexpected0 classification remains intact. IPA2 remains
+  source `2dd23b5b`; iPhone installation/login/features and later signed-source
+  parity remain unconfirmed. No phone/server action or repeated question was
+  performed by this iOS chat for this integration.
