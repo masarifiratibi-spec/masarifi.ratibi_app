@@ -2,7 +2,7 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `76b68aba`, integrated by merge `db2a16b6`;
+The current shared source is now `ab154ebc`, integrated by merge `a36560ce`;
 the existing IPA2 still contains source `2dd23b5b`.
 Android121 observation documents are synchronized through `e540c699`;
 their physical result does not establish iPhone acceptance.
@@ -479,3 +479,57 @@ documents the iOS 17 requirement and official plugin.
   Android121's approved install and later system WebView event belong to the
   Android owner's recorded execution. iPhone installation, cache behavior and
   end-to-end speed remain unconfirmed; broader production readiness remains false.
+
+## Startup restoration and Assistant wait synchronization — IPA2 unchanged
+
+- Verified published source `d1bff2c2921a49ee2b0221ba8ce0c520fd0158d4`, then its
+  narrow correction `ab154ebc6436850f32c36bbd890533f15678bc6e`. Normal local
+  merges retained this report; the corrected merge is `a36560ce`. The complete
+  merged `apps`/`packages` tree equals the corrected source. No native identity,
+  dependency, encryption namespace or database-schema change was added.
+- Verified SDK restoration now overlaps font loading in the root hydration
+  provider. The later shell consumes that shared completion, keeping navigation,
+  push registration and foreground writers beneath FontGate. Restoration remains
+  serialized, and SDK/retry changes cancel stale admission.
+- The incoming shared source adds an optional `waitMs` result-read query bounded
+  to 0–8,000 ms. Owner/reply checks, post-wait deletion checks and durable pending
+  work are retained; disconnect ends waiting without cancelling the question.
+  The old result controller ignores the query, so the mobile client can continue
+  its existing polling path before server activation. API source was synchronized
+  and locally checked here; service/image activation belongs to the source
+  owner's separately reviewed execution. No API, worker or model was deployed by
+  this iOS chat, and no measured phone/model speed gain is established.
+- Direct and independent standards/specification review found P2 in the first
+  source: after A completed, A→B→A behind held fonts could reuse the old A
+  completion and launch foreground work early and twice. The source owner
+  reproduced the reported case with a genuine RED, then tied completion to a
+  distinct SDK/revision/mode generation and filtered it during render. Both
+  follow-up reviews found that correction resolves P2 without a new finding.
+  The actual new regression passed in this checkout's provider suite.
+- Fresh local checks passed as separate commands: **112/112 cases in 7/7 startup,
+  auth, route, store and cache suites** on the corrected source; **80/80 cases in
+  1/1 Assistant client suite**; and **25/25 cases in 3/3 API wait/result/stream
+  suites**. The API and Assistant client files are byte-identical between `d1b`
+  and `ab1`, so their completed checks were reused after the provider-only fix.
+  These selections overlap the author's qualifications and earlier evidence;
+  they are not one full-suite command and must not be added to those counts.
+- Mobile/API type checks and lint over all eight changed TS/TSX files passed,
+  using the API/mobile configurations. All test processes exited naturally.
+  Existing Expo/act warnings remain recorded; no test content, timeout, skip or
+  forced exit was changed in this worktree.
+- Corrected-source production iOS introspection/JavaScript export and graph audit
+  passed: 2,100 sources, 13 production entry points, zero forbidden sources and
+  zero explicit Android tracking entry points. Diagnostics are isolated in
+  `E:\Masarifi-ios-artifacts\source-ab154ebc`; this is not a signed IPA.
+- The first API attempt could not start any case because Jest wrote its transform
+  cache to a full C drive: three suites failed to load, zero cases ran. The raw
+  ENOSPC log is retained. Directing Jest's cache to dedicated E artifact folders
+  allowed the unchanged selection to pass; no user/peer files were deleted or
+  moved by this chat. This infrastructure failure is separate from assertions.
+- Incoming source history passes the unchanged strict secret policy with zero
+  findings; historical raw1/public1/unexpected0 classification remains intact.
+  No phone/hosted action, repeated question or signed IPA build occurred here.
+  IPA2's SHA256 was rechecked unchanged.
+  The existing IPA2/installation link still contains `2dd23b5b`; this newer shared
+  source needs a later signed build and physical iPhone acceptance. Android121's
+  earlier cache proof does not accept these subsequent startup/wait changes.
