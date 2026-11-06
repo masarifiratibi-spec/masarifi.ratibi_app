@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { AiGateway, AiGatewayError } from './ai.gateway';
 import { redactAiContext, redactAiText } from './ai.schemas';
 import { localDateAt } from '../reports/reports.period';
+import { resolveAssistantContext } from './assistant-context';
 import { assistantComparisons, assistantPeriodTotals } from './assistant-agent-comparisons';
 import {
   buildSpendingPresentation,
@@ -562,12 +563,31 @@ export class AssistantAgent {
       const snapshot = await this.data.read(claim.id, claim.claimToken, query);
       return { query, snapshot };
     };
+    const now = new Date();
+    const today = localDateAt(now, claim.timezone);
+    const requested = resolveAssistantContext(claim.content, claim.timezone, now);
+    // Only complete, simple spending questions select an early day scope.
+    // Other wording, including intervals, keeps the model's full interpretation.
+    const normalizedQuestion = claim.content.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+    const singleDaySpendingRequested =
+      /^(?:how much (?:did i spend|have i spent)|(?:my |total )?(?:spending|expenses)) (?:today|yesterday)[?!.]*$/iu.test(
+        normalizedQuestion,
+      ) ||
+      /^(?:(?:كم|وش|قد ايش) (?:صرفت|صرفي|مصاريفي)|(?:(?:إجمالي|اجمالي|مجموع) )?(?:مصاريفي|صرفي)) (?:اليوم|أمس|امس|البارح|البارحة|النهارد[ةه])[؟?!.]*$/u.test(
+        normalizedQuestion,
+      );
+    // Reuse the authoritative overview for an explicit single day, so the model
+    // need not spend a round replacing the default month with the requested day.
+    const overview: AssistantDataQuery =
+      requested.periodExplicit &&
+      !requested.clarification &&
+      singleDaySpendingRequested &&
+      requested.startDate === requested.endDate
+        ? { tool: 'overview', startDate: requested.startDate, endDate: requested.endDate }
+        : { tool: 'overview' };
     reads.push(
-      await measure({ stage: 'overview_read', round: 0, readCount: 1 }, () =>
-        read({ tool: 'overview' }),
-      ),
+      await measure({ stage: 'overview_read', round: 0, readCount: 1 }, () => read(overview)),
     );
-    const today = localDateAt(new Date(), claim.timezone);
     let validationFeedback: string | null = null;
     for (let round = 0; round < 3; round += 1) {
       const comparisons = assistantComparisons(reads);

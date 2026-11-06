@@ -59,6 +59,183 @@ const route: EffectiveAiRoute = {
   ],
 };
 
+describe('requested-day evidence before the first model round', () => {
+  beforeEach(() => jest.useFakeTimers({ now: new Date('2026-11-06T21:30:00Z') }));
+  afterEach(() => jest.useRealTimers());
+
+  it.each([
+    ['How much did I spend today?', 'Asia/Riyadh', '2026-11-07'],
+    ['How much did I spend yesterday?', 'Asia/Riyadh', '2026-11-06'],
+    ['كم صرفت اليوم؟', 'Asia/Riyadh', '2026-11-07'],
+    ['وش مصاريفي البارح؟', 'Asia/Riyadh', '2026-11-06'],
+    ['How much did I spend today?', 'America/Los_Angeles', '2026-11-06'],
+    ['Total expenses yesterday.', 'Asia/Riyadh', '2026-11-06'],
+    ['How much did I spend ｔｏｄａｙ?', 'Asia/Riyadh', '2026-11-07'],
+  ])('answers %s with one grounded model round in %s', async (content, timezone, date) => {
+    const reads: Array<{ jobId: string; token: string; query: AssistantDataQuery }> = [];
+    let dispatches = 0;
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-requested-day-key',
+      fetcher: (_url, init) => {
+        dispatches += 1;
+        if (typeof init?.body !== 'string') throw Error('Expected request JSON');
+        const body = JSON.parse(init.body) as {
+          messages: Array<{ content: string }>;
+        };
+        const view = JSON.parse(body.messages[1]?.content ?? '{}') as {
+          dataAlreadyRead: Array<{
+            query: AssistantDataQuery;
+            data: { financialEffects: Array<{ expenseMinor: ModelCell }> };
+          }>;
+        };
+        const requested = view.dataAlreadyRead.find(
+          (read) => read.query.startDate === date && read.query.endDate === date,
+        );
+        const amount = requested?.data.financialEffects[0]?.expenseMinor;
+        const decision = amount
+          ? {
+              status: 'answer',
+              answerParts: [{ text: '', fact: amount.ref.replace(/[{}]/gu, '') }],
+              queries: [],
+              responseType: 'fact',
+              scope: 'selected_period',
+            }
+          : {
+              status: 'query',
+              answerParts: [],
+              queries: [{ tool: 'summary', startDate: date, endDate: date }],
+              responseType: 'fact',
+              scope: 'selected_period',
+            };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: `synthetic-period-${dispatches.toString()}`,
+              model: 'model',
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(decision) } }],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      },
+    });
+    const data = {
+      read: (jobId: string, token: string, query: AssistantDataQuery) => {
+        reads.push({ jobId, token, query });
+        return Promise.resolve({
+          ...sample,
+          data: {
+            status: 'ok',
+            tool: query.tool,
+            period: {
+              startDate: query.startDate ?? '2026-11-01',
+              endDate: query.endDate ?? '2026-11-07',
+              timezone,
+            },
+            // Gross expense differs deliberately from net spending after fees/refunds.
+            summaries: [
+              {
+                kind: 'expense',
+                status: 'confirmed',
+                currency: 'SAR',
+                amountMinor: '500',
+                count: 1,
+              },
+            ],
+            financialEffects: [
+              { currency: 'SAR', expenseMinor: '375', incomeMinor: '0', netCashFlowMinor: '-375' },
+            ],
+          },
+        });
+      },
+    };
+    const result = await new AssistantAgent(data as never, gateway, async () => {}).run(
+      { ...claim, content, timezone },
+      route,
+      new AbortController().signal,
+    );
+    expect(result.content).toMatch(/^3\.75 (SAR|ريال)$/u);
+    expect(result.metadata).toMatchObject({
+      startDate: date,
+      endDate: date,
+      scope: 'selected_period',
+      timezone,
+    });
+    expect(dispatches).toBe(1);
+    expect(reads[0]).toEqual({
+      jobId: 'job',
+      token: 'token',
+      query: { tool: 'overview', startDate: date, endDate: date },
+    });
+    expect(reads.every((read) => read.jobId === 'job' && read.token === 'token')).toBe(true);
+    expect(reads.every(({ query }) => !query.kind && !query.currency && !query.account)).toBe(true);
+  });
+
+  it.each([
+    'How much did I spend?',
+    'How much did I spend this month?',
+    'Compare spending today and yesterday',
+    'Compare today with this month',
+    'Spending from 2026-10-01 to 2026-10-31',
+    'How much did I spend today on my bank account?',
+    'Total spending from 2026-10-31 to 2026-10-31',
+    'How much did I spend on 2026-10-31?',
+    'How much did I spend since yesterday?',
+    'كم صرفت منذ أمس؟',
+    'How much did I spend from yesterday?',
+    'كم صرفت من أمس للحين؟',
+    'Show my spending between yesterday and now',
+    'Show my spending yesterday onwards',
+    'How much did I spend before today?',
+    'How much did I spend after yesterday?',
+    'My spending yesterday till now',
+    'Show my spending starting yesterday',
+    'How much have I spent ｓｉｎｃｅ yesterday?',
+    'كم صرفت ﻣﻨﺬ أمس؟',
+  ])('keeps existing model-selected scope for ambiguous or wider requests: %s', async (content) => {
+    const read = jest.fn(() => Promise.resolve(sample));
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-model-selected-period-key',
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-model-selected-period',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      answerParts: [
+                        { text: 'Please specify the requested period or account.', fact: null },
+                      ],
+                      queries: [],
+                      responseType: 'missing',
+                      scope: 'current_state',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    });
+    const result = await new AssistantAgent({ read } as never, gateway, async () => {}).run(
+      { ...claim, content },
+      route,
+      new AbortController().signal,
+    );
+    expect(result.metadata.responseType).toBe('missing');
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith('job', 'token', { tool: 'overview' });
+  });
+});
+
 it.each([
   {
     question: 'اعرض آخر ثلاث عمليات مؤكدة فقط.',

@@ -1,6 +1,6 @@
 # Startup and Assistant completion wait
 
-Status: source qualified; signed APK and isolated API image preparation in progress. Neither candidate has been activated. Physical latency acceptance remains open.
+Status: prepared and artifact-qualified, not activated or installed. Actual approval and physical latency acceptance remain open.
 
 ## Observed problem and evidence
 
@@ -42,3 +42,13 @@ The first122 build failed ENOSPC while Metro wrote outputs; it produced no APK, 
 The isolated API candidate is already qualified and is reused unchanged:sha256:e3ddc1351fe3649b027e4dd726c125600f1c237bb449d85e764b975561b330b3, tagmasarifi-task30-api:d1bff2c2921a, source at image buildd1bff2c2921a49ee2b0221ba8ce0c520fd0158d4. Exactly3compiled files differ;218others and all base layers/runtime configuration remain. Network-none smoke proves same-request completion, immediate legacy reads, invalid-bound rejection and pending preservation on abort. All31serving container identities/start times stayed equal; the old API imagea9060b3e remains active. No schema/worker/model/env change. The source correction changes only the mobile provider/test, so the API image is not rebuilt.
 
 TemporarySSH rulemasarifi-task30-20261106-d6fc8cb8 was removed once; all4original UFW files/modes/UID/GID and numbered status match. The task-owned root console tab was closed. No active SSH rule or serving-service change remains.
+
+## Final signed122 and API review
+
+The corrected122 continuation completed naturally0 at 2026-11-06T16:58:56.219116+00:00, application source `ab154ebc6436850f32c36bbd890533f15678bc6e`. Candidate `C:\mrc1105\artifacts\task30-customer-122-resume-native.apk` is 49,515,158bytes, SHA256 `3fee0911d1e8ac3b055901773e95e34357a91e21062052d67278882f209a495d`; Hermes SHA256 `326fceac8bfdd7797afad68f6c0252e41c41681bfc3726b9da3e369f3c1514a8`. Existing Production signer and Arabic/package identity/version1.0.0/minimumAPI24/arm64/API/Clerk/automaticVoice bindings remain. Signatures at APIs24/28/32/33/35/36,16KB alignment,Record reflection and actualDEX notification consumer/constructor pass. All23native libraries are byte-identical to121;116retained Kotlin metadata advisories match121. All2,975prior failed-build source pins matched before the two corrected files were overlaid; all2,975final pins matched. No successful build or install was repeated.
+
+The API image remains `sha256:e3ddc1351fe3649b027e4dd726c125600f1c237bb449d85e764b975561b330b3` built from the unchanged API files at `d1bff2c2921a49ee2b0221ba8ce0c520fd0158d4`. Its3compiled files match the final mobile commit's API source inputs. The tag is guarded by the exact image ID;218other executables/base/runtime are retained. The full concrete manifest is `ops/releases/2026-11-06-startup-assistant-wait/manifest.json`, SHA256 `0d393602e1b1f9b3687690649f2800ad005b5a50d26601dbb469f675c53a24de`, binding 86source files and the exact runbook/Compose overrides/Dockerfile. API rollback is the exact retained old image. No phone downgrade/recovery APK is claimed.
+
+Current primary is still121, originalUID10321/first installation. Fresh captured exact owner AND SDK/default/QA/source/keywords/oldVoice state equals121 except last-seen. Neither candidate was deployed/installed; no new question/financial/SMS/Voice/default/source action occurred. Canonical delivery111 is unchanged. Original concrete-review approval condition applies to this new122/API package. A new actual approval and real Redmi useful-Home/reply measurement are required; automated preparation does not establish the requested latency improvement.
+
+The iOS peer's independent narrow re-review closed the SDK-cycle finding without a new finding. Its overlapping112/7 startup/cache checks,80/1 Assistant and25/3 API selection are separate supporting evidence, not additional cases in163. Before approval/freeze, a strict scan misclassified the api.env file SHA256 as an API key because a map used the filename as a JSON key. The manifest now uses explicit path/sha256 entries with the identical digest. No credential, scanner rule, ignore policy, code, APK or image changed. The initial scan and format correction are retained; final strict scope still includes the complete manifest and private-file digest.
