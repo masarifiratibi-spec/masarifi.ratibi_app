@@ -2,8 +2,8 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `5edca962`, synchronized through published
-documentation head `83f9c563`; the existing IPA2 still contains source `2dd23b5b`.
+The current shared source is now `76b68aba`, integrated by merge `db2a16b6`;
+the existing IPA2 still contains source `2dd23b5b`.
 
 ## Source and coordination
 
@@ -419,3 +419,48 @@ documents the iOS 17 requirement and official plugin.
   evidence is separate. The current installation link still refers to source
   `2dd23b5b`; these cache/Assistant changes need a later signed iPhone build and
   actual-device acceptance, including cache reuse and real response behavior.
+
+## Verified no-lock cache admission synchronization — IPA2 unchanged
+
+- Verified published source `76b68aba08629ebe448bb0254c9b2ac1fd544996` and
+  merged it normally into `iOS` as `db2a16b6`, preserving this report. The complete
+  merged `apps`/`packages` tree equals the qualified incoming source. The range
+  contains one production conditional, its existing integration test, and release
+  evidence; no native, dependency, identity, server or database change was added.
+- The new null-lock branch admits the current owner's saved reads only with
+  hydration, authenticated/restored SDK state, future non-null expiry, complete
+  profile setup and no logout fence. Existing enabled locks still require
+  unlocked status. The native parser and its legacy/corrupt-setting behavior are
+  unchanged. This resolves a demonstrated source-policy mismatch with protected
+  Home admission; it does not establish the actual phone's private lock setting.
+- Direct review and two independent, read-only standards/specification reviews
+  found no functional defect in the narrow change. The spec review identified one
+  documentation overstatement, reported to the source owner: an explicit native
+  preference takes precedence over retained legacy credentials; credentials force
+  the locked fallback when preference metadata is absent. This report uses that
+  qualified contract rather than claiming every retained credential forces lock.
+- Fresh E verification passed **114/114 cases in 8/8 selected suites** in one
+  unchanged confirmation command, covering provider/Home hydration, persistence,
+  native lock compatibility, route admission, protected navigation and the first
+  Home cover. Types and lint over the two changed TS/TSX files passed without
+  changed-file lint warnings. No test, timeout, skip or forced exit was changed.
+- Production iOS introspection/JavaScript export and graph audit passed with
+  2,100 sources, 13 production entry points, zero forbidden sources and zero
+  explicit Android tracking entry points. New diagnostics are isolated in
+  `E:\Masarifi-ios-artifacts\source-76b68aba`; this is not a signed IPA.
+- Diagnostic failures remain retained: one invocation used the wrong CLI path
+  before Jest started; the first correct eight-suite run passed 113 cases and
+  failed one 5-second testing-library cleanup hook. That navigation suite mocks
+  the changed provider. The exact same command then passed all 114 cases in
+  17.290 seconds without source changes; no conclusive cause of the transient
+  timeout is claimed. Expo/act/open-handle warnings and the natural exit results
+  remain in the private logs. These cases overlap the author's 120/8 source
+  checks and earlier qualification and must not be added to those counts.
+- Incoming history passes the unchanged strict secret policy with zero findings;
+  the historical raw1/public1/unexpected0 classification remains intact.
+- IPA2's SHA256 was rechecked unchanged. Its existing installation link still
+  targets source `2dd23b5b`; no signed build, phone/server action or repeated
+  question was performed for this synchronization. The source owner's actual
+  [120 cold-cache observation](2026-11-06-home-cache-assistant-device-check.md)
+  remains **failed/active**. Neither the new conditional nor passing source checks
+  establish Android/iPhone cache acceptance, installation or end-to-end speed.
