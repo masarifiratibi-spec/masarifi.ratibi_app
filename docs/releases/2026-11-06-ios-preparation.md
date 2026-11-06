@@ -4,6 +4,8 @@ Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
 The current shared source is now `76b68aba`, integrated by merge `db2a16b6`;
 the existing IPA2 still contains source `2dd23b5b`.
+Android121 observation documents are synchronized through `e540c699`;
+their physical result does not establish iPhone acceptance.
 
 ## Source and coordination
 
@@ -439,6 +441,7 @@ documents the iOS 17 requirement and official plugin.
   preference takes precedence over retained legacy credentials; credentials force
   the locked fallback when preference metadata is absent. This report uses that
   qualified contract rather than claiming every retained credential forces lock.
+  The source owner corrected the wording in published review head `e540c699`.
 - Fresh E verification passed **114/114 cases in 8/8 selected suites** in one
   unchanged confirmation command, covering provider/Home hydration, persistence,
   native lock compatibility, route admission, protected navigation and the first
@@ -460,7 +463,19 @@ documents the iOS 17 requirement and official plugin.
   the historical raw1/public1/unexpected0 classification remains intact.
 - IPA2's SHA256 was rechecked unchanged. Its existing installation link still
   targets source `2dd23b5b`; no signed build, phone/server action or repeated
-  question was performed for this synchronization. The source owner's actual
+  question was performed by this iOS chat for this synchronization. The historical
   [120 cold-cache observation](2026-11-06-home-cache-assistant-device-check.md)
-  remains **failed/active**. Neither the new conditional nor passing source checks
-  establish Android/iPhone cache acceptance, installation or end-to-end speed.
+  remains a failed observation, followed by the source owner's qualified
+  [121 cached reopening](2026-11-06-home-verified-cache-device-check.md): the first
+  recorded Home frame after the startup cover contained the retained balance and
+  activity after a valid real read had populated the cache. That Android check
+  passed. Its approximately 4.6-second sampled useful-Home interval is not instant
+  startup, zero-jank proof or an SLA. Private lock settings were not inspected.
+- Merged published review/observation head
+  `e540c6994e237b45989f4a601cefdf337815a1c0` as `1084b54e`. The entire incoming
+  range after `76b68aba` changes only documentation and frozen review/runbook/
+  manifest/execution evidence. Verified `apps`/`packages` are unchanged, so no
+  repeated code tests, JS export or IPA were triggered by this document sync.
+  Android121's approved install and later system WebView event belong to the
+  Android owner's recorded execution. iPhone installation, cache behavior and
+  end-to-end speed remain unconfirmed; broader production readiness remains false.
