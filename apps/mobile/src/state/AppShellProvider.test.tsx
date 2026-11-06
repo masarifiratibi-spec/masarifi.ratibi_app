@@ -261,6 +261,57 @@ describe('AppShellProvider', () => {
     }
   });
 
+  it('does not reuse a completed A restore after A-to-B-to-A while a newer restore is still queued behind fonts', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-A';
+    const hydrate = jest
+      .spyOn(useAppShellStore.getState(), 'hydrate')
+      .mockResolvedValue(undefined);
+    let releaseB: (() => void) | undefined;
+    mockRestoreAppShellSession
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(
+        () =>
+          new Promise<undefined>((resolve) => {
+            releaseB = () => resolve(undefined);
+          })
+      )
+      .mockResolvedValueOnce(undefined);
+    const tree = (fontsReady: boolean) => (
+      <AppShellHydrationProvider>
+        {fontsReady ? (
+          <AppShellProvider>
+            <ProtectedContent />
+          </AppShellProvider>
+        ) : (
+          <Text>Fonts still pending</Text>
+        )}
+      </AppShellHydrationProvider>
+    );
+    const view = render(tree(false));
+    try {
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      mockLiveClerkSessionKey = 'session-B';
+      view.rerender(tree(false));
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2);
+      mockLiveClerkSessionKey = 'session-A';
+      view.rerender(tree(true));
+      await act(async () => {});
+      expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
+      expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
+      await act(async () => releaseB?.());
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(3);
+      expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1);
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      await act(async () => releaseB?.());
+      hydrate.mockRestore();
+    }
+  });
+
   it('bootstraps the same Clerk session after a 401 and successful Google reauthentication', async () => {
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     mockLiveClerkSessionKey = 'same-clerk-session';
