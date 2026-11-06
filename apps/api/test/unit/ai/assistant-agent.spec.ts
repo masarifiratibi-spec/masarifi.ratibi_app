@@ -69,7 +69,6 @@ describe('requested-day evidence before the first model round', () => {
     ['كم صرفت اليوم؟', 'Asia/Riyadh', '2026-11-07'],
     ['وش مصاريفي البارح؟', 'Asia/Riyadh', '2026-11-06'],
     ['How much did I spend today?', 'America/Los_Angeles', '2026-11-06'],
-    ['Total spending from 2026-10-31 to 2026-10-31', 'Asia/Riyadh', '2026-10-31'],
   ])('answers %s with one grounded model round in %s', async (content, timezone, date) => {
     const reads: Array<{ jobId: string; token: string; query: AssistantDataQuery }> = [];
     let dispatches = 0;
@@ -178,28 +177,52 @@ describe('requested-day evidence before the first model round', () => {
     'Compare today with this month',
     'Spending from 2026-10-01 to 2026-10-31',
     'How much did I spend today on my bank account?',
+    'Total spending from 2026-10-31 to 2026-10-31',
+    'How much did I spend on 2026-10-31?',
+    'How much did I spend since yesterday?',
+    'كم صرفت منذ أمس؟',
+    'How much did I spend from yesterday?',
+    'كم صرفت من أمس للحين؟',
+    'Show my spending between yesterday and now',
+    'Show my spending yesterday onwards',
   ])('keeps existing model-selected scope for ambiguous or wider requests: %s', async (content) => {
     const read = jest.fn(() => Promise.resolve(sample));
-    const gateway = {
-      complete: (input: { parse: (value: unknown) => unknown }) =>
-        Promise.resolve({
-          value: input.parse({
-            status: 'answer',
-            answer: 'Please specify the period or account.',
-            queries: [],
-            responseType: 'missing',
-            scope: 'current_state',
-          }),
-          provider: 'provider',
-          model: 'model',
-        }),
-    };
-    const result = await new AssistantAgent(
-      { read } as never,
-      gateway as never,
-      async () => {},
-    ).run({ ...claim, content }, route, new AbortController().signal);
-    expect(result.content).toBe('Please specify the period or account.');
+    const gateway = new AiGateway({
+      apiKey: 'synthetic-model-selected-period-key',
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'synthetic-model-selected-period',
+              model: 'model',
+              choices: [
+                {
+                  finish_reason: 'stop',
+                  message: {
+                    content: JSON.stringify({
+                      status: 'answer',
+                      answerParts: [
+                        { text: 'Please specify the requested period or account.', fact: null },
+                      ],
+                      queries: [],
+                      responseType: 'missing',
+                      scope: 'current_state',
+                    }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    });
+    const result = await new AssistantAgent({ read } as never, gateway, async () => {}).run(
+      { ...claim, content },
+      route,
+      new AbortController().signal,
+    );
+    expect(result.metadata.responseType).toBe('missing');
     expect(read).toHaveBeenCalledTimes(1);
     expect(read).toHaveBeenCalledWith('job', 'token', { tool: 'overview' });
   });

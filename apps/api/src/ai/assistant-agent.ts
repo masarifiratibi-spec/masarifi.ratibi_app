@@ -566,11 +566,17 @@ export class AssistantAgent {
     const now = new Date();
     const today = localDateAt(now, claim.timezone);
     const requested = resolveAssistantContext(claim.content, claim.timezone, now);
+    // Relative-day anchors inside an interval need the model's full interpretation.
+    const intervalRequested =
+      /(?<!\p{L})(?:since|from|to|until|through|between|onwards?|منذ|من|بين|حتى|حتي|إلى|الى|لحد|للحين|لليوم)(?!\p{L})/iu.test(
+        claim.content,
+      );
     // Reuse the authoritative overview for an explicit single day, so the model
     // need not spend a round replacing the default month with the requested day.
     const overview: AssistantDataQuery =
       requested.periodExplicit &&
       !requested.clarification &&
+      !intervalRequested &&
       requested.startDate === requested.endDate
         ? { tool: 'overview', startDate: requested.startDate, endDate: requested.endDate }
         : { tool: 'overview' };
