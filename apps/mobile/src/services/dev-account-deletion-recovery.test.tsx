@@ -26,6 +26,8 @@ import {
 } from '@/test-utils/deletion-native-boundaries';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import { StartupLoadingBoundary } from '@/design-system/components/feedback/StartupLoadingBoundary';
+import { prepareAccountDeletionBootstrap } from './dev-account-deletion';
 import {
   beginTrackingAdmission,
   useTrackingAdmission
@@ -442,6 +444,65 @@ test.each(['development', 'production'])(
     confirmation.mockRestore();
   }
 );
+
+test('exposes saved deletion recovery through the startup cover while retaining the owner fence', async () => {
+  productionRuntime();
+  const owner = 'user_production_startup_recovery';
+  clerkOwner = owner;
+  session(owner);
+  const file = seedDeletedOwner(owner);
+  const retained = {
+    ownerId: owner,
+    operationId: '3ea72ae5-dbb0-4b0b-b23e-337a2edf8c72',
+    completionToken: 'd'.repeat(64),
+    phase: 'verification_required' as const,
+    requestId: null,
+    completedAt: null,
+    attempts: 0,
+    nextAttemptAt: 0,
+    retryAfterAt: 0
+  };
+  await saveDeletionCompletion(retained);
+  render(
+    <StartupLoadingBoundary locale="en" themePreference="light" reducedMotion>
+      <Runtime />
+    </StartupLoadingBoundary>
+  );
+  await act(async () => {
+    expect(await prepareAccountDeletionBootstrap()).toBe(false);
+  });
+  await screen.findByRole('button', { name: t('settings.deletion.continue') });
+  expect(useAppShellStore.getState().session?.userId).toBeFalsy();
+  expect(await loadDeletionCompletion(owner)).toEqual(retained);
+  expect(fetchBoundary).not.toHaveBeenCalled();
+  expect(sdkSignOut).not.toHaveBeenCalled();
+  expect(deletionNative.files.has(file)).toBe(true);
+  let resolveRequest!: (value: Response) => void;
+  fetchBoundary.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        resolveRequest = resolve;
+      })
+  );
+  fireEvent.press(
+    screen.getByRole('button', { name: t('settings.deletion.continue') })
+  );
+  await screen.findByRole('progressbar', {
+    name: t('settings.deletion.dev.loadingTitle')
+  });
+  await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+  expect(await loadDeletionCompletion(owner)).toMatchObject({
+    operationId: retained.operationId,
+    completionToken: retained.completionToken,
+    phase: 'submitted'
+  });
+  await act(async () => {
+    resolveRequest(successful(request, 202));
+  });
+  await waitFor(async () =>
+    expect(await loadDeletionCompletion(owner)).toBeNull()
+  );
+});
 
 test.each([false, true])(
   'continues a persisted Production deletion without a code, while refusing a different SDK owner: %s',

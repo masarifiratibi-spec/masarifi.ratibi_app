@@ -10,6 +10,7 @@ import {
   subscribeAccountDeletion
 } from '@/services/dev-account-deletion';
 import { deletionRecoveryNetwork } from '@/services/platform/deletion-network';
+import { useStartupReady } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { useAppShellStore } from '@/state/app-shell';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 
@@ -99,11 +100,14 @@ export function DevAccountDeletionRecovery() {
     };
   }, [enabled]);
 
-  if (!enabled || ownerId) return null;
   const recoverable = snapshots.filter(
-    (entry) => !['deleting', 'completed'].includes(entry.phase)
+    (entry) => entry.phase !== 'completed'
   );
-  if (!recoverable.length && !storageError) return null;
+  const showRecovery =
+    enabled && !ownerId && (recoverable.length > 0 || storageError);
+  // A fenced owner cannot enter Home. Its recovery UI is the startup destination.
+  useStartupReady(showRecovery);
+  if (!showRecovery) return null;
   return (
     <View style={styles.recovery}>
       {storageError ? (
