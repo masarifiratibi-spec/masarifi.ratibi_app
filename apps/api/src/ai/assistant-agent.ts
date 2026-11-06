@@ -566,17 +566,22 @@ export class AssistantAgent {
     const now = new Date();
     const today = localDateAt(now, claim.timezone);
     const requested = resolveAssistantContext(claim.content, claim.timezone, now);
-    // Relative-day anchors inside an interval need the model's full interpretation.
-    const intervalRequested =
-      /(?<!\p{L})(?:since|from|to|until|through|between|onwards?|منذ|من|بين|حتى|حتي|إلى|الى|لحد|للحين|لليوم)(?!\p{L})/iu.test(
-        claim.content,
+    // Only complete, simple spending questions select an early day scope.
+    // Other wording, including intervals, keeps the model's full interpretation.
+    const normalizedQuestion = claim.content.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+    const singleDaySpendingRequested =
+      /^(?:how much (?:did i spend|have i spent)|(?:my |total )?(?:spending|expenses)) (?:today|yesterday)[?!.]*$/iu.test(
+        normalizedQuestion,
+      ) ||
+      /^(?:(?:كم|وش|قد ايش) (?:صرفت|صرفي|مصاريفي)|(?:(?:إجمالي|اجمالي|مجموع) )?(?:مصاريفي|صرفي)) (?:اليوم|أمس|امس|البارح|البارحة|النهارد[ةه])[؟?!.]*$/u.test(
+        normalizedQuestion,
       );
     // Reuse the authoritative overview for an explicit single day, so the model
     // need not spend a round replacing the default month with the requested day.
     const overview: AssistantDataQuery =
       requested.periodExplicit &&
       !requested.clarification &&
-      !intervalRequested &&
+      singleDaySpendingRequested &&
       requested.startDate === requested.endDate
         ? { tool: 'overview', startDate: requested.startDate, endDate: requested.endDate }
         : { tool: 'overview' };

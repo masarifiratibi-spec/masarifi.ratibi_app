@@ -69,6 +69,8 @@ describe('requested-day evidence before the first model round', () => {
     ['كم صرفت اليوم؟', 'Asia/Riyadh', '2026-11-07'],
     ['وش مصاريفي البارح؟', 'Asia/Riyadh', '2026-11-06'],
     ['How much did I spend today?', 'America/Los_Angeles', '2026-11-06'],
+    ['Total expenses yesterday.', 'Asia/Riyadh', '2026-11-06'],
+    ['How much did I spend ｔｏｄａｙ?', 'Asia/Riyadh', '2026-11-07'],
   ])('answers %s with one grounded model round in %s', async (content, timezone, date) => {
     const reads: Array<{ jobId: string; token: string; query: AssistantDataQuery }> = [];
     let dispatches = 0;
@@ -185,6 +187,12 @@ describe('requested-day evidence before the first model round', () => {
     'كم صرفت من أمس للحين؟',
     'Show my spending between yesterday and now',
     'Show my spending yesterday onwards',
+    'How much did I spend before today?',
+    'How much did I spend after yesterday?',
+    'My spending yesterday till now',
+    'Show my spending starting yesterday',
+    'How much have I spent ｓｉｎｃｅ yesterday?',
+    'كم صرفت ﻣﻨﺬ أمس؟',
   ])('keeps existing model-selected scope for ambiguous or wider requests: %s', async (content) => {
     const read = jest.fn(() => Promise.resolve(sample));
     const gateway = new AiGateway({
