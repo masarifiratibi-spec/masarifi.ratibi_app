@@ -4,7 +4,7 @@ import { registerTrackingNotificationTask } from './platform/tracking-notificati
 import type { TokenCache } from '@clerk/expo';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
-import { trackingNativeRuntime } from './platform/tracking-native-runtime.android';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
 import {
   resolveClientRuntime,
   isBenchmarkReadOnly

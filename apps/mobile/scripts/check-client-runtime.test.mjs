@@ -43,7 +43,9 @@ test('iPhone profile cannot target Android or bypass production checks outside N
       { EXPO_PUBLIC_API_URL: 'https://api.staging.example.com' },
       { MASARIFI_RELEASE_VERSION_NAME: undefined }
     ]) {
-      assert.throws(() => validateClientBuildEnvironment({ ...iosAdHoc, NODE_ENV, ...patch }));
+      assert.throws(() =>
+        validateClientBuildEnvironment({ ...iosAdHoc, NODE_ENV, ...patch })
+      );
     }
   }
 });
@@ -61,7 +63,9 @@ test('iPhone profile rejects a different bundle while retaining the Android and 
     { android: { package: 'com.masarifi.mobile.dev' } },
     { extra: { eas: { projectId: 'different' } } }
   ]) {
-    assert.throws(() => validateClientBuildEnvironment(iosAdHoc, { ...identity, ...patch }));
+    assert.throws(() =>
+      validateClientBuildEnvironment(iosAdHoc, { ...identity, ...patch })
+    );
   }
 });
 
