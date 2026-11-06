@@ -117,6 +117,17 @@ is not a reason to introduce new iPhone UI or storage behavior.
   The raw strict scan is **not zero**; the public-configuration classification was
   sent to the Android owner for review before merge. No scanner policy, ignore
   list, credential or published history was changed to conceal the finding.
+  Classification agreed with that owner: `rawExitCode=2`, `rawFindings=1`,
+  `classifiedPublicClientConfig=1`, `unexpectedSecretFindings=0`. The single
+  historical value and current value were independently checked locally against
+  the existing retained frontend binding; the owner will also verify before merge.
+  This classification does not apply automatically to any other finding.
+  Metadata only:
+
+  - Path: `apps/mobile/eas.json`
+  - Rule: `generic-api-key`
+  - Commit: `0389dff3936211b968c1128471cc313af3b2aef2`
+  - SHA256: `b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475`
 
 ## Before building the signed IPA
 
