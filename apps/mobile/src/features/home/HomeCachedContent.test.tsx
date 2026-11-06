@@ -138,7 +138,12 @@ it('shows the ready Home balance while today activity is still pending', () => {
   expect(screen.queryByTestId('startup-loading')).toBeNull();
   expect(screen.getByTestId('home-account-card')).toBeTruthy();
   expect(screen.queryByText('Cached coffee')).toBeNull();
-  expect(screen.getByText(translate('coreFinance.state.loading'))).toBeTruthy();
+  expect(screen.queryByText(translate('coreFinance.state.loading'))).toBeNull();
+  expect(screen.getByTestId('home-expense-section-heading')).toBeOnTheScreen();
+  expect(screen.getByTestId('home-income-section-heading')).toBeOnTheScreen();
+  expect(
+    screen.queryByText(translate('coreFinance.home.todayEmpty'))
+  ).toBeNull();
   act(() => {
     mockActivityQuery.data = activity;
     mockActivityQuery.isPending = false;

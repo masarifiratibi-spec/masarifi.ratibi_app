@@ -169,26 +169,22 @@ function QueriedHomeScreen({
           disabled={query.isFetching}
         />
       ) : null}
-      {query.isLoading ? (
-        <StateView
-          state="loading"
-          title={translate('coreFinance.state.loading')}
-        />
-      ) : query.isError && !homeSummary ? (
+      {query.isError && !homeSummary ? (
         <StateView
           state="error"
           title={translate('coreFinance.state.error')}
           actionLabel={translate('coreFinance.action.retry')}
           onAction={() => void query.refetch()}
         />
-      ) : homeSummary ? (
+      ) : (
         <HomeSummary
           accounts={accounts.data}
           categories={categories.data}
-          notice={homeSummary.dataState === 'empty' ? undefined : notice}
+          notice={homeSummary?.dataState === 'empty' ? undefined : notice}
           selectedAccount={selectedAccount}
           summary={homeSummary}
           todayActivity={activity.data ?? []}
+          activityPending={activity.data === undefined && !activity.isError}
           activityStatus={
             activity.data !== undefined && activity.isError ? (
               <View>
@@ -200,28 +196,17 @@ function QueriedHomeScreen({
                   variant="quiet"
                 />
               </View>
-            ) : activity.data === undefined &&
-              (activity.isPending || activity.isError) ? (
+            ) : activity.data === undefined && activity.isError ? (
               <StateView
-                state={activity.isError ? 'error' : 'loading'}
-                title={translate(
-                  activity.isError
-                    ? 'coreFinance.state.error'
-                    : 'coreFinance.state.loading'
-                )}
-                actionLabel={
-                  activity.isError
-                    ? translate('coreFinance.action.retry')
-                    : undefined
-                }
-                onAction={
-                  activity.isError ? () => void activity.refetch() : undefined
-                }
+                state="error"
+                title={translate('coreFinance.state.error')}
+                actionLabel={translate('coreFinance.action.retry')}
+                onAction={() => void activity.refetch()}
               />
             ) : undefined
           }
         />
-      ) : null}
+      )}
     </HomeLayout>
   );
 }

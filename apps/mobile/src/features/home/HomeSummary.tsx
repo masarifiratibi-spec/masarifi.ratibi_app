@@ -52,15 +52,17 @@ export const HomeSummary = React.memo(function HomeSummary({
   selectedAccount = null,
   summary,
   todayActivity = [],
-  activityStatus
+  activityStatus,
+  activityPending = false
 }: {
   accounts?: Account[];
   categories?: Category[];
   notice?: React.ReactNode;
   selectedAccount?: Account | null;
-  summary: HomeBalanceSummary | HomeSummaryValue;
+  summary?: HomeBalanceSummary | HomeSummaryValue;
   todayActivity?: HomeTodayActivity[];
   activityStatus?: React.ReactNode;
+  activityPending?: boolean;
 }) {
   useWindowDimensions();
   const { revealed, reveal } = useSensitiveVisibility();
@@ -69,6 +71,11 @@ export const HomeSummary = React.memo(function HomeSummary({
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
+  const currencyCode =
+    summary?.currencyCode ?? selectedAccount?.currencyCode ?? baseCurrencyCode;
   const theme = useTheme();
   const homeLayout = useHomeActivityOffset();
   const activityLayout = useHomeActivityOffset(homeLayout.offset);
@@ -76,7 +83,7 @@ export const HomeSummary = React.memo(function HomeSummary({
   const largeText = PixelRatio.getFontScale() >= 1.5;
   const scoped = Boolean(selectedAccount);
   const accountComponent = selectedAccount
-    ? summary.components.find(
+    ? summary?.components.find(
         (component) => component.accountId === selectedAccount.id
       )
     : undefined;
@@ -85,10 +92,10 @@ export const HomeSummary = React.memo(function HomeSummary({
     : 'coreFinance.home.total';
   const heroValueMinor = scoped
     ? accountComponent?.convertedMinor
-    : summary.totalBalanceMinor;
+    : summary?.totalBalanceMinor;
   const total = formatFinancialDisplayValue({
     minorUnits: heroValueMinor,
-    currencyCode: summary.currencyCode,
+    currencyCode,
     locale,
     sign:
       heroValueMinor !== undefined && heroValueMinor < 0 ? 'negative' : 'none',
@@ -96,19 +103,19 @@ export const HomeSummary = React.memo(function HomeSummary({
       ? 'hidden'
       : heroValueMinor === undefined
         ? 'unknown'
-        : summary.isEstimated
+        : summary?.isEstimated
           ? 'estimated'
           : 'confirmed'
   });
   const accountBalance = accountComponent
     ? formatFinancialDisplayValue({
         minorUnits: accountComponent.convertedMinor,
-        currencyCode: summary.currencyCode,
+        currencyCode,
         locale,
         sign: accountComponent.convertedMinor < 0 ? 'negative' : 'none',
         state: hidden
           ? 'hidden'
-          : summary.isEstimated
+          : summary?.isEstimated
             ? 'estimated'
             : 'confirmed'
       })
@@ -116,7 +123,10 @@ export const HomeSummary = React.memo(function HomeSummary({
   const expenses = todayActivity.filter(({ group }) => group === 'expense');
   const income = todayActivity.filter(({ group }) => group === 'income');
   const compactEmptyState =
-    !summary.recentTransactions?.length && !todayActivity.length;
+    summary !== undefined &&
+    !activityPending &&
+    !summary.recentTransactions?.length &&
+    !todayActivity.length;
   const voiceRecording = voice.session.state === 'recording';
   const captureProcessing = [
     'requesting_permission',
@@ -216,7 +226,7 @@ export const HomeSummary = React.memo(function HomeSummary({
           >
             {total.text.replace(/[\u2066\u2069]/g, '')}
           </Text>
-          {!summary.isEstimated ? (
+          {summary && !summary.isEstimated ? (
             <Text
               style={[
                 styles.balanceSupport,
@@ -269,7 +279,9 @@ export const HomeSummary = React.memo(function HomeSummary({
             >
               {scoped
                 ? selectedAccount!.name
-                : translate('coreFinance.home.allAccounts')}
+                : summary
+                  ? translate('coreFinance.home.allAccounts')
+                  : '—'}
             </Text>
             <Text
               testID="home-account-card-subtitle"
@@ -285,11 +297,13 @@ export const HomeSummary = React.memo(function HomeSummary({
                 ? translate(
                     `coreFinance.accountType.${selectedAccount!.type}` as never
                   )
-                : translateDynamic(
-                    'coreFinance.home.accountCount',
-                    { count: summary.activeAccountCount },
-                    locale
-                  )}
+                : summary
+                  ? translateDynamic(
+                      'coreFinance.home.accountCount',
+                      { count: summary.activeAccountCount },
+                      locale
+                    )
+                  : '—'}
             </Text>
           </View>
           <View
@@ -472,6 +486,7 @@ export const HomeSummary = React.memo(function HomeSummary({
 
       <View
         testID="home-activity-sheet"
+        accessibilityState={{ busy: activityPending }}
         onLayout={activityLayout.onLayout}
         style={[
           styles.activity,
@@ -575,7 +590,7 @@ export const HomeSummary = React.memo(function HomeSummary({
         ) : null}
         {notice}
         {activityStatus}
-        {expenses.length ? (
+        {expenses.length || activityPending ? (
           <ActivitySection
             offset={activityLayout.offset}
             accounts={accounts}
@@ -587,7 +602,7 @@ export const HomeSummary = React.memo(function HomeSummary({
             transactions={expenses}
           />
         ) : null}
-        {income.length ? (
+        {income.length || activityPending ? (
           <ActivitySection
             offset={activityLayout.offset}
             accounts={accounts}
@@ -599,7 +614,10 @@ export const HomeSummary = React.memo(function HomeSummary({
             transactions={income}
           />
         ) : null}
-        {!activityStatus && !expenses.length && !income.length ? (
+        {!activityPending &&
+        !activityStatus &&
+        !expenses.length &&
+        !income.length ? (
           <Text
             style={[
               styles.empty,
