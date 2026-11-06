@@ -177,7 +177,7 @@ export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze
     ['GET', 'api/v1/admin/audit/events/:eventId', 'getAuditEvent', 200, 'audit.read'],
     ['POST', 'api/v1/me/privacy/exports', 'createMyPrivacyExport', 202, undefined, true],
     ['GET', 'api/v1/me/privacy/exports/:exportId', 'getMyPrivacyExport', 200],
-    ['POST', 'api/v1/me/deletion-requests', 'createMyDeletionRequest', 202, undefined, true],
+    ['POST', 'api/v1/me/deletion-requests', 'createMyDeletionRequest', 202],
     ['GET', 'api/v1/me/deletion-requests/:deletionId', 'getMyDeletionRequest', 200],
     ['DELETE', 'api/v1/me/deletion-requests/:deletionId', 'cancelMyDeletionRequest', 204],
     ['GET', 'api/v1/admin/privacy/exports', 'listPrivacyExports', 200, 'privacy.exports.read'],

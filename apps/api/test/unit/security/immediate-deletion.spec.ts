@@ -1,3 +1,4 @@
+import { ClerkAuthGuard } from '../../../src/identity/clerk-auth.guard';
 import { SecurityService } from '../../../src/security/security.service';
 
 describe('immediate account deletion admission', () => {
@@ -42,7 +43,7 @@ describe('immediate account deletion admission', () => {
   );
 });
 
-describe('session-authorized self deletion on isolated Staging DEV', () => {
+describe('confirmed self deletion authorized by the active owner session', () => {
   const owner = 'user_DevDeletion123';
   const operationId = '9d04a565-4fe1-4e37-89a8-cb1323d65651';
   const configuration: Record<string, unknown> = {
@@ -84,15 +85,66 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
   });
   it.each([
     { MASARIFI_STAGING_SELF_DELETION_OWNER_ID: undefined },
-    { MASARIFI_STAGING_SELF_DELETION_OWNER_ID: 'user_OtherOwner' },
     { SUPABASE_URL: 'https://other.supabase.co' },
     { MASARIFI_PROCESS_KIND: 'worker' },
     { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
-  ])('retains recent authentication outside the exact isolated scope: %j', async (patch) => {
-    await expect(service(patch).execute(structuredClone(input))).rejects.toMatchObject({
-      status: 403,
-    });
-  });
+  ])(
+    'does not require an extra factor-age challenge for a confirmed owner request: %j',
+    async (patch) => {
+      await expect(service(patch).execute(structuredClone(input))).resolves.toMatchObject({
+        id: 'request-one',
+      });
+    },
+  );
+  it.each([36_000, null])(
+    'uses the current authenticated owner session without an extra factor-age challenge: %s',
+    async (factorAgeSeconds) => {
+      await expect(
+        service({
+          MASARIFI_STAGING_SELF_DELETION_OWNER_ID: undefined,
+          MASARIFI_STAGING_SELF_DELETION_ENABLED: undefined,
+        }).execute({
+          ...structuredClone(input),
+          principal: { userId: owner, sessionId: 'active-production-session', factorAgeSeconds },
+        }),
+      ).resolves.toMatchObject({ status: 'completed' });
+    },
+  );
+  it.each([undefined, 'short'])(
+    'keeps deletion mutation idempotency mandatory without another factor challenge: %s',
+    async (idempotencyKey) => {
+      await expect(
+        service({ MASARIFI_STAGING_SELF_DELETION_OWNER_ID: undefined }).execute({
+          ...structuredClone(input),
+          idempotencyKey,
+        }),
+      ).rejects.toMatchObject({ response: { code: 'IDEMPOTENCY_KEY_REQUIRED' }, status: 400 });
+    },
+  );
+  it.each([
+    { isAuthenticated: false, sessionStatus: 'active' },
+    { isAuthenticated: true, sessionStatus: 'revoked' },
+  ])(
+    'still refuses deletion at the ordinary Clerk boundary without an active authenticated session: %j',
+    async (state) => {
+      const request = { method: 'POST', originalUrl: '/api/v1/me/deletion-requests', headers: {} };
+      const guard = new ClerkAuthGuard(
+        {
+          authenticateRequest: () =>
+            Promise.resolve({
+              ...state,
+              userId: owner,
+              sessionId: 'revoked-session',
+              role: 'authenticated',
+            }),
+        } as never,
+        { getRequired: () => [] } as never,
+      );
+      await expect(
+        guard.canActivate({ switchToHttp: () => ({ getRequest: () => request }) } as never),
+      ).rejects.toMatchObject({ status: 401 });
+    },
+  );
   it('does not relax privacy export verification for the same owner', async () => {
     await expect(
       service().execute({ ...input, operation: 'createMyPrivacyExport', body: {} }),
@@ -138,11 +190,14 @@ describe('session-authorized self deletion on isolated Staging DEV', () => {
       { SUPABASE_URL: 'https://other.supabase.co' },
       { MASARIFI_PROCESS_KIND: 'worker' },
       { MASARIFI_DELETION_COOLING_OFF_HOURS: 72 },
-    ])('retains recent authentication outside the enabled Staging API: %j', async (patch) => {
-      await expect(
-        service({ ...enabled, ...patch }).execute(structuredClone(input)),
-      ).rejects.toMatchObject({ status: 403 });
-    });
+    ])(
+      'uses the authenticated owner session independently of DEV factor-age flags: %j',
+      async (patch) => {
+        await expect(
+          service({ ...enabled, ...patch }).execute(structuredClone(input)),
+        ).resolves.toMatchObject({ id: 'request-one' });
+      },
+    );
     it('keeps export verification enabled for an authenticated owner', async () => {
       await expect(
         service(enabled).execute({ ...input, operation: 'createMyPrivacyExport', body: {} }),
