@@ -56,24 +56,21 @@ export function DevAccountDeletionRecovery() {
           (entry) =>
             ![
               'completed',
-              'local_retry',
               'verification_required',
               'failed'
-            ].includes(entry.phase)
+            ].includes(entry.phase) &&
+            (entry.phase !== 'local_retry' || entry.automaticRetries)
         );
         const deadlines = pending
-          .filter((entry) => entry.automaticRetries)
+          .filter(
+            (entry) =>
+              entry.automaticRetries && (online || entry.phase === 'local_retry')
+          )
           .map((entry) => entry.nextAttemptAt);
-        if (!online && pending.length) schedule(15_000);
-        else if (deadlines.length)
+        if (deadlines.length)
           schedule(Math.max(1_000, Math.min(...deadlines) - Date.now()));
-        else if (
-          networkAvailable &&
-          (pending.length ||
-            getAccountDeletionSnapshots().some(
-              (entry) => entry.phase === 'local_retry'
-            ))
-        )
+        else if (!online && pending.length) schedule(15_000);
+        else if (networkAvailable && pending.length)
           schedule(15_000);
       } catch {
         if (!stopped) setStorageError(true);

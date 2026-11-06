@@ -155,6 +155,8 @@ const ar: MessageCatalog = {
   'settings.deletion.continue': 'متابعة الحذف',
   'settings.deletion.continueConfirmed': 'طلب الحذف محفوظ. تقدر تكمله من هنا.',
   'settings.deletion.retry': 'إعادة المحاولة',
+  'settings.deletion.popup.title': 'تعذّر إكمال العملية',
+  'settings.deletion.popup.body': 'حاول مرة ثانية بعد شوي.',
   'settings.deletion.dev.sessionRetry':
     'تعذر إكمال الحذف بالجلسة الحالية. أعد المحاولة؛ لم يُحذف الحساب.',
   'settings.deletion.code': 'رمز التحقق',

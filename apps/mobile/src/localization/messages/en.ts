@@ -168,6 +168,8 @@ const en = {
   'settings.deletion.continueConfirmed':
     'Your confirmed deletion request is saved. Continue to finish it.',
   'settings.deletion.retry': 'Try again',
+  'settings.deletion.popup.title': 'Couldn’t finish the request',
+  'settings.deletion.popup.body': 'Please try again in a moment.',
   'settings.deletion.dev.sessionRetry':
     'Deletion could not finish with the current session. Try again; the account has not been deleted.',
   'settings.deletion.code': 'Verification code',

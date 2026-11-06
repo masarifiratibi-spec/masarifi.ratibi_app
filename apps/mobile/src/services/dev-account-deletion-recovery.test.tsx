@@ -5,7 +5,8 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor
+  waitFor,
+  within
 } from '@testing-library/react-native';
 import { getClerkInstance, useAuth } from '@clerk/expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,8 +27,12 @@ import {
 } from '@/test-utils/deletion-native-boundaries';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import { DevAccountDeletionPanel } from '@/features/settings/DevAccountDeletionPanel';
 import { StartupLoadingBoundary } from '@/design-system/components/feedback/StartupLoadingBoundary';
-import { prepareAccountDeletionBootstrap } from './dev-account-deletion';
+import {
+  getAccountDeletionSnapshots,
+  prepareAccountDeletionBootstrap
+} from './dev-account-deletion';
 import {
   beginTrackingAdmission,
   useTrackingAdmission
@@ -413,7 +418,9 @@ test.each(['development', 'production'])(
     });
     await waitFor(() => expect(deleteButton).toBeEnabled());
     fireEvent.press(deleteButton);
-    await screen.findByText(t('settings.deletion.error'));
+    await screen.findByText(
+      t(variant === 'production' ? 'settings.deletion.popup.title' : 'settings.deletion.error')
+    );
     await act(async () => {
       clerkOwner = null;
       session(null);
@@ -490,6 +497,7 @@ test('exposes saved deletion recovery through the startup cover while retaining 
   await screen.findByRole('progressbar', {
     name: t('settings.deletion.dev.loadingTitle')
   });
+  expect(screen.queryByText(t('settings.deletion.dev.loadingTitle'))).toBeNull();
   await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
   expect(await loadDeletionCompletion(owner)).toMatchObject({
     operationId: retained.operationId,
@@ -554,7 +562,7 @@ test.each([false, true])(
       else fetchBoundary.mockResolvedValueOnce(successful(request, 202));
       fireEvent.press(resume);
       if (foreignSdk) {
-        await screen.findByText(t('settings.deletion.error'));
+        await screen.findByText(t('settings.deletion.popup.title'));
         expect(fetchBoundary).not.toHaveBeenCalled();
         expect(await loadDeletionCompletion(owner)).toEqual(retained);
         expect(deletionNative.files.has(file)).toBe(true);
@@ -726,3 +734,97 @@ test.each(['unconfirmed', 'changed'] as const)(
     expect(purge).toHaveBeenCalledTimes(calls);
   }
 );
+
+
+test.each(['native', 'sdk'] as const)(
+  'automatically finishes receipt-confirmed cleanup after one transient %s failure without another POST',
+  async (failure) => {
+    productionRuntime();
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    const owner = `user_automatic_cleanup_${failure}`;
+    clerkOwner = owner;
+    session(owner);
+    const file = seedDeletedOwner(owner);
+    const otherFile = seedDeletedOwner('user_retained_cleanup');
+    const purge = jest.mocked(trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!);
+    purge.mockReset().mockResolvedValue(undefined);
+    if (failure === 'native') purge.mockRejectedValueOnce(new Error('temporary_native_cleanup'));
+    else sdkSignOut.mockRejectedValueOnce(new Error('temporary_sdk_cleanup'));
+    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+    const confirmation = jest.spyOn(Alert, 'alert');
+    try {
+      render(<Runtime />);
+      const button = await screen.findByRole('button', { name: t('appShell.security.deleteAccount') });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.press(button);
+      await act(async () => {
+        confirmation.mock.calls[0][2]?.find((entry) => entry.style === 'destructive')?.onPress?.();
+      });
+      await waitFor(() => expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.phase).toBe('local_retry'));
+      expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(true);
+      expect(screen.queryByText(t('settings.deletion.dev.localRetry'))).toBeNull();
+      expect(screen.queryByText(t('settings.deletion.dev.loadingTitle'))).toBeNull();
+      expect(screen.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
+      await waitFor(async () => expect(await loadDeletionCompletion(owner)).toBeNull(), { timeout: 4500 });
+      expect(fetchBoundary).toHaveBeenCalledTimes(1);
+      expect(sdkToken).toHaveBeenCalledTimes(1);
+      expect(deletionNative.files.has(file)).toBe(false);
+      expect(deletionNative.files.has(otherFile)).toBe(true);
+      expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.phase).toBe('completed');
+    } finally {
+      purge.mockReset().mockResolvedValue(undefined);
+      confirmation.mockRestore();
+    }
+  }
+);
+
+test('contains an exhausted cleanup failure in a dismissible popup without inline recovery controls', async () => {
+  productionRuntime();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  const owner = 'user_exhausted_cleanup_popup';
+  clerkOwner = null;
+  session(null);
+  seedDeletedOwner(owner);
+  const otherFile = seedDeletedOwner('user_popup_retained');
+  await saveDeletionCompletion({
+    ownerId: owner,
+    operationId: '7b220ebe-47cf-4cce-bc88-bb7fb77be7c1',
+    completionToken: 'b'.repeat(64),
+    phase: 'server_completed',
+    requestId: request.id,
+    completedAt: request.completedAt,
+    attempts: 5,
+    nextAttemptAt: 0,
+    retryAfterAt: 0
+  });
+  const purge = jest.mocked(trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!);
+  purge.mockReset().mockRejectedValue(new Error('native_cleanup_unavailable'));
+  try {
+    render(<Runtime />);
+    await waitFor(() =>
+      expect(
+        screen.UNSAFE_getAllByType(DevAccountDeletionPanel).some(
+          (entry) => entry.props.ownerId === owner
+        )
+      ).toBe(true)
+    );
+    const panel = screen.UNSAFE_getAllByType(DevAccountDeletionPanel).find(
+      (entry) => entry.props.ownerId === owner
+    );
+    expect(panel).toBeDefined();
+    const ownerUi = within(panel!);
+    const popup = await ownerUi.findByTestId('account-deletion-error-dialog');
+    expect(popup.props.accessibilityViewIsModal).toBe(true);
+    expect(screen.queryByText(t('settings.deletion.dev.localRetry'))).toBeNull();
+    expect(ownerUi.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
+    expect(ownerUi.getByRole('button', { name: t('settings.deletion.retry') })).toBeOnTheScreen();
+    expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(false);
+    fireEvent.press(ownerUi.getByRole('button', { name: t('common.close') }));
+    expect(ownerUi.queryByTestId('account-deletion-error-dialog')).toBeNull();
+    expect(await loadDeletionCompletion(owner)).toMatchObject({ phase: 'server_completed', attempts: 6 });
+    expect(fetchBoundary).not.toHaveBeenCalled();
+    expect(deletionNative.files.has(otherFile)).toBe(true);
+  } finally {
+    purge.mockReset().mockResolvedValue(undefined);
+  }
+});

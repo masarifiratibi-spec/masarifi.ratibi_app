@@ -269,7 +269,27 @@ async function finishLocalErasure(
     await removeDeletionCompletion(journal.ownerId);
     publish(journal.ownerId, 'completed');
   } catch {
-    // The durable completed receipt remains authoritative while local erasure retries.
+    // Retry only the retained completed receipt; never resurrect a removed capability.
+    try {
+      const retained = await loadDeletionCompletion(journal.ownerId);
+      if (
+        retained &&
+        ['server_completed', 'local_completed'].includes(retained.phase)
+      ) {
+        const attempts = retained.attempts + 1;
+        const nextAttemptAt =
+          Date.now() + backoff[Math.min(attempts - 1, backoff.length - 1)];
+        await saveDeletionCompletion({ ...retained, attempts, nextAttemptAt });
+        publish(journal.ownerId, 'local_retry', {
+          error: 'settings.deletion.dev.localRetry',
+          nextAttemptAt,
+          automaticRetries: attempts < backoff.length
+        });
+        return;
+      }
+    } catch {
+      // Unconfirmed retry persistence must not start an automatic cleanup loop.
+    }
     publish(journal.ownerId, 'local_retry', {
       error: 'settings.deletion.dev.localRetry'
     });
@@ -291,7 +311,9 @@ async function acceptReceipt(
       phase: 'server_completed',
       requestId: receipt.id,
       completedAt: receipt.completedAt,
-      nextAttemptAt: 0
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
     };
     await saveDeletionCompletion(completed);
     await finishLocalErasure(completed);
@@ -397,8 +419,17 @@ async function recoverJournal(
     journal.phase === 'server_completed' ||
     journal.phase === 'local_completed'
   ) {
-    if (!force && snapshots.get(journal.ownerId)?.phase === 'local_retry')
+    if (
+      !force &&
+      (journal.nextAttemptAt > Date.now() || journal.attempts >= backoff.length)
+    ) {
+      publish(journal.ownerId, 'local_retry', {
+        error: 'settings.deletion.dev.localRetry',
+        nextAttemptAt: journal.nextAttemptAt,
+        automaticRetries: journal.attempts < backoff.length
+      });
       return;
+    }
     return finishLocalErasure(journal);
   }
   if (
