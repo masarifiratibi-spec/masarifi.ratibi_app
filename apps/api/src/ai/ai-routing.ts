@@ -172,6 +172,20 @@ export function selectConversationHistory(turns: readonly AssistantTurn[]): Assi
   return turns.slice(boundary + 1).slice(-4);
 }
 
+/** Complete, unfiltered totals can use the existing authoritative report read. */
+export function isDirectSpendingTotal(content: string): boolean {
+  const text = content
+    .normalize('NFKC')
+    .replace(/\p{M}/gu, '')
+    .replace(/[أإآ]/gu, 'ا')
+    .trim()
+    .replace(/\s+/gu, ' ');
+  return (
+    /^(?:(?:كم|وش|قد ايش) (?:صرفت|صرفي|مصاريفي)|(?:(?:اجمالي|مجموع) )?(?:مصاريفي|صرفي))(?: (?:اليوم|امس|البارح|البارحة|النهارده|النهاردة|هالشهر|هذا الشهر|الشهر الحالي|الشهر اللي فات|الشهر الماضي))?[؟?!.]*$/u.test(text) ||
+    /^(?:how much (?:did i spend|have i spent)|(?:my |total )?(?:spending|expenses))(?: (?:today|yesterday|this month|last month))?[?!.]*$/iu.test(text)
+  );
+}
+
 export function routeAssistantMessage(input: {
   content: string;
   intentHint?: AssistantIntent;

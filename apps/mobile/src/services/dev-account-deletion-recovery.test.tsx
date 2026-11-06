@@ -1,11 +1,12 @@
 import React from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, Platform, type AppStateStatus } from 'react-native';
 import {
   act,
   fireEvent,
   render,
   screen,
-  waitFor
+  waitFor,
+  within
 } from '@testing-library/react-native';
 import { getClerkInstance, useAuth } from '@clerk/expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +27,31 @@ import {
 } from '@/test-utils/deletion-native-boundaries';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import { DevAccountDeletionPanel } from '@/features/settings/DevAccountDeletionPanel';
+import { StartupLoadingBoundary } from '@/design-system/components/feedback/StartupLoadingBoundary';
+import {
+  getAccountDeletionSnapshots,
+  prepareAccountDeletionBootstrap
+} from './dev-account-deletion';
+import {
+  beginTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
+import { createHash } from 'node:crypto';
+
+jest.mock('./platform/tracking-native-runtime', () => ({
+  trackingNativeRuntime: {
+    prepareTrackingOwnerV4: jest.fn(async () => {
+      throw new Error('deleted_owner_must_not_be_admitted');
+    }),
+    commitTrackingOwnerV4: jest.fn(async () => {
+      throw new Error('deleted_owner_must_not_be_admitted');
+    }),
+    resumeTrackingOwnerPurgeV4: jest.fn(async () => undefined)
+  }
+}));
+const originalPlatform = Platform.OS;
 
 jest.mock(
   'expo-crypto',
@@ -110,6 +136,10 @@ function Runtime({
   );
 }
 beforeEach(async () => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatform
+  });
   if (
     originalAppStateListener &&
     jest.isMockFunction(AppState.addEventListener)
@@ -158,6 +188,10 @@ beforeEach(async () => {
   }));
 });
 afterEach(() => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatform
+  });
   delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   delete process.env.EXPO_PUBLIC_APP_VARIANT;
   delete process.env.EXPO_PUBLIC_API_URL;
@@ -384,7 +418,9 @@ test.each(['development', 'production'])(
     });
     await waitFor(() => expect(deleteButton).toBeEnabled());
     fireEvent.press(deleteButton);
-    await screen.findByText(t('settings.deletion.error'));
+    await screen.findByText(
+      t(variant === 'production' ? 'settings.deletion.popup.title' : 'settings.deletion.error')
+    );
     await act(async () => {
       clerkOwner = null;
       session(null);
@@ -416,90 +452,379 @@ test.each(['development', 'production'])(
   }
 );
 
-test('production recent-auth refusal keeps the receipt and payload until same-session verification succeeds', async () => {
+test('exposes saved deletion recovery through the startup cover while retaining the owner fence', async () => {
   productionRuntime();
-  const owner = 'user_production_reverification';
+  const owner = 'user_production_startup_recovery';
   clerkOwner = owner;
   session(owner);
-  const ownerFile = seedDeletedOwner(owner);
-  const sdkSession = {
-    id: `session_${owner}`,
-    status: 'active',
-    lastActiveAt: new Date(Date.now() - 1_000),
-    expireAt: new Date(Date.now() + 60_000),
-    startVerification: jest.fn().mockResolvedValue({
-      supportedFirstFactors: [
-        {
-          strategy: 'email_code',
-          emailAddressId: 'email-a',
-          safeIdentifier: 'q***@example.test'
-        }
-      ]
-    }),
-    prepareFirstFactorVerification: jest
-      .fn()
-      .mockResolvedValue({ status: 'needs_first_factor' }),
-    attemptFirstFactorVerification: jest
-      .fn()
-      .mockResolvedValueOnce({ status: 'needs_first_factor' })
-      .mockResolvedValue({ status: 'complete' }),
-    getToken: sdkToken
+  const file = seedDeletedOwner(owner);
+  const retained = {
+    ownerId: owner,
+    operationId: '3ea72ae5-dbb0-4b0b-b23e-337a2edf8c72',
+    completionToken: 'd'.repeat(64),
+    phase: 'verification_required' as const,
+    requestId: null,
+    completedAt: null,
+    attempts: 0,
+    nextAttemptAt: 0,
+    retryAfterAt: 0
   };
-  (getClerkInstance as jest.Mock).mockImplementation(() => ({
-    user: { id: owner },
-    session: sdkSession,
-    status: 'ready',
-    on: () => undefined,
-    off: () => undefined
-  }));
-  fetchBoundary.mockResolvedValueOnce(
-    successful({ code: 'RECENT_AUTH_REQUIRED' }, 403)
+  await saveDeletionCompletion(retained);
+  render(
+    <StartupLoadingBoundary locale="en" themePreference="light" reducedMotion>
+      <Runtime />
+    </StartupLoadingBoundary>
   );
-  const confirmation = jest
-    .spyOn(Alert, 'alert')
-    .mockImplementation((_title, _body, buttons) => {
-      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+  await act(async () => {
+    expect(await prepareAccountDeletionBootstrap()).toBe(false);
+  });
+  await screen.findByRole('button', { name: t('settings.deletion.continue') });
+  expect(useAppShellStore.getState().session?.userId).toBeFalsy();
+  expect(await loadDeletionCompletion(owner)).toEqual(retained);
+  expect(fetchBoundary).not.toHaveBeenCalled();
+  expect(sdkSignOut).not.toHaveBeenCalled();
+  expect(deletionNative.files.has(file)).toBe(true);
+  let resolveRequest!: (value: Response) => void;
+  fetchBoundary.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        resolveRequest = resolve;
+      })
+  );
+  fireEvent.press(
+    screen.getByRole('button', { name: t('settings.deletion.continue') })
+  );
+  await screen.findByRole('progressbar', {
+    name: t('settings.deletion.dev.loadingTitle')
+  });
+  expect(screen.queryByText(t('settings.deletion.dev.loadingTitle'))).toBeNull();
+  await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+  expect(await loadDeletionCompletion(owner)).toMatchObject({
+    operationId: retained.operationId,
+    completionToken: retained.completionToken,
+    phase: 'submitted'
+  });
+  await act(async () => {
+    resolveRequest(successful(request, 202));
+  });
+  await waitFor(async () =>
+    expect(await loadDeletionCompletion(owner)).toBeNull()
+  );
+});
+
+test.each([false, true])(
+  'continues a persisted Production deletion without a code, while refusing a different SDK owner: %s',
+  async (foreignSdk) => {
+    productionRuntime();
+    const owner = 'user_production_saved_deletion';
+    clerkOwner = owner;
+    session(owner);
+    const file = seedDeletedOwner(owner);
+    const otherFile = seedDeletedOwner('user_other_retained');
+    const retained = {
+      ownerId: owner,
+      operationId: 'd2227d58-f407-4867-89d8-8843d7a6fef6',
+      completionToken: 'e'.repeat(64),
+      phase: 'verification_required' as const,
+      requestId: null,
+      completedAt: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    };
+    await saveDeletionCompletion(retained);
+    const startVerification = jest.fn();
+    (getClerkInstance as jest.Mock).mockImplementation(() => ({
+      user: { id: clerkOwner },
+      session: {
+        id: `session_${clerkOwner}`,
+        status: 'active',
+        lastActiveAt: new Date(Date.now() - 1000),
+        expireAt: new Date(Date.now() + 60000),
+        startVerification
+      },
+      status: 'ready',
+      on: () => undefined,
+      off: () => undefined
+    }));
+    const confirmation = jest.spyOn(Alert, 'alert');
+    try {
+      render(<Runtime />);
+      const resume = await screen.findByRole('button', {
+        name: t('settings.deletion.continue')
+      });
+      expect(
+        screen.queryByRole('button', { name: t('settings.deletion.reverify') })
+      ).toBeNull();
+      expect(screen.queryByLabelText(t('settings.deletion.code'))).toBeNull();
+      expect(fetchBoundary).not.toHaveBeenCalled();
+      if (foreignSdk) clerkOwner = 'user_other_retained';
+      else fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+      fireEvent.press(resume);
+      if (foreignSdk) {
+        await screen.findByText(t('settings.deletion.popup.title'));
+        expect(fetchBoundary).not.toHaveBeenCalled();
+        expect(await loadDeletionCompletion(owner)).toEqual(retained);
+        expect(deletionNative.files.has(file)).toBe(true);
+      } else {
+        await waitFor(async () =>
+          expect(await loadDeletionCompletion(owner)).toBeNull()
+        );
+        expect(fetchBoundary).toHaveBeenCalledTimes(1);
+        expect(fetchBoundary.mock.calls[0][1].headers['Idempotency-Key']).toBe(
+          retained.operationId
+        );
+        expect(
+          JSON.parse(fetchBoundary.mock.calls[0][1].body).completionToken
+        ).toBe(retained.completionToken);
+        expect(deletionNative.files.has(file)).toBe(false);
+      }
+      expect(deletionNative.files.has(otherFile)).toBe(true);
+      expect(startVerification).not.toHaveBeenCalled();
+      expect(confirmation).not.toHaveBeenCalled();
+    } finally {
+      confirmation.mockRestore();
+    }
+  }
+);
+
+test.each([false, true])(
+  'completes Android receipt recovery without admitting the deleted owner; other active owner=%s',
+  async (otherActive) => {
+    productionRuntime();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android'
     });
-  try {
-    render(<Runtime />);
-    const button = await screen.findByRole('button', {
-      name: t('appShell.security.deleteAccount')
-    });
-    await waitFor(() => expect(button).toBeEnabled());
-    fireEvent.press(button);
-    const reverify = await screen.findByRole('button', {
-      name: t('settings.deletion.reverify')
-    });
-    const retained = await loadDeletionCompletion(owner);
-    expect(retained?.phase).toBe('verification_required');
-    expect(deletionNative.files.has(ownerFile)).toBe(true);
-    expect(sdkSignOut).not.toHaveBeenCalled();
-    fireEvent.press(reverify);
-    const code = await screen.findByLabelText(t('settings.deletion.code'));
-    fireEvent.changeText(code, '111111');
-    fireEvent.press(
-      screen.getByRole('button', { name: t('settings.deletion.verify') })
+    const owner = 'user_android_deleted';
+    const other = 'user_android_retained';
+    clerkOwner = otherActive ? other : null;
+    session(clerkOwner);
+    beginTrackingAdmission();
+    if (otherActive)
+      useTrackingAdmission.setState({
+        ready: true,
+        admittedOwnerId: other,
+        nativeLease: {
+          ownerDigest: createHash('sha256').update(other).digest('hex'),
+          generation: 'retained-generation-1234'
+        },
+        sessionAnchor: 'retained-session'
+      });
+    const file = seedDeletedOwner(owner);
+    const retainedFile = seedDeletedOwner(other);
+    const digest = createHash('sha256').update(owner).digest('hex');
+    const contextKey = `masarifi.tracking.background-context.v3.${digest}`;
+    deletionNative.secrets.set(
+      contextKey,
+      JSON.stringify({
+        version: 3,
+        ownerId: owner,
+        generation: 'deleted-generation-1234',
+        phase: 'committed'
+      })
     );
-    await screen.findByText(t('settings.deletion.verificationError'));
-    expect(fetchBoundary).toHaveBeenCalledTimes(1);
-    expect(deletionNative.files.has(ownerFile)).toBe(true);
-    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
-    fireEvent.changeText(code, '222222');
-    fireEvent.press(
-      screen.getByRole('button', { name: t('settings.deletion.verify') })
+    const otherKey = `masarifi.tracking.background-context.v3.${createHash('sha256').update(other).digest('hex')}`;
+    deletionNative.secrets.set(otherKey, 'retained other owner bytes');
+    await saveDeletionCompletion({
+      ownerId: owner,
+      operationId: '0f8dd8dd-df36-413a-9bd0-50ccfce872fe',
+      completionToken: 'a'.repeat(64),
+      phase: 'submitted',
+      requestId: null,
+      completedAt: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    });
+    let finishReceipt!: (value: Response) => void;
+    fetchBoundary.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishReceipt = resolve;
+        })
+    );
+    const purge = jest.mocked(
+      trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!
+    );
+    purge.mockClear();
+    render(<Runtime />);
+    await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+    const admission = { ...useTrackingAdmission.getState() };
+    expect(admission.ready).toBe(false);
+    await act(async () =>
+      finishReceipt(
+        successful({
+          id: request.id,
+          status: 'completed',
+          completedAt: request.completedAt,
+          errorCode: null,
+          version: 3
+        })
+      )
     );
     await waitFor(async () =>
       expect(await loadDeletionCompletion(owner)).toBeNull()
     );
-    expect(fetchBoundary.mock.calls[1][1].headers['Idempotency-Key']).toBe(
-      retained?.operationId
+    expect(purge).toHaveBeenCalledWith(digest, 'deleted-generation-1234');
+    expect(deletionNative.secrets.has(contextKey)).toBe(false);
+    expect(deletionNative.secrets.get(otherKey)).toBe(
+      'retained other owner bytes'
     );
+    expect(deletionNative.files.has(file)).toBe(false);
+    expect(deletionNative.files.has(retainedFile)).toBe(true);
+    expect(useAppShellStore.getState().session?.userId ?? null).toBe(
+      otherActive ? other : null
+    );
+    expect(useTrackingAdmission.getState()).toEqual(admission);
     expect(
-      JSON.parse(fetchBoundary.mock.calls[1][1].body).completionToken
-    ).toBe(retained?.completionToken);
-    expect(confirmation).toHaveBeenCalledTimes(1);
-    expect(deletionNative.files.has(ownerFile)).toBe(false);
+      trackingNativeRuntime!.prepareTrackingOwnerV4
+    ).not.toHaveBeenCalled();
+    expect(sdkSignOut).not.toHaveBeenCalled();
+  }
+);
+
+test.each(['unconfirmed', 'changed'] as const)(
+  'refuses local erasure without the same durable completed receipt: %s',
+  async (kind) => {
+    productionRuntime();
+    clerkOwner = null;
+    session(null);
+    const owner = 'user_receipt_guard';
+    const file = seedDeletedOwner(owner);
+    const journal = {
+      ownerId: owner,
+      operationId: 'cf7887b8-6123-44c7-a5f7-9310fd0afca9',
+      completionToken: 'b'.repeat(64),
+      phase:
+        kind === 'unconfirmed'
+          ? ('submitted' as const)
+          : ('server_completed' as const),
+      requestId: kind === 'unconfirmed' ? null : request.id,
+      completedAt: kind === 'unconfirmed' ? null : request.completedAt,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    };
+    await saveDeletionCompletion(journal);
+    const read = deletionNative.secureStore.getItemAsync;
+    const original = read.getMockImplementation()!;
+    if (kind === 'changed')
+      read.mockImplementationOnce(async (key) => {
+        const value = await original(key);
+        deletionNative.secrets.set(
+          key,
+          JSON.stringify({ ...journal, requestId: 'another-receipt' })
+        );
+        return value;
+      });
+    const purge = jest.mocked(
+      trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!
+    );
+    const calls = purge.mock.calls.length;
+    const { eraseDeletedAccountLocalData } = jest.requireActual<
+      typeof import('./account-data-erasure')
+    >('./account-data-erasure');
+    await expect(eraseDeletedAccountLocalData(owner)).rejects.toThrow(
+      kind === 'unconfirmed'
+        ? 'deletion_completion_unverified'
+        : 'deletion_completion_changed'
+    );
+    expect(deletionNative.files.has(file)).toBe(true);
+    expect(purge).toHaveBeenCalledTimes(calls);
+  }
+);
+
+
+test.each(['native', 'sdk'] as const)(
+  'automatically finishes receipt-confirmed cleanup after one transient %s failure without another POST',
+  async (failure) => {
+    productionRuntime();
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    const owner = `user_automatic_cleanup_${failure}`;
+    clerkOwner = owner;
+    session(owner);
+    const file = seedDeletedOwner(owner);
+    const otherFile = seedDeletedOwner('user_retained_cleanup');
+    const purge = jest.mocked(trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!);
+    purge.mockReset().mockResolvedValue(undefined);
+    if (failure === 'native') purge.mockRejectedValueOnce(new Error('temporary_native_cleanup'));
+    else sdkSignOut.mockRejectedValueOnce(new Error('temporary_sdk_cleanup'));
+    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+    const confirmation = jest.spyOn(Alert, 'alert');
+    try {
+      render(<Runtime />);
+      const button = await screen.findByRole('button', { name: t('appShell.security.deleteAccount') });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.press(button);
+      await act(async () => {
+        confirmation.mock.calls[0][2]?.find((entry) => entry.style === 'destructive')?.onPress?.();
+      });
+      await waitFor(() => expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.phase).toBe('local_retry'));
+      expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(true);
+      expect(screen.queryByText(t('settings.deletion.dev.localRetry'))).toBeNull();
+      expect(screen.queryByText(t('settings.deletion.dev.loadingTitle'))).toBeNull();
+      expect(screen.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
+      await waitFor(async () => expect(await loadDeletionCompletion(owner)).toBeNull(), { timeout: 4500 });
+      expect(fetchBoundary).toHaveBeenCalledTimes(1);
+      expect(sdkToken).toHaveBeenCalledTimes(1);
+      expect(deletionNative.files.has(file)).toBe(false);
+      expect(deletionNative.files.has(otherFile)).toBe(true);
+      expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.phase).toBe('completed');
+    } finally {
+      purge.mockReset().mockResolvedValue(undefined);
+      confirmation.mockRestore();
+    }
+  }
+);
+
+test('contains an exhausted cleanup failure in a dismissible popup without inline recovery controls', async () => {
+  productionRuntime();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  const owner = 'user_exhausted_cleanup_popup';
+  clerkOwner = null;
+  session(null);
+  seedDeletedOwner(owner);
+  const otherFile = seedDeletedOwner('user_popup_retained');
+  await saveDeletionCompletion({
+    ownerId: owner,
+    operationId: '7b220ebe-47cf-4cce-bc88-bb7fb77be7c1',
+    completionToken: 'b'.repeat(64),
+    phase: 'server_completed',
+    requestId: request.id,
+    completedAt: request.completedAt,
+    attempts: 5,
+    nextAttemptAt: 0,
+    retryAfterAt: 0
+  });
+  const purge = jest.mocked(trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!);
+  purge.mockReset().mockRejectedValue(new Error('native_cleanup_unavailable'));
+  try {
+    render(<Runtime />);
+    await waitFor(() =>
+      expect(
+        screen.UNSAFE_getAllByType(DevAccountDeletionPanel).some(
+          (entry) => entry.props.ownerId === owner
+        )
+      ).toBe(true)
+    );
+    const panel = screen.UNSAFE_getAllByType(DevAccountDeletionPanel).find(
+      (entry) => entry.props.ownerId === owner
+    );
+    expect(panel).toBeDefined();
+    const ownerUi = within(panel!);
+    const popup = await ownerUi.findByTestId('account-deletion-error-dialog');
+    expect(popup.props.accessibilityViewIsModal).toBe(true);
+    expect(screen.queryByText(t('settings.deletion.dev.localRetry'))).toBeNull();
+    expect(ownerUi.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
+    expect(ownerUi.getByRole('button', { name: t('settings.deletion.retry') })).toBeOnTheScreen();
+    expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(false);
+    fireEvent.press(ownerUi.getByRole('button', { name: t('common.close') }));
+    expect(ownerUi.queryByTestId('account-deletion-error-dialog')).toBeNull();
+    expect(await loadDeletionCompletion(owner)).toMatchObject({ phase: 'server_completed', attempts: 6 });
+    expect(fetchBoundary).not.toHaveBeenCalled();
+    expect(deletionNative.files.has(otherFile)).toBe(true);
   } finally {
-    confirmation.mockRestore();
+    purge.mockReset().mockResolvedValue(undefined);
   }
 });

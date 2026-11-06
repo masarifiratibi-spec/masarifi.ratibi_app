@@ -1,0 +1,17 @@
+# Saved confirmed deletion continuation on the same Android app
+
+The user explicitly requested one-confirmation deletion with no extra interactive verification, authorized finishing/updating Android, then supplied an actual screenshot complaint showing the retained code control. This narrow client repair completes that authorized scope. Prepare and verify this exact signed artifact before execution; retain actual authorization and manifest/artifact binding. No server, environment, schema, worker, model/provider or other account change. APIc84/current-session policy is already active; SSH/root console closed.
+
+Verify the manifest/source/signature/static/actual DEX/native equivalence pins. Before install, reconcile actual primary123 APK2e1..., user0/UID10321/original firstInstall, active current SDK/owner and the saved verification_required UI. Do not read/export the raw capability or clear its journal. Do not press Send verification code. Preserve all data, keys, pending work and session.
+
+Install124 once with ordinary adb install --user0 -r, same package/signer. Never uninstall, clear, force-stop, log out, create a profile/account/app or inject a private operation. On timeout inspect actual package/command receipt rather than replay. Verify exact124 APK hash, sameUID/firstInstall and authenticated owner/session.
+
+Open normally and navigate to More, scrolling only as needed. Observe saved-request text and Continue deletion, with no verification-code/send-code field or action. Do not auto-submit during startup. Read-only screenshots/UI trees remain private. User presses Continue deletion themselves: it resumes the already confirmed operation and capability through existing captured-owner checks. No new dialog or OTP. A different SDK owner must remain refused and its data retained.
+
+Observe that ONE original user request, without resend. Read scoped request/receipt status and actual phone outcome; local owner erasure requires completed server receipt and the same receipt/tracking revision guards. Do not equate202/processing with completed deletion or hide an error. If accepted completion revokes the user session, normal signed-out/first-launch UI is expected; do not create a replacement account or log in for them. Preserve other-owner data and app package/signing identity.
+
+Use a bounded screen-only observer, let it end naturally and retain its terminal receipt. No SMS/Voice/financial/model question fixtures or cold-launch performance campaign. Reuse unchanged API53/worker245/mobile native88 evidence. Previous real Assistant provider12.924s is not a speed improvement.
+
+If a client issue occurs, preserve journal/session/data and collect evidence. Do not downgrade a release by clearing data. Original signed123 remains retained as reference; a necessary rollback is a separately reviewed forward-version build, not a speculative extra APK. APIc84 remains unless actual server evidence requires its already reviewed rollback.
+
+Record actual acceptance separately and update English handoff/evidence; push only owned files to ratibi SAMEbranch, preserving inherited performance/private/untracked/iOS work. iOS is paused. Canonical delivery111/productionReadyfalse stay until broader gates pass. No extra APK/test/build repeat with unchanged inputs.

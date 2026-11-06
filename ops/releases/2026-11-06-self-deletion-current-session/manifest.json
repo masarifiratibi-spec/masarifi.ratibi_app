@@ -1,0 +1,126 @@
+{
+  "preparedAtUtc": "2026-11-06T20:45:56.369131+00:00",
+  "candidateSourceCommit": "d91b5b35abac828b72611431de57293ac8e04023",
+  "api": {
+    "atUtc": "2026-11-06T20:43:28.825125+00:00",
+    "sourceHead": "d91b5b35abac828b72611431de57293ac8e04023",
+    "baseImageId": "sha256:e3ddc1351fe3649b027e4dd726c125600f1c237bb449d85e764b975561b330b3",
+    "candidateImageId": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+    "candidateTag": "masarifi-task33-api:d91b5b35abac",
+    "archiveSha256": "f1854f65696adf10864000977ef0bbd45dffadc8a04026c6e7d63ff4a1e2b37d",
+    "overlayFilePins": {
+      "Dockerfile": "4ddda47dbf3ef0a406c42aceb8d96f7caa1f2eaf4d2198886cc04a1415e936f8",
+      "security/security.service.js": "3c8a17c30aab6b5b20fcd88ac2b1ce7b7976b3d531da2e750d1e8ae20827387e",
+      "security/security.controller.js": "f010dffb53c28ffbf470982a09971f6adc54dc325753234ae267c8ef0e40747a"
+    },
+    "changedExecutableFiles": [
+      "security/security.controller.js",
+      "security/security.service.js"
+    ],
+    "preservedExecutableFiles": 219,
+    "baseLayersPreserved": true,
+    "sameRuntimeImageConfig": true,
+    "isolatedSmoke": {
+      "currentSessionNoExtraFactorChallenge": true,
+      "ownerAndCapabilityBound": true,
+      "mutationKeyMandatory": true,
+      "foreignOwnerBodyRejected": true,
+      "unauthenticatedAndRevokedRejected": true,
+      "exportStepUpRetained": true,
+      "network": "none",
+      "noDatabaseProviderOrCredentials": true
+    },
+    "allServingContainersUnchanged": true,
+    "servingContainerCount": 31,
+    "servingApiRuntime": {
+      "composeFiles": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml,/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml,/var/tmp/masarifi-task30-artifacts-20261106/approved-execution/compose.api.yml",
+      "composeWorkingDirectory": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal",
+      "composeProject": "masarifi-production-20261105",
+      "environmentSha256": "a2715e6bc1871adc5e25ad5a378ab323d62cea28659222650d76daba2a904aac",
+      "portBindings": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3080"
+          }
+        ]
+      },
+      "networks": [
+        "masarifi-production-20261105_production-core"
+      ],
+      "restartPolicy": {
+        "Name": "unless-stopped",
+        "MaximumRetryCount": 0
+      },
+      "readOnlyRootfs": true,
+      "memory": 805306368,
+      "nanoCpus": 500000000
+    },
+    "artifactRoot": "/var/tmp/masarifi-task33-delete-session-20261106/candidate",
+    "activated": false,
+    "hostedInputFilePins": [
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml",
+        "sha256": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml",
+        "sha256": "2dce5e027413a3e8a0d3654e3baebf3e66c90e317340060d01d1454f17eeb42e"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/config/api.env",
+        "sha256": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389"
+      }
+    ],
+    "expectedCurrentContainerId": "ad1001547d10ebdca2f4fda7dfb220735ea965fa161f0b0b85af33ff3f6bb7d8",
+    "expectedCurrentStartedAt": "2026-11-06T17:12:34.020455472Z",
+    "baseTag": "masarifi-task33-api-base:e3ddc1351fe3"
+  },
+  "changedAndRetainedSource": [
+    {
+      "path": "apps/api/src/security/security.service.ts",
+      "sha256": "85aefa67db77f66bba0926b9e3951f2c079abad41b469c1d72226b3fbd328ee5"
+    },
+    {
+      "path": "apps/api/src/security/security.controller.ts",
+      "sha256": "7915ff58a2194dc67ec5957ca33830f2740883f656a94c753a257054a8b75749"
+    },
+    {
+      "path": "apps/api/test/unit/security/immediate-deletion.spec.ts",
+      "sha256": "03c4c0ae17c720148f551f5e7be77cc15de686d79da8eb619f3fa9d85745f520"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "03997412e2f58d112125b2802dcce50061a0fa8060f1e965ea6f51356e57a90e"
+    },
+    {
+      "path": "compose.api.yml",
+      "sha256": "94ef93c944803a7db5bd60b290caec0885f6f3b9b725ba4a56f5e7054097ccb6"
+    },
+    {
+      "path": "rollback-api.yml",
+      "sha256": "77387ebc2fe3adb62ed8fc4ce9d5a973b15217073aa51145cb404f05d8894dc1"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "4ddda47dbf3ef0a406c42aceb8d96f7caa1f2eaf4d2198886cc04a1415e936f8"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "d1794850fdc1584f04fd12ef1a8d9b96e9da7f958e504b1a4719f51e86c68cca"
+    }
+  ],
+  "reviewReport": {
+    "path": "docs/releases/2026-11-06-self-deletion-current-session.md",
+    "sha256": "78b8af301a62901338d80d18d52678e84207dc309b2c563370e3f27d4aa25826"
+  },
+  "latestUserInstructionNoExtraIdentityChallenge": true,
+  "ordinaryActiveClerkOwnerAuthenticationPreserved": true,
+  "sameInstalled123NoNewApk": true,
+  "noOriginalAccountDeletionByAgent": true,
+  "noEnvironmentSchemaModelWorkerDnsTlsChange": true,
+  "apiActivated": false,
+  "productionReady": false
+}

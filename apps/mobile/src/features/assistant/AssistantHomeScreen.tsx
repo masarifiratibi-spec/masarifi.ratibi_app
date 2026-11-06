@@ -553,7 +553,7 @@ function AssistantConversationContent({
   return (
     <View style={styles.container}>
       {/* 1. Rich Modern Conversation View (Reference 2) */}
-      <FinancialRefreshStatus query={page} />
+      {page.isError ? <FinancialRefreshStatus query={page} /> : null}
       <AssistantConversationView
         conversation={conversation}
         conversationId={conversationId}

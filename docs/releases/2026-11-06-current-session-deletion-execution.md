@@ -1,0 +1,7 @@
+# Current-session deletion API execution
+
+Exact reviewed API imagec84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470 activated6November20:49:06UTC, APIcontainer0af82270... replacesad100/e3. Effective Compose change image-only; all other30 services, environment/runtime/hosted inputs preserved. Loopback live/ready and publicTLS live pass; unauthenticated Assistant GET and self-deletion POST remain401. Originale3 base retained for reviewed rollback, not used. No schema/model/worker/environment/DNS/TLS or APK change.
+
+Access closed20:51:16UTC: exact task33 /32 rule removed, all four UFW files/metadata/status restored and root-console tab closed. Passive90s observation ended naturally0. No destructive POST from tools.
+
+User then reported the code control still visible. The requested screenshot shows the client's retained verification_required request with a Send verification code control. API change alone cannot replace that persisted UI state. This disproves the preparation assumption that123 alone would suffice for this user's pending request. API current-session policy remains active and correct in its isolated/health/auth-negative controls; completed original-account deletion is NOT accepted. Task34 updates the client to resume that exact saved operation/capability with the current captured owner session, without a code or new confirmation dialog. Existing owner guard remains. Do not clear its journal, log out or resubmit through external tools.

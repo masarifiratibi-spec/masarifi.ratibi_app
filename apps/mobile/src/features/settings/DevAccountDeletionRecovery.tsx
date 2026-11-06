@@ -10,6 +10,7 @@ import {
   subscribeAccountDeletion
 } from '@/services/dev-account-deletion';
 import { deletionRecoveryNetwork } from '@/services/platform/deletion-network';
+import { useStartupReady } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { useAppShellStore } from '@/state/app-shell';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 
@@ -55,24 +56,21 @@ export function DevAccountDeletionRecovery() {
           (entry) =>
             ![
               'completed',
-              'local_retry',
               'verification_required',
               'failed'
-            ].includes(entry.phase)
+            ].includes(entry.phase) &&
+            (entry.phase !== 'local_retry' || entry.automaticRetries)
         );
         const deadlines = pending
-          .filter((entry) => entry.automaticRetries)
+          .filter(
+            (entry) =>
+              entry.automaticRetries && (online || entry.phase === 'local_retry')
+          )
           .map((entry) => entry.nextAttemptAt);
-        if (!online && pending.length) schedule(15_000);
-        else if (deadlines.length)
+        if (deadlines.length)
           schedule(Math.max(1_000, Math.min(...deadlines) - Date.now()));
-        else if (
-          networkAvailable &&
-          (pending.length ||
-            getAccountDeletionSnapshots().some(
-              (entry) => entry.phase === 'local_retry'
-            ))
-        )
+        else if (!online && pending.length) schedule(15_000);
+        else if (networkAvailable && pending.length)
           schedule(15_000);
       } catch {
         if (!stopped) setStorageError(true);
@@ -99,11 +97,14 @@ export function DevAccountDeletionRecovery() {
     };
   }, [enabled]);
 
-  if (!enabled || ownerId) return null;
   const recoverable = snapshots.filter(
-    (entry) => !['deleting', 'completed'].includes(entry.phase)
+    (entry) => entry.phase !== 'completed'
   );
-  if (!recoverable.length && !storageError) return null;
+  const showRecovery =
+    enabled && !ownerId && (recoverable.length > 0 || storageError);
+  // A fenced owner cannot enter Home. Its recovery UI is the startup destination.
+  useStartupReady(showRecovery);
+  if (!showRecovery) return null;
   return (
     <View style={styles.recovery}>
       {storageError ? (

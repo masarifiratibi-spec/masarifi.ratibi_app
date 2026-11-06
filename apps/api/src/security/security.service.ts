@@ -72,7 +72,6 @@ const recentAuthOperations = new Set([
   'createSecurityIncident',
   'updateSecurityIncident',
   'createMyPrivacyExport',
-  'createMyDeletionRequest',
   'actOnPrivacyExport',
   'actOnDeletionRequest',
   'updateRetentionPolicy',
@@ -304,14 +303,9 @@ export class SecurityService {
       sessionDeletionOwner !== input.principal.userId
     )
       throw new HttpException({ code: 'FORBIDDEN' }, 403);
-    const scopedSessionDeletion =
-      input.operation === 'createMyDeletionRequest' &&
-      this.config.get('MASARIFI_PROCESS_KIND') === 'api' &&
-      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
-      this.config.get('MASARIFI_DELETION_COOLING_OFF_HOURS') === 0 &&
-      (this.config.get('MASARIFI_STAGING_SELF_DELETION_ENABLED') === true ||
-        sessionDeletionOwner === input.principal.userId);
-    if (recentAuthOperations.has(input.operation) && !scopedSessionDeletion) {
+    // Self deletion uses the active Clerk owner session and explicit confirmation.
+    // Factor-age step-up remains required for exports and privileged operations.
+    if (recentAuthOperations.has(input.operation)) {
       this.assertRecentAuth(input.principal);
     }
     if (requiredReasonOperations.has(input.operation) || body.reason !== undefined) {
