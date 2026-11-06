@@ -67,6 +67,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.masarifiratibi.com",
+        "EXPO_PUBLIC_APP_VARIANT": "production",
         "MASARIFI_IOS_AD_HOC": "true",
         "MASARIFI_PRODUCTION_API_ORIGIN": "https://api.masarifiratibi.com",
         "MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN": "clerk.staging.masarifiratibi.com",
