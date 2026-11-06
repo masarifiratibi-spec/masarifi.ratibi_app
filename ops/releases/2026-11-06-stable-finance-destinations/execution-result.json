@@ -1,0 +1,47 @@
+{
+  "status": "installed-navigation-observed-one-genuine-sms-pending",
+  "applicationSourceCommit": "a970978d2617d578dbee14a4562164790ae8b8d3",
+  "reviewedManifestSha256": "2024993168bb07d0c90b70af55c096240f13e8dce3bfecb4f1a2be595b7a11dd",
+  "installedVersionCode": 117,
+  "installedApkSha256": "529d8e1c1f9a4dbadd8ae0a94cebda736cdb9c48615fab75c92821550b5a0528",
+  "ordinaryOwner0UpdateSucceeded": true,
+  "originalUidAndFirstInstallTimePreserved": true,
+  "originalOwnerAndSdkSessionConfirmedAfterLaunchAndArming": true,
+  "threeFinanceDestinationsObserved": true,
+  "navigationSamples": [
+    {
+      "screen": "categories",
+      "inputDispatchedAtUtc": "2026-11-06T12:11:22.003641+00:00",
+      "firstReviewedFullStableFrameLocal": "2026-11-06T15:11:22.541+03:00",
+      "contactSheet": "task25-nav-categories-contact.private.jpg"
+    },
+    {
+      "screen": "salary",
+      "inputDispatchedAtUtc": "2026-11-06T12:11:43.768632+00:00",
+      "firstReviewedFullStableFrameLocal": "2026-11-06T15:11:44.193+03:00",
+      "contactSheet": "task25-nav-salary-contact.private.jpg"
+    },
+    {
+      "screen": "obligations",
+      "inputDispatchedAtUtc": "2026-11-06T12:12:06.350622+00:00",
+      "firstReviewedFullStableFrameLocal": "2026-11-06T15:12:06.821+03:00",
+      "contactSheet": "task25-nav-obligations-contact.private.jpg"
+    }
+  ],
+  "navigationTimingLimit": "One normal preloaded entry per destination. Host/phone clocks are not calibrated, contact sheets sample4fps and recording/UIAutomator add overhead. Not earliest-event precision, cold-read SLA, zero-jank proof or controlled speed comparison. Failed-read/denial behavior is source-tested, not artificially reproduced on the owner phone.",
+  "realSmsSpeedAccepted": false,
+  "smsFixtureStatus": "one-user-request-pending-no-posting-or-refund-yet",
+  "smsReference": "QA117SMSA20261106",
+  "smsAmountMinor": 367,
+  "existingQaTemporarilyDefault": true,
+  "qaTransactionsBeforeNewFixture": 32,
+  "qaNetMinorBeforeNewFixture": 0,
+  "smsActuallyEnabled": true,
+  "notificationIntakeEnabled": false,
+  "actualServerAutomaticAuthorityUnrevoked": true,
+  "fixtureCleanupAndOriginalDefaultSourceRestoration": "required-after-receipt-or-abandonment",
+  "canonicalDeliveryVersionCode": 111,
+  "canonicalDeliveryChanged": false,
+  "hostedServicesChanged": false,
+  "productionReady": false
+}
