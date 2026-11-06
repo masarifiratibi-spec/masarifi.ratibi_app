@@ -105,6 +105,29 @@ describe('Mobile strict HTTP client', () => {
       configureRecentAuthHandler();
     }
   });
+  it('leaves captured-owner recent authentication to the caller without replaying', async () => {
+    const request = jest.fn(async () =>
+      response(403, { code: 'RECENT_AUTH_REQUIRED' })
+    );
+    const recent = jest.fn(async () => 'different-session-token');
+    configureRecentAuthHandler(recent);
+    try {
+      await expect(
+        requestJson('/api/v1/me/deletion-requests', schema, {
+          baseUrl: 'https://inert.invalid',
+          token: 'captured-owner-token',
+          method: 'POST',
+          body: { confirmation: true },
+          request,
+          recentAuth: 'manual'
+        })
+      ).rejects.toMatchObject({ code: 'recent_auth_required' });
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(recent).not.toHaveBeenCalled();
+    } finally {
+      configureRecentAuthHandler();
+    }
+  });
   it('does not replay a cancelled or repeatedly rejected step-up', async () => {
     const request = jest.fn(async () =>
       response(403, { code: 'RECENT_AUTH_REQUIRED' })

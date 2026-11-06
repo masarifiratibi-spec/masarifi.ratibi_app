@@ -108,6 +108,26 @@ export function devPrivacyDeletionApiUrl(): string | null {
     : null;
 }
 
+export function accountDeletionCompletionApiUrl(): string | null {
+  const development = devPrivacyDeletionApiUrl();
+  if (development) return development;
+  if (
+    process.env.EXPO_PUBLIC_APP_VARIANT !== 'production' ||
+    !process.env.EXPO_PUBLIC_API_URL ||
+    !process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+  )
+    return null;
+  const runtime = resolveClientRuntime();
+  return runtime.mode === 'live' &&
+    runtime.apiUrl === 'https://api.masarifiratibi.com'
+    ? runtime.apiUrl
+    : null;
+}
+
+export function isAccountDeletionCompletionEnabled(): boolean {
+  return accountDeletionCompletionApiUrl() !== null;
+}
+
 export function isAppLockEnabled(
   environment: RuntimeEnvironment = bundledEnvironment(),
   runtime = {

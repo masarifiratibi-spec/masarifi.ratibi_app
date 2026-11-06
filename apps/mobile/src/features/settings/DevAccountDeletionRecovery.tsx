@@ -1,23 +1,23 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 
-import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
+import { isAccountDeletionCompletionEnabled } from '@/config/client-runtime';
 import { StyledText } from '@/components/StyledText';
 import {
-  getDevDeletionSnapshots,
-  hasPendingDevAccountDeletions,
-  reconcileDevAccountDeletions,
-  subscribeDevAccountDeletion
+  getAccountDeletionSnapshots,
+  hasPendingAccountDeletions,
+  reconcileAccountDeletions,
+  subscribeAccountDeletion
 } from '@/services/dev-account-deletion';
 import { deletionRecoveryNetwork } from '@/services/platform/deletion-network';
 import { useAppShellStore } from '@/state/app-shell';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 
 export function DevAccountDeletionRecovery() {
-  const enabled = isDevPrivacyDeletionEnabled();
+  const enabled = isAccountDeletionCompletionEnabled();
   const snapshots = useSyncExternalStore(
-    subscribeDevAccountDeletion,
-    getDevDeletionSnapshots
+    subscribeAccountDeletion,
+    getAccountDeletionSnapshots
   );
   const ownerId = useAppShellStore((state) => state.session?.userId);
   const [storageError, setStorageError] = React.useState(false);
@@ -42,16 +42,16 @@ export function DevAccountDeletionRecovery() {
         return;
       running = true;
       try {
-        if (!(await hasPendingDevAccountDeletions())) return;
+        if (!(await hasPendingAccountDeletions())) return;
         let online = true;
         if (networkAvailable) {
           online = await deletionRecoveryNetwork.isOnline();
           force ||= online && lastOnline === false;
           lastOnline = online;
         }
-        await reconcileDevAccountDeletions({ force, online });
+        await reconcileAccountDeletions({ force, online });
         if (!stopped) setStorageError(false);
-        const pending = getDevDeletionSnapshots().filter(
+        const pending = getAccountDeletionSnapshots().filter(
           (entry) =>
             ![
               'completed',
@@ -69,7 +69,7 @@ export function DevAccountDeletionRecovery() {
         else if (
           networkAvailable &&
           (pending.length ||
-            getDevDeletionSnapshots().some(
+            getAccountDeletionSnapshots().some(
               (entry) => entry.phase === 'local_retry'
             ))
         )
@@ -80,7 +80,7 @@ export function DevAccountDeletionRecovery() {
         running = false;
       }
     };
-    const unsubscribe = subscribeDevAccountDeletion(() => {
+    const unsubscribe = subscribeAccountDeletion(() => {
       if (!running) {
         clearTimeout(timer);
         void recover();
