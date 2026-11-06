@@ -65,6 +65,14 @@
       "extends": "production",
       "developmentClient": false,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.masarifiratibi.com",
+        "MASARIFI_IOS_AD_HOC": "true",
+        "MASARIFI_PRODUCTION_API_ORIGIN": "https://api.masarifiratibi.com",
+        "MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN": "clerk.staging.masarifiratibi.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuc3RhZ2luZy5tYXNhcmlmaXJhdGliaS5jb20k",
+        "MASARIFI_RELEASE_VERSION_NAME": "1.0.0"
+      },
       "ios": {
         "simulator": false
       }

@@ -9,6 +9,16 @@ const {
 
 module.exports = ({ config }) => {
   assertNormalBuildComposition(process.env, config);
+  // EAS CLI resolves profile env locally before setting EAS_BUILD_PROFILE.
+  const iosAdHoc = process.env.MASARIFI_IOS_AD_HOC === 'true';
+  if (
+    iosAdHoc &&
+    ((process.env.EAS_BUILD_PROFILE &&
+      process.env.EAS_BUILD_PROFILE !== 'ios-ad-hoc') ||
+      (process.env.EAS_BUILD_PLATFORM &&
+        process.env.EAS_BUILD_PLATFORM !== 'ios'))
+  )
+    throw new Error('iPhone Ad Hoc marker requires its own iOS profile');
   if (validateBenchmarkBuildEnvironment(process.env)) {
     return {
       ...config,
@@ -51,7 +61,10 @@ module.exports = ({ config }) => {
       'Privacy development requires its isolated Staging API, test key, variant and build profile'
     );
   if (!variant) {
-    if (['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)) {
+    if (
+      iosAdHoc ||
+      ['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)
+    ) {
       const version = process.env.MASARIFI_RELEASE_VERSION_NAME;
       if (!/^\d+\.\d+\.\d+$/.test(version ?? ''))
         throw new Error('Approved release version required');
