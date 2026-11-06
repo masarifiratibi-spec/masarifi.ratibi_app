@@ -9,16 +9,20 @@ import {
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { FormField } from '@/design-system/components/forms/FormField';
+import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
 import { spacing } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { translateDynamic as t } from '@/localization/i18n';
 import {
-  getDevDeletionSnapshots,
-  reconcileDevAccountDeletions,
-  submitDevAccountDeletion,
-  subscribeDevAccountDeletion
+  getAccountDeletionSnapshots,
+  reconcileAccountDeletions,
+  submitAccountDeletion,
+  subscribeAccountDeletion
 } from '@/services/dev-account-deletion';
+import { HttpError } from '@/services/live/http-client';
+import { startAccountDeletionVerification } from './account-deletion-auth';
 
 export function DevAccountDeletionPanel({
   ownerId,
@@ -30,19 +34,24 @@ export function DevAccountDeletionPanel({
   presentation?: 'default' | 'link';
 }) {
   const theme = useTheme();
+  const production = !isDevPrivacyDeletionEnabled();
   const direction = usePreferenceStore((state) => state.direction);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const snapshots = useSyncExternalStore(
-    subscribeDevAccountDeletion,
-    getDevDeletionSnapshots
+    subscribeAccountDeletion,
+    getAccountDeletionSnapshots
   );
   const snapshot = snapshots.find((entry) => entry.ownerId === ownerId);
   const [busy, setBusy] = React.useState(false);
   const [restored, setRestored] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [verification, setVerification] = React.useState<Awaited<
+    ReturnType<typeof startAccountDeletionVerification>
+  > | null>(null);
+  const [code, setCode] = React.useState('');
   React.useEffect(() => {
     let mounted = true;
-    void reconcileDevAccountDeletions()
+    void reconcileAccountDeletions()
       .catch(() => {
         if (mounted) setError('settings.deletion.error');
       })
@@ -60,8 +69,13 @@ export function DevAccountDeletionPanel({
     setError(null);
     try {
       await action();
-    } catch {
-      setError('settings.deletion.error');
+    } catch (failure) {
+      setError(
+        failure instanceof HttpError &&
+          failure.domainCode === 'DELETION_VERIFICATION_UNAVAILABLE'
+          ? 'settings.deletion.verificationUnavailable'
+          : 'settings.deletion.error'
+      );
     } finally {
       setBusy(false);
     }
@@ -70,13 +84,17 @@ export function DevAccountDeletionPanel({
   function confirm() {
     Alert.alert(
       t('appShell.security.deleteAccount'),
-      t('settings.deletion.dev.confirmation'),
+      t(
+        production
+          ? 'appShell.security.deleteAccount.confirmation'
+          : 'settings.deletion.dev.confirmation'
+      ),
       [
         { text: t('coreFinance.cancel'), style: 'cancel' },
         {
           text: t('settings.privacy.confirmRequest'),
           style: 'destructive',
-          onPress: () => void run(() => submitDevAccountDeletion(ownerId))
+          onPress: () => void run(() => submitAccountDeletion(ownerId))
         }
       ]
     );
@@ -88,11 +106,15 @@ export function DevAccountDeletionPanel({
   if (phase === 'completed') return null;
   const message =
     phase === 'rejected'
-      ? 'settings.deletion.dev.notAllowed'
+      ? production
+        ? 'settings.deletion.error'
+        : 'settings.deletion.dev.notAllowed'
       : phase === 'local_retry'
         ? 'settings.deletion.dev.localRetry'
         : phase === 'verification_required'
-          ? 'settings.deletion.dev.sessionRetry'
+          ? production
+            ? 'settings.deletion.recentAuth'
+            : 'settings.deletion.dev.sessionRetry'
           : phase === 'failed'
             ? 'settings.deletion.status.failed'
             : phase === 'unavailable'
@@ -140,9 +162,7 @@ export function DevAccountDeletionPanel({
             <StyledText>settings.deletion.dev.description</StyledText>
           ) : null}
           {message ? (
-            <StyledText accessibilityLiveRegion="polite">
-              {message}
-            </StyledText>
+            <StyledText accessibilityLiveRegion="polite">{message}</StyledText>
           ) : null}
           {error ? (
             <StyledText accessibilityRole="alert">{error}</StyledText>
@@ -173,15 +193,67 @@ export function DevAccountDeletionPanel({
               variant="secondary"
               loading={busy}
               onPress={() =>
-                void run(() => reconcileDevAccountDeletions({ force: true }))
+                void run(() => reconcileAccountDeletions({ force: true }))
               }
             />
           ) : null}
-          {phase === 'verification_required' || phase === 'rejected' ? (
+          {production && phase === 'verification_required' ? (
+            verification ? (
+              <>
+                <StyledText>
+                  {t('settings.deletion.codeSent', {
+                    destination: verification.safeIdentifier
+                  })}
+                </StyledText>
+                <FormField
+                  label="settings.deletion.code"
+                  variant="otp"
+                  value={code}
+                  onChangeText={setCode}
+                  autoComplete="one-time-code"
+                />
+                <ActionButton
+                  label="settings.deletion.verify"
+                  disabled={!code.trim()}
+                  loading={busy}
+                  onPress={() =>
+                    void run(async () => {
+                      try {
+                        await verification.verify(code.trim());
+                      } catch (failure) {
+                        if (
+                          failure instanceof HttpError &&
+                          failure.code === 'session_expired'
+                        )
+                          throw failure;
+                        setError('settings.deletion.verificationError');
+                        return;
+                      }
+                      setVerification(null);
+                      setCode('');
+                      await submitAccountDeletion(ownerId);
+                    })
+                  }
+                />
+              </>
+            ) : (
+              <ActionButton
+                label="settings.deletion.reverify"
+                loading={busy}
+                onPress={() =>
+                  void run(async () => {
+                    setVerification(
+                      await startAccountDeletionVerification(ownerId)
+                    );
+                  })
+                }
+              />
+            )
+          ) : phase === 'verification_required' || phase === 'rejected' ? (
             <ActionButton
               label="settings.deletion.retry"
               loading={busy}
-              onPress={() => void run(() => submitDevAccountDeletion(ownerId))}
+              onPress={() => void run(() => submitAccountDeletion(ownerId))}
             />
           ) : null}
         </>

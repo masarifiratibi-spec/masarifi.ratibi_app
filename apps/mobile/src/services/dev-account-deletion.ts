@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 import {
-  isDevPrivacyDeletionEnabled,
-  devPrivacyDeletionApiUrl
+  isAccountDeletionCompletionEnabled,
+  accountDeletionCompletionApiUrl
 } from '@/config/client-runtime';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
@@ -84,12 +84,13 @@ export function subscribeDevAccountDeletion(listener: () => void): () => void {
 
 export async function hasPendingDevAccountDeletions(): Promise<boolean> {
   return (
-    isDevPrivacyDeletionEnabled() && (await pendingDeletionOwners()).length > 0
+    isAccountDeletionCompletionEnabled() &&
+    (await pendingDeletionOwners()).length > 0
   );
 }
 
 export async function prepareDevDeletionBootstrap(): Promise<boolean> {
-  if (!isDevPrivacyDeletionEnabled()) return true;
+  if (!isAccountDeletionCompletionEnabled()) return true;
   const ownerId = await getLiveClerkOwnerId();
   if (!ownerId) return true;
   let retained: DeletionCompletionJournal | null = null;
@@ -168,7 +169,7 @@ function ownerFlight(
 }
 
 function requireRuntime(): string {
-  const apiUrl = devPrivacyDeletionApiUrl();
+  const apiUrl = accountDeletionCompletionApiUrl();
   if (!apiUrl) throw new HttpError('forbidden', 403);
   return apiUrl;
 }
@@ -212,6 +213,9 @@ async function deletionRequest<T>(
   try {
     const value = await requestJson(path, schema, {
       ...options,
+      // A deletion retry must reverify its captured owner/session in the panel;
+      // the generic global retry may belong to a newly active SDK session.
+      recentAuth: 'manual',
       baseUrl: requireRuntime(),
       request: async (url, init) => {
         const response = await fetch(url, init);
@@ -219,7 +223,10 @@ async function deletionRequest<T>(
         return response;
       }
     });
-    return { value, retryAfterAt: retryAfterMs ? Date.now() + retryAfterMs : 0 };
+    return {
+      value,
+      retryAfterAt: retryAfterMs ? Date.now() + retryAfterMs : 0
+    };
   } catch (failure) {
     throw new DeletionTransportFailure(
       failure instanceof HttpError
@@ -297,11 +304,11 @@ async function acceptReceipt(
     requestId: receipt.id,
     attempts,
     retryAfterAt,
-    nextAttemptAt:
-      Math.max(
-        Date.now() + Math.min(5_000, backoff[Math.min(attempts - 1, backoff.length - 1)]),
-        retryAfterAt
-      )
+    nextAttemptAt: Math.max(
+      Date.now() +
+        Math.min(5_000, backoff[Math.min(attempts - 1, backoff.length - 1)]),
+      retryAfterAt
+    )
   };
   await saveDeletionCompletion(next);
   const failed = receipt.status === 'failed' || receipt.status === 'cancelled';
@@ -475,13 +482,17 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
           }
         }
       );
-      await acceptReceipt(submitted, {
-        id: request.id,
-        status: request.status,
-        completedAt: request.completedAt,
-        errorCode: null,
-        version: request.version
-      }, retryAfterAt);
+      await acceptReceipt(
+        submitted,
+        {
+          id: request.id,
+          status: request.status,
+          completedAt: request.completedAt,
+          errorCode: null,
+          version: request.version
+        },
+        retryAfterAt
+      );
     } catch (failure) {
       if (!dispatched) {
         await saveDeletionCompletion({ ...journal, phase: 'prepared' });
@@ -494,7 +505,7 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
 export async function reconcileDevAccountDeletions(
   options: { force?: boolean; online?: boolean } = {}
 ): Promise<void> {
-  if (!isDevPrivacyDeletionEnabled()) return;
+  if (!isAccountDeletionCompletionEnabled()) return;
   const owners = await pendingDeletionOwners();
   if (owners.length) discardPriorCompletion(owners);
   for (const ownerId of owners) {
@@ -517,3 +528,13 @@ export async function reconcileDevAccountDeletions(
     });
   }
 }
+
+// Keep the existing development callers on the same durable receipt engine.
+export {
+  getDevDeletionSnapshots as getAccountDeletionSnapshots,
+  subscribeDevAccountDeletion as subscribeAccountDeletion,
+  hasPendingDevAccountDeletions as hasPendingAccountDeletions,
+  prepareDevDeletionBootstrap as prepareAccountDeletionBootstrap,
+  submitDevAccountDeletion as submitAccountDeletion,
+  reconcileDevAccountDeletions as reconcileAccountDeletions
+};

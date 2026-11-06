@@ -45,6 +45,7 @@ type RequestOptions<T> = Omit<RequestInit, 'body'> & {
   request?: typeof fetch;
   timeoutMs?: number;
   token?: string;
+  recentAuth?: 'automatic' | 'manual';
 };
 
 const SAFE_MESSAGES: Record<HttpErrorCode, string> = {
@@ -144,6 +145,7 @@ export async function requestJson<T>(
     if (
       !(error instanceof HttpError) ||
       error.code !== 'recent_auth_required' ||
+      options.recentAuth === 'manual' ||
       !recentAuthHandler ||
       options.signal?.aborted
     )

@@ -19,7 +19,10 @@ import {
   saveAccountDeletionRequestId
 } from '@/services/account-deletion-journal';
 import { startAccountDeletionVerification } from './account-deletion-auth';
-import { isDevPrivacyDeletionEnabled } from '@/config/client-runtime';
+import {
+  isAccountDeletionCompletionEnabled,
+  isDevPrivacyDeletionEnabled
+} from '@/config/client-runtime';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 import { useTheme } from '@/state/theme-context';
 
@@ -197,6 +200,11 @@ function OwnedAccountDeletionPanel({
     (status === 'requested' || status === 'verified') &&
     request?.coolingOffEndsAt !== undefined &&
     Date.now() < request.coolingOffEndsAt;
+
+  if (restored && canRequest && isAccountDeletionCompletionEnabled())
+    return (
+      <DevAccountDeletionPanel ownerId={ownerId} presentation={presentation} />
+    );
 
   return (
     <View style={styles.stack}>

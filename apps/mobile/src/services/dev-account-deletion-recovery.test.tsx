@@ -56,6 +56,9 @@ let clerkOwner: string | null;
 const fetchBoundary = jest.fn();
 const sdkToken = jest.fn(async () => 'sdk_fresh_token');
 const sdkSignOut = jest.fn(async (): Promise<void> => undefined);
+const originalAppStateListener = jest.isMockFunction(AppState.addEventListener)
+  ? jest.mocked(AppState.addEventListener).getMockImplementation()
+  : undefined;
 const request = {
   id: 'dd7b8232-9442-489f-8a4d-4e9e3c3e9386',
   status: 'completed',
@@ -67,11 +70,16 @@ const request = {
 };
 function successful(payload: unknown, status = 200): Response {
   return {
-    ok: true,
+    ok: status >= 200 && status < 300,
     status,
     json: async () => payload,
     headers: new Headers()
   } as Response;
+}
+function productionRuntime() {
+  process.env.EXPO_PUBLIC_APP_VARIANT = 'production';
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.masarifiratibi.com';
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_bWFzYXJpZmkudGVzdCQ';
 }
 function session(ownerId: string | null) {
   useAppShellStore.setState({
@@ -102,6 +110,13 @@ function Runtime({
   );
 }
 beforeEach(async () => {
+  if (
+    originalAppStateListener &&
+    jest.isMockFunction(AppState.addEventListener)
+  )
+    jest
+      .mocked(AppState.addEventListener)
+      .mockImplementation(originalAppStateListener);
   process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
   process.env.EXPO_PUBLIC_APP_VARIANT = 'staging-development-privacy';
   process.env.EXPO_PUBLIC_API_URL =
@@ -149,205 +164,342 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
 
-test.each(['staging-development-privacy', undefined])('shows confirmation and progress without another OTP, then cleans up the deleted owner (%s)', async (variant) => {
-  if (variant === undefined) {
-    delete process.env.EXPO_PUBLIC_APP_VARIANT;
-    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com';
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_bWFzYXJpZmkudGVzdCQ';
+test.each(['staging-development-privacy', undefined, 'production'])(
+  'keeps confirmed deletion receipt-backed through SDK revocation and cleanup (%s)',
+  async (variant) => {
+    if (variant === undefined) {
+      delete process.env.EXPO_PUBLIC_APP_VARIANT;
+      process.env.EXPO_PUBLIC_API_URL =
+        'https://api.staging.masarifiratibi.com';
+      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+        'pk_live_bWFzYXJpZmkudGVzdCQ';
+    }
+    if (variant === 'production') {
+      productionRuntime();
+    }
+    const owner =
+      variant === 'production'
+        ? 'user_production_revoked'
+        : variant === undefined
+          ? 'user_ordinary_revoked'
+          : 'user_native_revoked';
+    clerkOwner = owner;
+    session(owner);
+    const ownerFile = seedDeletedOwner(owner);
+    let finishPost!: (response: Response) => void;
+    fetchBoundary.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishPost = resolve;
+        })
+    );
+    const confirmation = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation(() => undefined);
+    render(<Runtime presentation="link" />);
+    const deleteButton = await screen.findByRole('button', {
+      name: t('appShell.security.deleteAccount')
+    });
+    await waitFor(() => expect(deleteButton).toBeEnabled());
+    expect(deleteButton).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(
+      screen.queryByText(t('settings.deletion.dev.description'))
+    ).toBeNull();
+    expect(
+      screen.queryByText(t('settings.deletion.retentionNotice'))
+    ).toBeNull();
+    fireEvent.press(deleteButton);
+    expect(confirmation).toHaveBeenCalledWith(
+      t('appShell.security.deleteAccount'),
+      t(
+        variant === 'production'
+          ? 'appShell.security.deleteAccount.confirmation'
+          : 'settings.deletion.dev.confirmation'
+      ),
+      expect.any(Array)
+    );
+    await act(async () => {
+      confirmation.mock.calls[0][2]
+        ?.find((button) => button.style === 'destructive')
+        ?.onPress?.();
+    });
+    await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(fetchBoundary.mock.calls[0][1].body)).toMatchObject({
+      confirmation: 'DELETE_MY_ACCOUNT',
+      completionToken: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
+    expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+    expect(
+      screen.queryByText(t('settings.deletion.dev.deleting'), {
+        includeHiddenElements: true
+      })
+    ).toBeNull();
+    if (variant === undefined)
+      expect(fetchBoundary.mock.calls[0][0]).toBe(
+        'https://api.staging.masarifiratibi.com/account-deletion/api/v1/me/deletion-requests'
+      );
+    if (variant === 'production')
+      expect(fetchBoundary.mock.calls[0][0]).toBe(
+        'https://api.masarifiratibi.com/api/v1/me/deletion-requests'
+      );
+    expect(sdkToken).toHaveBeenCalledWith({ skipCache: true });
+    expect((await loadDeletionCompletion(owner))?.phase).toBe('submitted');
+    await act(async () => {
+      clerkOwner = null;
+      session(null);
+      finishPost(successful(request, 202));
+    });
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
+    expect(deletionNative.files.has(ownerFile)).toBe(false);
+    expect(await loadDeletionCompletion(owner)).toBeNull();
+    confirmation.mockRestore();
   }
-  const owner = variant === undefined ? 'user_ordinary_revoked' : 'user_native_revoked';
-  clerkOwner = owner;
-  session(owner);
-  const ownerFile = seedDeletedOwner(owner);
-  let finishPost!: (response: Response) => void;
-  fetchBoundary.mockImplementationOnce(
-    () =>
-      new Promise<Response>((resolve) => {
-        finishPost = resolve;
-      })
-  );
-  const confirmation = jest
-    .spyOn(Alert, 'alert')
-    .mockImplementation(() => undefined);
-  render(<Runtime presentation="link" />);
-  const deleteButton = await screen.findByRole('button', {
-    name: t('appShell.security.deleteAccount')
-  });
-  await waitFor(() => expect(deleteButton).toBeEnabled());
-  expect(deleteButton).toHaveStyle({ backgroundColor: 'transparent' });
-  expect(screen.queryByText(t('settings.deletion.dev.description'))).toBeNull();
-  expect(screen.queryByText(t('settings.deletion.retentionNotice'))).toBeNull();
-  fireEvent.press(deleteButton);
-  expect(confirmation).toHaveBeenCalledWith(
-    t('appShell.security.deleteAccount'),
-    t('settings.deletion.dev.confirmation'),
-    expect.any(Array)
-  );
-  await act(async () => {
-    confirmation.mock.calls[0][2]
-      ?.find((button) => button.style === 'destructive')
-      ?.onPress?.();
-  });
-  expect(screen.getByRole('progressbar')).toBeOnTheScreen();
-  expect(screen.queryByText(t('settings.deletion.dev.deleting'), { includeHiddenElements: true })).toBeNull();
-  await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
-  if (variant === undefined)
-    expect(fetchBoundary.mock.calls[0][0]).toBe('https://api.staging.masarifiratibi.com/account-deletion/api/v1/me/deletion-requests');
-  expect(sdkToken).toHaveBeenCalledWith({ skipCache: true });
-  expect((await loadDeletionCompletion(owner))?.phase).toBe('submitted');
-  await act(async () => {
+);
+
+test.each(['development', 'production'])(
+  'recovers a persisted capability signed out without a Clerk token or POST (%s)',
+  async (variant) => {
+    if (variant === 'production') productionRuntime();
+    const owner = `user_cold_recovery_${variant}`;
     clerkOwner = null;
     session(null);
-    finishPost(successful(request, 202));
-  });
-  await waitFor(async () =>
-    expect(await loadDeletionCompletion(owner)).toBeNull()
-  );
-  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
-  expect(deletionNative.files.has(ownerFile)).toBe(false);
-  expect(await loadDeletionCompletion(owner)).toBeNull();
-  confirmation.mockRestore();
-});
-
-test('relaunches signed out and recovers a persisted capability without obtaining a Clerk token or posting again', async () => {
-  const owner = 'user_cold_recovery';
-  clerkOwner = null;
-  session(null);
-  const ownerFile = seedDeletedOwner(owner);
-  await saveDeletionCompletion({
-    ownerId: owner,
-    operationId: 'e19e67d3-467d-4319-a410-b643532e4bb4',
-    completionToken: 'd'.repeat(64),
-    phase: 'submitted',
-    requestId: null,
-    completedAt: null,
-    attempts: 0,
-    nextAttemptAt: 0,
-    retryAfterAt: 0
-  });
-  fetchBoundary.mockResolvedValueOnce(
-    successful({
-      id: request.id,
-      status: 'completed',
-      completedAt: request.completedAt,
-      errorCode: null,
-      version: 3
-    })
-  );
-  render(<Runtime />);
-  await waitFor(async () =>
-    expect(await loadDeletionCompletion(owner)).toBeNull()
-  );
-  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
-  expect(fetchBoundary).toHaveBeenCalledTimes(1);
-  expect(fetchBoundary.mock.calls[0][1].method).toBe('GET');
-  expect(fetchBoundary.mock.calls[0][1].headers.Authorization).toBe(
-    `Bearer ${'d'.repeat(64)}`
-  );
-  expect(sdkToken).not.toHaveBeenCalled();
-  expect(deletionNative.files.has(ownerFile)).toBe(false);
-});
-
-test('the SDK signs out only the captured old session when another owner becomes active during cleanup', async () => {
-  const owner = 'user_switch_during_sdk';
-  const other = 'user_kept_during_sdk';
-  clerkOwner = owner;
-  session(owner);
-  const otherFile = seedDeletedOwner(other);
-  let releaseSdk!: () => void;
-  sdkSignOut.mockImplementationOnce(
-    () =>
-      new Promise<void>((resolve) => {
-        releaseSdk = resolve;
-      })
-  );
-  fetchBoundary.mockResolvedValueOnce(successful(request, 202));
-  const confirmation = jest
-    .spyOn(Alert, 'alert')
-    .mockImplementation((_title, _body, buttons) => {
-      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    const ownerFile = seedDeletedOwner(owner);
+    await saveDeletionCompletion({
+      ownerId: owner,
+      operationId: 'e19e67d3-467d-4319-a410-b643532e4bb4',
+      completionToken: 'd'.repeat(64),
+      phase: 'submitted',
+      requestId: null,
+      completedAt: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
     });
-  const runtime = render(<Runtime />);
-  const deleteButton = await screen.findByRole('button', {
-    name: t('appShell.security.deleteAccount')
-  });
-  await waitFor(() => expect(deleteButton).toBeEnabled());
-  fireEvent.press(deleteButton);
-  await waitFor(() =>
-    expect(sdkSignOut).toHaveBeenCalledWith({ sessionId: `session_${owner}` })
-  );
-  await act(async () => {
-    clerkOwner = other;
-    session(other);
-    runtime.rerender(<Runtime />);
-    releaseSdk();
-  });
-  await waitFor(async () =>
-    expect(await loadDeletionCompletion(owner)).toBeNull()
-  );
-  expect(useAppShellStore.getState().session?.userId).toBe(other);
-  expect(deletionNative.files.has(otherFile)).toBe(true);
-  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
-  confirmation.mockRestore();
-});
+    fetchBoundary.mockResolvedValueOnce(
+      successful({
+        id: request.id,
+        status: 'completed',
+        completedAt: request.completedAt,
+        errorCode: null,
+        version: 3
+      })
+    );
+    render(<Runtime />);
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
+    expect(fetchBoundary).toHaveBeenCalledTimes(1);
+    expect(fetchBoundary.mock.calls[0][1].method).toBe('GET');
+    expect(fetchBoundary.mock.calls[0][1].headers.Authorization).toBe(
+      `Bearer ${'d'.repeat(64)}`
+    );
+    expect(sdkToken).not.toHaveBeenCalled();
+    expect(deletionNative.files.has(ownerFile)).toBe(false);
+  }
+);
 
-test('foreground activation recovers a lost response after Clerk revocation without a new POST', async () => {
-  const owner = 'user_resume_on_foreground';
+test.each(['development', 'production'])(
+  'preserves another owner and SDK session during captured-owner cleanup (%s)',
+  async (variant) => {
+    if (variant === 'production') productionRuntime();
+    const owner = `user_switch_during_sdk_${variant}`;
+    const other = `user_kept_during_sdk_${variant}`;
+    clerkOwner = owner;
+    session(owner);
+    const otherFile = seedDeletedOwner(other);
+    let releaseSdk!: () => void;
+    sdkSignOut.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseSdk = resolve;
+        })
+    );
+    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+    const confirmation = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _body, buttons) => {
+        buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+      });
+    const runtime = render(<Runtime />);
+    const deleteButton = await screen.findByRole('button', {
+      name: t('appShell.security.deleteAccount')
+    });
+    await waitFor(() => expect(deleteButton).toBeEnabled());
+    fireEvent.press(deleteButton);
+    await waitFor(() =>
+      expect(sdkSignOut).toHaveBeenCalledWith({ sessionId: `session_${owner}` })
+    );
+    await act(async () => {
+      clerkOwner = other;
+      session(other);
+      runtime.rerender(<Runtime />);
+      releaseSdk();
+    });
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(useAppShellStore.getState().session?.userId).toBe(other);
+    expect(deletionNative.files.has(otherFile)).toBe(true);
+    expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
+    confirmation.mockRestore();
+  }
+);
+
+test.each(['development', 'production'])(
+  'recovers a lost response after SDK revocation on foreground without another POST (%s)',
+  async (variant) => {
+    if (variant === 'production') productionRuntime();
+    const owner = `user_resume_on_foreground_${variant}`;
+    clerkOwner = owner;
+    session(owner);
+    const appStateListeners = new Set<(state: AppStateStatus) => void>();
+    const appState = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        appStateListeners.add(listener);
+        return {
+          remove: () => {
+            appStateListeners.delete(listener);
+          }
+        };
+      });
+    const logs = jest
+      .spyOn(console, 'info')
+      .mockImplementation(() => undefined);
+    const confirmation = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _body, buttons) => {
+        buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+      });
+    fetchBoundary.mockRejectedValueOnce(
+      new TypeError('connection lost after sending')
+    );
+    render(<Runtime />);
+    const deleteButton = await screen.findByRole('button', {
+      name: t('appShell.security.deleteAccount')
+    });
+    await waitFor(() => expect(deleteButton).toBeEnabled());
+    fireEvent.press(deleteButton);
+    await screen.findByText(t('settings.deletion.error'));
+    await act(async () => {
+      clerkOwner = null;
+      session(null);
+    });
+    fetchBoundary.mockResolvedValueOnce(
+      successful({
+        id: request.id,
+        status: 'completed',
+        completedAt: request.completedAt,
+        errorCode: null,
+        version: 3
+      })
+    );
+    await act(async () => {
+      appStateListeners.forEach((listener) => listener('active'));
+    });
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
+    expect(fetchBoundary.mock.calls.map(([, init]) => init.method)).toEqual([
+      'POST',
+      'GET'
+    ]);
+    expect(sdkToken).toHaveBeenCalledTimes(1);
+    appState.mockRestore();
+    logs.mockRestore();
+    confirmation.mockRestore();
+  }
+);
+
+test('production recent-auth refusal keeps the receipt and payload until same-session verification succeeds', async () => {
+  productionRuntime();
+  const owner = 'user_production_reverification';
   clerkOwner = owner;
   session(owner);
-  const appStateListeners = new Set<(state: AppStateStatus) => void>();
-  const appState = jest
-    .spyOn(AppState, 'addEventListener')
-    .mockImplementation((_type, listener) => {
-      appStateListeners.add(listener);
-      return {
-        remove: () => {
-          appStateListeners.delete(listener);
+  const ownerFile = seedDeletedOwner(owner);
+  const sdkSession = {
+    id: `session_${owner}`,
+    status: 'active',
+    lastActiveAt: new Date(Date.now() - 1_000),
+    expireAt: new Date(Date.now() + 60_000),
+    startVerification: jest.fn().mockResolvedValue({
+      supportedFirstFactors: [
+        {
+          strategy: 'email_code',
+          emailAddressId: 'email-a',
+          safeIdentifier: 'q***@example.test'
         }
-      };
-    });
-  const logs = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+      ]
+    }),
+    prepareFirstFactorVerification: jest
+      .fn()
+      .mockResolvedValue({ status: 'needs_first_factor' }),
+    attemptFirstFactorVerification: jest
+      .fn()
+      .mockResolvedValueOnce({ status: 'needs_first_factor' })
+      .mockResolvedValue({ status: 'complete' }),
+    getToken: sdkToken
+  };
+  (getClerkInstance as jest.Mock).mockImplementation(() => ({
+    user: { id: owner },
+    session: sdkSession,
+    status: 'ready',
+    on: () => undefined,
+    off: () => undefined
+  }));
+  fetchBoundary.mockResolvedValueOnce(
+    successful({ code: 'RECENT_AUTH_REQUIRED' }, 403)
+  );
   const confirmation = jest
     .spyOn(Alert, 'alert')
     .mockImplementation((_title, _body, buttons) => {
       buttons?.find((button) => button.style === 'destructive')?.onPress?.();
     });
-  fetchBoundary.mockRejectedValueOnce(
-    new TypeError('connection lost after sending')
-  );
-  render(<Runtime />);
-  const deleteButton = await screen.findByRole('button', {
-    name: t('appShell.security.deleteAccount')
-  });
-  await waitFor(() => expect(deleteButton).toBeEnabled());
-  fireEvent.press(deleteButton);
-  await screen.findByText(t('settings.deletion.error'));
-  await act(async () => {
-    clerkOwner = null;
-    session(null);
-  });
-  fetchBoundary.mockResolvedValueOnce(
-    successful({
-      id: request.id,
-      status: 'completed',
-      completedAt: request.completedAt,
-      errorCode: null,
-      version: 3
-    })
-  );
-  await act(async () => {
-    appStateListeners.forEach((listener) => listener('active'));
-  });
-  await waitFor(async () =>
-    expect(await loadDeletionCompletion(owner)).toBeNull()
-  );
-  expect(screen.queryByText(t('settings.deletion.dev.completed'))).toBeNull();
-  expect(fetchBoundary.mock.calls.map(([, init]) => init.method)).toEqual([
-    'POST',
-    'GET'
-  ]);
-  expect(sdkToken).toHaveBeenCalledTimes(1);
-  appState.mockRestore();
-  logs.mockRestore();
-  confirmation.mockRestore();
+  try {
+    render(<Runtime />);
+    const button = await screen.findByRole('button', {
+      name: t('appShell.security.deleteAccount')
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.press(button);
+    const reverify = await screen.findByRole('button', {
+      name: t('settings.deletion.reverify')
+    });
+    const retained = await loadDeletionCompletion(owner);
+    expect(retained?.phase).toBe('verification_required');
+    expect(deletionNative.files.has(ownerFile)).toBe(true);
+    expect(sdkSignOut).not.toHaveBeenCalled();
+    fireEvent.press(reverify);
+    const code = await screen.findByLabelText(t('settings.deletion.code'));
+    fireEvent.changeText(code, '111111');
+    fireEvent.press(
+      screen.getByRole('button', { name: t('settings.deletion.verify') })
+    );
+    await screen.findByText(t('settings.deletion.verificationError'));
+    expect(fetchBoundary).toHaveBeenCalledTimes(1);
+    expect(deletionNative.files.has(ownerFile)).toBe(true);
+    fetchBoundary.mockResolvedValueOnce(successful(request, 202));
+    fireEvent.changeText(code, '222222');
+    fireEvent.press(
+      screen.getByRole('button', { name: t('settings.deletion.verify') })
+    );
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(fetchBoundary.mock.calls[1][1].headers['Idempotency-Key']).toBe(
+      retained?.operationId
+    );
+    expect(
+      JSON.parse(fetchBoundary.mock.calls[1][1].body).completionToken
+    ).toBe(retained?.completionToken);
+    expect(confirmation).toHaveBeenCalledTimes(1);
+    expect(deletionNative.files.has(ownerFile)).toBe(false);
+  } finally {
+    confirmation.mockRestore();
+  }
 });

@@ -14,11 +14,11 @@ import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import {
-  isDevPrivacyDeletionEnabled,
+  isAccountDeletionCompletionEnabled,
   isBenchmarkReadOnly,
   resolveClientMode
 } from '@/config/client-runtime';
-import { prepareDevDeletionBootstrap } from '@/services/dev-account-deletion';
+import { prepareAccountDeletionBootstrap } from '@/services/dev-account-deletion';
 import { authService } from '@/features/auth/auth-flow';
 import { restoreAppShellSession } from '@/features/auth/session-controller';
 import { HttpError } from '@/services/live/http-client';
@@ -130,8 +130,8 @@ function useLiveShellRestoration(localHydration: {
         await localHydration.current;
         if (!current) return;
         if (
-          isDevPrivacyDeletionEnabled() &&
-          !(await prepareDevDeletionBootstrap())
+          isAccountDeletionCompletionEnabled() &&
+          !(await prepareAccountDeletionBootstrap())
         )
           return;
         if (!current) return;
@@ -252,7 +252,7 @@ export function AppShellProvider({
       liveClerkSessionKey &&
       restoredCompletion?.sessionKey === liveClerkSessionKey &&
       restoredCompletion.revision === bootstrapRevision &&
-      (!isDevPrivacyDeletionEnabled() ||
+      (!isAccountDeletionCompletionEnabled() ||
         useAppShellStore.getState().session?.status === 'authenticated')
     ) {
       const restored = useAppShellStore.getState();
@@ -360,7 +360,7 @@ export function AppShellProvider({
         state === 'active' &&
         resolveClientMode() === 'live' &&
         liveClerkSessionKey &&
-        (!isDevPrivacyDeletionEnabled() ||
+        (!isAccountDeletionCompletionEnabled() ||
           useAppShellStore.getState().session?.status === 'authenticated')
       ) {
         void authService.touchActivity().catch(() => undefined);
