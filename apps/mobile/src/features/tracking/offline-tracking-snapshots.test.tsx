@@ -3,6 +3,9 @@ import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { automaticTrackingService } from '@/services/automatic-tracking-service';
+import * as trackingPermission from '@/services/platform/tracking-permission-service';
+import { permissionState } from '@/services/mocks/tracking-permission-service';
+import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
 import { TrackingStatusScreen } from './TrackingStatusScreen';
 import { TrackingHistoryList } from './TrackingHistoryList';
 import { ReviewDetail } from './ReviewDetail';
@@ -41,13 +44,11 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 it('keeps history visible and reports a failed clear without an unhandled action or false success', async () => {
-  jest
-    .mocked(queries.useTrackingHistory)
-    .mockReturnValue({
-      ...snapshot({ items: [], nextCursor: null, total: 0 }),
-      isError: false,
-      error: null
-    } as never);
+  jest.mocked(queries.useTrackingHistory).mockReturnValue({
+    ...snapshot({ items: [], nextCursor: null, total: 0 }),
+    isError: false,
+    error: null
+  } as never);
   jest
     .spyOn(automaticTrackingService, 'clearHistory')
     .mockRejectedValue(Error('connection lost'));
@@ -93,7 +94,7 @@ it.each(['ar', 'en'] as const)(
   }
 );
 
-it('shows a saved status snapshot without allowing it to authorize source configuration', () => {
+it('keeps saved status controls usable but rechecks native permission before activation', async () => {
   jest.mocked(queries.useTrackingStatus).mockReturnValue(
     snapshot({
       platform: 'android',
@@ -113,13 +114,28 @@ it('shows a saved status snapshot without allowing it to authorize source config
       lastUpdatedAt: 100
     }) as never
   );
+  const readPermission = jest.fn(async () => permissionState('unavailable'));
+  jest
+    .spyOn(trackingPermission, 'createTrackingPermissionService')
+    .mockReturnValue({
+      getState: readPermission,
+      requestAfterEducation: jest.fn(async () =>
+        permissionState('unavailable')
+      ),
+      openSettings: jest.fn(async () => undefined)
+    });
   const setMode = jest.spyOn(automaticTrackingService, 'setMode');
+  const setSource = jest.spyOn(trackingSourcePreferences, 'set');
   const view = renderWithProviders(<TrackingStatusScreen />);
   expect(view.getByTestId('tracking-status-screen')).toBeTruthy();
   const controls = view.getAllByRole('switch');
-  controls.forEach((control) => expect(control).toBeDisabled());
-  controls.forEach((control) => fireEvent.press(control));
+  controls.forEach((control) => expect(control).toBeEnabled());
+  await act(async () =>
+    fireEvent.press(view.getByTestId('tracking-sms-switch'))
+  );
+  await waitFor(() => expect(readPermission).toHaveBeenCalled());
   expect(setMode).not.toHaveBeenCalled();
+  expect(setSource).not.toHaveBeenCalledWith('sms', true);
   view.unmount();
 });
 

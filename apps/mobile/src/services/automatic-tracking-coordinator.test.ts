@@ -518,6 +518,104 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  it('prepares owned prerequisites while status is pending without capturing or submitting early', async () => {
+    const accounts = jest.fn(async () => [ownerAccount]);
+    const context = setup({ listAccounts: accounts });
+    const submit = jest.fn(async () => session('complete'));
+    const prepareSubmission = jest.fn(async () => submit);
+    const readRules = jest.fn(async () => ({
+      snapshot: defaultSnapshot,
+      keywords: [],
+      senders: []
+    }));
+    let finishStatus!: (value: TrackingStatusSnapshot) => void;
+    context.tracking.getStatus.mockReturnValue(
+      new Promise((resolve) => {
+        finishStatus = resolve;
+      })
+    );
+    Object.assign(context.tracking, {
+      prepareImportSubmission: prepareSubmission,
+      getRuleConfiguration: readRules
+    });
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(prepareSubmission).toHaveBeenCalledWith('owner-1');
+      expect(accounts).toHaveBeenCalledTimes(1);
+      expect(context.inbox.readRecent).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
+      expect(readRules).not.toHaveBeenCalled();
+    } finally {
+      finishStatus(status());
+      await sync;
+    }
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(readRules).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards prepared prerequisites if the owner changes while status is pending', async () => {
+    let owner = 'owner-1';
+    const context = setup({
+      session: () => ({ status: 'authenticated', userId: owner })
+    });
+    const submit = jest.fn(async () => session('complete'));
+    const prepareSubmission = jest.fn(async () => submit);
+    let finishStatus!: (value: TrackingStatusSnapshot) => void;
+    context.tracking.getStatus.mockReturnValue(
+      new Promise((resolve) => {
+        finishStatus = resolve;
+      })
+    );
+    Object.assign(context.tracking, {
+      prepareImportSubmission: prepareSubmission
+    });
+    const sync = context.coordinator.sync();
+    try {
+      for (let turn = 0; turn < 100; turn++) await Promise.resolve();
+      expect(prepareSubmission).toHaveBeenCalledWith('owner-1');
+      owner = 'owner-2';
+    } finally {
+      finishStatus(status());
+      await sync;
+    }
+    expect((await sync).status).toBe('error');
+    expect(context.inbox.readRecent).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+    expect(context.tracking.submitImport).not.toHaveBeenCalled();
+  });
+
+  it('observes a server commit after the original short window without another native wake', async () => {
+    const startedAt = Date.now();
+    let elapsed = 0;
+    const clock = jest
+      .spyOn(Date, 'now')
+      .mockImplementation(() => startedAt + elapsed);
+    const onSaved = jest.fn(async () => true);
+    const followUp = jest.fn(async () => undefined);
+    const context = setup({
+      onSaved,
+      scheduleFollowUp: followUp,
+      waitForImport: async (milliseconds: number) => {
+        elapsed += milliseconds;
+      }
+    });
+    context.tracking.getImportSession.mockImplementation(async () => {
+      elapsed += 400;
+      return session(elapsed >= 1450 ? 'complete' : 'processing');
+    });
+    try {
+      expect((await context.coordinator.sync()).status).toBe('imported');
+      expect(onSaved).toHaveBeenCalledWith('owner-1', 'session-1');
+      expect(followUp).not.toHaveBeenCalled();
+      expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
+      expect(context.tracking.getImportSession).toHaveBeenCalledTimes(3);
+      expect(elapsed).toBeLessThanOrEqual(2000);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it('prepares fresh import identity alongside configuration and uses it only after capture is authorized', async () => {
     let resolveRules!: (value: unknown) => void;
     const rules = new Promise((resolve) => {
@@ -647,8 +745,8 @@ describe('automatic tracking coordinator', () => {
     const context = setup({ waitForImport: pause, scheduleFollowUp: followUp });
     expect((await context.coordinator.sync()).status).toBe('processing');
     expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
-    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(3);
-    expect(pause).toHaveBeenCalledTimes(2);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(5);
+    expect(pause).toHaveBeenCalledTimes(4);
     expect(followUp).toHaveBeenCalledTimes(1);
     expect((await context.queue.load('owner-1')).pending[0].sessionId).toBe(
       'session-1'
@@ -680,7 +778,7 @@ describe('automatic tracking coordinator', () => {
     const pause = jest.fn(async () => undefined);
     const context = setup({ waitForImport: pause });
     context.tracking.getImportSession.mockImplementation(async () => {
-      elapsed += 1500;
+      elapsed += 2500;
       return session('processing');
     });
     try {
@@ -759,7 +857,7 @@ describe('automatic tracking coordinator', () => {
     );
     expect((await context.coordinator.sync()).status).toBe('processing');
     expect(context.tracking.submitImport).toHaveBeenCalledTimes(3);
-    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(5);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(7);
     expect((await context.queue.load('owner-1')).pending).toHaveLength(3);
   });
 
@@ -787,7 +885,7 @@ describe('automatic tracking coordinator', () => {
       for (let turn = 0; turn < 300; turn++) await Promise.resolve();
       expect(context.tracking.getImportSession).toHaveBeenCalledTimes(2);
       expect(extraSignal).toBeDefined();
-      await jest.advanceTimersByTimeAsync(1200);
+      await jest.advanceTimersByTimeAsync(2000);
       expect((await sync).status).toBe('processing');
       expect(extraSignal!.aborted).toBe(true);
       expect(followUp).toHaveBeenCalledTimes(1);
@@ -1025,14 +1123,14 @@ describe('automatic tracking coordinator', () => {
     expect((await context.queue.load('owner-1')).pending).toHaveLength(0);
   });
 
-  it('bounds new live rechecks to three reads and retains the normal durable follow-up for slow processing', async () => {
+  it('bounds new live rechecks to five reads and retains the normal durable follow-up for slow processing', async () => {
     const scheduleFollowUp = jest.fn(async () => undefined);
     const context = setup({ scheduleFollowUp });
     context.tracking.submitImport.mockResolvedValue(session('received'));
 
     expect((await context.coordinator.sync()).status).toBe('processing');
     expect(context.tracking.submitImport).toHaveBeenCalledTimes(1);
-    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(3);
+    expect(context.tracking.getImportSession).toHaveBeenCalledTimes(5);
     expect(scheduleFollowUp).toHaveBeenCalledWith('owner-1');
     expect((await context.queue.load('owner-1')).pending).toEqual([
       expect.objectContaining({ sessionId: 'session-1' })
