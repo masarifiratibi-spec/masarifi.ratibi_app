@@ -1,19 +1,32 @@
 import { installBenchmarkEnvironment } from '@/test-utils/benchmark-runtime';
 import React from 'react';
-import { AppState, Linking, Text, type AppStateStatus } from 'react-native';
+import {
+  Alert,
+  AppState,
+  Linking,
+  Text,
+  type AppStateStatus
+} from 'react-native';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { clearAppShellStorageOwner } from '@/storage/app-shell-storage';
 
-import { AppShellProvider } from './AppShellProvider';
+import {
+  AppShellHydrationProvider,
+  AppShellProvider
+} from './AppShellProvider';
+import * as database from '@/storage/database';
 import { useAppShellStore } from './app-shell';
 import { usePreferenceStore } from './preferences';
 import { HttpError } from '@/services/live/http-client';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
-jest.mock('expo', () => jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock());
+import { translate } from '@/localization/i18n';
+jest.mock('expo', () =>
+  jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
+);
 
 const mockRestoreAppShellSession = jest.fn(
   async (..._args: unknown[]) => undefined
@@ -23,7 +36,9 @@ const mockRefreshPlatformOperations = jest.fn(async () => undefined);
 const mockSyncAutomaticTracking = jest.fn(async () => undefined);
 const mockTouchActivity = jest.fn(async () => undefined);
 const mockRecordMobileForeground = jest.fn(async () => undefined);
-jest.mock('@/services/live/mobile-activity', () => ({ recordMobileForeground: () => mockRecordMobileForeground() }));
+jest.mock('@/services/live/mobile-activity', () => ({
+  recordMobileForeground: () => mockRecordMobileForeground()
+}));
 const mockRestoreSession = jest.fn();
 const mockEnsureLivePushDeviceRegistration = jest.fn(
   async (..._args: unknown[]) => 'granted'
@@ -68,27 +83,84 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('AppShellProvider', () => {
+  it('keeps explicit encrypted-database recovery available while fonts still cover the navigator', async () => {
+    const originalHydrate = useAppShellStore.getState().hydrate;
+    let recovery: ((ownerId: string) => void) | undefined;
+    jest
+      .spyOn(database, 'configureDatabaseRecoveryListener')
+      .mockImplementation((listener) => {
+        recovery = listener;
+      });
+    const quarantine = jest.spyOn(database, 'quarantineUnrecoverableDatabase');
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    useAppShellStore.setState({
+      hydrated: false,
+      hydrate: async () => {
+        await Promise.resolve();
+        recovery?.('user_encrypted_recovery');
+      }
+    });
+    const view = render(
+      <AppShellHydrationProvider>
+        <Text>Fonts still pending</Text>
+      </AppShellHydrationProvider>
+    );
+    try {
+      await act(async () => {});
+      expect(alert).toHaveBeenCalledWith(
+        translate('storageRecovery.title'),
+        translate('storageRecovery.body'),
+        expect.arrayContaining([
+          expect.objectContaining({
+            text: translate('storageRecovery.confirm'),
+            onPress: expect.any(Function)
+          })
+        ])
+      );
+      expect(quarantine).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      useAppShellStore.setState({ hydrate: originalHydrate });
+      jest.restoreAllMocks();
+    }
+  });
   it('restores benchmark profile and platform reads without startup or foreground writers', async () => {
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     const restoreEnvironment = installBenchmarkEnvironment();
     mockLiveClerkSessionKey = 'benchmark-owner';
     let receiveState!: (state: AppStateStatus) => void;
-    const previousListener = jest.mocked(AppState.addEventListener).getMockImplementation()!;
-    const listener = jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
-      receiveState = handler;
-      return { remove: jest.fn() };
-    });
+    const previousListener = jest
+      .mocked(AppState.addEventListener)
+      .getMockImplementation()!;
+    const listener = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, handler) => {
+        receiveState = handler;
+        return { remove: jest.fn() };
+      });
     try {
-      render(<AppShellProvider><Text>benchmark read</Text></AppShellProvider>);
-      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-      await act(async () => { receiveState('active'); });
+      render(
+        <AppShellProvider>
+          <Text>benchmark read</Text>
+        </AppShellProvider>
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        receiveState('active');
+      });
       expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
       expect(mockRefreshPlatformOperations).toHaveBeenCalledTimes(2);
       expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
       expect(mockSyncAutomaticTracking).not.toHaveBeenCalled();
       expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
       expect(mockRecordMobileForeground).not.toHaveBeenCalled();
-    } finally { restoreEnvironment(); listener.mockImplementation(previousListener); }
+    } finally {
+      restoreEnvironment();
+      listener.mockImplementation(previousListener);
+    }
   });
   beforeEach(() => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
@@ -304,12 +376,14 @@ describe('AppShellProvider', () => {
     const storage = new Promise<null>((resolve) => {
       finishStorage = resolve;
     });
-    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-      key === 'masarifi.appShell.nativePrivacyLock.v1' ||
-      key.startsWith('masarifi.appShell.nativePrivacyLock.v1.')
-        ? storage
-        : null
-    );
+    jest
+      .mocked(SecureStore.getItemAsync)
+      .mockImplementation(async (key) =>
+        key === 'masarifi.appShell.nativePrivacyLock.v1' ||
+        key.startsWith('masarifi.appShell.nativePrivacyLock.v1.')
+          ? storage
+          : null
+      );
     let finishProfile!: (value: unknown) => void;
     const profile = new Promise((resolve) => {
       finishProfile = resolve;

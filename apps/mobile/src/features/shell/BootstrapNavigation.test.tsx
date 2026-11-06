@@ -23,8 +23,16 @@ import {
 
 jest.unmock('expo-router');
 jest.unmock('@react-navigation/native');
+let mockInitialFontsReady = true;
+let mockReleaseFonts = () => {};
 jest.mock('@/design-system/typography', () => ({
-  FontGate: ({ children }: { children: React.ReactNode }) => children
+  FontGate: ({ children }: { children: React.ReactNode }) => {
+    const React = jest.requireActual<typeof import('react')>('react');
+    const { Text } = jest.requireActual('react-native');
+    const [ready, setReady] = React.useState(mockInitialFontsReady);
+    mockReleaseFonts = () => setReady(true);
+    return ready ? children : <Text>Pending local fonts</Text>;
+  }
 }));
 jest.mock('@/state/FoundationProviders', () => {
   const { QueryClient, QueryClientProvider } = jest.requireActual(
@@ -88,10 +96,80 @@ jest.mock('@/services/platform/phone-notification-service', () => ({
 }));
 
 afterEach(() => {
+  mockInitialFontsReady = true;
   jest.useRealTimers();
   jest.restoreAllMocks();
   delete process.env.EXPO_PUBLIC_CLIENT_MODE;
 });
+
+test.each(['fonts', 'local'] as const)(
+  'overlaps local hydration with fonts and admits Home once after both complete (%s first)',
+  async (first) => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    useAppShellStore.getState().reset();
+    usePreferenceStore.setState({
+      hydrated: true,
+      firstLaunchOnboardingCompleted: true
+    });
+    mockInitialFontsReady = false;
+    const originalHydrate = useAppShellStore.getState().hydrate;
+    let finishLocal!: () => void;
+    const hydrate = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishLocal = () => {
+            useAppShellStore.setState({
+              hydrated: true,
+              session: {
+                ...authenticatedSession,
+                expiresAt: Date.now() + 60_000
+              },
+              profileSetupStatus: 'complete'
+            });
+            resolve();
+          };
+        })
+    );
+    useAppShellStore.setState({ hydrate });
+    mockRestoreSession.mockResolvedValue({
+      ...authenticatedSession,
+      expiresAt: Date.now() + 60_000
+    });
+    mockGetProfileSetup.mockResolvedValue({
+      complete: true,
+      profile: { currency: 'SAR' }
+    });
+    const result = renderRouter({
+      _layout: RootLayout,
+      index: AppEntry,
+      '(tabs)/home': ReadyHomeDestination
+    });
+    try {
+      await act(async () => {});
+      expect(hydrate).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Home destination')).toBeNull();
+      await act(async () => {
+        if (first === 'fonts') mockReleaseFonts();
+        else finishLocal();
+      });
+      await act(async () => {});
+      expect(hydrate).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Home destination')).toBeNull();
+      await act(async () => {
+        if (first === 'fonts') finishLocal();
+        else mockReleaseFonts();
+      });
+      await waitFor(() =>
+        expect(screen.getByText('Home destination')).toBeOnTheScreen()
+      );
+      expect(result.getPathname()).toBe('/home');
+      expect(hydrate).toHaveBeenCalledTimes(1);
+    } finally {
+      result.unmount();
+      useAppShellStore.setState({ hydrate: originalHydrate });
+    }
+  }
+);
 
 test.each([false, true])(
   'the installed navigator settles authenticated bootstrap (complete=%s) without repeating it',

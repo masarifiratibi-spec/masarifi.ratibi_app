@@ -249,6 +249,7 @@ const HomeHeader = React.memo(function HomeHeader({
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const [visible, setVisible] = useState(false);
+  const [periodSheetMounted, setPeriodSheetMounted] = useState(false);
   const label = formatPeriodLabel(period, locale, timeZone);
 
   return (
@@ -259,7 +260,10 @@ const HomeHeader = React.memo(function HomeHeader({
           accessibilityHint={translate('coreFinance.home.period.open')}
           accessibilityLabel={label}
           accessibilityRole="button"
-          onPress={() => setVisible(true)}
+          onPress={() => {
+            setPeriodSheetMounted(true);
+            setVisible(true);
+          }}
           style={({ pressed }) => [
             styles.periodPill,
             {
@@ -288,12 +292,14 @@ const HomeHeader = React.memo(function HomeHeader({
             {label}
           </Text>
         </Pressable>
-        <DateRangeSheet
-          visible={visible}
-          period={period}
-          onApply={onPeriodChange}
-          onDismiss={() => setVisible(false)}
-        />
+        {periodSheetMounted ? (
+          <DateRangeSheet
+            visible={visible}
+            period={period}
+            onApply={onPeriodChange}
+            onDismiss={() => setVisible(false)}
+          />
+        ) : null}
       </PrimaryShellHeader>
     </View>
   );

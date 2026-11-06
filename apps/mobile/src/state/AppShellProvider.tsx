@@ -35,41 +35,15 @@ interface AppShellProviderProps {
   onAppStateChange?: (state: AppStateStatus) => void;
 }
 
-/**
- * AppShellProvider always renders its children so the Expo Router navigator
- * mounts on the first render. The hydration/loading gate is owned by the
- * entry route (`app/index.tsx`), which stays on a loading StateView until the
- * shell is hydrated — blocking navigation to protected destinations without
- * unmounting the Stack. Returning a plain View instead of children before
- * hydration caused "Attempted to navigate before mounting the Root Layout"
- * at runtime.
- */
-export function AppShellProvider({
-  children,
-  onAppStateChange
-}: AppShellProviderProps) {
-  React.useLayoutEffect(() => {
-    recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'shell' });
-  }, []);
-  const hydrated = useAppShellStore((state) => state.hydrated);
-  const hydrate = useAppShellStore((state) => state.hydrate);
-  const setPendingDestination = useAppShellStore(
-    (state) => state.setPendingDestination
-  );
-  const liveClerkSessionKey = useLiveClerkSessionKey();
-  const bootstrapRevision = useAppShellStore(
-    (state) => state.bootstrapRevision
-  );
-  const mode = resolveClientMode();
-  const restoreQueue = useRef(Promise.resolve());
-  const localHydration = useRef<Promise<void> | null>(null);
-  const registeredPushSession = useRef<string | null>(null);
-  const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
-  const initialLink = useRef<string | null>(null);
-  const linkRevision = useRef(0);
-  const linksMounted = useRef(false);
+const LocalShellHydration = React.createContext<{
+  current: Promise<void> | null;
+} | null>(null);
+
+function useLocalShellDatabaseRecovery() {
+  const inherited = React.useContext(LocalShellHydration);
   const recoveryOwner = useRef<string | null>(null);
   useEffect(() => {
+    if (inherited) return;
     configureDatabaseRecoveryListener((ownerId) => {
       if (recoveryOwner.current === ownerId) return;
       recoveryOwner.current = ownerId;
@@ -105,7 +79,70 @@ export function AppShellProvider({
       );
     });
     return () => configureDatabaseRecoveryListener();
+  }, [inherited]);
+}
+
+function useLocalShellHydrationFlight() {
+  const inherited = React.useContext(LocalShellHydration);
+  const own = useRef<Promise<void> | null>(null);
+  const flight = inherited ?? own;
+  const hydrated = useAppShellStore((state) => state.hydrated);
+  const hydrate = useAppShellStore((state) => state.hydrate);
+  useLocalShellDatabaseRecovery();
+  useEffect(() => {
+    if (!hydrated && !flight.current) {
+      flight.current = hydrate();
+    }
+  }, [flight, hydrated, hydrate]);
+  return flight;
+}
+
+/** Only local owner admission overlaps fonts; navigation/SDK effects stay below. */
+export function AppShellHydrationProvider({
+  children
+}: {
+  children: ReactNode;
+}) {
+  const flight = useLocalShellHydrationFlight();
+  return (
+    <LocalShellHydration.Provider value={flight}>
+      {children}
+    </LocalShellHydration.Provider>
+  );
+}
+
+/**
+ * AppShellProvider always renders its children so the Expo Router navigator
+ * mounts on the first render. The hydration/loading gate is owned by the
+ * entry route (`app/index.tsx`), which stays on a loading StateView until the
+ * shell is hydrated — blocking navigation to protected destinations without
+ * unmounting the Stack. Returning a plain View instead of children before
+ * hydration caused "Attempted to navigate before mounting the Root Layout"
+ * at runtime.
+ */
+export function AppShellProvider({
+  children,
+  onAppStateChange
+}: AppShellProviderProps) {
+  React.useLayoutEffect(() => {
+    recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'shell' });
   }, []);
+  const hydrated = useAppShellStore((state) => state.hydrated);
+  const setPendingDestination = useAppShellStore(
+    (state) => state.setPendingDestination
+  );
+  const liveClerkSessionKey = useLiveClerkSessionKey();
+  const bootstrapRevision = useAppShellStore(
+    (state) => state.bootstrapRevision
+  );
+  const mode = resolveClientMode();
+  const restoreQueue = useRef(Promise.resolve());
+  const localHydration = useLocalShellHydrationFlight();
+  const registeredPushSession = useRef<string | null>(null);
+  const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
+  const initialLink = useRef<string | null>(null);
+  const linkRevision = useRef(0);
+  const linksMounted = useRef(false);
   const session = useAppShellStore((state) => state.session);
   const onboarding = useAppShellStore((state) => state.onboarding);
   const privacyLock = useAppShellStore((state) => state.privacyLock);
@@ -143,10 +180,6 @@ export function AppShellProvider({
     },
     [liveClerkSessionKey, mode]
   );
-
-  useEffect(() => {
-    if (!hydrated) localHydration.current ??= hydrate();
-  }, [hydrate, hydrated, mode]);
 
   useEffect(() => {
     let current = true;
@@ -208,7 +241,13 @@ export function AppShellProvider({
     return () => {
       current = false;
     };
-  }, [liveClerkSessionKey, mode, bootstrapRevision, registerPushDevice]);
+  }, [
+    liveClerkSessionKey,
+    mode,
+    bootstrapRevision,
+    registerPushDevice,
+    localHydration
+  ]);
 
   const retainSafeDestination = useCallback(
     async (url: string | null, expectedRevision: number) => {

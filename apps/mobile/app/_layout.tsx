@@ -8,7 +8,10 @@ import { Stack, usePathname } from 'expo-router';
 
 import { FontGate } from '@/design-system/typography';
 import { AppPrivacyGate } from '@/features/security/AppPrivacyGate';
-import { AppShellProvider } from '@/state/AppShellProvider';
+import {
+  AppShellHydrationProvider,
+  AppShellProvider
+} from '@/state/AppShellProvider';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useAppShellStore } from '@/state/app-shell';
 import {
@@ -50,17 +53,19 @@ export default function RootLayout() {
           themePreference={themePreference}
           reducedMotion={reducedMotion}
         >
-          <FontGate>
-            <AppShellProvider>
-              <DevAccountDeletionRecovery />
-              <VoiceCaptureProvider>
-                <RoutePrivacyGate>
-                  <NotificationResponseRuntime />
-                  <RootStack />
-                </RoutePrivacyGate>
-              </VoiceCaptureProvider>
-            </AppShellProvider>
-          </FontGate>
+          <AppShellHydrationProvider>
+            <FontGate>
+              <AppShellProvider>
+                <DevAccountDeletionRecovery />
+                <VoiceCaptureProvider>
+                  <RoutePrivacyGate>
+                    <NotificationResponseRuntime />
+                    <RootStack />
+                  </RoutePrivacyGate>
+                </VoiceCaptureProvider>
+              </AppShellProvider>
+            </FontGate>
+          </AppShellHydrationProvider>
         </StartupLoadingBoundary>
         <NetworkConnectionNotice />
       </FoundationProviders>

@@ -59,6 +59,9 @@ jest.mock('@/state/FoundationProviders', () => {
 });
 
 jest.mock('@/state/AppShellProvider', () => ({
+  AppShellHydrationProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
   AppShellProvider: ({ children }: { children: React.ReactNode }) => {
     mockShellRender();
     return <>{children}</>;

@@ -12,7 +12,7 @@ import * as financialFormatting from '@/utils/format-financial-value';
 import * as periods from '@/features/filters/date-period';
 import { makeTransaction } from '@/test-utils/core-finance-fixtures';
 import { CoreFinanceError } from '@/services/contracts/core-finance-service';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { InitialHomeLoadingBoundary } from '@/features/shell/InitialHomeLoadingBoundary';
 import type { HomeTodayActivity } from '@/services/contracts/core-finance-service';
 
@@ -356,3 +356,35 @@ it('refreshes silently without repeating unchanged summary or header work', () =
     period.mockRestore();
   }
 });
+
+it.each(['android', 'ios'] as const)(
+  'does not build unused period presets on the initial %s Home render and still opens/applies the period',
+  (platform) => {
+    const previousPlatform = Platform.OS;
+    jest.replaceProperty(Platform, 'OS', platform);
+    mockHomeQuery.isError = false;
+    changeLocale('en');
+    const presets = jest.spyOn(periods, 'lastMonthPeriod');
+    const view = renderWithProviders(<HomeScreen />);
+    try {
+      expect(screen.getByTestId('home-account-card')).toBeOnTheScreen();
+      expect(screen.queryByTestId('date-period-option-today')).toBeNull();
+      expect(presets).not.toHaveBeenCalled();
+      const initialLabel =
+        screen.getByTestId('home-period-label').props.children;
+      fireEvent.press(screen.getByTestId('home-period-control'));
+      expect(screen.getByTestId('date-period-option-today')).toBeOnTheScreen();
+      expect(presets).toHaveBeenCalled();
+      fireEvent.press(screen.getByTestId('date-period-option-today'));
+      expect(screen.queryByTestId('date-period-option-today')).toBeNull();
+      expect(
+        screen.getByTestId('home-period-label').props.children
+      ).not.toEqual(initialLabel);
+      expect(screen.getByTestId('home-account-card')).toBeOnTheScreen();
+    } finally {
+      view.unmount();
+      presets.mockRestore();
+      jest.replaceProperty(Platform, 'OS', previousPlatform);
+    }
+  }
+);
