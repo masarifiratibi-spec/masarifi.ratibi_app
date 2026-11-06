@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, Platform, type AppStateStatus } from 'react-native';
 import {
   act,
   fireEvent,
@@ -26,6 +26,25 @@ import {
 } from '@/test-utils/deletion-native-boundaries';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
 import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import {
+  beginTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
+import { trackingNativeRuntime } from './platform/tracking-native-runtime';
+import { createHash } from 'node:crypto';
+
+jest.mock('./platform/tracking-native-runtime', () => ({
+  trackingNativeRuntime: {
+    prepareTrackingOwnerV4: jest.fn(async () => {
+      throw new Error('deleted_owner_must_not_be_admitted');
+    }),
+    commitTrackingOwnerV4: jest.fn(async () => {
+      throw new Error('deleted_owner_must_not_be_admitted');
+    }),
+    resumeTrackingOwnerPurgeV4: jest.fn(async () => undefined)
+  }
+}));
+const originalPlatform = Platform.OS;
 
 jest.mock(
   'expo-crypto',
@@ -110,6 +129,10 @@ function Runtime({
   );
 }
 beforeEach(async () => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatform
+  });
   if (
     originalAppStateListener &&
     jest.isMockFunction(AppState.addEventListener)
@@ -158,6 +181,10 @@ beforeEach(async () => {
   }));
 });
 afterEach(() => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatform
+  });
   delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   delete process.env.EXPO_PUBLIC_APP_VARIANT;
   delete process.env.EXPO_PUBLIC_API_URL;
@@ -503,3 +530,150 @@ test('production recent-auth refusal keeps the receipt and payload until same-se
     confirmation.mockRestore();
   }
 });
+
+test.each([false, true])(
+  'completes Android receipt recovery without admitting the deleted owner; other active owner=%s',
+  async (otherActive) => {
+    productionRuntime();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android'
+    });
+    const owner = 'user_android_deleted';
+    const other = 'user_android_retained';
+    clerkOwner = otherActive ? other : null;
+    session(clerkOwner);
+    beginTrackingAdmission();
+    if (otherActive)
+      useTrackingAdmission.setState({
+        ready: true,
+        admittedOwnerId: other,
+        nativeLease: {
+          ownerDigest: createHash('sha256').update(other).digest('hex'),
+          generation: 'retained-generation-1234'
+        },
+        sessionAnchor: 'retained-session'
+      });
+    const file = seedDeletedOwner(owner);
+    const retainedFile = seedDeletedOwner(other);
+    const digest = createHash('sha256').update(owner).digest('hex');
+    const contextKey = `masarifi.tracking.background-context.v3.${digest}`;
+    deletionNative.secrets.set(
+      contextKey,
+      JSON.stringify({
+        version: 3,
+        ownerId: owner,
+        generation: 'deleted-generation-1234',
+        phase: 'committed'
+      })
+    );
+    const otherKey = `masarifi.tracking.background-context.v3.${createHash('sha256').update(other).digest('hex')}`;
+    deletionNative.secrets.set(otherKey, 'retained other owner bytes');
+    await saveDeletionCompletion({
+      ownerId: owner,
+      operationId: '0f8dd8dd-df36-413a-9bd0-50ccfce872fe',
+      completionToken: 'a'.repeat(64),
+      phase: 'submitted',
+      requestId: null,
+      completedAt: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    });
+    let finishReceipt!: (value: Response) => void;
+    fetchBoundary.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishReceipt = resolve;
+        })
+    );
+    const purge = jest.mocked(
+      trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!
+    );
+    purge.mockClear();
+    render(<Runtime />);
+    await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+    const admission = { ...useTrackingAdmission.getState() };
+    expect(admission.ready).toBe(false);
+    await act(async () =>
+      finishReceipt(
+        successful({
+          id: request.id,
+          status: 'completed',
+          completedAt: request.completedAt,
+          errorCode: null,
+          version: 3
+        })
+      )
+    );
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toBeNull()
+    );
+    expect(purge).toHaveBeenCalledWith(digest, 'deleted-generation-1234');
+    expect(deletionNative.secrets.has(contextKey)).toBe(false);
+    expect(deletionNative.secrets.get(otherKey)).toBe(
+      'retained other owner bytes'
+    );
+    expect(deletionNative.files.has(file)).toBe(false);
+    expect(deletionNative.files.has(retainedFile)).toBe(true);
+    expect(useAppShellStore.getState().session?.userId ?? null).toBe(
+      otherActive ? other : null
+    );
+    expect(useTrackingAdmission.getState()).toEqual(admission);
+    expect(
+      trackingNativeRuntime!.prepareTrackingOwnerV4
+    ).not.toHaveBeenCalled();
+    expect(sdkSignOut).not.toHaveBeenCalled();
+  }
+);
+
+test.each(['unconfirmed', 'changed'] as const)(
+  'refuses local erasure without the same durable completed receipt: %s',
+  async (kind) => {
+    productionRuntime();
+    clerkOwner = null;
+    session(null);
+    const owner = 'user_receipt_guard';
+    const file = seedDeletedOwner(owner);
+    const journal = {
+      ownerId: owner,
+      operationId: 'cf7887b8-6123-44c7-a5f7-9310fd0afca9',
+      completionToken: 'b'.repeat(64),
+      phase:
+        kind === 'unconfirmed'
+          ? ('submitted' as const)
+          : ('server_completed' as const),
+      requestId: kind === 'unconfirmed' ? null : request.id,
+      completedAt: kind === 'unconfirmed' ? null : request.completedAt,
+      attempts: 0,
+      nextAttemptAt: 0,
+      retryAfterAt: 0
+    };
+    await saveDeletionCompletion(journal);
+    const read = deletionNative.secureStore.getItemAsync;
+    const original = read.getMockImplementation()!;
+    if (kind === 'changed')
+      read.mockImplementationOnce(async (key) => {
+        const value = await original(key);
+        deletionNative.secrets.set(
+          key,
+          JSON.stringify({ ...journal, requestId: 'another-receipt' })
+        );
+        return value;
+      });
+    const purge = jest.mocked(
+      trackingNativeRuntime!.resumeTrackingOwnerPurgeV4!
+    );
+    const calls = purge.mock.calls.length;
+    const { eraseDeletedAccountLocalData } = jest.requireActual<
+      typeof import('./account-data-erasure')
+    >('./account-data-erasure');
+    await expect(eraseDeletedAccountLocalData(owner)).rejects.toThrow(
+      kind === 'unconfirmed'
+        ? 'deletion_completion_unverified'
+        : 'deletion_completion_changed'
+    );
+    expect(deletionNative.files.has(file)).toBe(true);
+    expect(purge).toHaveBeenCalledTimes(calls);
+  }
+);
