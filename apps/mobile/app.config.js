@@ -68,7 +68,14 @@ module.exports = ({ config }) => {
       const version = process.env.MASARIFI_RELEASE_VERSION_NAME;
       if (!/^\d+\.\d+\.\d+$/.test(version ?? ''))
         throw new Error('Approved release version required');
-      return { ...config, version };
+      return {
+        ...config,
+        version,
+        plugins:
+          iosAdHoc || process.env.EAS_BUILD_PROFILE === 'ios-ad-hoc'
+            ? [...config.plugins, ['@clerk/expo', { appleSignIn: false }]]
+            : config.plugins
+      };
     }
     return config;
   }
