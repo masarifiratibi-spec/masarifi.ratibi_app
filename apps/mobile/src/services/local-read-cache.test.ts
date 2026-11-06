@@ -1,5 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import {
+  fixtureAccounts,
+  makeTransaction
+} from '@/test-utils/core-finance-fixtures';
+import { emptyTransactionFilters } from '@/domain/core-finance';
+import {
   bindLocalReadCache,
   isOfflineReadableKey,
   type ReadCacheScope,
@@ -10,6 +15,136 @@ const key = ['planning', 'salary', '2026-10-29', 'Asia/Riyadh'];
 const tick = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve();
 };
+
+const homeKey = ['core-finance', 'home', 'balance-source', { ownerId: 'a' }];
+const savedHome = {
+  accounts: [{ ...fixtureAccounts[0], currencyCode: 'SAR' }],
+  balances: [
+    {
+      accountId: fixtureAccounts[0].id,
+      currencyCode: 'SAR',
+      balanceMinor: -1600,
+      asOf: 100
+    }
+  ]
+};
+const homeSnapshots = [
+  { label: 'balance', readKey: homeKey, snapshot: savedHome },
+  {
+    label: 'today activity',
+    readKey: [
+      'core-finance',
+      'transactions',
+      'home-today',
+      'Asia/Riyadh',
+      {
+        ...emptyTransactionFilters,
+        periodStart: 1793912400000,
+        periodEnd: 1793998799999
+      }
+    ],
+    snapshot: [
+      {
+        transaction: makeTransaction(1, {
+          occurredAt: Date.UTC(2026, 10, 6, 7),
+          amountMinor: 347,
+          currencyCode: 'SAR'
+        }),
+        group: 'expense',
+        sign: 'negative'
+      }
+    ]
+  }
+];
+
+it.each(homeSnapshots)(
+  'restores saved Home $label during an already invalidated first background request',
+  async ({ readKey, snapshot }) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } }
+    });
+    let finishDisk!: (rows: StoredRead[]) => void;
+    let finishLive!: (data: unknown) => void;
+    const stop = bindLocalReadCache(client, {
+      current: () => ({ ownerId: 'a', locale: 'ar' }),
+      load: () =>
+        new Promise((resolve) => {
+          finishDisk = resolve;
+        }),
+      save: async () => undefined
+    });
+    const live = client.fetchQuery({
+      queryKey: readKey,
+      queryFn: () =>
+        new Promise<unknown>((resolve) => {
+          finishLive = resolve;
+        })
+    });
+    try {
+      await client.invalidateQueries({
+        queryKey: readKey,
+        exact: true,
+        refetchType: 'none'
+      });
+      finishDisk([{ key: readKey, data: snapshot, updatedAt: 100 }]);
+      await tick();
+      expect(client.getQueryData(readKey)).toEqual(snapshot);
+      expect(client.getQueryState(readKey)?.dataUpdatedAt).toBe(100);
+      expect(client.getQueryState(readKey)?.fetchStatus).toBe('fetching');
+    } finally {
+      finishLive(snapshot);
+      await live;
+      stop();
+      client.clear();
+    }
+  }
+);
+
+it.each(homeSnapshots)(
+  'retains saved Home $label across ordinary refresh invalidation and a new process cache',
+  async ({ readKey, snapshot }) => {
+    const scope = { ownerId: 'a', locale: 'ar' };
+    const disk = new Map<string, StoredRead>();
+    const store = {
+      current: () => scope,
+      load: async () => [...disk.values()],
+      save: async (_scope: ReadCacheScope, row: StoredRead) => {
+        disk.set(JSON.stringify(row.key), row);
+      },
+      remove: async (_scope: ReadCacheScope, readKey: readonly unknown[]) => {
+        disk.delete(JSON.stringify(readKey));
+      }
+    };
+    const first = new QueryClient({
+      defaultOptions: { queries: { gcTime: Infinity } }
+    });
+    const stopFirst = bindLocalReadCache(first, store);
+    await first.fetchQuery({
+      queryKey: readKey,
+      queryFn: async () => snapshot
+    });
+    await tick();
+    await first.invalidateQueries({
+      queryKey: readKey,
+      exact: true,
+      refetchType: 'none'
+    });
+    await tick();
+    stopFirst();
+    first.clear();
+    const reopened = new QueryClient({
+      defaultOptions: { queries: { gcTime: Infinity } }
+    });
+    const stopReopened = bindLocalReadCache(reopened, store);
+    try {
+      await tick();
+      expect(reopened.getQueryData(readKey)).toEqual(snapshot);
+    } finally {
+      stopReopened();
+      reopened.clear();
+    }
+  }
+);
 
 it.each([
   ['core-finance', 'accounts', true],

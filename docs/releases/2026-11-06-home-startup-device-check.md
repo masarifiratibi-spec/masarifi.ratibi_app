@@ -1,0 +1,23 @@
+#119 Redmi execution: remaining cached-data requirement
+
+The user revoked the earlier deferral and explicitly instructed installation to continue. The actual later authorization is retained in task27-primary-approval.json; the earlier deferral remains historical evidence. ONE ordinary owner0 update succeeded at6November2026 14:03:25UTC. Installed119 SHA256 `aca285d71b5de7db6a0552336db2453d4a2036dd498e06c070343d476d7964ed`, source `77aa3d2602dc154931949c697e3a767aaa7636ef`, matches the frozen reviewed package. Original UID10321/firstInstallTime are unchanged. Never repeat this build or consumed install.
+
+## Actual result
+
+**The complete Home hitch/latency requirement is not accepted.** First Home still showed unknown balance dashes, then the retained-16SAR arrived. The user explicitly confirmed this is insufficient: Home must display its last valid saved data on entry and refresh in the background. The user also added Personal Assistant send/response stalls to the active narrow scope. These are continuing work, not an accepted119 speed result.
+
+The first ordinary launch was COLD. Android Activity TotalTime879ms is not Home readiness. The native pre-input device clock sample was17:05:03.052 local. Reviewed video frames showed Home controls/unknown balance at17:05:08.019, actual retained-16SAR at17:05:12.581, and activity afterward. These approximately4.97s/9.53s observations are reviewed-frame bounds from a device sample before dispatch, not exact earliest-event/touch timings. The driver allowed8quiet seconds after launch command completion before UIAutomator.118 used different observer conditions; no controlled speed percentage is claimed.
+
+Reports/Back and More/Back returned to Home with actual retained values. A passive native snapshot retained582frames/32janky(5.50%), p50=15/p90=22/p95=27/p99=109ms. These aggregate the process and are not stage-attributed or a before/after comparison.
+
+The first120s screen-only/no-audio observer ended naturally with exit0, SHA256 `6cd99b8a677664ef0933d46c8da3f24bb7b4d01fbe2405edc02a67643a579110`. Mid-transition holds coincided with UIAutomator reads. A distinct30s observer-effect probe tested one More/Back with no UIAutomator or screenshots during navigation, SHA256 `38de683d6bb360046144887a9f1259b858c797fbc43b8ef32fa5bd373a890519`; it also ended naturally with exit0. Reviewed full More/Home frames appeared within roughly half a second of their device pre-input samples, with no similar multi-second intermediate hold in this one quiet sample. This limits attribution of the earlier capture, and does not dismiss the user's remaining Home/data hitch. No extra app restart, cache manipulation or APK was used for that probe. Private recordings/contact sheets contain owner data and are not published.
+
+One local helper-preparation command failed on text encoding, then the attempted launch could not find its script. They caused no launch or install. A new preparation step reconciled the already-started recorder and created the missing helper; the original recorder was retained and only ONE actual cold launch was performed. No operation was blindly replayed.
+
+## Preservation and next scope
+
+Fresh authenticated registration/read after launch confirms the exact original owner AND SDK/unrevoked device, last-seen14:05:10.371794UTC. The complete before/after owned-state is equal except for that advanced timestamp: original cash default, QA32retainedtransactions/net0/nondefault, both sourcesOFF/serverrevoked/reviewmode,113keywords and all four old Voice status/update/attempt records unchanged. The phone ended on Home. No financial fixture/refund, SMS request, Voice recording, source/default change, hosted/SSH change, reset, recovery/quarantine, uninstall, logout or identity workaround was performed. Both observers ended; no fixture cleanup remains pending.
+
+The three119 source corrections and215cases/16suites are retained and reused. Frozen119 manifest/runbook/review remain unchanged; this later execution is separate. Canonical delivered111 remains unchanged, and broader SMS/production readiness is not qualified.
+
+Continue with owner-scoped Home snapshot restoration before fresh requests and Personal Assistant send/response responsiveness. Investigate actual cache invalidation/hydration and message lifecycle behavior before changing it. Preserve authoritative denials, owner/privacy/session fences, timestamps, real errors, Assistant consent/idempotency/pending operations and explicit financial confirmation. No new account/app/profile or broad performance campaign. Any changed primary artifact still requires a complete concrete package under the original user review condition;119 approval does not approve an unreviewed120.

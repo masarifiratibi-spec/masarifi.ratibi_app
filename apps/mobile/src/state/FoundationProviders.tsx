@@ -48,6 +48,7 @@ import { createQueryReadCache } from '@/storage/query-read-cache';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { isAppLockEnabled } from '@/config/client-runtime';
 import { LogoutProgressOverlay } from '@/features/auth/LogoutProgressOverlay';
+import { LocalReadCacheReady } from './local-read-cache-context';
 
 initI18n();
 
@@ -80,6 +81,8 @@ export function FoundationProviders({
   const previousLocale = useRef(locale);
   const pathname = usePathname();
   const insets = React.useContext(SafeAreaInsetsContext);
+  const [localReadReady, setLocalReadReady] =
+    React.useState(isFixtureModeEnabled);
 
   useEffect(() => {
     if (!hydrated) {
@@ -96,8 +99,12 @@ export function FoundationProviders({
         shell.session.userId &&
         !shell.logoutQuiescingOwnerId &&
         (!isAppLockEnabled() ||
-          (shell.privacyLock?.enabled &&
-            shell.privacyLock.appLockStatus === 'unlocked'))
+          (shell.privacyLock?.enabled
+            ? shell.privacyLock.appLockStatus === 'unlocked'
+            : shell.privacyLock?.enabled === false &&
+              shell.session.restoration === 'restored' &&
+              shell.session.expiresAt !== null &&
+              shell.session.expiresAt > Date.now()))
         ? {
             ownerId: shell.session.userId,
             locale: usePreferenceStore.getState().locale
@@ -108,6 +115,8 @@ export function FoundationProviders({
     let identity = '';
     let previousOwner = '';
     let locallyAdmittedOwner = '';
+    let preparedScope = '';
+    let previousScope = '';
     const bind = () => {
       const scope = current();
       const session = useAppShellStore.getState().session;
@@ -134,7 +143,17 @@ export function FoundationProviders({
           client.removeQueries({ queryKey: prefix });
       previousOwner = ownerId;
       identity = next;
-      stop = bindLocalReadCache(client, createQueryReadCache(current));
+      const cacheScope = scope ? JSON.stringify(scope) : '';
+      if (cacheScope !== previousScope || !scope) preparedScope = '';
+      previousScope = cacheScope;
+      setLocalReadReady(!scope || preparedScope === cacheScope);
+      const binding = bindLocalReadCache(client, createQueryReadCache(current));
+      stop = binding;
+      void binding.ready.then(() => {
+        if (identity !== next) return;
+        preparedScope = cacheScope;
+        setLocalReadReady(true);
+      });
       if (remotelyRestored) {
         // Retire reads from the old auth context; never resume or clear commands.
         void Promise.all(
@@ -158,6 +177,7 @@ export function FoundationProviders({
     const unsubscribeOwner = useAppShellStore.subscribe(bind);
     const unsubscribeLocale = usePreferenceStore.subscribe(bind);
     return () => {
+      identity = '';
       stop();
       unsubscribeOwner();
       unsubscribeLocale();
@@ -277,45 +297,47 @@ export function FoundationProviders({
   );
 
   return (
-    <QueryClientProvider client={client}>
-      <ThemeContext.Provider value={themeValue}>
-        <NavigationThemeProvider value={navigationTheme}>
-          <StatusBar
-            backgroundColor={safeAreaColor}
-            style={
-              obligationHeroVisible || resolved.mode === 'dark'
-                ? 'light'
-                : 'dark'
-            }
-          />
-          <SensitiveVisibilityProvider>
-            <SafeAreaView
-              testID="foundation-direction-root"
-              style={{
-                backgroundColor: resolved.colors.background,
-                flex: 1,
-                ...layoutDirectionStyle(direction)
-              }}
-            >
-              {children}
-              <LogoutProgressOverlay />
-              {obligationHeroVisible ? (
-                <View
-                  pointerEvents="none"
-                  style={{
-                    backgroundColor: safeAreaColor,
-                    height: insets?.top ?? 0,
-                    left: 0,
-                    position: 'absolute',
-                    right: 0,
-                    top: 0
-                  }}
-                />
-              ) : null}
-            </SafeAreaView>
-          </SensitiveVisibilityProvider>
-        </NavigationThemeProvider>
-      </ThemeContext.Provider>
-    </QueryClientProvider>
+    <LocalReadCacheReady.Provider value={localReadReady}>
+      <QueryClientProvider client={client}>
+        <ThemeContext.Provider value={themeValue}>
+          <NavigationThemeProvider value={navigationTheme}>
+            <StatusBar
+              backgroundColor={safeAreaColor}
+              style={
+                obligationHeroVisible || resolved.mode === 'dark'
+                  ? 'light'
+                  : 'dark'
+              }
+            />
+            <SensitiveVisibilityProvider>
+              <SafeAreaView
+                testID="foundation-direction-root"
+                style={{
+                  backgroundColor: resolved.colors.background,
+                  flex: 1,
+                  ...layoutDirectionStyle(direction)
+                }}
+              >
+                {children}
+                <LogoutProgressOverlay />
+                {obligationHeroVisible ? (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      backgroundColor: safeAreaColor,
+                      height: insets?.top ?? 0,
+                      left: 0,
+                      position: 'absolute',
+                      right: 0,
+                      top: 0
+                    }}
+                  />
+                ) : null}
+              </SafeAreaView>
+            </SensitiveVisibilityProvider>
+          </NavigationThemeProvider>
+        </ThemeContext.Provider>
+      </QueryClientProvider>
+    </LocalReadCacheReady.Provider>
   );
 }
