@@ -1,5 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { hasReadableSnapshot } from '@/services/read-snapshot';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
 import {
   Alert,
   FlatList,
@@ -192,7 +195,7 @@ export function CategoryListScreen() {
     if (targetCategoryForGroup) await handleSelectGroup(newGroup.id);
   };
 
-  if (query.isError && !hasReadableSnapshot(query))
+  if (query.isError && isAuthoritativeReadDenial(query.error))
     return (
       <StateView
         state="error"
@@ -351,8 +354,8 @@ export function CategoryListScreen() {
           </View>
         }
         ListEmptyComponent={
-          query.isPending ? (
-            <View accessibilityState={{ busy: true }} />
+          !hasReadableSnapshot(query) ? (
+            <View accessibilityState={{ busy: query.isPending }} />
           ) : (
             <StateView
               state="empty"

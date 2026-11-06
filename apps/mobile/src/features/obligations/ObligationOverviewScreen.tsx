@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
-import { hasReadableSnapshot } from '@/services/read-snapshot';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View, type DimensionValue } from 'react-native';
 
@@ -85,7 +88,7 @@ export function ObligationOverviewScreen() {
   const nextMeta = nextDate
     ? `${nextDate}${daysUntilNext === null ? '' : ` · ${translateDynamic(daysUntilNext < 0 ? 'planning.obligation.overdueBy' : 'planning.obligation.dueIn', { count: Math.abs(daysUntilNext) })}`}`
     : undefined;
-  const nextDueAmount = pending
+  const nextDueAmount = !query.data
     ? '—'
     : amount(query.data?.nextDueAmountMinor ?? null, nextItem?.currencyCode);
   const filterOptions = (['all', 'upcoming', 'completed'] as const).map(
@@ -101,11 +104,14 @@ export function ObligationOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {!pending && !hasReadableSnapshot(query) ? (
+      {query.isError && isAuthoritativeReadDenial(query.error) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <FinancialRefreshStatus query={query} />
+          {query.isError ? <FinancialRefreshStatus query={query} /> : null}
+          {!pending && !hasReadableSnapshot(query) ? (
+            <PlanningState state="error" onRetry={() => void query.refetch()} />
+          ) : null}
           <ObligationHeroHeader
             accessibilityLabel={`${translate('planning.obligation.dueSoon')}, ${nextDueAmount}, ${translate('planning.obligation.currentTotal')}, ${totals(query.data?.payablesByCurrency)}`}
             title={translate('planning.obligations.title')}

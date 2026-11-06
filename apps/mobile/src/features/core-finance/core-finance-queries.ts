@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { inheritReadProvenance } from '@/services/read-snapshot';
+import { assertReadActive } from '@/services/live/read-context';
 
 import {
   emptyTransactionFilters,
@@ -401,7 +402,22 @@ export function useRemainingRefundableMinor(
   });
 }
 
+function categoryQueryOptions(includeArchived: boolean, owner: string | null) {
+  return {
+    queryKey: coreFinanceKeys.categories(includeArchived),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      assertReadActive(signal);
+      const categories = await readForQueryOwner(owner, () =>
+        coreFinanceService.listCategories(includeArchived)
+      );
+      assertReadActive(signal);
+      return categories;
+    }
+  };
+}
+
 export function useCategories(includeArchived = false, enabled = true) {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
   const client = useQueryClient();
   const allCategories = () => {
     if (includeArchived) return;
@@ -415,13 +431,21 @@ export function useCategories(includeArchived = false, enabled = true) {
       : undefined;
   };
   return useQuery({
-    queryKey: coreFinanceKeys.categories(includeArchived),
-    queryFn: () => coreFinanceService.listCategories(includeArchived),
+    ...categoryQueryOptions(includeArchived, owner),
     initialData: () =>
       allCategories()?.data?.filter((category) => category.status === 'active'),
     initialDataUpdatedAt: () => allCategories()?.dataUpdatedAt,
     enabled
   });
+}
+
+/** Use the destination's existing query; never delay menu navigation. */
+export async function prefetchCategories(
+  client: QueryClient,
+  ownerId: string
+): Promise<void> {
+  if (currentQueryOwner() !== ownerId) return;
+  await client.prefetchQuery(categoryQueryOptions(true, ownerId));
 }
 
 export function useCoreFinanceMutation<TVariables, TResult>(

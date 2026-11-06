@@ -1,6 +1,9 @@
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { StyledText } from '@/components/StyledText';
-import { hasReadableSnapshot } from '@/services/read-snapshot';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -104,11 +107,14 @@ export function SalaryOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {!pending && (!data || !hasReadableSnapshot(query)) ? (
+      {query.isError && isAuthoritativeReadDenial(query.error) ? (
         <PlanningState state="error" onRetry={() => void query.refetch()} />
       ) : (
         <View style={styles.screenStack} accessibilityState={{ busy: pending }}>
-          <FinancialRefreshStatus query={query} />
+          {query.isError ? <FinancialRefreshStatus query={query} /> : null}
+          {!pending && (!data || !hasReadableSnapshot(query)) ? (
+            <PlanningState state="error" onRetry={() => void query.refetch()} />
+          ) : null}
           {data?.dataState === 'offline' ? (
             <StyledText variant="caption" accessibilityLiveRegion="polite">
               {translate('planning.state.offlineRead')}

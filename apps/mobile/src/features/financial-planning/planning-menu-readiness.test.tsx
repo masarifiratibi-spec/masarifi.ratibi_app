@@ -20,6 +20,10 @@ import { ObligationOverviewScreen } from '@/features/obligations/ObligationOverv
 import { financialPlanningKeys } from './financial-planning-queries';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { readRecoveryNetwork } from '@/services/platform/read-recovery-network';
+import { coreFinanceService } from '@/services/mocks/core-finance-service';
+import { coreFinanceKeys } from '@/features/core-finance/core-finance-queries';
+import { CategoryListScreen } from '@/features/categories/CategoryListScreen';
+import { fixtureCategories } from '@/test-utils/core-finance-fixtures';
 
 jest.mock('@/services/financial-planning-service', () => ({
   financialPlanningService: {}
@@ -43,6 +47,9 @@ jest.mock('expo-router', () => ({
 }));
 
 beforeEach(() => {
+  jest
+    .spyOn(coreFinanceService, 'listCategories')
+    .mockResolvedValue(fixtureCategories);
   jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
   useAppShellStore.setState({ session: authenticatedSession });
   usePreferenceStore.setState({ timeZone: 'Asia/Riyadh', hydrated: true });
@@ -62,6 +69,76 @@ beforeEach(() => {
     reverifyConflict: jest.fn(),
     signOut: jest.fn()
   });
+});
+
+afterEach(() => jest.restoreAllMocks());
+
+it('prepares the category list while More remains usable and reuses it on entry', async () => {
+  let release!: (value: typeof fixtureCategories) => void;
+  jest.mocked(coreFinanceService.listCategories).mockReturnValue(
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const h = fixture();
+  const view = render(h.wrap(<MoreRoute />));
+  try {
+    expect(
+      screen.getByLabelText(translate('coreFinance.action.categories'))
+    ).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(
+        h.client.getQueryState(coreFinanceKeys.categories(true))?.fetchStatus
+      ).toBe('fetching')
+    );
+    await act(async () => {
+      release(fixtureCategories);
+    });
+    await waitFor(() =>
+      expect(h.client.getQueryData(coreFinanceKeys.categories(true))).toEqual(
+        fixtureCategories
+      )
+    );
+    view.rerender(h.wrap(<CategoryListScreen />));
+    expect(screen.getByText(fixtureCategories[0].labelAr)).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(translate('coreFinance.categories.search'))
+    ).toBeEnabled();
+  } finally {
+    release?.(fixtureCategories);
+    view.unmount();
+    h.client.clear();
+  }
+});
+
+it('does not publish a late category preload into the next owner scope', async () => {
+  let release!: (value: typeof fixtureCategories) => void;
+  jest.mocked(coreFinanceService.listCategories).mockReturnValue(
+    new Promise((resolve) => {
+      release = resolve;
+    })
+  );
+  const h = fixture();
+  const view = render(h.wrap(<MoreRoute />));
+  try {
+    await waitFor(() =>
+      expect(
+        h.client.getQueryState(coreFinanceKeys.categories(true))?.fetchStatus
+      ).toBe('fetching')
+    );
+    await act(async () => {
+      useAppShellStore.setState({ session: signedOutSession });
+      await resetRuntimeIdentityData();
+      release(fixtureCategories);
+    });
+    expect(
+      h.client.getQueryData(coreFinanceKeys.categories(true))
+    ).toBeUndefined();
+  } finally {
+    release?.(fixtureCategories);
+    view.unmount();
+    h.client.clear();
+  }
 });
 
 it('opens both planning destinations offline on a first visit without requiring a server summary', async () => {
