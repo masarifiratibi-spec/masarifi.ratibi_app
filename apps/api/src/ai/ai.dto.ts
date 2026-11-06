@@ -64,6 +64,16 @@ export function positiveVersion(input: unknown): number {
   return Number(input);
 }
 
+export function assistantResultWait(input: unknown): number {
+  const query = record(input);
+  exact(query, ['waitMs']);
+  if (query.waitMs === undefined) return 0;
+  if (typeof query.waitMs !== 'string' || !/^(?:0|[1-9]\d{0,3})$/.test(query.waitMs)) bad();
+  const milliseconds = Number(query.waitMs);
+  if (milliseconds > 8000) bad();
+  return milliseconds;
+}
+
 export function idempotencyKey(input: unknown): string {
   if (typeof input !== 'string' || !/^[\x21-\x7e]{16,128}$/.test(input)) bad();
   return input;

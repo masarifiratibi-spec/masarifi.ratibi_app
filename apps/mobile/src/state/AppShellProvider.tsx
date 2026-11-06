@@ -39,6 +39,14 @@ const LocalShellHydration = React.createContext<{
   current: Promise<void> | null;
 } | null>(null);
 
+type LiveRestoreCompletion = {
+  sessionKey: string | null;
+  revision: number;
+};
+const LiveShellRestoration = React.createContext<
+  LiveRestoreCompletion | null | undefined
+>(undefined);
+
 function useLocalShellDatabaseRecovery() {
   const inherited = React.useContext(LocalShellHydration);
   const recoveryOwner = useRef<string | null>(null);
@@ -97,16 +105,66 @@ function useLocalShellHydrationFlight() {
   return flight;
 }
 
-/** Only local owner admission overlaps fonts; navigation/SDK effects stay below. */
+function useLiveShellRestoration(localHydration: {
+  current: Promise<void> | null;
+}) {
+  const inherited = React.useContext(LiveShellRestoration);
+  const sessionKey = useLiveClerkSessionKey();
+  const revision = useAppShellStore((state) => state.bootstrapRevision);
+  const mode = resolveClientMode();
+  const queue = useRef(Promise.resolve());
+  const [completed, setCompleted] =
+    React.useState<LiveRestoreCompletion | null>(null);
+  useEffect(() => {
+    if (inherited !== undefined || mode !== 'live' || sessionKey === undefined)
+      return;
+    let current = true;
+    queue.current = queue.current
+      .catch(() => undefined)
+      .then(async () => {
+        await localHydration.current;
+        if (!current) return;
+        if (
+          isDevPrivacyDeletionEnabled() &&
+          !(await prepareDevDeletionBootstrap())
+        )
+          return;
+        if (!current) return;
+        await measurePerformance('startup.restore', () =>
+          restoreAppShellSession(authService, () => current)
+        );
+        if (current) setCompleted({ sessionKey, revision });
+      })
+      .catch((error: unknown) => {
+        if (current)
+          useAppShellStore.setState({
+            hydrated: true,
+            profileSetupStatus:
+              error instanceof HttpError && error.failureSource
+                ? 'unavailable'
+                : 'error'
+          });
+      });
+    return () => {
+      current = false;
+    };
+  }, [inherited, mode, sessionKey, revision, localHydration]);
+  return inherited === undefined ? completed : inherited;
+}
+
+/** Restore identity alongside fonts; navigation and foreground writers stay below. */
 export function AppShellHydrationProvider({
   children
 }: {
   children: ReactNode;
 }) {
   const flight = useLocalShellHydrationFlight();
+  const restored = useLiveShellRestoration(flight);
   return (
     <LocalShellHydration.Provider value={flight}>
-      {children}
+      <LiveShellRestoration.Provider value={restored}>
+        {children}
+      </LiveShellRestoration.Provider>
     </LocalShellHydration.Provider>
   );
 }
@@ -136,8 +194,8 @@ export function AppShellProvider({
     (state) => state.bootstrapRevision
   );
   const mode = resolveClientMode();
-  const restoreQueue = useRef(Promise.resolve());
   const localHydration = useLocalShellHydrationFlight();
+  const restoredCompletion = useLiveShellRestoration(localHydration);
   const registeredPushSession = useRef<string | null>(null);
   const pushRegistrationFlight = useRef<{ sessionKey: string } | null>(null);
   const initialLink = useRef<string | null>(null);
@@ -182,71 +240,37 @@ export function AppShellProvider({
   );
 
   useEffect(() => {
-    let current = true;
-    if (mode !== 'live' || liveClerkSessionKey === undefined)
-      return () => {
-        current = false;
-      };
-    restoreQueue.current = restoreQueue.current
-      .catch(() => undefined)
-      .then(async () => {
-        await localHydration.current;
-        if (
-          current &&
-          isDevPrivacyDeletionEnabled() &&
-          !(await prepareDevDeletionBootstrap())
-        )
-          return;
-        if (current)
-          await measurePerformance('startup.restore', () =>
-            restoreAppShellSession(authService, () => current)
-          );
-      })
-      .then(async () => {
-        if (
-          current &&
-          liveClerkSessionKey &&
-          (!isDevPrivacyDeletionEnabled() ||
-            useAppShellStore.getState().session?.status === 'authenticated')
-        ) {
-          const restored = useAppShellStore.getState();
-          // A successful live profile bootstrap has just read /me as well.
-          if (
-            !restored.profileSetupSnapshot ||
-            !['complete', 'incomplete'].includes(restored.profileSetupStatus)
-          )
-            void authService.touchActivity().catch(() => undefined);
-          registerPushDevice();
-          if (isBenchmarkReadOnly()) {
-            void refreshPlatformOperations().catch(() => undefined);
-            return;
-          }
-          void recordMobileForeground().catch(() => undefined);
-          void synchronizeLiveCoreFinance().catch(() => undefined);
-          void refreshPlatformOperations().catch(() => undefined);
-          void syncAutomaticTracking().catch(() => undefined);
-        }
-      })
-      .catch((error: unknown) =>
-        current
-          ? useAppShellStore.setState({
-              hydrated: true,
-              profileSetupStatus:
-                error instanceof HttpError && error.failureSource
-                  ? 'unavailable'
-                  : 'error'
-            })
-          : undefined
-      );
-    return () => {
-      current = false;
-    };
+    if (
+      mode === 'live' &&
+      liveClerkSessionKey &&
+      restoredCompletion?.sessionKey === liveClerkSessionKey &&
+      restoredCompletion.revision === bootstrapRevision &&
+      (!isDevPrivacyDeletionEnabled() ||
+        useAppShellStore.getState().session?.status === 'authenticated')
+    ) {
+      const restored = useAppShellStore.getState();
+      // A successful live profile bootstrap has just read /me as well.
+      if (
+        !restored.profileSetupSnapshot ||
+        !['complete', 'incomplete'].includes(restored.profileSetupStatus)
+      )
+        void authService.touchActivity().catch(() => undefined);
+      registerPushDevice();
+      if (isBenchmarkReadOnly()) {
+        void refreshPlatformOperations().catch(() => undefined);
+        return;
+      }
+      void recordMobileForeground().catch(() => undefined);
+      void synchronizeLiveCoreFinance().catch(() => undefined);
+      void refreshPlatformOperations().catch(() => undefined);
+      void syncAutomaticTracking().catch(() => undefined);
+    }
   }, [
     liveClerkSessionKey,
     mode,
     bootstrapRevision,
     registerPushDevice,
-    localHydration
+    restoredCompletion
   ]);
 
   const retainSafeDestination = useCallback(
@@ -282,10 +306,11 @@ export function AppShellProvider({
 
   useEffect(() => {
     linksMounted.current = true;
-    const expected = linkRevision.current;
+    const revision = linkRevision;
+    const expected = revision.current;
     void Linking.getInitialURL()
       .then((url) => {
-        if (!linksMounted.current || expected !== linkRevision.current) return;
+        if (!linksMounted.current || expected !== revision.current) return;
         initialLink.current = url && parseDeepLinkDestination(url) ? url : null;
         return retainSafeDestination(initialLink.current, expected);
       })
@@ -293,12 +318,12 @@ export function AppShellProvider({
     const linkSubscription = Linking.addEventListener('url', ({ url }) => {
       if (!parseDeepLinkDestination(url)) return;
       initialLink.current = url;
-      const expected = ++linkRevision.current;
+      const expected = ++revision.current;
       void retainSafeDestination(url, expected).catch(() => undefined);
     });
     return () => {
       linksMounted.current = false;
-      linkRevision.current++;
+      revision.current++;
       linkSubscription?.remove?.();
     };
   }, [retainSafeDestination]);

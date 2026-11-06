@@ -942,6 +942,13 @@ export function createLiveAssistantApiService(
       attempt < 40 && now() - startedAt < 65000;
       attempt += 1
     ) {
+      const remainingMs = 65000 - (now() - startedAt);
+      // Keep one owned request open for completion instead of paying another
+      // mobile round trip after each pending result. Legacy APIs may return early.
+      const waitMs = Math.min(
+        8000,
+        Math.max(0, Math.floor(remainingMs - 1000))
+      );
       const result = parse(
         z
           .object({
@@ -961,11 +968,11 @@ export function createLiveAssistantApiService(
           .strict(),
         await send(
           'GET',
-          `/api/v1/assistant/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/result`,
+          `/api/v1/assistant/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/result?waitMs=${waitMs}`,
           undefined,
           undefined,
           owner,
-          65000 - (now() - startedAt)
+          remainingMs
         )
       );
       if (
@@ -1488,8 +1495,16 @@ export function createLiveAssistantApiService(
         send('GET', `/api/v1/${path}`, undefined, undefined, actor.userId);
       const effect = value.effect;
       try {
-        if (value.kind === 'create_transaction' && typeof effect.accountId === 'string')
-          context.account = parse(z.record(z.unknown()), await read(`accounts/${encodeURIComponent(String(effect.accountId))}`));
+        if (
+          value.kind === 'create_transaction' &&
+          typeof effect.accountId === 'string'
+        )
+          context.account = parse(
+            z.record(z.unknown()),
+            await read(
+              `accounts/${encodeURIComponent(String(effect.accountId))}`
+            )
+          );
         if (value.confirmationAllowed) {
           if (value.kind === 'update_transaction')
             context.target = parse(

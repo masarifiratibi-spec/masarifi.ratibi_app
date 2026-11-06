@@ -13,6 +13,7 @@ import {
   adminPage,
   adminMutation,
   assistantMessage,
+  assistantResultWait,
   consent,
   conversationCreate,
   conversationUpdate,
@@ -41,6 +42,7 @@ const CONSENT_POLICY = 'assistant-privacy-v1';
 const STREAM_TIMEOUT_MS = 65_000;
 
 function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
   return new Promise((resolve) => {
     const done = () => {
       clearTimeout(timer);
@@ -827,11 +829,37 @@ export class AiService {
     return this.repository.messageAcceptance(principal, uuid(conversationId), idempotencyKey(key));
   }
 
-  async getMessageResult(principal: ClerkPrincipal, conversationId: string, messageId: string) {
-    const request = await this.repository.getMessage(principal, uuid(messageId));
+  async getMessageResult(
+    principal: ClerkPrincipal,
+    conversationId: string,
+    messageId: string,
+    options: { query?: unknown; signal?: AbortSignal } = {},
+  ) {
+    const waitMs = assistantResultWait(options.query ?? {});
+    const signal = options.signal ?? new AbortController().signal;
+    const disconnected = () => signal.aborted;
+    const deadline = Date.now() + waitMs;
+    let request = await this.repository.getMessage(principal, uuid(messageId));
     if (request.conversationId !== uuid(conversationId) || request.role !== 'user')
       throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
-    const result = resource(await this.repository.messageResult(principal, messageId));
+    let result = resource(await this.repository.messageResult(principal, messageId));
+    let waited = false;
+    while (
+      ['queued', 'processing'].includes(String(result.status)) &&
+      !disconnected() &&
+      Date.now() < deadline
+    ) {
+      waited = true;
+      await abortableDelay(Math.min(250, deadline - Date.now()), signal);
+      if (disconnected()) break;
+      result = resource(await this.repository.messageResult(principal, messageId));
+    }
+    if (waited) {
+      // Recheck deletion/conversation ownership after waiting; never cancel durable work.
+      request = await this.repository.getMessage(principal, messageId);
+      if (request.conversationId !== conversationId || request.role !== 'user')
+        throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    }
     let response: Record<string, unknown> | null = null;
     if (result.response) {
       const row = await this.repository.getMessage(principal, String(resource(result.response).id));

@@ -449,18 +449,44 @@ it('preserves the original action timezone through the real message/preview mapp
   });
 });
 
-it.each(['matching','wrongAccount','wrongCurrency'] as const)('uses only an owner-authorized matching account name for the compact review: %s', async (mode) => {
-  const action = {...preview(), actionType:'transaction.create', payload:{...samples[0].effect,accountId:id(8)}};
-  const rows = messages(action);
-  Object.assign(rows.items[1]!, {actionTimezone:'Asia/Riyadh'});
-  const account = {id:mode === 'wrongAccount' ? id(9) : id(8),name:'Actual cash',currencyCode:mode === 'wrongCurrency' ? 'USD' : 'SAR',deletedAt:null};
-  const request = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations)).mockResolvedValueOnce(json(rows)).mockResolvedValueOnce(json(account));
-  const value = await createLiveAssistantApiService({baseUrl:'https://api.test',token:async ()=>'owner',request}).getActionPreview(id(5));
-  expect(request.mock.calls[2]?.[0]).toBe(`https://api.test/api/v1/accounts/${id(8)}`);
-  expect(request.mock.calls.every(([,init])=>init?.method === 'GET')).toBe(true);
-  expect(value.disclosure?.fields.find(field=>field.key === 'accountName')?.value).toBe(mode === 'matching' ? 'Actual cash' : undefined);
-});
+it.each(['matching', 'wrongAccount', 'wrongCurrency'] as const)(
+  'uses only an owner-authorized matching account name for the compact review: %s',
+  async (mode) => {
+    const action = {
+      ...preview(),
+      actionType: 'transaction.create',
+      payload: { ...samples[0].effect, accountId: id(8) }
+    };
+    const rows = messages(action);
+    Object.assign(rows.items[1]!, { actionTimezone: 'Asia/Riyadh' });
+    const account = {
+      id: mode === 'wrongAccount' ? id(9) : id(8),
+      name: 'Actual cash',
+      currencyCode: mode === 'wrongCurrency' ? 'USD' : 'SAR',
+      deletedAt: null
+    };
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(json(conversations))
+      .mockResolvedValueOnce(json(rows))
+      .mockResolvedValueOnce(json(account));
+    const value = await createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    }).getActionPreview(id(5));
+    expect(request.mock.calls[2]?.[0]).toBe(
+      `https://api.test/api/v1/accounts/${id(8)}`
+    );
+    expect(request.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
+      true
+    );
+    expect(
+      value.disclosure?.fields.find((field) => field.key === 'accountName')
+        ?.value
+    ).toBe(mode === 'matching' ? 'Actual cash' : undefined);
+  }
+);
 
 it('shows a completed reply with an unconfirmable preview when source versions are missing', async () => {
   const action = {
@@ -899,6 +925,42 @@ it('stops immediately on a failed accepted user message without scanning history
   ).rejects.toMatchObject({ code: 'limit_reached' });
   expect(request).toHaveBeenCalledTimes(2);
   expect(request.mock.calls[1]?.[0]).toContain(`/messages/${id(2)}/result`);
+});
+
+it('requests bounded server-side completion with the saved message identity and no extra phone polling', async () => {
+  const rows = messages();
+  const request = jest
+    .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    .mockResolvedValueOnce(json({ id: id(2), status: 'queued' }, 202))
+    .mockResolvedValueOnce(
+      json({
+        id: id(2),
+        conversationId: id(1),
+        status: 'completed',
+        failureCode: null,
+        request: rows.items[1],
+        response: rows.items[0]
+      })
+    );
+  const journal = createMemoryAssistantJournal();
+  const service = createLiveAssistantApiService({
+    baseUrl: 'https://api.test',
+    token: async () => 'owner',
+    request,
+    journal
+  });
+  await expect(
+    service.ask(id(1), 'Spend?', 'bounded-result-question-key')
+  ).resolves.toMatchObject({ value: { id: id(3) } });
+  expect(request.mock.calls[1]?.[0]).toBe(
+    `https://api.test/api/v1/assistant/conversations/${id(1)}/messages/${id(2)}/result?waitMs=8000`
+  );
+  expect(request.mock.calls).toHaveLength(2);
+  expect(await journal.read('inert-adapter-owner', 'question')).toMatchObject({
+    phase: 'completed',
+    messageId: id(2),
+    operationId: 'bounded-result-question-key'
+  });
 });
 
 it('returns the acknowledged conversation before waiting for its answer', async () => {

@@ -324,12 +324,30 @@ export class AiController {
 
   @Get('assistant/conversations/:conversationId/messages/:messageId/result')
   @ApiOperation({ operationId: 'getAssistantMessageResult' })
-  getMessageResult(
+  async getMessageResult(
     @Req() request: AiRequest,
     @Param('conversationId') conversationId: string,
     @Param('messageId') messageId: string,
+    @Query() query: unknown = {},
   ) {
-    return this.ai.getMessageResult(aiRequestPrincipal(request), conversationId, messageId);
+    const controller = new AbortController();
+    const disconnect = () => {
+      controller.abort();
+    };
+    request.res?.once('close', disconnect);
+    try {
+      return await this.ai.getMessageResult(
+        aiRequestPrincipal(request),
+        conversationId,
+        messageId,
+        {
+          query,
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      request.res?.removeListener('close', disconnect);
+    }
   }
 
   @Get('assistant/conversations/:conversationId/messages/acceptance')

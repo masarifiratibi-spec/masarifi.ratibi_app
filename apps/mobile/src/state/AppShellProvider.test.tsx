@@ -176,6 +176,91 @@ describe('AppShellProvider', () => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   });
 
+  it('starts the verified live restore while fonts still cover the navigator, without starting foreground writers', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'session-behind-fonts';
+    const hydrate = jest
+      .spyOn(useAppShellStore.getState(), 'hydrate')
+      .mockResolvedValue(undefined);
+    const tree = (fontsReady: boolean) => (
+      <AppShellHydrationProvider>
+        {fontsReady ? (
+          <AppShellProvider>
+            <ProtectedContent />
+          </AppShellProvider>
+        ) : (
+          <Text>Fonts still pending</Text>
+        )}
+      </AppShellHydrationProvider>
+    );
+    const view = render(tree(false));
+    try {
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
+      expect(mockEnsureLivePushDeviceRegistration).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(screen.queryByText('protected child')).toBeNull();
+      view.rerender(tree(true));
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1);
+      expect(mockEnsureLivePushDeviceRegistration).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      hydrate.mockRestore();
+    }
+  });
+
+  it('serializes a replaced SDK session behind fonts and never admits the late original restore', async () => {
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    mockLiveClerkSessionKey = 'original-session-behind-fonts';
+    const hydrate = jest
+      .spyOn(useAppShellStore.getState(), 'hydrate')
+      .mockResolvedValue(undefined);
+    let release!: () => void;
+    const admitted: boolean[] = [];
+    mockRestoreAppShellSession
+      .mockImplementationOnce(async (_auth, isCurrent) => {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        admitted.push((isCurrent as () => boolean)());
+      })
+      .mockImplementationOnce(async (_auth, isCurrent) => {
+        admitted.push((isCurrent as () => boolean)());
+      });
+    const tree = (fontsReady: boolean) => (
+      <AppShellHydrationProvider>
+        {fontsReady ? (
+          <AppShellProvider>
+            <ProtectedContent />
+          </AppShellProvider>
+        ) : (
+          <Text>Fonts still pending</Text>
+        )}
+      </AppShellHydrationProvider>
+    );
+    const view = render(tree(false));
+    try {
+      await act(async () => {});
+      mockLiveClerkSessionKey = 'new-session-behind-fonts';
+      view.rerender(tree(false));
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1);
+      await act(async () => release());
+      expect(admitted).toEqual([false, true]);
+      expect(mockSynchronizeLiveCoreFinance).not.toHaveBeenCalled();
+      view.rerender(tree(true));
+      await act(async () => {});
+      expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2);
+      expect(mockSynchronizeLiveCoreFinance).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      hydrate.mockRestore();
+    }
+  });
+
   it('bootstraps the same Clerk session after a 401 and successful Google reauthentication', async () => {
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
     mockLiveClerkSessionKey = 'same-clerk-session';
