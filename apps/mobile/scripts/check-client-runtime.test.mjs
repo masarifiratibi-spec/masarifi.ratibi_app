@@ -1,6 +1,11 @@
 import test from 'node:test';
 import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { URL } from 'node:url';
 
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
@@ -28,6 +33,46 @@ const iosAdHoc = {
   EAS_BUILD_PROFILE: 'ios-ad-hoc',
   EAS_BUILD_PLATFORM: 'ios'
 };
+
+test('the pre-install CLI enforces release checks from an absolute path containing URL-sensitive characters', () => {
+  const scratchRoot = resolve(tmpdir());
+  const fixture = mkdtempSync(join(scratchRoot, 'masarifi#ios-cli-'));
+  const scripts = join(fixture, 'scripts');
+  mkdirSync(scripts);
+  try {
+    for (const name of [
+      'check-client-runtime.mjs',
+      'benchmark-build-policy.cjs',
+      'performance-qa-exclusion.cjs'
+    ]) {
+      copyFileSync(new URL(name, import.meta.url), join(scripts, name));
+    }
+    copyFileSync(
+      new URL('../app.json', import.meta.url),
+      join(fixture, 'app.json')
+    );
+    const run = (patch) =>
+      spawnSync(process.execPath, [join(scripts, 'check-client-runtime.mjs')], {
+        env: { ...process.env, ...iosAdHoc, ...patch },
+        encoding: 'utf8'
+      });
+    assert.equal(run({}).status, 0);
+    const rejected = run({ EAS_BUILD_PLATFORM: 'android' });
+    assert.notEqual(
+      rejected.status,
+      0,
+      'the actual CLI must run its validator'
+    );
+    assert.match(
+      rejected.stderr,
+      /iPhone Ad Hoc requires the ios build platform/
+    );
+  } finally {
+    if (dirname(fixture) !== scratchRoot)
+      throw new Error('Unexpected fixture directory');
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 test('accepts a standalone iPhone candidate with the retained production identity', () => {
   assert.doesNotThrow(() => validateClientBuildEnvironment(iosAdHoc));

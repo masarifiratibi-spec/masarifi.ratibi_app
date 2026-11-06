@@ -2,6 +2,7 @@ import { URL } from 'node:url';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import benchmarkPolicy from './benchmark-build-policy.cjs';
 import performanceQaExclusion from './performance-qa-exclusion.cjs';
 
@@ -177,6 +178,6 @@ function isPrivacyApiNamespace(value) {
 if (
   process.argv[1] &&
   import.meta.url ===
-    new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href
+    pathToFileURL(process.argv[1]).href
 )
   validateClientBuildEnvironment();
