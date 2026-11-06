@@ -124,7 +124,7 @@ function layoutInitialHome() {
   );
 }
 
-it('keeps the branded cover over partial first-page content until today activity is ready', () => {
+it('shows the ready Home balance while today activity is still pending', () => {
   mockHomeQuery.isError = false;
   const activity = mockActivityQuery.data;
   mockActivityQuery.data = undefined;
@@ -135,9 +135,10 @@ it('keeps the branded cover over partial first-page content until today activity
     </InitialHomeLoadingBoundary>
   );
   layoutInitialHome();
-  expect(screen.getByTestId('startup-loading')).toBeTruthy();
-  expect(screen.queryByTestId('home-account-card')).toBeNull();
-  expect(screen.queryByText(translate('coreFinance.state.loading'))).toBeNull();
+  expect(screen.queryByTestId('startup-loading')).toBeNull();
+  expect(screen.getByTestId('home-account-card')).toBeTruthy();
+  expect(screen.queryByText('Cached coffee')).toBeNull();
+  expect(screen.getByText(translate('coreFinance.state.loading'))).toBeTruthy();
   act(() => {
     mockActivityQuery.data = activity;
     mockActivityQuery.isPending = false;
