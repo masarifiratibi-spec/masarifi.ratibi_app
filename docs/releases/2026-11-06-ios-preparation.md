@@ -2,8 +2,8 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
-The current shared source is now `a970978d`, synchronized through published
-documentation head `351a6477`; the existing IPA2 still contains source `2dd23b5b`.
+The current shared source is now `88df9c8a`, synchronized through published
+documentation head `339e9c43`; the existing IPA2 still contains source `2dd23b5b`.
 
 ## Source and coordination
 
@@ -317,3 +317,34 @@ documents the iOS 17 requirement and official plugin.
   recorded above. Including the new shared UI changes in an installable iPhone
   artifact requires a later build from the agreed checkpoint; no new IPA was
   produced for this source-only synchronization.
+
+## Home source synchronization — IPA2 unchanged
+
+- Verified published Home source
+  `88df9c8a6f7237840652e386b76d58c06f14ffe6` and fast-forwarded E/iOS without
+  conflict. After checks, integrated published review head
+  `339e9c43e3f07ac4ce28b03ab907bc0d2fa72b44`; the range after `88df` changes
+  documentation only. The Home source changes two components and two tests;
+  queries, credentials, native configuration and dependency locks are unchanged.
+- Additional local compatibility evidence is **98/98 cases in 7/7 Home suites**
+  from one successful command: balance readiness, cached content, Voice progress,
+  quick actions, accessibility, screen and route. Types and lint over the four
+  changed files passed. No test content, timeout, skip or forced-exit change was
+  made in this checkout, and no wider suite was repeated.
+- The [source owner's Home qualification](2026-11-06-home-background-reads.md)
+  is separate composite evidence: nine real suites / 115 cases passed in an
+  overall exit1 command containing a nonexistent CLI path; four further correct
+  suites / 17 cases passed separately. Its 132 cases / 13 executed passing
+  suites are not described as one green command. The selected local 98 cases
+  overlap that evidence and must not be added to it.
+- Production iOS introspection/JS export audit passed: 2,099 sources, 13 live
+  production entry points, zero forbidden sources and zero explicit Android
+  tracking entry points. New diagnostics are isolated in
+  `E:\Masarifi-ios-artifacts\source-88df9c8a`. Incoming `c0db..88df` history
+  passes the unchanged strict secret policy with zero findings; historical
+  raw1/public1/unexpected0 classification is retained.
+- IPA2 SHA256 was rechecked and remains identical. No new IPA, Android device
+  action or hosted change was performed here. The current installation link and
+  physical acceptance boundary still refer to source `2dd23b5b`; the Home update
+  is prepared for a later signed iPhone build. Android118 review documents are
+  the Android owner's evidence, not iPhone or installation acceptance.
