@@ -2,6 +2,8 @@
 
 Status: signed Ad Hoc IPA built and inspected for the registered owner iPhone.
 Installation/login and physical-device feature acceptance remain pending.
+The current shared source is now `a970978d`, synchronized through published
+documentation head `351a6477`; the existing IPA2 still contains source `2dd23b5b`.
 
 ## Source and coordination
 
@@ -279,3 +281,39 @@ documents the iOS 17 requirement and official plugin.
   notifications, offline/reconnect and layout checks on the actual iPhone.
   Android bank-SMS tracking remains outside iOS scope. No customer-ready runtime
   acceptance is claimed until those checks complete.
+
+## Subsequent source synchronization — IPA2 unchanged
+
+- Verified the published Android branch at
+  `351a647741a355773e9302dbc1fb4706dd64211f` and fast-forwarded the separate E
+  checkout to that exact clean head. Application source is
+  `a970978d2617d578dbee14a4562164790ae8b8d3`; `a970..351` contains only review,
+  handoff and Android117 preparation documents. Original D files/phone were not
+  changed, and uncommitted work was not copied.
+- This includes the qualified Categories/Salary/Obligations responsiveness work
+  and the earlier scoped Tracking actor preparation. The source owner's
+  [UI qualification](2026-11-06-stable-finance-destinations.md) and
+  [Tracking qualification](2026-11-06-tracking-command-preparation.md) remain their
+  own evidence; Android117 preparation is not installation or physical acceptance.
+- Local iOS compatibility: **93/93 cases across 15/15 selected suites passed**,
+  including the affected screens/queries/routes, offline reads and the existing
+  iOS tracking-availability regression. The first selected command had one
+  five-second ObligationJourney timeout (14 suites / 92 cases passed). Its
+  unchanged complete file then passed 24 cases; repeating the entire selected
+  command passed 93 cases. Default timeouts, test contents and exit behavior were
+  retained; original failure/retry/final logs are preserved. These runs overlap
+  the source owner's qualification and earlier tests; do not sum their counts.
+- Typecheck and lint over the 12 changed TS/TSX files passed. Actual production
+  iOS configuration/JS export audit passed: 2,099 sources, 13 production entry
+  points, no forbidden sources and no explicit Android tracking entry point.
+  New artifacts live under `E:\Masarifi-ios-artifacts\source-a970`, separately
+  from IPA2/native-build evidence. This JS export is diagnostic, not a signed IPA.
+- The incoming history `a926..a970` passes the original strict secret policy with
+  zero findings. The historical public Clerk-key classification remains
+  raw1/public1/unexpected0; no policy or ignore list was changed.
+- No iOS native configuration, dependency lock, signing profile or bundle identity
+  changed in this incoming range. Rechecked the existing IPA2 SHA256: unchanged.
+  Its actual source, device inclusion and pending runtime acceptance remain as
+  recorded above. Including the new shared UI changes in an installable iPhone
+  artifact requires a later build from the agreed checkpoint; no new IPA was
+  produced for this source-only synchronization.
