@@ -78,6 +78,50 @@ const savedProfile = {
   completion: [],
   version: 2
 };
+
+it('retains the last Home balance and today display snapshots while ordinary read-cache entries are evicted', async () => {
+  const scope = { ownerId: mockOwner, locale: 'ar' };
+  const store = createQueryReadCache(() => scope);
+  const balanceKey = [
+    'core-finance',
+    'home',
+    'balance-source',
+    { ownerId: mockOwner }
+  ];
+  const todayKey = [
+    'core-finance',
+    'transactions',
+    'home-today',
+    'Asia/Riyadh',
+    {}
+  ];
+  await store.save(scope, {
+    key: balanceKey,
+    data: { savedBalanceMinor: -1600 },
+    updatedAt: 100
+  });
+  await store.save(scope, {
+    key: todayKey,
+    data: [{ savedAmountMinor: 347 }],
+    updatedAt: 101
+  });
+  for (let index = 0; index < 65; index++) {
+    await store.save(scope, {
+      key: ['core-finance', 'transaction', `newer-${index}`],
+      data: { label: `Read ${index}` },
+      updatedAt: 1000 + index
+    });
+  }
+  const rows = await store.load(scope);
+  expect(
+    rows.find((row) => JSON.stringify(row.key) === JSON.stringify(balanceKey))
+      ?.data
+  ).toEqual({ savedBalanceMinor: -1600 });
+  expect(
+    rows.find((row) => JSON.stringify(row.key) === JSON.stringify(todayKey))
+      ?.data
+  ).toEqual([{ savedAmountMinor: 347 }]);
+});
 it('does not resurrect a denied profile from canonical local storage after eviction or restart, and permits a later authoritative success', async () => {
   const scope = { ownerId: mockOwner, locale: 'ar' };
   mockDatabases

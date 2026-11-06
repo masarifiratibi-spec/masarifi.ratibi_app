@@ -18,6 +18,8 @@ export interface ReadCacheStore {
   deny?(scope: ReadCacheScope, key: QueryKey): Promise<void>;
 }
 
+export type LocalReadCacheBinding = (() => void) & { ready: Promise<void> };
+
 /** Only display models. Never persist tokens, signed URLs, action previews or mutations. */
 export const offlineReadPrefixes = Object.entries({
   'core-finance': [
@@ -84,12 +86,20 @@ export function readBelongsToScope(
   key: QueryKey,
   scope: ReadCacheScope
 ): boolean {
-  if (key[0] === 'core-finance' &&
-      (key[1] === 'accounts' || key[1] === 'account-balances' ||
-       (key[1] === 'home' && key[2] === 'balance-source'))) {
+  if (
+    key[0] === 'core-finance' &&
+    (key[1] === 'accounts' ||
+      key[1] === 'account-balances' ||
+      (key[1] === 'home' && key[2] === 'balance-source'))
+  ) {
     const owner = key[3];
-    return key.length === 4 && typeof owner === 'object' && owner !== null &&
-      'ownerId' in owner && owner.ownerId === scope.ownerId;
+    return (
+      key.length === 4 &&
+      typeof owner === 'object' &&
+      owner !== null &&
+      'ownerId' in owner &&
+      owner.ownerId === scope.ownerId
+    );
   }
   if (key[0] === 'support') {
     const ownerIndex = key[1] === 'tickets' ? 2 : key[1] === 'ticket' ? 3 : 4;
@@ -127,13 +137,21 @@ export function readBelongsToScope(
   );
 }
 
+function isHomeDisplaySnapshot(key: QueryKey): boolean {
+  return (
+    key[0] === 'core-finance' &&
+    ((key[1] === 'home' && key[2] === 'balance-source') ||
+      (key[1] === 'transactions' && key[2] === 'home-today'))
+  );
+}
+
 /** Hydration publishes old timestamps; Query remains the only live read/state owner. */
 export function bindLocalReadCache(
   client: QueryClient,
   store: ReadCacheStore
-): () => void {
+): LocalReadCacheBinding {
   const scope = store.current();
-  if (!scope) return () => {};
+  if (!scope) return Object.assign(() => {}, { ready: Promise.resolve() });
   let disposed = false;
   let restoring = false;
   const current = () => {
@@ -154,6 +172,12 @@ export function bindLocalReadCache(
     )
       return;
     const state = event.query.state;
+    // A refresh does not replace the last saved Home. Denials still evict it below.
+    if (
+      event.action.type === 'invalidate' &&
+      isHomeDisplaySnapshot(event.query.queryKey)
+    )
+      return;
     if (
       event.action.type === 'invalidate' ||
       (event.action.type === 'error' && isAuthoritativeReadDenial(state.error))
@@ -178,7 +202,7 @@ export function bindLocalReadCache(
       })
       .catch(() => undefined);
   });
-  void store
+  const ready = store
     .load(scope)
     .then((rows) => {
       if (!current()) return;
@@ -195,7 +219,7 @@ export function bindLocalReadCache(
             continue;
           const previous = client.getQueryState(row.key);
           if (
-            previous?.isInvalidated ||
+            (previous?.isInvalidated && !isHomeDisplaySnapshot(row.key)) ||
             isAuthoritativeReadDenial(previous?.error)
           )
             continue;
@@ -217,8 +241,11 @@ export function bindLocalReadCache(
       }
     })
     .catch(() => undefined);
-  return () => {
-    disposed = true;
-    unsubscribe();
-  };
+  return Object.assign(
+    () => {
+      disposed = true;
+      unsubscribe();
+    },
+    { ready }
+  );
 }

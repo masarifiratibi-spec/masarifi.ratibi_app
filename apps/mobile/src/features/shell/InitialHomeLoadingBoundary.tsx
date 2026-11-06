@@ -13,6 +13,7 @@ import {
 } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
 import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
+import { LocalReadCacheReady } from '@/state/local-read-cache-context';
 
 type Part = 'home' | 'header' | 'notice';
 type Readiness = 'pending' | 'ready' | 'failed';
@@ -28,8 +29,8 @@ export function useInitialHomeReadiness(part: Part, state: Readiness | null) {
   }, [part, state, report]);
 }
 
-type State = Record<Part | 'layout', boolean> & { released: boolean };
-type Action = { part: Part | 'layout' | 'leave'; state: Readiness };
+type State = Record<Part | 'layout' | 'cache', boolean> & { released: boolean };
+type Action = { part: Part | 'layout' | 'cache' | 'leave'; state: Readiness };
 
 function reduceReadiness(previous: State, action: Action): State {
   if (previous.released) return previous;
@@ -40,7 +41,8 @@ function reduceReadiness(previous: State, action: Action): State {
   const next = { ...previous, [action.part]: ready };
   return {
     ...next,
-    released: next.home && next.header && next.notice && next.layout
+    released:
+      next.home && next.header && next.notice && next.layout && next.cache
   };
 }
 
@@ -51,7 +53,9 @@ export function InitialHomeLoadingBoundary({
   isHome: boolean;
   children: React.ReactNode;
 }) {
+  const localReadReady = useContext(LocalReadCacheReady);
   const [state, dispatch] = useReducer(reduceReadiness, {
+    cache: localReadReady,
     home: false,
     header: false,
     notice: false,
@@ -73,6 +77,9 @@ export function InitialHomeLoadingBoundary({
   const themePreference = usePreferenceStore((state) => state.theme);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   useLayoutEffect(() => {
+    dispatch({ part: 'cache', state: localReadReady ? 'ready' : 'pending' });
+  }, [localReadReady]);
+  useLayoutEffect(() => {
     if (!isHome) {
       if (!released.current) releaseOutcome.current ??= 'left_route';
       dispatch({ part: 'leave', state: 'ready' });
@@ -82,7 +89,7 @@ export function InitialHomeLoadingBoundary({
     if (!state.released || recorded.current) return;
     const outcome =
       releaseOutcome.current ??
-      (state.home && state.header && state.notice && state.layout
+      (state.home && state.header && state.notice && state.layout && state.cache
         ? 'ready'
         : null);
     if (!outcome) return;
@@ -91,7 +98,8 @@ export function InitialHomeLoadingBoundary({
   }, [state]);
   // The admitted shell can paint before its optional reads finish. Keep the
   // aggregate data-readiness outcome above separate from this visual cover.
-  const waiting = isHome && !state.released && !state.layout;
+  const waiting =
+    isHome && !state.released && (!state.layout || !localReadReady);
   useStartupReady(!waiting);
   return (
     <InitialHomeReadiness.Provider value={report}>

@@ -13,6 +13,9 @@ import { HomeScreen } from './HomeScreen';
 import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { usePreferenceStore } from '@/state/preferences';
+import { useAppShellStore } from '@/state/app-shell';
+import { bindLocalReadCache } from '@/services/local-read-cache';
+import { emptyTransactionFilters } from '@/domain/core-finance';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
@@ -23,6 +26,134 @@ jest.mock('expo-router', () => ({
 }));
 
 afterEach(() => jest.restoreAllMocks());
+
+it('shows the saved negative Home balance and activity before held live reads, then replaces them without remounting controls', async () => {
+  changeLocale('en');
+  jest
+    .spyOn(Date, 'now')
+    .mockReturnValue(Date.parse('2026-11-06T09:00:00.000Z'));
+  useCoreFinanceViewState.getState().selectAccount(null);
+  usePreferenceStore.setState({
+    hideBalances: false,
+    timeZone: 'Asia/Riyadh',
+    baseCurrencyCode: 'SAR'
+  });
+  const previousSession = useAppShellStore.getState().session;
+  useAppShellStore.setState({
+    session: {
+      status: 'authenticated',
+      userId: 'saved-home-owner',
+      method: 'google',
+      restoration: 'restored',
+      issuedAt: 1,
+      expiresAt: 9999999999999
+    }
+  });
+  const account = {
+    ...fixtureAccounts[0]!,
+    currencyCode: 'SAR',
+    status: 'active' as const
+  };
+  const savedBalance = {
+    accountId: account.id,
+    currencyCode: 'SAR',
+    balanceMinor: -1600,
+    asOf: 100
+  };
+  const savedActivity = [
+    {
+      transaction: makeTransaction(1, {
+        accountId: account.id,
+        title: 'Saved coffee',
+        currencyCode: 'SAR',
+        occurredAt: Date.now()
+      }),
+      group: 'expense' as const,
+      sign: 'negative' as const
+    }
+  ];
+  jest.spyOn(coreFinanceService, 'listAccounts').mockResolvedValue([account]);
+  let finishBalances!: (rows: (typeof savedBalance)[]) => void;
+  jest.spyOn(coreFinanceService, 'listAccountBalances').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finishBalances = resolve;
+      })
+  );
+  let finishActivity!: (rows: typeof savedActivity) => void;
+  jest.spyOn(coreFinanceService, 'getHomeTodayActivity').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finishActivity = resolve;
+      })
+  );
+  function SavedHome() {
+    const client = useQueryClient();
+    React.useEffect(
+      () =>
+        bindLocalReadCache(client, {
+          current: () => ({ ownerId: 'saved-home-owner', locale: 'en' }),
+          load: async () => [
+            {
+              key: [
+                'core-finance',
+                'home',
+                'balance-source',
+                { ownerId: 'saved-home-owner' }
+              ],
+              data: { accounts: [account], balances: [savedBalance] },
+              updatedAt: 100
+            },
+            {
+              key: [
+                'core-finance',
+                'transactions',
+                'home-today',
+                'Asia/Riyadh',
+                {
+                  ...emptyTransactionFilters,
+                  periodStart: 1793912400000,
+                  periodEnd: 1793998799999
+                }
+              ],
+              data: savedActivity,
+              updatedAt: 100
+            }
+          ],
+          save: async () => {}
+        }),
+      [client]
+    );
+    return <HomeScreen />;
+  }
+  const view = renderWithProviders(<SavedHome />);
+  try {
+    expect(await screen.findByText('Saved coffee')).toBeOnTheScreen();
+    expect(screen.getAllByText(/-16\.00/).length).toBeGreaterThan(0);
+    const voice = screen.getByTestId('home-quick-action-voice');
+    const card = screen.getByTestId('home-account-card');
+    await act(async () => {
+      finishBalances([{ ...savedBalance, balanceMinor: -1200 }]);
+      finishActivity([
+        {
+          ...savedActivity[0]!,
+          transaction: {
+            ...savedActivity[0]!.transaction,
+            title: 'Updated coffee'
+          }
+        }
+      ]);
+    });
+    expect(await screen.findByText('Updated coffee')).toBeOnTheScreen();
+    expect(screen.queryByText('Saved coffee')).toBeNull();
+    expect(screen.getAllByText(/-12\.00/).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('home-quick-action-voice')).toBe(voice);
+    expect(screen.getByTestId('home-account-card')).toBe(card);
+  } finally {
+    view.unmount();
+    useAppShellStore.setState({ session: previousSession });
+  }
+});
 
 it('shows the existing Home controls and activity sections before initial financial reads resolve', async () => {
   changeLocale('en');

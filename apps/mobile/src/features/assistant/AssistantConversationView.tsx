@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -27,7 +27,8 @@ import type {
   AssistantResponse,
   AssistantUserTurn
 } from '@/domain/assistant';
-import { currentLocale, translate } from '@/localization/i18n';
+import { translate } from '@/localization/i18n';
+import { usePreferenceStore } from '@/state/preferences';
 import { colorTokens } from '@/design-system/tokens';
 import type { AssistantAvailability } from './AssistantFunctionalStatus';
 
@@ -37,7 +38,10 @@ export interface AssistantConversationViewProps {
   responses: readonly AssistantResponse[];
   onSendMessage: AssistantComposerProps['onSendMessage'];
   onReviewAction?: (previewId: string) => void;
-  renderAction?: (previewId: string, fallback: React.ReactNode) => React.ReactNode;
+  renderAction?: (
+    previewId: string,
+    fallback: React.ReactNode
+  ) => React.ReactNode;
   onViewReport?: () => void;
   onFeedback?: (
     responseId: string,
@@ -53,6 +57,8 @@ export interface AssistantConversationViewProps {
   testID?: string;
 }
 
+const EMPTY_USER_TURNS: readonly AssistantUserTurn[] = [];
+
 export function AssistantConversationView({
   conversation: _conversation,
   conversationId,
@@ -62,7 +68,7 @@ export function AssistantConversationView({
   renderAction,
   onViewReport,
   onFeedback,
-  userTurns = [],
+  userTurns = EMPTY_USER_TURNS,
   onBack,
   functionalStatus,
   availability,
@@ -76,6 +82,16 @@ export function AssistantConversationView({
     () => getCalendars()[0]?.uses24hourClock
   );
   const hour12 = uses24HourClock == null ? undefined : !uses24HourClock;
+  const locale = usePreferenceStore((state) => state.locale);
+  const clock = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12
+      }),
+    [locale, hour12]
+  );
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -103,26 +119,28 @@ export function AssistantConversationView({
   }, []);
   const flatListRef = useRef<FlatList>(null);
   const lastResponseId = responses[responses.length - 1]?.id;
-  const turns = new Map<
-    string,
-    AssistantUserTurn & { response?: AssistantResponse }
-  >();
-  userTurns.forEach((turn) => turns.set(turn.id, turn));
-  responses.forEach((response) => {
-    const id = response.requestMessageId ?? response.id;
-    turns.set(id, {
-      ...(turns.get(id) ?? {
-        id,
-        content: response.question,
-        createdAt: response.requestCreatedAt ?? response.createdAt,
-        status: 'completed'
-      }),
-      response
+  const orderedTurns = useMemo(() => {
+    const turns = new Map<
+      string,
+      AssistantUserTurn & { response?: AssistantResponse }
+    >();
+    userTurns.forEach((turn) => turns.set(turn.id, turn));
+    responses.forEach((response) => {
+      const id = response.requestMessageId ?? response.id;
+      turns.set(id, {
+        ...(turns.get(id) ?? {
+          id,
+          content: response.question,
+          createdAt: response.requestCreatedAt ?? response.createdAt,
+          status: 'completed'
+        }),
+        response
+      });
     });
-  });
-  const orderedTurns = [...turns.values()].sort(
-    (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)
-  );
+    return [...turns.values()].sort(
+      (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)
+    );
+  }, [userTurns, responses]);
   const latestTurnId = orderedTurns.at(-1)?.id;
   const handleBack = () => {
     if (Keyboard.isVisible()) Keyboard.dismiss();
@@ -144,7 +162,7 @@ export function AssistantConversationView({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [lastResponseId, latestTurnId]);
+  }, [lastResponseId, latestTurnId, orderedTurns.length]);
 
   // Merge responses into a flat sequence of user questions and AI answers
   const renderItem = ({
@@ -159,13 +177,7 @@ export function AssistantConversationView({
           message={item.content}
           status={item.status}
           timestamp={
-            item.createdAt > 0
-              ? new Date(item.createdAt).toLocaleTimeString(currentLocale(), {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12
-                })
-              : undefined
+            item.createdAt > 0 ? clock.format(item.createdAt) : undefined
           }
         />
       )}
@@ -179,14 +191,7 @@ export function AssistantConversationView({
           renderAction={renderAction}
           onViewReport={onViewReport}
           onFeedback={(feedback) => onFeedback?.(item.response!.id, feedback)}
-          timestamp={new Date(item.response.createdAt).toLocaleTimeString(
-            currentLocale(),
-            {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12
-            }
-          )}
+          timestamp={clock.format(item.response.createdAt)}
         />
       ) : null}
     </View>
@@ -241,15 +246,21 @@ export function AssistantConversationView({
       />
 
       {/* 3. Follow-up suggestions */}
-      {!isSending && responses.length > 0 && !responses.at(-1)?.proposedActionIds?.length && (
-        <AssistantFollowUpSuggestions
-          onSelectSuggestion={onSendMessage}
-          disabled={isSending}
-        />
-      )}
+      {!isSending &&
+        responses.length > 0 &&
+        !responses.at(-1)?.proposedActionIds?.length && (
+          <AssistantFollowUpSuggestions
+            onSelectSuggestion={onSendMessage}
+            disabled={isSending}
+          />
+        )}
 
       {/* 4. Bottom Sticky Composer */}
-      <AssistantComposer conversationId={conversationId} onSendMessage={onSendMessage} loading={isSending} />
+      <AssistantComposer
+        conversationId={conversationId}
+        onSendMessage={onSendMessage}
+        loading={isSending}
+      />
     </KeyboardAvoidingView>
   );
 }

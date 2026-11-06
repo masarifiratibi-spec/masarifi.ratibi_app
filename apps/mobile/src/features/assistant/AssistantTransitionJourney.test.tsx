@@ -243,8 +243,9 @@ describe('Assistant Transition & Chat Journey', () => {
     expect(screen.getByText('كم صرفت هالشهر؟')).toBeTruthy();
     expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
       'editable',
-      false
+      true
     );
+    expect(screen.getByTestId('assistant-composer-send-button')).toBeDisabled();
     mockAssistantQueries.useAssistantConversation.mockReturnValue(
       loadedConversation
     );

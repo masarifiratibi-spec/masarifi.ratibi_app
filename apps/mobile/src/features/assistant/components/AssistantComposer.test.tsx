@@ -11,6 +11,58 @@ function deferredSend() {
   return { promise, resolve };
 }
 
+it('keeps the next draft editable while a submitted request is pending, without dispatching it twice or erasing the new text', async () => {
+  const send = deferredSend();
+  const sent: string[] = [];
+  function Journey() {
+    const [loading, setLoading] = React.useState(false);
+    return (
+      <AssistantComposer
+        conversationId="responsive-pending-request"
+        loading={loading}
+        onSendMessage={async (text) => {
+          sent.push(text);
+          setLoading(true);
+          const accepted = await send.promise;
+          setLoading(false);
+          return accepted;
+        }}
+      />
+    );
+  }
+  const view = renderWithProviders(<Journey />);
+  try {
+    fireEvent.changeText(
+      screen.getByTestId('assistant-composer-input'),
+      'السؤال الأول'
+    );
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    expect(sent).toEqual(['السؤال الأول']);
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
+      'editable',
+      true
+    );
+    fireEvent.changeText(
+      screen.getByTestId('assistant-composer-input'),
+      'السؤال التالي'
+    );
+    fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
+    expect(sent).toEqual(['السؤال الأول']);
+    await act(async () => {
+      send.resolve(true);
+    });
+    expect(screen.getByTestId('assistant-composer-input')).toHaveProp(
+      'value',
+      'السؤال التالي'
+    );
+  } finally {
+    await act(async () => {
+      send.resolve(false);
+    });
+    view.unmount();
+  }
+});
+
 it('clears an acknowledged question and prevents resending while awaiting its outcome', async () => {
   const send = deferredSend();
   const sent: string[] = [];
