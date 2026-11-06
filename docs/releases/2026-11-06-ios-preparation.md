@@ -206,3 +206,45 @@ is not a reason to introduce new iPhone UI or storage behavior.
 
 References: [Expo internal distribution](https://docs.expo.dev/build/internal-distribution/),
 [Apple enrollment](https://developer.apple.com/help/account/membership/program-enrollment/).
+
+## Native signing and first cloud build — 2026-11-06
+
+- Apple authentication completed in the user's local console. The installed
+  global EAS 21.5 hit `iTunes service key is empty`; isolated EAS 24.4.2 on E
+  includes the [Expo maintainer's fix](https://github.com/expo/eas-cli/issues/4394).
+  Global tooling and the Android worktree were unchanged. The observer records
+  status and redacted error output only, never authentication input.
+- One owner iPhone is registered. EAS created a distribution certificate, an
+  active Ad Hoc provisioning profile including that device, and the app's APNs
+  key. Credentials remain in Apple/EAS; none were exported into Git. A client's
+  device still needs enrollment and inclusion before client installation.
+- Source `c14bebbc` includes documentation-only Android delivery updates;
+  shared application source remains `10ad1d74`. Build
+  `7ac16c82-03eb-4ed8-9786-ad0ed93f303f` (1.0.0/build 1) uploaded successfully
+  but failed during CocoaPods post-install, before native compilation.
+- Root cause: the installed Clerk native pod requires iOS 17, while the missing
+  Clerk config plugin left the lower React Native deployment target. Expo
+  autolinking excludes the incompatible pod, but evaluating its podspec already
+  registers its Swift package dependencies; RN's SPM hook then receives no target.
+  The fix adds the installed official `@clerk/expo` plugin only to the isolated
+  iPhone profile, with no new native Apple sign-in feature. It raises the native
+  target to **iOS 17 or later**. No dependency, RN script, SQLCipher setting or
+  Android build configuration was changed.
+- A regression executed the real registered vendor iOS mod against Podfile
+  properties: before the fix it retained 15.1; after the fix it writes 17.0 while
+  retaining SQLCipher. It also compares the complete normal Android release
+  configuration. All 27 selected configuration/provider/Firebase tests pass;
+  changed-file lint and formatting pass. Actual Expo introspection confirms
+  Clerk 4.6.5 native metadata and the retained bundle/version, without adding an
+  Apple sign-in entitlement. Full local iOS prebuild is unavailable on Windows;
+  cloud Pods/compilation and physical-device acceptance remain required.
+- The first cloud doctor's advisory reports four newer Expo patch versions.
+  It did not cause the fatal SPM error. Versions and validation policy remain
+  unchanged; the warning is retained, not suppressed.
+- The existing encryption declaration remains unspecified. SQLCipher is embedded,
+  so no unsupported exemption assertion was made. The noninteractive Ad Hoc build
+  path retains current settings; Store export classification is outside this
+  no-Store delivery. No signed IPA or physical iPhone acceptance exists yet.
+
+Clerk's [native configuration guidance](https://clerk.com/articles/clerk-compatibility-in-expo-54-and-55-2)
+documents the iOS 17 requirement and official plugin.
