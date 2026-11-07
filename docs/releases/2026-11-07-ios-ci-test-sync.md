@@ -1,9 +1,9 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`7e6f3995c687937813c6f9341d782e2d8c2d1777` on
+`5418a3e48e67dfdd336a3e747eee0017f3c645f3` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`4b55a6a433b2d74b3d7342d317ccf56d87a04f2b`. It includes the initial CI update
+`8ee031840e6129015d0d68a776e5c92174a5cb6c`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
 `0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
@@ -39,9 +39,30 @@ migration and all application/runtime/CI scripts remain unchanged from `ea087521
 Read-only GitHub verification of [Foundation run 42391737577](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42391737577)
 at this exact checkpoint confirmed successful `db:lint` and `test:db` steps.
 The database job later failed at the fresh-database cross-feature security gate;
-dependent downstream checks were skipped. The source owner is correcting two
-test expectations separately. Those unpublished changes were not copied here,
-and this report does not claim that the full Foundation workflow passed.
+dependent downstream checks were skipped. The source owner subsequently published
+the two test corrections in `5418a3e4`, now included here. This report does not
+claim that the replacement Foundation workflow passed.
+
+## Published security fixtures and isolated packet CI
+
+The workflow-pin fixture now requires all four Android ABIs and the published
+compiled-badging verifier, including its test-before-verification ordering. The
+ownership fixture retains the accepted personal-ledger behavior after Admin
+promotion while checking that another customer's ledger and replay remain hidden.
+The SQL job assertion additionally pins its empty configuration. These changes
+update tests only; no production API, mobile code or SQL policy changed.
+
+The published packet workflow has read-only repository permission, pinned checkout
+without persisted credentials and a source-branch/path-limited push trigger. It
+runs offline fixture tests and a Linux trial inside a disposable private mount
+namespace. It has no iOS/EAS build or hosted activation step, and pushing `iOS`
+does not match its source-branch trigger. Release-tool files were synchronized
+without invoking their deployment, database, Docker or privileged entry points.
+
+Read-only GitHub verification confirmed that [Linux packet run 42393134548](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42393134548)
+completed successfully at `5418a3e4`. The replacement [Foundation run 42393139690](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42393139690)
+was still in progress at verification. The ownership live-database test and
+privileged Linux trial were not executed on this Windows workspace.
 
 ## Reviewed iOS identity compatibility
 
@@ -69,7 +90,9 @@ branch was changed by this task.
 | --- | --- |
 | Identity regression before the fix | 2 expected failures / 21 passing controls |
 | Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 70 passed, zero failed/skipped; natural exit 0 |
-| Changed routing/context helpers against offline fixtures | 19 passed; natural exit 0 |
+| Complete published packet against offline fixtures | 51 passed; natural exit 0 |
+| Updated workflow-pin security fixture | 8 passed / 1 suite; zero skipped; natural exit 0 |
+| Disposable Linux packet workflow on GitHub | Passed at `5418a3e4` |
 | Changed Python helper syntax and published JSON | Passed without executing release helpers |
 | Actual iOS identity command | Passed |
 | Published pgTAP fixture and database lint in canonical GitHub CI | Both steps passed on `7e6f3995`; later security gate failed |
@@ -113,10 +136,11 @@ test and these eight history-catalog entries. All shared CI executable code and
 tests are identical. The final 70-case run supersedes the earlier 68- and 39-case runs;
 their counts are not added together.
 
-The 70 Node cases and 19 offline helper checks were run before the pgTAP-only
-follow-up; their inputs are unchanged. The six iOS profile checks and three API
-contract cases also retain their unchanged tested mobile/API inputs. These local
-results were not rerun or relabelled as execution of the SQL fixture.
+The 51-case packet run supersedes the earlier 19-case helper run; those counts
+are not added together. The 70 Node-suite inputs are unchanged by the latest
+packet/security-test follow-up. The six iOS profile checks and three API contract
+cases also retain their unchanged tested mobile/API inputs. These local results
+were not rerun or relabelled as execution of the SQL or live-ownership fixtures.
 
 API contract tests used live-database tests disabled and inert loopback service
 URLs. The changed planning-worker live-database test is synchronized but was not
