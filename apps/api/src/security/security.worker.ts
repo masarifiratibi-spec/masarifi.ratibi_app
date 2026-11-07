@@ -196,10 +196,10 @@ export class SecurityWorkerService {
 
   private async generateExport(): Promise<void> {
     const claim = await this.repository.withWorkerTransaction(async (client) => {
-      const result =
-        await client.query<ExportClaim>(`with selected as (select id from private.privacy_export_requests where (status='verified' or (status='processing' and updated_at<=clock_timestamp()-interval '15 minutes'))
-          and exists(select 1 from public.profiles p where p.id=privacy_export_requests.user_id and p.status='active')
-        order by requested_at,id for update skip locked limit 1)
+      const result = await client.query<ExportClaim>(`with selected as (
+          select e.id from private.privacy_export_requests e join public.profiles p on p.id=e.user_id and p.status='active'
+          where e.status='verified' or (e.status='processing' and e.updated_at<=clock_timestamp()-interval '15 minutes')
+          order by e.requested_at,e.id for share of p skip locked for update of e skip locked limit 1)
         update private.privacy_export_requests r set status='processing',error_code=null from selected where r.id=selected.id
         returning r.id,r.user_id,r.scope`);
       return result.rows[0];

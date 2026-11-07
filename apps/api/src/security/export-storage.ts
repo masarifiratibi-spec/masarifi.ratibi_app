@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 import type { Readable } from 'node:stream';
 
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 
 const keyPattern = /^exports\/[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._/-]{1,256}\.zip$/;
@@ -102,7 +103,11 @@ export class ExportStorage {
           headers,
         },
       );
-      if (!response.ok) throw storageError();
+      if (
+        !response.ok &&
+        !(input.method === 'DELETE' && (await isMissingStorageObject(response, controller.signal)))
+      )
+        throw storageError();
       return response;
     } catch (error) {
       if (

@@ -1,5 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 
 const KEY = /^tracking\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/;
@@ -56,7 +57,7 @@ export class TrackingStorage {
       if (
         !response.ok &&
         !(input.method === 'PUT' && response.status === 409) &&
-        !(input.method === 'DELETE' && response.status === 404)
+        !(input.method === 'DELETE' && (await isMissingStorageObject(response, controller.signal)))
       )
         throw new Error('TRACKING_STORAGE_UNAVAILABLE');
       return response.status;

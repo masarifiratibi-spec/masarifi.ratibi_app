@@ -1,3 +1,4 @@
+import { financialGeneration } from '../platform/http/financial-generation';
 import { createHash } from 'node:crypto';
 import {
   canonicalJson,
@@ -440,14 +441,13 @@ export class TrackingService {
       );
     }
     const hash = createHash('sha256').update(bytes).digest('hex');
-    const key = `tracking/${uuidFrom(input.principal.userId)}/${uuidFrom(`${hash}\0${idempotencyHash}`)}`;
+    const generation = financialGeneration.getStore();
+    // Generation zero keeps existing immutable keys. Old cleanup cannot delete a later upload.
+    const seed = [hash, idempotencyHash];
+    if (generation && generation !== '0') seed.push(generation);
+    const key = `tracking/${uuidFrom(input.principal.userId)}/${uuidFrom(seed.join('\0'))}`;
     const preferences = await this.repository.getPreferences(input.principal);
     const days = Number(preferences.sourceRetentionDays ?? 30);
-    const uploaded = await this.storage.upload(
-      key,
-      bytes,
-      contentType === 'text/csv' ? 'text/csv' : 'application/json',
-    );
     const raw: RawPayload = {
       storageRef: key,
       payloadHash: hash,
@@ -455,28 +455,16 @@ export class TrackingService {
       sizeBytes: bytes.length,
       expiresAt: new Date(Date.now() + days * 86_400_000),
     };
-    let created: Record<string, unknown>;
-    try {
-      created = await this.repository.createImport(input.principal, normalized, {
-        sourceName: sourceName ?? null,
-        key: input.idempotencyKey,
-        requestId: input.requestId,
-        raw,
-      });
-    } catch (error) {
-      if (uploaded) {
-        try {
-          await this.deleteOrQueueRaw(input.principal, raw);
-        } catch (cleanupError) {
-          throw new AggregateError([error, cleanupError], 'TRACKING_STORAGE_CLEANUP_FAILED');
-        }
-      }
-      throw error;
-    }
-    if (created.replayed === true) {
-      if (!(await this.repository.rawPayloadRegistered(input.principal, key)))
-        await this.deleteOrQueueRaw(input.principal, raw);
-    }
+    // The purge worker owns abandoned objects, including a PUT with a lost acknowledgement.
+    // Registration atomically takes the reservation out of the purge queue.
+    await this.repository.reserveRawUpload(input.principal, raw);
+    await this.storage.upload(key, bytes, raw.contentType);
+    const created = await this.repository.createImport(input.principal, normalized, {
+      sourceName: sourceName ?? null,
+      key: input.idempotencyKey,
+      requestId: input.requestId,
+      raw,
+    });
     recordTrackingIntake(contentType === 'text/csv' ? 'file' : normalized.sourceType, 'accepted');
     return created;
   }
@@ -1236,22 +1224,6 @@ export class TrackingService {
       input.idempotencyKey,
       input.requestId,
     );
-  }
-
-  private async deleteOrQueueRaw(principal: ClerkPrincipal, raw: RawPayload): Promise<void> {
-    try {
-      await this.storage.delete(raw.storageRef);
-    } catch (deleteError) {
-      try {
-        await this.repository.queueRawCleanup(principal, raw);
-      } catch (queueError) {
-        throw new AggregateError(
-          [deleteError, queueError],
-          'TRACKING_STORAGE_CLEANUP_QUEUE_FAILED',
-        );
-      }
-      throw deleteError;
-    }
   }
 
   private validation(): HttpException {

@@ -3,6 +3,9 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../platform/database/database.module';
 import { IdentityModule, IdentityWorkerModule } from '../identity/identity.module';
 import { AdminAuthGuard } from './admin-auth.guard';
+import { FinancialResetController } from './financial-reset.controller';
+import { FinancialResetService } from './financial-reset.service';
+import { FinancialResetWorker } from './financial-reset.worker';
 import { SecurityController } from './security.controller';
 import { ExportStorage } from './export-storage';
 import { SecurityRepository } from './security.repository';
@@ -32,21 +35,23 @@ import { DeletionCompletionController } from './deletion-completion.controller';
     EngagementPrivacyHandler,
     SecurityWorkerService,
     ReportsStorage,
+    FinancialResetWorker,
     OwnerDataErasureService,
   ],
-  exports: [SecurityWorkerService],
+  exports: [SecurityWorkerService, FinancialResetWorker],
 })
 export class SecurityWorkerModule {}
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
-  controllers: [SecurityController, DeletionCompletionController],
+  controllers: [SecurityController, DeletionCompletionController, FinancialResetController],
   providers: [
     SecurityRepository,
     SecurityService,
     AdminAuthGuard,
     ExportStorage,
     ImmediateDeletionService,
+    FinancialResetService,
   ],
   exports: [SecurityRepository, SecurityService, AdminAuthGuard],
 })

@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 
+import { financialGeneration, generationHeader } from './financial-generation';
+
 const safeRequestId = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export function normalizeRequestId(candidate: string | undefined): string {
@@ -16,6 +18,6 @@ export class RequestIdMiddleware implements NestMiddleware {
     const requestId = normalizeRequestId(candidate);
     (request as Request & { requestId: string }).requestId = requestId;
     response.setHeader('X-Request-Id', requestId);
-    next();
+    financialGeneration.run(generationHeader(request.header('x-financial-generation')), next);
   };
 }

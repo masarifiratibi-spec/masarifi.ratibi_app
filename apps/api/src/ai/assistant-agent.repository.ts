@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PoolService } from '../platform/database/pool.service';
@@ -20,6 +21,7 @@ export class AssistantAgentRepository {
     return this.call(
       'select private.authorize_assistant_agent_dispatch($1::uuid,$2::uuid,$3::jsonb) result',
       [claim.id, claim.claimToken, JSON.stringify(route)],
+      claim,
     );
   }
 
@@ -36,16 +38,16 @@ export class AssistantAgentRepository {
     return this.call(
       'select private.finish_assistant_agent_job($1::uuid,$2::uuid,$3::jsonb) result',
       [claim.id, claim.claimToken, JSON.stringify({ ...answer, content, preview: null })],
+      claim,
     );
   }
 
   fail(claim: AssistantAgentClaim, code: string, retry: boolean) {
-    return this.call('select private.fail_assistant_agent_job($1::uuid,$2::uuid,$3,$4) result', [
-      claim.id,
-      claim.claimToken,
-      code,
-      retry,
-    ]);
+    return this.call(
+      'select private.fail_assistant_agent_job($1::uuid,$2::uuid,$3,$4) result',
+      [claim.id, claim.claimToken, code, retry],
+      claim,
+    );
   }
 
   receipt(claim: AssistantAgentClaim, receipt: AiCompletion<unknown>) {
@@ -68,15 +70,17 @@ export class AssistantAgentRepository {
     return this.call(
       'select private.record_assistant_agent_receipt($1::uuid,$2::uuid,$3::jsonb) result',
       [claim.id, claim.claimToken, JSON.stringify(receipt)],
+      claim,
     );
   }
 
-  private call<T>(sql: string, args: unknown[]): Promise<T> {
+  private call<T>(sql: string, args: unknown[], claim?: AssistantAgentClaim): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query('begin');
       try {
         await client.query('set local role masarifi_worker');
         await client.query("select set_config('request.jwt.claims','{}',true)");
+        if (claim) await bindFinancialClaim(client, 'assistant', claim.id, claim.claimToken);
         const response = await client.query<{ result: T }>(sql, args);
         await client.query('commit');
         const row = response.rows[0];

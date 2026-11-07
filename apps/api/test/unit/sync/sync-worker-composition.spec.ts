@@ -71,7 +71,7 @@ it('uses separate least-privilege connections for normal sync claims and ledger 
         observed.push({ connection, sql });
         if (connection === workerUrl && sql === 'set local role masarifi_api')
           return Promise.reject(new Error('42501 api role denied'));
-        if (/^select \* from private\.claim_client_mutations/.test(sql))
+        if (sql.includes('from private.claim_client_mutations('))
           return Promise.resolve({ rows: [] });
         if (/^select/.test(sql) && !sql.includes('set_config'))
           return Promise.reject(new Error('SYNTHETIC_COMMAND_BOUNDARY'));

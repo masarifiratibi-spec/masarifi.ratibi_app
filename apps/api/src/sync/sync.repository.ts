@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
@@ -92,6 +93,7 @@ export interface ConflictRecord {
 }
 
 export interface ClaimedMutationRow extends QueryResultRow {
+  generation?: string;
   created_at: Date | string;
   authenticated_at?: Date | string | null;
   id: string;
@@ -112,6 +114,7 @@ export interface ClaimedMutationRow extends QueryResultRow {
 }
 
 export interface ClaimedMutation {
+  generation?: string;
   id: string;
   userId: string;
   deviceId: string;
@@ -132,6 +135,7 @@ export interface MutationReceipt {
 
 export function toClaimedMutation(row: ClaimedMutationRow): ClaimedMutation {
   return {
+    generation: row.generation,
     id: row.id,
     userId: row.user_id,
     deviceId: row.device_id,
@@ -581,7 +585,7 @@ export class SyncRepository {
       try {
         await client.query('set local role masarifi_worker');
         const result = await client.query<ClaimedMutationRow>(
-          'select * from private.claim_client_mutations($1,$2,$3)',
+          "select w.*,private.bind_financial_worker_generation('sync',w.id,w.lease_token)::text generation from private.claim_client_mutations($1,$2,$3) w",
           [workerId, limit, leaseSeconds],
         );
         await client.query('commit');
@@ -592,6 +596,21 @@ export class SyncRepository {
       }
     });
     return rows.map(toClaimedMutation);
+  }
+
+  async claimedGeneration(id: string, token: string): Promise<string> {
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query('set local role masarifi_worker');
+        const generation = await bindFinancialClaim(client, 'sync', id, token);
+        await client.query('commit');
+        return generation;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
   }
 
   workerComplete(

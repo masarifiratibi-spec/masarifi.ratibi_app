@@ -7,6 +7,7 @@ import { LedgerWorker } from '../ledger/ledger.worker';
 import { OutboxWorkerService } from '../platform/outbox/outbox-worker.service';
 import { PlanningWorker } from '../planning/planning.worker';
 import { ReportsWorker } from '../reports/reports.worker';
+import { FinancialResetWorker } from '../security/financial-reset.worker';
 import { SecurityWorkerService } from '../security/security.worker';
 import { SyncWorker } from '../sync/sync.worker';
 import { TrackingWorker } from '../tracking/tracking.worker';
@@ -37,6 +38,7 @@ export const GOVERNED_JOB_KEYS = Object.freeze([
   'privacy.export-generate',
   'privacy.export-expire',
   'privacy.account-delete',
+  'privacy.financial-reset-cleanup',
   'retention.apply',
   'ledger.reconcile',
   'sync-mutations.retry',
@@ -90,6 +92,7 @@ export class OperationsJobRegistry {
     @Optional() private readonly ai?: AiWorker,
     @Optional() private readonly reports?: ReportsWorker,
     @Optional() private readonly engagement?: EngagementWorker,
+    @Optional() private readonly financialReset?: FinancialResetWorker,
   ) {}
 
   async run(jobKey: string): Promise<Record<string, string | number | boolean | null>> {
@@ -103,6 +106,8 @@ export class OperationsJobRegistry {
       result = await this.required(this.clerk).runJob(
         jobKey as Parameters<ClerkWebhookWorker['runJob']>[0],
       );
+    else if (jobKey === 'privacy.financial-reset-cleanup')
+      result = await this.required(this.financialReset).run();
     else if (/^(security\.|privacy\.|retention\.)/u.test(jobKey)) {
       await this.required(this.security).runJob(jobKey);
       result = 1;

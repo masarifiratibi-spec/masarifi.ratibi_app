@@ -12,6 +12,9 @@ import {
 import { MetaResponseDto } from '../meta/meta.dto';
 
 const schemaNames = [
+  'FinancialResetCommand',
+  'FinancialResetState',
+  'FinancialResetReceipt',
   'LivenessResponse',
   'DependencyChecks',
   'ReadinessSuccess',

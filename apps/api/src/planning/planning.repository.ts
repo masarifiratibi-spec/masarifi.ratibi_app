@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { createHash } from 'node:crypto';
 
 import { HttpException, Injectable, Optional } from '@nestjs/common';
@@ -1224,6 +1225,7 @@ export class PlanningRepository {
 
   async executePlanningClaim(job: ClaimedPlanningJob, claim: PlanningClaim): Promise<void> {
     await this.withWorkerTransaction(async (client) => {
+      await bindFinancialClaim(client, 'planning', claim.id, claim.leaseToken);
       const result = (
         await client.query<JsonResult>(
           'select private.execute_planning_claim($1::uuid,$2::uuid,$3,$4::uuid) result',
