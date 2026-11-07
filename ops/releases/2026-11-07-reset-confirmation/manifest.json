@@ -1,0 +1,19 @@
+{
+  "source": "6c465f617b80e33cdc3760fe244a3e6573183481",
+  "archiveSha256": "98dbf199578bee3477bbcbb1f36950a1edb86f75459a12c51356d253af7f93e4",
+  "modules": {
+    "security/financial-reset.service.js": {
+      "before": "3bbe666e63cc914542852915ac227c96e97796858760ea6972bd404f4c44ac05",
+      "after": "96954438a689f33cf0e287f4b5affdbde91f0f80b08ff741086512fed47edfe4"
+    }
+  },
+  "scope": "Financial reset only: use current signed-in session; a single confirmation dialog replaces reauthentication and typed text. Owner isolation, generation checks and idempotent receipts remain enforced.",
+  "checks": [
+    "39 mobile tests",
+    "3 route tests, including active session without recent factor age",
+    "1 local PostgreSQL integration test with null factor age and repeated operations",
+    "More confirmation entry test",
+    "Mobile/API typechecks and scoped lint"
+  ],
+  "productionResetSubmitted": false
+}
