@@ -48,7 +48,7 @@ describe('SPEC-002 design tokens', () => {
     expect(colorTokens.financial.debt).toBeDefined();
   });
 
-  it('applies the approved light canvas and card hierarchy without changing the hero or dark theme', () => {
+  it('applies the approved light canvas and card hierarchy and the dark green surface family', () => {
     expect(lightThemeColors).toMatchObject({
       background: hex('F6F7F5'),
       surface: hex('FFFFFF'),
@@ -84,7 +84,7 @@ describe('SPEC-002 design tokens', () => {
     });
     expect(darkThemeColors.financial).toMatchObject({
       incomeSurface: darkThemeColors.surfaces.brandSubtle,
-      expenseSurface: darkThemeColors.surfaces.inset
+      expenseSurface: colorTokens.dark.dangerSurface
     });
   });
 
