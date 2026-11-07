@@ -10,8 +10,8 @@ import time
 import urllib.request
 
 os.umask(0o077)
-root = Path('/var/tmp/masarifi-owner-erasure-756c3df6-r1')
-tag = 'masarifi-owner-erasure:756c3df6-r1'
+root = Path('/var/tmp/masarifi-owner-erasure-756c3df6-r2')
+tag = 'masarifi-owner-erasure:756c3df6-r2'
 worker = 'account-delete-worker'
 name = 'masarifi-production-account-delete-worker-756c3df6'
 key = 'privacy.account-delete'
@@ -78,7 +78,9 @@ def prepare():
     cmd=compose(api); before=configure(cmd)
     # Extend the live import service by reference: no new credential copies on disk.
     overrides={'MASARIFI_OPERATIONS_JOB_KEYS':key,'MASARIFI_AI_ASSISTANT_ONLY':'false','MASARIFI_VOICE_ANALYSIS_ONLY':'false','MASARIFI_PROCESS_KIND':'worker'}
-    (root/'compose.json').write_text(json.dumps({'services':{'core-api':{'image':tag},worker:{'extends':{'service':'import-worker'},'container_name':name,'image':tag,'environment':overrides}}}))
+    import_files=imp['Config']['Labels']['com.docker.compose.project.config_files'].split(',')
+    check(len(import_files)==1 and Path(import_files[0]).is_file(),'reconcile live import worker configuration')
+    (root/'compose.json').write_text(json.dumps({'services':{'core-api':{'image':tag},worker:{'extends':{'file':import_files[0],'service':'import-worker'},'container_name':name,'image':tag,'environment':overrides}}}))
     new=configure(cmd+['-f',str(root/'compose.json')])
     expected=copy.deepcopy(before)
     expected['services']['core-api']['image']=tag
@@ -129,4 +131,3 @@ def start_worker():
     dump(root/'worker-live.json',result);print(json.dumps(result))
 if __name__=='__main__':
     {'prepare':prepare,'api':deploy_api,'worker':start_worker}[sys.argv[1]]()
-
