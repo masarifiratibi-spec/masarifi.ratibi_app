@@ -1,9 +1,9 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`4698fc18316968fd3d090907e1f3309c782384eb` on
+`889cd8d5245d888deb51f4ac9135c43d12c90a21` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`c9917a720fbe9d2f21f8b5375bc8865242d45087`. It includes the initial CI update
+`013c9b4675c94d55c5fcd5438616f11c3de1dd8d`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
 `0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
@@ -62,10 +62,11 @@ namespace. It has no iOS/EAS build or hosted activation step, and pushing `iOS`
 does not match its source-branch trigger. Release-tool files were synchronized
 without invoking their deployment, database, Docker or privileged entry points.
 
-Read-only GitHub verification confirmed that [Linux packet run 42396956430](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42396956430)
-completed successfully at `4698fc18`, including the private-namespace Nginx trial
-and the new disposable Docker restart-policy check. The replacement [Foundation run 42396963159](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42396963159)
-at `4698fc18` was still in progress at verification. The ownership live-database test and
+Read-only verification of [Linux packet run 42397709401](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42397709401)
+confirmed success at `889cd8d5`, including the private-namespace Nginx trial and
+real Docker rollback proof for both running and already-stopped trial containers.
+The latest [Foundation run 42397715656](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42397715656)
+at `889cd8d5` was still in progress at verification. The ownership live-database test and
 privileged Linux trial were not executed on this Windows workspace.
 
 ## Benchmark and rollback follow-up
@@ -80,9 +81,25 @@ remains with the source owner's Foundation run.
 
 The packet now keeps unaccepted trial containers from restarting automatically,
 verifies exact accepted container identities before enabling restart, and adds
-abort/post-accept rollback proofs. Its 58 offline tests passed locally. The new
+abort/post-accept rollback proofs. Its 59 offline tests passed locally. The new
 real Docker restart-policy qualification passed only on the disposable GitHub
 runner; no Docker or hosted release entry point was invoked here.
+
+## Route-probe and disposable fixture follow-up
+
+Checkpoint `063cbcb5` binds recovery probes to the observed HTTP contract: the
+owner list requires authentication, while its unimplemented GET-detail route
+returns 404. Exact original/candidate status and cache-policy checks remain
+required. The local negative control rejects a 404 without the candidate's
+required cache policy; this is routing evidence, not authenticated-access proof.
+
+Its Linux packet run `42397532521` passed the offline controls and Nginx trial,
+but failed before Docker assertions because a random temporary-directory suffix
+made the Docker repository name invalid. Source-owner fix `889cd8d5` uses a fixed
+repository with randomness only in the tag and preserves bounded public-fixture
+error output. The failed run's log is retained. Read-only verification confirmed
+replacement Linux packet run `42397709401` passed its 59 controls, Nginx trial and
+two-container rollback proof. No Docker or hosted action runs here.
 
 ## Exact packet-finding provenance
 
@@ -134,9 +151,9 @@ branch was changed by this task.
 | --- | --- |
 | Identity regression before the fix | 2 expected failures / 21 passing controls |
 | Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 71 passed, zero failed/skipped; natural exit 0 |
-| Complete published packet against offline fixtures | 58 passed; natural exit 0 |
+| Complete published packet against offline fixtures | 59 passed; natural exit 0 |
 | Updated workflow-pin security fixture | 8 passed / 1 suite; zero skipped; natural exit 0 |
-| Disposable Linux packet workflow on GitHub | Passed at `4698fc18`, including Docker restart-policy qualification |
+| Disposable Linux packet workflow on GitHub | Passed at `889cd8d5`, including two-container rollback and restart-policy qualification |
 | Changed Python helper syntax and published JSON | Passed without executing release helpers |
 | Actual iOS identity command | Passed |
 | Published pgTAP fixture and database lint in canonical GitHub CI | Both steps passed on `7e6f3995`; later security gate failed |
@@ -181,8 +198,9 @@ test and ten iOS history-catalog entries. All shared CI executable code and
 tests are identical. The final 71-case run supersedes the earlier 70-, 68- and 39-case runs;
 their counts are not added together.
 
-The final 58-case packet run was repeated after the latest source merge and
-supersedes the earlier 51- and 19-case runs. The previously verified 71-case Node
+The 59-case packet run was performed after `063cbcb5`; its tested offline inputs
+are unchanged by the standalone qualifier fix `889cd8d5`. It supersedes the
+earlier 58-, 51- and 19-case runs. The previously verified 71-case Node
 and eight-case workflow suite inputs are unchanged by this follow-up and were
 not rerun unnecessarily. These counts are not added across successive runs.
 The six iOS profile checks and three API contract
