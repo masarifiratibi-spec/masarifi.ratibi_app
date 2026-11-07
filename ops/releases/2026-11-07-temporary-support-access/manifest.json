@@ -72,7 +72,10 @@
     "adminName": "masarifi-admin-access-73b790d0-20261107",
     "adminHostPort": 3043,
     "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream",
-    "plannedPayloadSha256": null
+    "plannedPayloadSha256": {
+      "admin": "28caf5a53f727044932e8b0cf8f63ac3bcf4388a98d9f7d00c699a8695dcdbbe",
+      "api": null
+    }
   },
   "qualification": {
     "foundationRun": 42391737577,
@@ -98,6 +101,23 @@
       "outcome": "failure",
       "passed": "Android, five viewports, Admin, Mobile, application, scans and all 59 plpgsql plans",
       "failure": "Two stale 53-entry decision points in pgTAP; canonical 54th schedule verified in staging."
+    },
+    "packetLinux": {
+      "run": 42393134548,
+      "sourceCommit": "5418a3e48e67dfdd336a3e747eee0017f3c645f3",
+      "result": "success",
+      "tests": 51,
+      "liveNginxTrial": "verified on disposable runner"
+    },
+    "hostReadmission": {
+      "sourceCommit": "5418a3e48e67dfdd336a3e747eee0017f3c645f3",
+      "matches": "routing, protected inventory, recovery, admin plan",
+      "headroom": {
+        "availableMemoryBytes": 3350568960,
+        "freeDiskBytes": 69293113344,
+        "portsFree": true
+      },
+      "activated": false
     }
   },
   "limits": [
