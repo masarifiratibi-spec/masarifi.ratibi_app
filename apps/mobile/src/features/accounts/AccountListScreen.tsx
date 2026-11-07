@@ -1,4 +1,7 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import React, { useMemo, useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   PixelRatio,
   Pressable,
@@ -114,17 +117,25 @@ export function AccountListScreen() {
   );
   const totalBalance = hidden
     ? `•••• ${baseCurrencyCode}`
-    : formatMinorAmount(totalBalanceMinor, baseCurrencyCode, locale);
+    : hasReadableSnapshot(accounts) &&
+        hasReadableSnapshot(balances) &&
+        activeAccounts.every(
+          ({ account, balanceMinor }) =>
+            account.currencyCode !== baseCurrencyCode || balanceMinor !== null
+        )
+      ? formatMinorAmount(totalBalanceMinor, baseCurrencyCode, locale)
+      : '—';
 
-  if (accounts.isLoading || balances.isLoading) {
-    return (
-      <StateView
-        state="loading"
-        title={translate('coreFinance.state.loading')}
-      />
-    );
-  }
-  if (accounts.isError || balances.isError) {
+  const onPerformanceLayout = useScreenPerformance(
+    'accounts',
+    [accounts, balances],
+    search
+  );
+
+  if (
+    (accounts.isError && !hasReadableSnapshot(accounts)) ||
+    (balances.isError && !hasReadableSnapshot(balances))
+  ) {
     return (
       <StateView
         state="error"
@@ -139,16 +150,29 @@ export function AccountListScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      onLayout={onPerformanceLayout}
+      style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}
+    >
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.account.id}
         contentContainerStyle={[
           styles.content,
-          { backgroundColor: colorTokens.raw.F3F5F3 }
+          { backgroundColor: theme.colors.surfaces.page }
         ]}
         ListHeaderComponent={
           <>
+            <FinancialRefreshStatus
+              query={{
+                dataUpdatedAt: Math.min(
+                  accounts.dataUpdatedAt,
+                  balances.dataUpdatedAt
+                ),
+                isFetching: accounts.isFetching || balances.isFetching,
+                isError: accounts.isError || balances.isError
+              }}
+            />
             <View style={styles.fullBleed}>
               <BrandedScreenHeader
                 compact
@@ -227,7 +251,7 @@ export function AccountListScreen() {
                     writingDirection: direction
                   }
                 ]}
-              >{`${activeAccounts.length} ${translate('coreFinance.home.accountCount').replace('{{count}} ', '')}`}</Text>
+              >{`${accounts.data === undefined ? '—' : activeAccounts.length} ${translate('coreFinance.home.accountCount').replace('{{count}} ', '')}`}</Text>
             </View>
             <View
               style={[
@@ -281,14 +305,18 @@ export function AccountListScreen() {
           </>
         }
         ListEmptyComponent={
-          <StateView
-            state="empty"
-            title={
-              (accounts.data ?? []).length
-                ? translate('coreFinance.accounts.noSearchResults')
-                : translate('coreFinance.accounts.empty')
-            }
-          />
+          accounts.isPending ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView
+              state="empty"
+              title={
+                (accounts.data ?? []).length
+                  ? translate('coreFinance.accounts.noSearchResults')
+                  : translate('coreFinance.accounts.empty')
+              }
+            />
+          )
         }
         renderItem={({ item }) => (
           <AccountRow

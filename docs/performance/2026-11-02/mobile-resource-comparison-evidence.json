@@ -1,0 +1,525 @@
+{
+  "candidateSourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+  "candidateApkSha256": "13579a24b27c8bb8e145be74f063b1215f1fb3677ec7183a28fcd52c37d6dcac",
+  "candidateApkBytes": 49418785,
+  "baselineSourceCommit": "815a029ccb562164be60447ecd1e69017b222507",
+  "baselineApkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+  "harnessMeasurementLogicIdentical": true,
+  "baselineSourceFilesVerified": 2938,
+  "candidateSourceFilesVerified": 2938,
+  "nativeManifestDexLibrariesIdentical": true,
+  "sameCertificate": true,
+  "originalTwoApplicationsBytesUnchanged": true,
+  "appDataCleared": false,
+  "latencySpeedupClaimed": false,
+  "localSqlTest": {
+    "orderedInputs": 207,
+    "finalRows": 205,
+    "oldNativeStatements": 207,
+    "newNativeStatements": 3,
+    "maxStatementBindings": 600,
+    "sqliteSourceSchemaVersion": 16
+  },
+  "locales": {
+    "ar": {
+      "baselineEvidenceSha256": "e94ca72d4f067468185fee469921a709c3428bc1573ba6154544056560aa6b21",
+      "candidateEvidenceSha256": "174df1d62ca001fb4134bf14b91c2c43da261f0bae07f49185e48125d1086792",
+      "baseline": {
+        "timingAndPss": {
+          "nativeActivityDrawMs": {
+            "n": 20,
+            "min": 401,
+            "median": 426.5,
+            "p95NearestRank": 447,
+            "max": 719
+          },
+          "homeReadyFromProcessStartMs": {
+            "n": 20,
+            "min": 2972.69,
+            "median": 3267.798,
+            "p95NearestRank": 3519.423,
+            "max": 3874.157
+          },
+          "homeReadyFromActivityCreateMs": {
+            "n": 20,
+            "min": 3027.69,
+            "median": 3316.798,
+            "p95NearestRank": 3564.423,
+            "max": 3906.157
+          },
+          "processPssKiB": {
+            "n": 20,
+            "min": 213511,
+            "median": 236806.5,
+            "p95NearestRank": 238478,
+            "max": 238816
+          }
+        },
+        "requestCounts": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "all180GetStatus200": true,
+        "successfulPreferenceWritesPerLaunch": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "categoryPreparationMs": {
+          "n": 20,
+          "median": 642.4685673713684,
+          "p95NearestRank": 861.4226040840149,
+          "min": 420.99411392211914,
+          "max": 916.8843219280243
+        },
+        "identityTransportMs": {
+          "n": 60,
+          "min": 515.3328649997711,
+          "median": 599.1104689836502,
+          "p95NearestRank": 723.9698960781097,
+          "max": 726.9028120040894
+        },
+        "ledgerTransportMs": {
+          "n": 120,
+          "min": 134.30734395980835,
+          "median": 168.2388014793396,
+          "p95NearestRank": 595.9927079677582,
+          "max": 740.2744789123535
+        }
+      },
+      "candidate": {
+        "timingAndPss": {
+          "nativeActivityDrawMs": {
+            "n": 20,
+            "min": 396,
+            "median": 446.0,
+            "p95NearestRank": 513,
+            "max": 553
+          },
+          "homeReadyFromProcessStartMs": {
+            "n": 20,
+            "min": 3339.854,
+            "median": 3710.7664999999997,
+            "p95NearestRank": 4511.065,
+            "max": 4756.644
+          },
+          "homeReadyFromActivityCreateMs": {
+            "n": 20,
+            "min": 3396.854,
+            "median": 3759.2664999999997,
+            "p95NearestRank": 4557.065,
+            "max": 4824.644
+          },
+          "processPssKiB": {
+            "n": 20,
+            "min": 210818,
+            "median": 220755.5,
+            "p95NearestRank": 237012,
+            "max": 237172
+          }
+        },
+        "requestCounts": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "all180GetStatus200": true,
+        "successfulPreferenceWritesPerLaunch": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "categoryPreparationMs": {
+          "n": 20,
+          "median": 674.2730985879898,
+          "p95NearestRank": 894.2621870040894,
+          "min": 430.54744696617126,
+          "max": 1641.4144260883331
+        },
+        "identityTransportMs": {
+          "n": 60,
+          "min": 534.033854007721,
+          "median": 684.0962488651276,
+          "p95NearestRank": 1546.4595828056335,
+          "max": 2079.3885929584503
+        },
+        "ledgerTransportMs": {
+          "n": 120,
+          "min": 131.4397919178009,
+          "median": 193.04335951805115,
+          "p95NearestRank": 692.791510105133,
+          "max": 1536.2777590751648
+        }
+      },
+      "sequentialBatchesNotRandomized": true
+    },
+    "en": {
+      "baselineEvidenceSha256": "ef37c0a95486906a11a7cdb50018591ae80d872a1a4aeb674bfa9a4a2f72cd25",
+      "candidateEvidenceSha256": "791c62d69b88aa283c236ba968a07e9081b89ffa70c0365eefa44a154d426fc2",
+      "baseline": {
+        "timingAndPss": {
+          "nativeActivityDrawMs": {
+            "n": 20,
+            "min": 407,
+            "median": 444.0,
+            "p95NearestRank": 496,
+            "max": 537
+          },
+          "homeReadyFromProcessStartMs": {
+            "n": 20,
+            "min": 2983.302,
+            "median": 3297.8145,
+            "p95NearestRank": 3911.385,
+            "max": 4295.109
+          },
+          "homeReadyFromActivityCreateMs": {
+            "n": 20,
+            "min": 3014.302,
+            "median": 3336.7535,
+            "p95NearestRank": 3940.385,
+            "max": 4330.109
+          },
+          "processPssKiB": {
+            "n": 20,
+            "min": 213290,
+            "median": 239641.0,
+            "p95NearestRank": 240876,
+            "max": 241217
+          }
+        },
+        "requestCounts": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "all180GetStatus200": true,
+        "successfulPreferenceWritesPerLaunch": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "categoryPreparationMs": {
+          "n": 20,
+          "median": 649.5218485593796,
+          "p95NearestRank": 758.8257811069489,
+          "min": 399.49749994277954,
+          "max": 1236.7017180919647
+        },
+        "identityTransportMs": {
+          "n": 60,
+          "min": 513.4941658973694,
+          "median": 558.8065878152847,
+          "p95NearestRank": 946.7644779682159,
+          "max": 1555.9700000286102
+        },
+        "ledgerTransportMs": {
+          "n": 120,
+          "min": 123.27796912193298,
+          "median": 169.05489599704742,
+          "p95NearestRank": 572.9686980247498,
+          "max": 1098.8123950958252
+        }
+      },
+      "candidate": {
+        "timingAndPss": {
+          "nativeActivityDrawMs": {
+            "n": 20,
+            "min": 406,
+            "median": 439.0,
+            "p95NearestRank": 498,
+            "max": 567
+          },
+          "homeReadyFromProcessStartMs": {
+            "n": 20,
+            "min": 3277.732,
+            "median": 3540.0815000000002,
+            "p95NearestRank": 3999.009,
+            "max": 4461.218
+          },
+          "homeReadyFromActivityCreateMs": {
+            "n": 20,
+            "min": 3314.732,
+            "median": 3590.5815000000002,
+            "p95NearestRank": 4061.009,
+            "max": 4515.218
+          },
+          "processPssKiB": {
+            "n": 20,
+            "min": 216702,
+            "median": 232843.5,
+            "p95NearestRank": 234893,
+            "max": 235153
+          }
+        },
+        "requestCounts": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "all180GetStatus200": true,
+        "successfulPreferenceWritesPerLaunch": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "categoryPreparationMs": {
+          "n": 20,
+          "median": 685.5405730009079,
+          "p95NearestRank": 965.0269269943237,
+          "min": 453.0223960876465,
+          "max": 1293.146301984787
+        },
+        "identityTransportMs": {
+          "n": 60,
+          "min": 527.4032809734344,
+          "median": 716.564687371254,
+          "p95NearestRank": 841.1590099334717,
+          "max": 975.9465100765228
+        },
+        "ledgerTransportMs": {
+          "n": 120,
+          "min": 126.07677102088928,
+          "median": 186.90158796310425,
+          "p95NearestRank": 635.8389580249786,
+          "max": 1599.7947390079498
+        }
+      },
+      "sequentialBatchesNotRandomized": true
+    }
+  },
+  "limitations": [
+    "Sequential before/after N20batches perlocale; transport latency and workload can vary.",
+    "No fully uncached start, populated list or controlled origin API/database/external-service split.",
+    "HomeReady is data/layout boundary, not physical frame presentation.",
+    "PSS sampled one second afterready is descriptive; no RAM-leak or sustained-memory improvement claim.",
+    "SQL native-call reduction was proven in real SQLite fixture; actual Android SQL counts/CPU spans were not separately instrumented.",
+    "Nativewarm baseline is separate and does not qualify authoritative refreshed-data readiness.",
+    "Sourcebackendfixes and newbackendcandidate are not deployed."
+  ],
+  "referenceCrossover": {
+    "locale": "ar",
+    "sourceCommit": "815a029ccb562164be60447ecd1e69017b222507",
+    "apkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+    "inputSha256": "7c54a9b46e82b59e18b4caac56a54ab19b7731af97a03ceeaf176218c07be4d3",
+    "measurementLogicIdentical": true,
+    "n": 20,
+    "timingAndPss": {
+      "nativeActivityDrawMs": {
+        "n": 20,
+        "min": 420,
+        "median": 452.0,
+        "p95NearestRank": 540,
+        "max": 559
+      },
+      "homeReadyFromProcessStartMs": {
+        "n": 20,
+        "min": 3378.796,
+        "median": 3569.107,
+        "p95NearestRank": 4109.965,
+        "max": 4469.67
+      },
+      "homeReadyFromActivityCreateMs": {
+        "n": 20,
+        "min": 3419.796,
+        "median": 3627.107,
+        "p95NearestRank": 4166.965,
+        "max": 4519.67
+      },
+      "processPssKiB": {
+        "n": 20,
+        "min": 200861,
+        "median": 211244.0,
+        "p95NearestRank": 221535,
+        "max": 224190
+      }
+    },
+    "successfulPreferenceWritesPerLaunch": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "all180GetStatus200": true,
+    "transportGroups": {
+      "identity": {
+        "n": 60,
+        "min": 543.2378640174866,
+        "median": 632.3046089410782,
+        "p95NearestRank": 784.8960928916931,
+        "max": 824.704843044281
+      },
+      "ledger": {
+        "n": 120,
+        "min": 126.8700520992279,
+        "median": 173.46023452281952,
+        "p95NearestRank": 624.1644270420074,
+        "max": 1563.6385409832
+      }
+    },
+    "candidateP95DifferenceFromOriginalBaselinePercent": 27.849,
+    "candidateP95DifferenceFromLaterReferencePercent": 9.362,
+    "referenceP95DifferenceFromOriginalBaselinePercent": 16.904,
+    "sequentialBatchesNotRandomized": true
+  },
+  "performanceAcceptance": {
+    "coldTargetPassed": false,
+    "latencySpeedupProven": false,
+    "arabicRegressionTriggeredReversibleBenchmarkRollback": true,
+    "laterReferenceAlsoSlowerThanOriginal": true,
+    "productionPromotion": false,
+    "nextMeasurement": "bounded origin/API attribution; no auth or freshness bypass"
+  }
+}

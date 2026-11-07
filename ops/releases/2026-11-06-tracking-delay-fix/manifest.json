@@ -1,0 +1,94 @@
+{
+  "status": "prepared-not-installed-physical-acceptance-open",
+  "applicationSourceCommit": "12ee32ed129d9ff6695860ddf59e8b002bfea71b",
+  "buildSourceCommit": "12ee32ed129d9ff6695860ddf59e8b002bfea71b",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 112,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkPath": "C:\\mrc1105\\artifacts\\task20-customer-112-native.apk",
+  "candidateApkSha256": "e2d17376d62bed561655c3b02019eab7e5ddd20e075b4bb237d6530ea4e4c11b",
+  "candidateApkBytes": 49508534,
+  "candidateHermesSha256": "d08a02bf0342080397765c0727456bd12a76c3e132e330b2a7b398794a3c1028",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "currentInstalledVersion": 111,
+  "currentInstalledApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "canonicalDeliveredVersion": 111,
+  "canonicalDeliveredApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "sameOwnerSdkSessionDataKeysAndExistingQaRequired": true,
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "hostedMutationRequired": false,
+  "changedSource": [
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+      "sha256": "a902e0af1aa6fde1747154c61699b333cda1644d59f0f2bfbb26f915d8fdb157"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.test.tsx",
+      "sha256": "7ec8cb928d3d2c3ed5c38ebda9545adaad28b3184c930cb0565a4276ac0debab"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.tsx",
+      "sha256": "6e2ff6e33147cb5fabdec94b8c011285cdb2e0b76ca1b60a28a185819f929ec7"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "cd1576b6cbeccc81fde20281e608a73ab03f97626120ec3c4710dbc3f2494411"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "9a93c68c0f0db4daa18b9cdc279fbc54a3ea9735aa38d00d5f16e8b14b1ec907"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.test.ts",
+      "sha256": "d366bbcb7079b6792031d5ef427fe64d4560326ccd58682f8d7057ee3952703f"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.ts",
+      "sha256": "57a303c7bda249e7b8b41d15180ae96a2ea94c184da8975c32ffc82fd83dee8f"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "23859278bd32508e9d783b9683d034b4dc3ccba26995775daf37d1992268dcc0"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "047445558b884c4aa79d64c587d58ca056a78a684987b77a17ae77df1134332c"
+    }
+  ],
+  "focusedUniqueTestsPassed": 255,
+  "focusedUniqueSuites": 11,
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "formatExitCode": 0,
+  "strictSourceAndIndexSecretFindings": 0,
+  "verifiedSignerApis": [24, 28, 32, 33, 35, 36],
+  "nativeLibraryCount": 23,
+  "nativeLibrariesByteIdenticalTo111": 23,
+  "nativeBuildIdNoteOnlyDifferences": 0,
+  "allNativeExecutableAndDataSectionsUnchanged": true,
+  "alignment16Kb": true,
+  "r8RecordRetained": true,
+  "actualDexNotificationConstructorQualified": true,
+  "native88ReusedUnchanged": true,
+  "unchangedWholeSuiteEvidenceReused": true,
+  "sameRequestFreshSdkIdentityReused": true,
+  "beforeAndAfterCurrentSdkOwnerAdmissionChecksRetained": true,
+  "lighterDecorativeKeywordSymbols": true,
+  "allOriginalKeywordRegressionCasesRetained": true,
+  "approvedGulfTrackingCopyIncluded": true,
+  "parserFinancialNativePermissionAndVoiceBehaviorUnchanged": true,
+  "qaTransactionsBeforeFreshFixture": 28,
+  "qaNetMinorBeforeFreshFixture": 0,
+  "freshSmsOnlyFixtureProposedMinor": 331,
+  "freshSmsReference": "QA112SMSA20261106",
+  "freshVoiceFixtureRequired": false,
+  "physical112AcceptanceQualified": false,
+  "newFinancialSpeedOrInstantNavigationClaimed": false,
+  "installed": false,
+  "productionReady": false
+}

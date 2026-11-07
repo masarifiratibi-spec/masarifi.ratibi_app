@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-07",
+  "timezone": "Asia/Riyadh",
+  "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+  "node": "24.16.0",
+  "npm": "11.17.0",
+  "receipts": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=2",
+      "exitCode": 0,
+      "privateLog": "unit-delivery.log",
+      "logSha256": "4d893debea19cc5bec834dc6ec2d6150d11ef1b980fc35f16e890c682bd313af",
+      "files": 108,
+      "passed": 1029
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run src/features/system-health",
+      "exitCode": 0,
+      "privateLog": "operations-final.log",
+      "logSha256": "ea2a78fe875906db7523ff7c50f516d87799c65bb3d7a240a17e7a5b3d8b8302",
+      "files": 4,
+      "passed": 49
+    },
+    {
+      "command": "playwright test tests/e2e/production-ui.spec.ts (all five projects)",
+      "exitCode": 0,
+      "privateLog": "final-ui2.log",
+      "logSha256": "2c6cd6d8011b601ff7b4a149482f907f59a5c1e7665e6badb131264f5d225fb5",
+      "passed": 15
+    },
+    {
+      "command": "playwright test tests/e2e/system-health-jobs.spec.ts --project=desktop-1440 --project=mobile-390",
+      "exitCode": 0,
+      "privateLog": "operations-browser.log",
+      "logSha256": "22305785635ddde85a3021fac61acc812363624e080161bdfb5bdb710b73fc57",
+      "passed": 12
+    },
+    {
+      "command": "isolated rerun: shell language/theme, failure states, Spec005 direct denial",
+      "exitCode": 0,
+      "privateLog": "recheck2.log",
+      "logSha256": "4d908eb7a3878377c82a144194b7c9706f980ae08c101fddad8d1dcb4c820600",
+      "passed": 3
+    },
+    {
+      "command": "next build (live; mocks disabled; validation-only server secret)",
+      "exitCode": 0,
+      "privateLog": "build-delivery.log",
+      "logSha256": "f12ae5fb833841ee4a19f60225c3dc9d92696b6dcab4c543f627b6682cb4052f",
+      "staticPages": 86
+    },
+    {
+      "command": "tsc --noEmit",
+      "exitCode": 0,
+      "privateLog": "typecheck-delivery.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "eslint .",
+      "exitCode": 0,
+      "privateLog": "lint-delivery.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "Canonical Admin Linux CI42347991605: exact checkout, npm ci, typecheck, production build, runtime packaging",
+      "exitCode": 0,
+      "privateLog": "linux-ci-build.log",
+      "logSha256": "9ac1948e59b354684399261cb1ccfe0e64af31a2ad6d9044f0033faca9385493",
+      "buildId": "scy8yMJdAowpPKpkffiaW",
+      "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+      "backendRuntimeImageJob": "skipped"
+    },
+    {
+      "command": "python -B -m unittest discover -s ops/releases/2026-11-07-dashboard-ui -p test_*.py",
+      "exitCode": 0,
+      "privateLog": "packet-unit.log",
+      "logSha256": "d869180af388b27c8186ff0006ca1b905fa6a46eb244f6a79b3febc83735c669",
+      "passed": 14,
+      "scope": "offline temporary-file/mocked-nginx and synthetic-archive safety guards; no hosted execution"
+    },
+    {
+      "command": "python -B ops/releases/2026-11-07-dashboard-ui/verify_packet.py",
+      "exitCode": 0,
+      "privateLog": "packet-verify.log",
+      "logSha256": "7f4b163c36a3a0ba0dc780b931b2b1765fcefd27211b38ec12df5411125255a3",
+      "sourceFiles": 15,
+      "linuxRuntimeVerified": true
+    },
+    {
+      "command": "two negative runtime archive/manifest pin-tamper checks",
+      "exitCode": 0,
+      "privateLog": "packet-negative.log",
+      "logSha256": "ccf7be38d697980648da995d6c4b433b57b38fcc994ad564babc6e12903b197f",
+      "rejected": 2
+    }
+  ],
+  "routePatterns": 106,
+  "localRouteResults": 106,
+  "liveModeBuildIsHostedAcceptance": false,
+  "review": "Fresh source review and final packet review; all reported findings repaired. Final target-chain rejection independently reconfirmed. Host execution and whole-product readiness are not certified.",
+  "hostReconciliation": {
+    "complete": true,
+    "reference": "ops/releases/2026-11-07-dashboard-ui/host-baseline.json",
+    "protectedServicesUnchanged": 30,
+    "allRunningContainersUnchanged": 31,
+    "hostedMutationPerformed": false,
+    "ownedRootConsole": "logged out and closed"
+  },
+  "runtimeCandidate": {
+    "sha256": "186aec1f1fd5f3fa30f5e1791bb841c11664e0255e13c5195a7a26d1934c7c62",
+    "bytes": 262029155,
+    "buildId": "scy8yMJdAowpPKpkffiaW",
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42347991605",
+    "qualificationScope": "Ubuntu Linux build/typecheck, exact source/lock/public bindings/archive safety; no hosted candidate process or authentication acceptance yet"
+  }
+}

@@ -18,6 +18,32 @@ describe('Phase 03 OpenAPI composition', () => {
         'utf8',
       ),
     ) as Record<string, unknown>;
+    // Inspect actual controller metadata before fragment composition can fill
+    // an unregistered path or replace its authentication/body contract.
+    const registered = generateOpenApi(app);
+    for (const [path, method, operationId] of [
+      ['/api/v1/me/financial-reset', 'post', 'resetMyFinancialData'],
+      ['/api/v1/me/financial-reset/state', 'get', 'getMyFinancialResetState'],
+      ['/api/v1/me/financial-reset/{id}', 'get', 'getMyFinancialResetReceipt'],
+    ] as const) {
+      expect(registered.paths[path]?.[method]).toMatchObject({
+        operationId,
+        security: [{ ClerkBearer: [] }],
+      });
+      expect(registered.paths[path]?.[method]?.responses).toHaveProperty('200');
+    }
+    expect(registered.paths['/api/v1/me/financial-reset']?.post?.requestBody).toMatchObject({
+      required: true,
+      content: {
+        'application/json': { schema: { $ref: '#/components/schemas/FinancialResetCommand' } },
+      },
+    });
+    expect(registered.components?.schemas?.FinancialResetCommand).toEqual({
+      type: 'object',
+      properties: { operationId: { type: 'string', format: 'uuid' } },
+      required: ['operationId'],
+      additionalProperties: false,
+    });
     const document = generateOpenApi(app, [fragment]);
     const approvedIds = new Set(
       Object.values(
@@ -33,7 +59,17 @@ describe('Phase 03 OpenAPI composition', () => {
         if (operationId && approvedIds.has(operationId)) phase3Count += 1;
       }
     }
-    expect(phase3Count).toBe(46);
+    expect(phase3Count).toBe(58);
+    expect(document.paths['/api/v1/me/financial-reset']?.post?.parameters).toContainEqual(
+      expect.objectContaining({
+        name: 'X-Financial-Generation',
+        in: 'header',
+        schema: { type: 'integer', minimum: 0 },
+      }),
+    );
+    expect(
+      document.paths['/api/v1/privacy/deletion-completions/{operationId}']?.get?.security,
+    ).toEqual([{ DeletionCompletionReceipt: [] }]);
     await app.close();
   });
 });

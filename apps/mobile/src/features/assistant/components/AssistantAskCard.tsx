@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useTheme } from '@/state/theme-context';
 import {
   View,
   TextInput,
@@ -8,26 +9,31 @@ import {
 import { SparkleIcon } from './AssistantIcons';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 
 export interface AssistantAskCardProps {
+  text: string;
+  onChangeText: (text: string) => void;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
 }
 
 export function AssistantAskCard({
+  text,
+  onChangeText,
   onAskQuestion,
   loading = false
 }: AssistantAskCardProps) {
-  const [text, setText] = useState('');
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
+  const disabled = !text.trim() || loading;
   const handleSubmit = () => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (disabled) return;
     onAskQuestion(trimmed);
-    setText('');
   };
 
   return (
@@ -39,25 +45,27 @@ export function AssistantAskCard({
             <Pressable
               testID="assistant-ask-submit-button"
               onPress={handleSubmit}
-              disabled={!text.trim() || loading}
+              disabled={disabled}
+              accessibilityState={{ disabled }}
               style={({ pressed }) => [
                 styles.sparkleButton,
-                !text.trim() && styles.sparkleButtonEmpty,
+                disabled && styles.sparkleButtonDisabled,
                 pressed && styles.sparkleButtonPressed
               ]}
               accessibilityLabel={translate('assistant.action.ask')}
               accessibilityRole="button"
             >
-              <SparkleIcon size={20} color={colorTokens.surface.white} />
+              <SparkleIcon size={20} color={disabled ? colors.content.secondary : colors.content.inverse} />
             </Pressable>
 
             {/* Input field on the right in RTL */}
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
-              placeholderTextColor={colorTokens.ink['500']}
+              placeholderTextColor={colors.content.secondary}
               style={[styles.input, styles.inputRtl]}
               returnKeyType="send"
               onSubmitEditing={handleSubmit}
@@ -71,9 +79,10 @@ export function AssistantAskCard({
             <TextInput
               testID="assistant-ask-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={onChangeText}
+              maxLength={1000}
               placeholder={translate('assistant.ask.placeholder')}
-              placeholderTextColor={colorTokens.ink['500']}
+              placeholderTextColor={colors.content.secondary}
               style={[styles.input, styles.inputLtr]}
               returnKeyType="send"
               onSubmitEditing={handleSubmit}
@@ -85,16 +94,17 @@ export function AssistantAskCard({
             <Pressable
               testID="assistant-ask-submit-button"
               onPress={handleSubmit}
-              disabled={!text.trim() || loading}
+              disabled={disabled}
+              accessibilityState={{ disabled }}
               style={({ pressed }) => [
                 styles.sparkleButton,
-                !text.trim() && styles.sparkleButtonEmpty,
+                disabled && styles.sparkleButtonDisabled,
                 pressed && styles.sparkleButtonPressed
               ]}
               accessibilityLabel={translate('assistant.action.ask')}
               accessibilityRole="button"
             >
-              <SparkleIcon size={20} color={colorTokens.surface.white} />
+              <SparkleIcon size={20} color={disabled ? colors.content.secondary : colors.content.inverse} />
             </Pressable>
           </>
         )}
@@ -103,15 +113,15 @@ export function AssistantAskCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
+    backgroundColor: colors.surfaces.card,
+    borderColor: colors.borders.default,
     borderRadius: radius.card,
     borderWidth: 1,
     marginHorizontal: spacing.md,
     padding: 10,
-    shadowColor: colorTokens.teal['950'],
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
@@ -119,8 +129,8 @@ const styles = StyleSheet.create({
   },
   innerBox: {
     alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.subtle,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -130,12 +140,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   input: {
-    color: colorTokens.ink['900'],
+    color: colors.content.primary,
     flex: 1,
     fontSize: 15,
     maxHeight: 90,
     minHeight: 48,
-    paddingVertical: 8
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   inputRtl: {
     textAlign: 'right',
@@ -147,15 +158,14 @@ const styles = StyleSheet.create({
   },
   sparkleButton: {
     alignItems: 'center',
-    backgroundColor: colorTokens.teal['900'],
+    backgroundColor: colors.interactions.primary,
     borderRadius: radius.pill,
     height: 44,
     justifyContent: 'center',
     width: 44
   },
-  sparkleButtonEmpty: {
-    backgroundColor: colorTokens.teal['900'],
-    opacity: 0.95
+  sparkleButtonDisabled: {
+    backgroundColor: colors.borders.disabled
   },
   sparkleButtonPressed: {
     opacity: 0.75

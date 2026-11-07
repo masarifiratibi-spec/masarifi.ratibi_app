@@ -1,0 +1,30 @@
+{
+  "sourceCommit": "97e66588b2b516ae8c67e285f8439be591439dd6",
+  "image": "masarifi-readiness-production@sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc",
+  "configFiles": [
+    {
+      "name": "api",
+      "file": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/config/api.env",
+      "sha256": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389",
+      "mode": "0600",
+      "validated": true
+    },
+    {
+      "name": "import-worker",
+      "file": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/config/import-worker-v2.env",
+      "sha256": "f19d7e2039d61ba221bef061856d5aa3bbd0155f0721d5b5d485a9938dff5bc2",
+      "mode": "0600",
+      "validated": true
+    }
+  ],
+  "existingKeysAndSessionsRetained": true,
+  "immediateDeletionConfigurationPreserved": true,
+  "newConsumerJobKeys": [
+    "import.parse"
+  ],
+  "original27ServingContainersRetained": true,
+  "newProductionApiOrigin": "https://api.masarifiratibi.com",
+  "dnsCurrentlyConfigured": false,
+  "hostedApplicationDeployment": false,
+  "approvalRequiredBeforeActivation": true
+}

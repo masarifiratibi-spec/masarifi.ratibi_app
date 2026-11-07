@@ -6,6 +6,7 @@ import type {
   AssistantResponse,
   AssistantResponseFeedback
 } from '@/domain/assistant';
+import type { AssistantUserTurn } from '@/domain/assistant';
 import type {
   NotificationActionKind,
   NotificationEvent,
@@ -37,11 +38,13 @@ import type {
   SupportArticle,
   SupportDraft,
   SupportDraftInput,
+  SupportFeedback,
   SupportOperation,
   SupportReplyInput,
   SupportTicket
 } from '@/domain/support';
 import type { MutationResult } from './core-finance-service';
+import type { ReadContext } from './read-context';
 import type { CapabilityContractMetadata } from './capability-contract';
 
 export const notificationServiceCapability: CapabilityContractMetadata = {
@@ -114,34 +117,65 @@ export type PhonePresentationResult = {
   identifier: string | null;
 };
 
-export type PhoneNotificationResponse = {
-  notificationId: string;
-  action: NotificationActionKind;
-};
+export type PhoneNotificationResponse =
+  | {
+      kind?: never;
+      notificationId: string;
+      action: NotificationActionKind;
+    }
+  | { kind: 'onboarding_resume'; cycleId: string; action: 'view' };
 
 export interface NotificationService {
   list(input: NotificationListQuery): Promise<Page<NotificationEvent>>;
   get(id: string): Promise<NotificationEvent>;
   createFromSource(input: NotificationSourceEvent): Promise<NotificationEvent>;
-  markRead(id: string, read: boolean): Promise<MutationResult<NotificationEvent>>;
-  markAllRead(filter: NotificationListQuery, operationId: string): Promise<MutationResult<number>>;
-  delete(id: string, operationId: string): Promise<MutationResult<{ id: string }>>;
+  markRead(
+    id: string,
+    read: boolean
+  ): Promise<MutationResult<NotificationEvent>>;
+  markAllRead(
+    filter: NotificationListQuery,
+    operationId: string
+  ): Promise<MutationResult<number>>;
+  delete(
+    id: string,
+    operationId: string
+  ): Promise<MutationResult<{ id: string }>>;
   getPreferences(): Promise<NotificationPreferences>;
-  savePreferences(input: NotificationPreferencesInput, expectedVersion: number, operationId: string): Promise<MutationResult<NotificationPreferences>>;
+  savePreferences(
+    input: NotificationPreferencesInput,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<NotificationPreferences>>;
   refreshPermission(): Promise<NotificationPermissionState>;
   requestPermissionAfterEducation(): Promise<NotificationPermissionState>;
   resolveTarget(id: string): Promise<NotificationTargetResolution>;
-  revalidateAction(id: string, action: NotificationActionKind): Promise<{ status: 'available' | 'expired' | 'unavailable' | 'unlock_required'; target: NotificationTarget | null; action: NotificationActionKind }>;
-  executeAction(id: string, action: NotificationActionKind, operationId: string): Promise<MutationResult<NotificationActionResult>>;
+  revalidateAction(
+    id: string,
+    action: NotificationActionKind
+  ): Promise<{
+    status: 'available' | 'expired' | 'unavailable' | 'unlock_required';
+    target: NotificationTarget | null;
+    action: NotificationActionKind;
+  }>;
+  executeAction(
+    id: string,
+    action: NotificationActionKind,
+    operationId: string
+  ): Promise<MutationResult<NotificationActionResult>>;
 }
 
 export interface PhoneNotificationService {
   getPermission(): Promise<NotificationPermissionState>;
   requestPermission(): Promise<NotificationPermissionState>;
   registerCategories(): Promise<void>;
-  presentLocal(input: PhoneNotificationPresentation): Promise<PhonePresentationResult>;
+  presentLocal(
+    input: PhoneNotificationPresentation
+  ): Promise<PhonePresentationResult>;
   getLastResponse(): Promise<PhoneNotificationResponse | null>;
-  subscribeToResponses(listener: (response: PhoneNotificationResponse) => void): () => void;
+  subscribeToResponses(
+    listener: (response: PhoneNotificationResponse) => void
+  ): () => void;
   openSystemSettings(): Promise<void>;
 }
 
@@ -176,53 +210,176 @@ export type AssistantFinancialInsight = {
 };
 
 export interface AssistantService {
+  readQuestionOperation?(): Promise<{
+    operationId: string;
+    phase: string;
+    conversationId: string | null;
+    messageId: string | null;
+    question: string | undefined;
+    createdAt?: number;
+  } | null>;
+  resumeQuestion?(): Promise<MutationResult<AssistantResponse>>;
+  retryQuestionOperation?(): Promise<
+    MutationResult<{ conversationId: string }>
+  >;
   getConsent(): Promise<AssistantConsent>;
-  getAvailability(): Promise<{ status: 'available' | 'disabled' | 'limit_reached'; remainingQuestions: number }>;
+  getAvailability(): Promise<{
+    status: 'available' | 'disabled' | 'limit_reached';
+    remainingQuestions: number;
+    capabilities?: {
+      directRead: 'available' | 'disabled' | 'unknown';
+      provider: 'available' | 'disabled' | 'limit_reached' | 'unknown';
+      actions: 'available' | 'disabled' | 'unknown';
+    };
+    checkedAt?: string;
+    reasons?: string[];
+  }>;
   listInsights(): Promise<AssistantFinancialInsight[]>;
-  setConsent(enabled: boolean, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantConsent>>;
-  listConversations(input: AssistantConversationQuery): Promise<Page<AssistantConversation>>;
-  createConversation(input: { question: string; intent?: AssistantQuestionIntent }, operationId: string): Promise<MutationResult<AssistantConversation>>;
-  getConversation(id: string, cursor?: string): Promise<{ conversation: AssistantConversation; responses: Page<AssistantResponse> }>;
+  setConsent(
+    enabled: boolean,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<AssistantConsent>>;
+  listConversations(
+    input: AssistantConversationQuery
+  ): Promise<Page<AssistantConversation>>;
+  createConversation(
+    input: { question: string; intent?: AssistantQuestionIntent },
+    operationId: string
+  ): Promise<MutationResult<AssistantConversation>>;
+  getConversation(
+    id: string,
+    cursor?: string
+  ): Promise<{
+    conversation: AssistantConversation;
+    responses: Page<AssistantResponse>;
+    userTurns?: AssistantUserTurn[];
+    pendingMessageIds?: string[];
+    failureCode?: string | null;
+  }>;
   getResponse(id: string): Promise<AssistantResponse>;
-  ask(conversationId: string, question: string, operationId: string, intent?: AssistantQuestionIntent): Promise<MutationResult<AssistantResponse>>;
-  renameConversation(id: string, title: string, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantConversation>>;
-  deleteConversation(id: string, expectedVersion: number, operationId: string): Promise<MutationResult<{ id: string }>>;
-  setResponseFeedback(responseId: string, feedback: AssistantResponseFeedback, operationId: string): Promise<MutationResult<AssistantResponse>>;
+  ask(
+    conversationId: string,
+    question: string,
+    operationId: string,
+    intent?: AssistantQuestionIntent
+  ): Promise<MutationResult<AssistantResponse>>;
+  renameConversation(
+    id: string,
+    title: string,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<AssistantConversation>>;
+  deleteConversation(
+    id: string,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<{ id: string }>>;
+  setResponseFeedback(
+    responseId: string,
+    feedback: AssistantResponseFeedback,
+    operationId: string
+  ): Promise<MutationResult<AssistantResponse>>;
   getActionPreview(id: string): Promise<AssistantActionPreview>;
-  updateActionPreview(id: string, input: AssistantActionInput, expectedVersion: number): Promise<AssistantActionPreview>;
-  confirmAction(id: string, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantActionPreview>>;
-  cancelAction(id: string, expectedVersion: number, operationId: string): Promise<MutationResult<AssistantActionPreview>>;
+  updateActionPreview(
+    id: string,
+    input: AssistantActionInput,
+    expectedVersion: number
+  ): Promise<AssistantActionPreview>;
+  confirmAction(
+    id: string,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<AssistantActionPreview>>;
+  cancelAction(
+    id: string,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<AssistantActionPreview>>;
 }
 
 export interface SubscriptionService {
   getCatalog(): Promise<SubscriptionOfferCatalog>;
   getState(): Promise<SubscriptionState>;
   getOperation(id: string): Promise<SubscriptionOperation>;
-  startOperation(input: SubscriptionOperationInput, expectedVersion: number, operationId: string): Promise<MutationResult<SubscriptionOperation>>;
-  completeMockOperation(operationId: string, outcome: 'success' | 'failure' | 'cancelled'): Promise<MutationResult<SubscriptionOperation>>;
+  startOperation(
+    input: SubscriptionOperationInput,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<SubscriptionOperation>>;
+  completeMockOperation(
+    operationId: string,
+    outcome: 'success' | 'failure' | 'cancelled'
+  ): Promise<MutationResult<SubscriptionOperation>>;
 }
 
 export interface SettingsService {
   getProfile(): Promise<UserProfile>;
-  saveProfile(input: UserProfileInput, expectedVersion: number, operationId: string): Promise<MutationResult<UserProfile>>;
+  saveProfile(
+    input: UserProfileInput,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<UserProfile>>;
   getProfileSetup(): Promise<ProfileSetupSnapshot>;
-  saveProfileSetup(input: ProfileSetupInput, snapshot: ProfileSetupSnapshot, operationId: string): Promise<MutationResult<ProfileSetupSnapshot>>;
+  saveProfileSetup(
+    input: ProfileSetupInput,
+    snapshot: ProfileSetupSnapshot,
+    operationId: string
+  ): Promise<MutationResult<ProfileSetupSnapshot>>;
   listSessions(): Promise<RepresentativeSession[]>;
-  revokeSession(sessionId: string, operationId: string): Promise<MutationResult<RepresentativeSession>>;
-  revokeAllSessions(operationId: string): Promise<MutationResult<RepresentativeSession[]>>;
+  revokeSession(
+    sessionId: string,
+    operationId: string
+  ): Promise<MutationResult<RepresentativeSession>>;
+  revokeAllSessions(
+    operationId: string
+  ): Promise<MutationResult<RepresentativeSession[]>>;
   listSecurityEvents(cursor?: string): Promise<Page<SecurityEvent>>;
-  requestPrivacyAction(kind: PrivacyRequest['kind'], operationId: string): Promise<MutationResult<PrivacyRequest>>;
-  deleteLocalData(operationId: string): Promise<MutationResult<LocalDataDeletionResult>>;
+  requestPrivacyAction(
+    kind: PrivacyRequest['kind'],
+    operationId: string
+  ): Promise<MutationResult<PrivacyRequest>>;
+  getPrivacyExport(
+    requestId: string
+  ): Promise<import('@/domain/settings').PrivacyExportStatus>;
+  getAccountDeletion(requestId: string): Promise<PrivacyRequest>;
+  cancelAccountDeletion(
+    requestId: string,
+    operationId: string
+  ): Promise<MutationResult<null>>;
+  deleteLocalData(
+    operationId: string
+  ): Promise<MutationResult<LocalDataDeletionResult>>;
 }
 
 export interface SupportService {
-  searchArticles(input: { query: string; category?: string }): Promise<SupportArticle[]>;
+  searchArticles(input: {
+    query: string;
+    category?: string;
+  }): Promise<SupportArticle[]>;
   listTickets(cursor?: string): Promise<Page<SupportTicket>>;
+  listFeedback(
+    cursor?: string,
+    context?: ReadContext
+  ): Promise<Page<SupportFeedback>>;
   getTicket(id: string): Promise<SupportTicket>;
   saveDraft(input: SupportDraftInput): Promise<SupportDraft>;
   loadDraft(id: string): Promise<SupportDraft | null>;
   discardDraft(id: string): Promise<void>;
-  submitDraft(id: string, operationId: string): Promise<MutationResult<SupportOperation>>;
-  reply(ticketId: string, input: SupportReplyInput, expectedVersion: number, operationId: string): Promise<MutationResult<SupportOperation>>;
-  rate(ticketId: string, rating: number, expectedVersion: number, operationId: string): Promise<MutationResult<SupportOperation>>;
+  submitDraft(
+    id: string,
+    operationId: string
+  ): Promise<MutationResult<SupportOperation>>;
+  reply(
+    ticketId: string,
+    input: SupportReplyInput,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<SupportOperation>>;
+  rate(
+    ticketId: string,
+    rating: number,
+    expectedVersion: number,
+    operationId: string
+  ): Promise<MutationResult<SupportOperation>>;
 }

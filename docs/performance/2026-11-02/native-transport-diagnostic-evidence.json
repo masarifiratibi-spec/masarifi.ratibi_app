@@ -1,0 +1,130 @@
+{
+  "baseSourceCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+  "privateNativeOverlaySha256": "32019461eed9c1508cf654ed3112aab0ffdb3fd3f235c55fb7ef9a21aa337b96",
+  "diagnosticApkSha256": "77264879b13cfde62127d1425afbf29c9e8e1d5fbcc2a97c440cfdab8b238751",
+  "rawEvidenceSha256": "be32d4800f6d6fbba30218da749e67f1c74991adf85b3891b85ba1d16bd08889",
+  "diagnosticLaunches": 3,
+  "nativeCalls": 27,
+  "nativeClientCounts": {
+    "rn": 27
+  },
+  "nativeNetworkStatusCounts": {
+    "200": 7,
+    "304": 20
+  },
+  "javascriptStatus200Responses": 27,
+  "nativeLogClockAbsoluteDifferenceMaxMs": 4.0,
+  "firstInvocationBoundaryMs": {
+    "n": 3,
+    "median": 0.4586780071258545,
+    "min": 0.37320709228515625,
+    "max": 0.54404616355896
+  },
+  "groups": {
+    "identity": {
+      "calls": 9,
+      "transportCounts": {
+        "rn": 9
+      },
+      "phaseMs": {
+        "callStartToEnd": {
+          "n": 9,
+          "median": 825.265625,
+          "min": 446.255051,
+          "max": 1527.535417
+        },
+        "callStartToRequestHeaders": {
+          "n": 9,
+          "median": 364.936979,
+          "min": 219.497447,
+          "max": 439.930052
+        },
+        "dns": {
+          "n": 9,
+          "median": 2.353542,
+          "min": 0.1242709999999998,
+          "max": 128.850885
+        },
+        "connectIncludingTls": {
+          "n": 9,
+          "median": 231.76421799999997,
+          "min": 212.76026,
+          "max": 435.255624
+        },
+        "tlsWithinConnect": {
+          "n": 9,
+          "median": 136.06942700000002,
+          "min": 108.65197900000001,
+          "max": 208.57151100000002
+        },
+        "requestHeadersEndToResponseHeadersEnd": {
+          "n": 9,
+          "median": 447.14854099999997,
+          "min": 215.35119699999998,
+          "max": 1117.049323
+        }
+      },
+      "connectionAcquiredWithoutConnectCallbacks": 0
+    },
+    "ledger": {
+      "calls": 18,
+      "transportCounts": {
+        "rn": 18
+      },
+      "phaseMs": {
+        "callStartToEnd": {
+          "n": 18,
+          "median": 244.74640599999998,
+          "min": 120.612083,
+          "max": 2092.410728
+        },
+        "callStartToRequestHeaders": {
+          "n": 18,
+          "median": 6.7154945,
+          "min": 2.286667,
+          "max": 1642.886405
+        },
+        "dns": {
+          "n": 5,
+          "median": 0.19010400000000027,
+          "min": 0.133594,
+          "max": 0.5777610000000006
+        },
+        "connectIncludingTls": {
+          "n": 5,
+          "median": 392.793125,
+          "min": 223.184948,
+          "max": 1638.269686
+        },
+        "tlsWithinConnect": {
+          "n": 5,
+          "median": 203.829218,
+          "min": 91.72375,
+          "max": 308.14880199999993
+        },
+        "requestHeadersEndToResponseHeadersEnd": {
+          "n": 18,
+          "median": 214.2321615,
+          "min": 112.864531,
+          "max": 430.60755099999994
+        }
+      },
+      "connectionAcquiredWithoutConnectCallbacks": 13
+    }
+  },
+  "qualified2236Restored": true,
+  "restorationSmokeExistingAccountHomeReady": true,
+  "originalTwoApplicationBindingsUnchanged": true,
+  "exactQualifiedSourceOnly": false,
+  "p95Qualified": false,
+  "performanceImprovementClaimed": false,
+  "backendOrWorkerCutoverPerformed": false,
+  "limitations": [
+    "Three launches, private native observer build; no p95 or broad performance qualification.",
+    "Native call_end can include body consumption after JavaScript fetch resolves; it is not interchangeable with fetch-to-Response.",
+    "Connect includes nested TLS; never add their durations or unlike percentiles. Missing/ambiguous phase callbacks are unmeasured, not zero.",
+    "Header-return interval combines network/server/scheduling/header processing; no database-only or exact network RTT attribution.",
+    "First JS/native invocation boundary is cohort-level clock-aligned, not cryptographic per-request identity; native ordinals are not joined to JS ordinals.",
+    "Native client selection observed for these requests does not establish why the wrapper selected that client or behavior of all app states."
+  ]
+}

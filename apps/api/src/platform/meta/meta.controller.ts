@@ -13,6 +13,27 @@ import { MetaService } from './meta.service';
 export class MetaController {
   constructor(private readonly meta: MetaService) {}
 
+  @Get('social-media')
+  @UseGuards(MetaAuthGuard)
+  @ApiBearerAuth('ClerkBearer')
+  @ApiOperation({ operationId: 'getSocialMediaLinks' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['instagram', 'tiktok', 'snapchat'],
+      properties: {
+        instagram: { type: 'string', maxLength: 500 },
+        tiktok: { type: 'string', maxLength: 500 },
+        snapchat: { type: 'string', maxLength: 500 },
+      },
+    },
+  })
+  socialMedia(@Res({ passthrough: true }) response: Response) {
+    response.setHeader('Cache-Control', 'private, no-store');
+    return this.meta.getSocialMediaLinks();
+  }
+
   @Get()
   @UseGuards(MetaAuthGuard)
   @ApiBearerAuth('ClerkBearer')

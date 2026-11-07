@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Modal,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,11 @@ import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import type { Category } from '@/domain/core-finance';
-import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import {
+  categoryMutationOwner,
+  publishCategoryMutation
+} from './publish-category-mutation';
+import { useDraftNavigationGuard } from '@/features/shell/useDraftNavigationGuard';
 import { currentLocale, translate } from '@/localization/i18n';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
@@ -39,11 +44,13 @@ const PALETTE_COLORS = [
 export function GroupFormModal({
   visible,
   onClose,
-  onCreated
+  onCreated,
+  financialType: requiredFinancialType
 }: {
   visible: boolean;
   onClose: () => void;
-  onCreated?: (group: Category) => void;
+  onCreated?: (group: Category) => void | Promise<void>;
+  financialType?: NonNullable<Category['financialType']>;
 }) {
   const theme = useTheme();
   const client = useQueryClient();
@@ -56,40 +63,64 @@ export function GroupFormModal({
   const [selectedColor, setSelectedColor] = useState<string>(
     colorTokens.raw['103F37']
   );
-  const [financialType, setFinancialType] =
-    useState<NonNullable<Category['financialType']>>('expense');
+  const [financialType, setFinancialType] = useState<
+    NonNullable<Category['financialType']>
+  >(requiredFinancialType ?? 'expense');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string>();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const emoji = resolveEmojiForKey(iconKey);
+  const { requestClose, leaveAfterSave } = useDraftNavigationGuard({
+    dirty: Boolean(
+      name ||
+      iconKey !== 'housing' ||
+      selectedColor !== colorTokens.raw['103F37'] ||
+      financialType !== (requiredFinancialType ?? 'expense')
+    ),
+    discard: () => undefined,
+    close: onClose,
+    copy: {
+      title: translate('coreFinance.categories.discardChanges'),
+      message: translate('coreFinance.categories.discardChangesBody'),
+      keep: translate('coreFinance.categories.keepEditing'),
+      discard: translate('coreFinance.categories.discard')
+    }
+  });
+  const handleClose = () => {
+    if (!savingRef.current) requestClose();
+  };
 
   const handleSave = async () => {
-    if (saving) return;
+    if (savingRef.current) return;
     if (!name.trim()) {
       setError(translate('coreFinance.validation.required'));
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     setError(undefined);
+    const ownerId = categoryMutationOwner();
     try {
       const result = await coreFinanceService.createCategory({
         labelAr: name.trim(),
         labelEn: name.trim(),
-        financialType,
+        financialType: requiredFinancialType ?? financialType,
         iconKey,
         colorKey: selectedColor,
         parentId: null,
         isFavorite: false
       });
-      await invalidateCoreFinanceScopes(client, result.affectedScopes);
+      await publishCategoryMutation(client, result, ownerId);
       setName('');
-      if (onCreated) onCreated(result.value);
-      onClose();
+      if (onCreated) await onCreated(result.value);
+      leaveAfterSave(onClose);
     } catch {
       setError(translate('coreFinance.state.error'));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -100,14 +131,14 @@ export function GroupFormModal({
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={onClose}
+        onRequestClose={handleClose}
       >
         <Pressable
           testID="group-form-modal-backdrop"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={styles.backdrop}
-          onPress={onClose}
+          onPress={handleClose}
         />
         <View
           testID="group-form-modal-content"
@@ -129,7 +160,8 @@ export function GroupFormModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={translate('coreFinance.cancel')}
-              onPress={onClose}
+              onPress={handleClose}
+              disabled={saving}
               style={styles.navBtn}
               hitSlop={8}
             >
@@ -161,6 +193,7 @@ export function GroupFormModal({
               accessibilityRole="button"
               accessibilityLabel={translate('coreFinance.categories.save')}
               disabled={saving}
+              accessibilityState={{ busy: saving, disabled: saving }}
               onPress={() => void handleSave()}
               style={[
                 styles.navBtn,
@@ -171,13 +204,17 @@ export function GroupFormModal({
                 }
               ]}
             >
-              <DesignIcon
-                name="check"
-                label={translate('coreFinance.categories.save')}
-                color={colorTokens.raw['FFFFFF']}
-                size="sm"
-                decorative
-              />
+              {saving ? (
+                <ActivityIndicator color={colorTokens.raw['FFFFFF']} />
+              ) : (
+                <DesignIcon
+                  name="check"
+                  label={translate('coreFinance.categories.save')}
+                  color={colorTokens.raw['FFFFFF']}
+                  size="sm"
+                  decorative
+                />
+              )}
             </Pressable>
           </View>
 
@@ -240,6 +277,8 @@ export function GroupFormModal({
                 {translate('coreFinance.categories.groupName')}
               </Text>
               <TextInput
+                editable={!saving}
+                maxLength={100}
                 value={name}
                 onChangeText={setName}
                 placeholder={translate(
@@ -291,10 +330,14 @@ export function GroupFormModal({
                 {translate('coreFinance.filters.type')}
               </Text>
               <ChipSelector
-                options={[
-                  translate('coreFinance.type.expense'),
-                  translate('coreFinance.type.income')
-                ]}
+                options={
+                  requiredFinancialType
+                    ? [translate(`coreFinance.type.${requiredFinancialType}`)]
+                    : [
+                        translate('coreFinance.type.expense'),
+                        translate('coreFinance.type.income')
+                      ]
+                }
                 selected={[
                   translate(`coreFinance.type.${financialType}` as never)
                 ]}

@@ -1,0 +1,19 @@
+{
+  "atUtc": "2026-11-05T08:44:03.670101+00:00",
+  "composeValidated": true,
+  "stagedNginxValidated": true,
+  "existingCertificateUsedOnlyForSyntaxTest": true,
+  "productionDnsAndTlsProven": false,
+  "legacySitePath": "/etc/nginx/sites-enabled/masarifi-staging",
+  "legacySiteBeforeSha256": "35eccbf6189150c82789e4efcaddfb530c3b4b4e8ec2a6e10164a9d45b9aea39",
+  "legacySiteCandidateSha256": "be7856f0d5f6183f14fdf01b136e5f4d30eaa15ecefc091aed0cc91c870b7b17",
+  "legacySiteCandidate": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/legacy-site-candidate.private.conf",
+  "effectiveNginxUnchanged": true,
+  "newFiles": {
+    "compose.production.yml": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5",
+    "nginx.production.conf": "840cd5e73175983deffaf81e3819558c3337b9dc196f0d7b739c68ac49646391",
+    "nginx.legacy-restriction.conf": "423e58d15fec52166cb41808bc395b0051597af87bde1e81df272faa1f7668d3"
+  },
+  "servicesStartedStoppedOrReloaded": false,
+  "approvalRequiredBeforeDeployment": true
+}

@@ -1,0 +1,905 @@
+{
+  "sourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+  "apkSha256": "13579a24b27c8bb8e145be74f063b1215f1fb3677ec7183a28fcd52c37d6dcac",
+  "locale": "en",
+  "sampleCount": 20,
+  "diagnosticWindowSeconds": 360,
+  "totalLogRows": 182,
+  "consistentCohortRows": 180,
+  "clientAllGetReads200": true,
+  "originStatusCounts": {
+    "304": 139,
+    "200": 41
+  },
+  "perLaunchExpectedRouteMultisetMatched": true,
+  "trialCounts": [
+    {
+      "run": 1,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_all": 1,
+        "accounts_summary": 1,
+        "categories_active": 1,
+        "transactions_page": 1
+      }
+    },
+    {
+      "run": 2,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 3,
+      "rows": 9,
+      "routeCounts": {
+        "identity_me": 1,
+        "identity_onboarding": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "accounts_summary": 1,
+        "categories_all": 1,
+        "transactions_page": 1,
+        "identity_preferences": 1,
+        "categories_active": 1
+      }
+    },
+    {
+      "run": 4,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1,
+        "identity_me": 1,
+        "categories_active": 1
+      }
+    },
+    {
+      "run": 5,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 6,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_all": 1,
+        "categories_active": 1,
+        "transactions_page": 1,
+        "accounts_summary": 1
+      }
+    },
+    {
+      "run": 7,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1,
+        "identity_preferences": 1,
+        "categories_active": 1
+      }
+    },
+    {
+      "run": 8,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 9,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "categories_all": 1,
+        "transactions_page": 1
+      }
+    },
+    {
+      "run": 10,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "accounts_summary": 1,
+        "identity_preferences": 1,
+        "categories_active": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 11,
+      "rows": 9,
+      "routeCounts": {
+        "identity_me": 1,
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_all": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_active": 1
+      }
+    },
+    {
+      "run": 12,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1,
+        "identity_me": 1,
+        "categories_active": 1
+      }
+    },
+    {
+      "run": 13,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 14,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 15,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "identity_preferences": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 16,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_active": 1,
+        "identity_preferences": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 17,
+      "rows": 9,
+      "routeCounts": {
+        "identity_preferences": 1,
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 18,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "identity_me": 1,
+        "accounts_all": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1
+      }
+    },
+    {
+      "run": 19,
+      "rows": 9,
+      "routeCounts": {
+        "identity_me": 1,
+        "identity_onboarding": 1,
+        "identity_preferences": 1,
+        "accounts_active": 1,
+        "accounts_all": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "categories_all": 1,
+        "transactions_page": 1
+      }
+    },
+    {
+      "run": 20,
+      "rows": 9,
+      "routeCounts": {
+        "identity_onboarding": 1,
+        "identity_me": 1,
+        "accounts_active": 1,
+        "categories_active": 1,
+        "accounts_summary": 1,
+        "transactions_page": 1,
+        "categories_all": 1,
+        "identity_preferences": 1,
+        "accounts_all": 1
+      }
+    }
+  ],
+  "unattributedRows": [
+    {
+      "route": "identity_me",
+      "status": "401",
+      "candidateRuns": []
+    },
+    {
+      "route": "accounts_active",
+      "status": "304",
+      "candidateRuns": []
+    }
+  ],
+  "routeTimingMs": {
+    "accounts_active": {
+      "request_s": {
+        "n": 20,
+        "median": 23.0,
+        "p95NearestRank": 27.0,
+        "min": 19.0,
+        "max": 35.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 22.5,
+        "p95NearestRank": 28.0,
+        "min": 18.0,
+        "max": 35.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 22.5,
+        "p95NearestRank": 28.0,
+        "min": 18.0,
+        "max": 35.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "accounts_all": {
+      "request_s": {
+        "n": 20,
+        "median": 24.0,
+        "p95NearestRank": 27.0,
+        "min": 19.0,
+        "max": 33.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 23.5,
+        "p95NearestRank": 27.0,
+        "min": 20.0,
+        "max": 33.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 23.5,
+        "p95NearestRank": 27.0,
+        "min": 20.0,
+        "max": 33.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "accounts_summary": {
+      "request_s": {
+        "n": 20,
+        "median": 28.0,
+        "p95NearestRank": 34.0,
+        "min": 25.0,
+        "max": 135.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 29.0,
+        "p95NearestRank": 34.0,
+        "min": 25.0,
+        "max": 135.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 29.0,
+        "p95NearestRank": 34.0,
+        "min": 25.0,
+        "max": 135.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 316.0,
+        "p95NearestRank": 316,
+        "min": 316,
+        "max": 316
+      },
+      "originStatusCounts": {
+        "200": 20
+      },
+      "upstreamStatusCounts": {
+        "200": 20
+      }
+    },
+    "categories_active": {
+      "request_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 48.0,
+        "min": 36.0,
+        "max": 51.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 48.0,
+        "min": 36.0,
+        "max": 51.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 48.0,
+        "min": 36.0,
+        "max": 51.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "categories_all": {
+      "request_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 49.0,
+        "min": 38.0,
+        "max": 51.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 50.0,
+        "min": 38.0,
+        "max": 51.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 42.0,
+        "p95NearestRank": 50.0,
+        "min": 38.0,
+        "max": 51.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "identity_me": {
+      "request_s": {
+        "n": 20,
+        "median": 27.0,
+        "p95NearestRank": 35.0,
+        "min": 24.0,
+        "max": 65.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 28.0,
+        "p95NearestRank": 35.0,
+        "min": 23.0,
+        "max": 65.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 2.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 28.0,
+        "p95NearestRank": 35.0,
+        "min": 23.0,
+        "max": 65.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 201
+      },
+      "originStatusCounts": {
+        "200": 1,
+        "304": 19
+      },
+      "upstreamStatusCounts": {
+        "200": 1,
+        "304": 19
+      }
+    },
+    "identity_onboarding": {
+      "request_s": {
+        "n": 20,
+        "median": 23.0,
+        "p95NearestRank": 30.0,
+        "min": 17.0,
+        "max": 31.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 23.0,
+        "p95NearestRank": 29.0,
+        "min": 18.0,
+        "max": 31.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 23.0,
+        "p95NearestRank": 29.0,
+        "min": 18.0,
+        "max": 31.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "identity_preferences": {
+      "request_s": {
+        "n": 20,
+        "median": 24.0,
+        "p95NearestRank": 28.0,
+        "min": 20.0,
+        "max": 29.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 24.0,
+        "p95NearestRank": 28.0,
+        "min": 20.0,
+        "max": 28.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 2.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 24.0,
+        "p95NearestRank": 28.0,
+        "min": 20.0,
+        "max": 28.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 0,
+        "min": 0,
+        "max": 0
+      },
+      "originStatusCounts": {
+        "304": 20
+      },
+      "upstreamStatusCounts": {
+        "304": 20
+      }
+    },
+    "transactions_page": {
+      "request_s": {
+        "n": 20,
+        "median": 25.5,
+        "p95NearestRank": 40.0,
+        "min": 23.0,
+        "max": 70.0
+      },
+      "upstream_response_s": {
+        "n": 20,
+        "median": 25.5,
+        "p95NearestRank": 40.0,
+        "min": 23.0,
+        "max": 70.0
+      },
+      "upstream_connect_s": {
+        "n": 20,
+        "median": 0.0,
+        "p95NearestRank": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "upstream_header_s": {
+        "n": 20,
+        "median": 25.5,
+        "p95NearestRank": 40.0,
+        "min": 23.0,
+        "max": 70.0
+      },
+      "bodyBytes": {
+        "n": 20,
+        "median": 99.0,
+        "p95NearestRank": 99,
+        "min": 99,
+        "max": 99
+      },
+      "originStatusCounts": {
+        "200": 20
+      },
+      "upstreamStatusCounts": {
+        "200": 20
+      }
+    }
+  },
+  "mobileSummary": {
+    "nativeActivityDrawMs": {
+      "n": 20,
+      "min": 418,
+      "median": 459.5,
+      "p95NearestRank": 588,
+      "max": 799
+    },
+    "homeReadyFromProcessStartMs": {
+      "n": 20,
+      "min": 3184.446,
+      "median": 3614.5695,
+      "p95NearestRank": 4704.616,
+      "max": 4704.745
+    },
+    "homeReadyFromActivityCreateMs": {
+      "n": 20,
+      "min": 3237.446,
+      "median": 3675.5015000000003,
+      "p95NearestRank": 4754.616,
+      "max": 4792.745
+    },
+    "processPssKiB": {
+      "n": 20,
+      "min": 205316,
+      "median": 222167.0,
+      "p95NearestRank": 227757,
+      "max": 227762
+    }
+  },
+  "clientTransportGroups": {
+    "identity": {
+      "n": 60,
+      "min": 488.271301984787,
+      "median": 631.6832550764084,
+      "p95NearestRank": 865.9334900379181,
+      "max": 1690.605885028839
+    },
+    "ledger": {
+      "n": 120,
+      "min": 137.07989597320557,
+      "median": 170.99015593528748,
+      "p95NearestRank": 702.505364894867,
+      "max": 1499.9994258880615
+    }
+  },
+  "clientStageMs": {
+    "activity_to_first_fetch": {
+      "n": 20,
+      "median": 1984.714379787445,
+      "p95NearestRank": 2472.506770849228,
+      "min": 1782.8273439407349,
+      "max": 2562.240458726883
+    },
+    "first_fetch_to_last_response": {
+      "n": 20,
+      "median": 1428.5405460596085,
+      "p95NearestRank": 2577.9395298957825,
+      "min": 1247.7190101146698,
+      "max": 2639.487343788147
+    },
+    "identity.cache.read": {
+      "n": 80,
+      "median": 39.00666642189026,
+      "p95NearestRank": 78.30770802497864,
+      "min": 16.229844093322754,
+      "max": 88.11625003814697
+    },
+    "identity.local.read": {
+      "n": 20,
+      "median": 89.66684865951538,
+      "p95NearestRank": 118.66593813896179,
+      "min": 80.29822897911072,
+      "max": 149.5542709827423
+    },
+    "identity.local.write": {
+      "n": 20,
+      "median": 37.961171984672546,
+      "p95NearestRank": 52.380208015441895,
+      "min": 34.81448006629944,
+      "max": 59.04635405540466
+    },
+    "identity.onboarding": {
+      "n": 20,
+      "median": 639.7069789171219,
+      "p95NearestRank": 873.1989579200745,
+      "min": 524.0754690170288,
+      "max": 1697.8324468135834
+    },
+    "identity.preferences": {
+      "n": 20,
+      "median": 640.4094789028168,
+      "p95NearestRank": 864.2041668891907,
+      "min": 524.5064060688019,
+      "max": 1697.5803110599518
+    },
+    "identity.profile.remote": {
+      "n": 20,
+      "median": 639.990858912468,
+      "p95NearestRank": 863.961718082428,
+      "min": 506.964791059494,
+      "max": 917.2444260120392
+    },
+    "identity.token.read": {
+      "n": 160,
+      "median": 0.19924497604370117,
+      "p95NearestRank": 0.3558330535888672,
+      "min": 0.15416693687438965,
+      "max": 0.8472399711608887
+    },
+    "last_response_to_home_ready": {
+      "n": 20,
+      "median": 157.25033903121948,
+      "p95NearestRank": 299.9890630245209,
+      "min": 25.654375076293945,
+      "max": 581.4070830345154
+    },
+    "ledger.categories": {
+      "n": 20,
+      "median": 653.8421350717545,
+      "p95NearestRank": 1154.295415878296,
+      "min": 372.85531187057495,
+      "max": 1616.555624961853
+    },
+    "ledger.read": {
+      "n": 20,
+      "median": 517.5891925096512,
+      "p95NearestRank": 710.0357811450958,
+      "min": 473.0251040458679,
+      "max": 795.2593750953674
+    },
+    "ledger.today": {
+      "n": 20,
+      "median": 675.3796874284744,
+      "p95NearestRank": 1164.4530730247498,
+      "min": 533.8656249046326,
+      "max": 1625.2379159927368
+    },
+    "startup.fonts": {
+      "n": 20,
+      "median": 166.8751825094223,
+      "p95NearestRank": 205.24468803405762,
+      "min": 152.06083297729492,
+      "max": 220.64343690872192
+    },
+    "startup.identity": {
+      "n": 20,
+      "median": 613.504634976387,
+      "p95NearestRank": 948.3521349430084,
+      "min": 468.70765590667725,
+      "max": 964.5114059448242
+    },
+    "startup.profile": {
+      "n": 20,
+      "median": 779.2293490171432,
+      "p95NearestRank": 1070.2316660881042,
+      "min": 662.0429170131683,
+      "max": 1823.897969007492
+    },
+    "startup.restore": {
+      "n": 20,
+      "median": 878.8306759595871,
+      "p95NearestRank": 1166.2788021564484,
+      "min": 748.59255194664,
+      "max": 1902.854425907135
+    }
+  },
+  "serverMinusClientOffsetBoundsSeconds": [
+    -0.11627030372619629,
+    1.3454790115356445
+  ],
+  "sanitizedLogSha256": "2d6656ec2f696b9436e35d3513016a7e18f4ac66d904b67097bb0fbf80c1bf21",
+  "configRestoredAndWorkersDrained": true,
+  "originalEffectiveConfigSha256": "b61f04efa6f90533354705a1e4f8cdd4b6c68d77433449189d505eccf50ae35b",
+  "limitations": [
+    "Timing windows and exact expected route multiset support cohort consistency, not cryptographic request identity. Same-route ambient traffic cannot be distinguished.",
+    "Nginx request/upstream timing boundaries differ from fetch-to-Response; do not subtract distributions to assert exact network/TLS latency.",
+    "Origin measurements combine authentication, API scheduling, pool acquisition, database and response work; database execution is not isolated.",
+    "Twenty sequential cached-data process-cold English launches, empty financial account; no p99, load scalability, fully uncached or populated-list claims.",
+    "Native HTTP cache revalidation is visible: origin 304 may be presented as a body-bearing 200 Response to JavaScript. Preserve the separate status layers.",
+    "Temporary diagnostics were present for this cohort; no improvement versus prior sequential cohorts is claimed."
+  ],
+  "diagnosticLogPurged": true,
+  "normalLogsTouched": false,
+  "rootOnlyRecoveryBackupsRetained": true
+}

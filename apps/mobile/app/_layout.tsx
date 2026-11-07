@@ -3,11 +3,15 @@
  */
 
 import React, { useCallback } from 'react';
+import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 import { Stack, usePathname } from 'expo-router';
 
 import { FontGate } from '@/design-system/typography';
 import { AppPrivacyGate } from '@/features/security/AppPrivacyGate';
-import { AppShellProvider } from '@/state/AppShellProvider';
+import {
+  AppShellHydrationProvider,
+  AppShellProvider
+} from '@/state/AppShellProvider';
 import { FoundationProviders } from '@/state/FoundationProviders';
 import { useAppShellStore } from '@/state/app-shell';
 import {
@@ -16,8 +20,71 @@ import {
 } from '@/features/shell/ProtectedRouteGate';
 import { useTheme } from '@/state/theme-context';
 import { MobileIdentityProvider } from '@/services/live/clerk-provider';
+import { isAppLockEnabled } from '@/config/client-runtime';
+import { VoiceCaptureProvider } from '@/features/voice/VoiceCaptureRuntime';
+import { DevAccountDeletionRecovery } from '@/features/settings/DevAccountDeletionRecovery';
+import {
+  StartupLoadingBoundary,
+  useStartupReady
+} from '@/design-system/components/feedback/StartupLoadingBoundary';
+import { usePreferenceStore } from '@/state/preferences';
+import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
+import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
+
+recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'module' });
 
 export default function RootLayout() {
+  const locale = usePreferenceStore((state) => state.locale);
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
+  return (
+    <MobileIdentityProvider
+      recoveryFallback={
+        <StartupLoading
+          locale={locale}
+          themePreference={themePreference}
+          reducedMotion={reducedMotion}
+        />
+      }
+    >
+      <FoundationProviders>
+        <StartupLoadingBoundary
+          locale={locale}
+          themePreference={themePreference}
+          reducedMotion={reducedMotion}
+        >
+          <AppShellHydrationProvider>
+            <FontGate>
+              <AppShellProvider>
+                <DevAccountDeletionRecovery />
+                <VoiceCaptureProvider>
+                  <RoutePrivacyGate>
+                    <NotificationResponseRuntime />
+                    <RootStack />
+                  </RoutePrivacyGate>
+                </VoiceCaptureProvider>
+              </AppShellProvider>
+            </FontGate>
+          </AppShellHydrationProvider>
+        </StartupLoadingBoundary>
+        <NetworkConnectionNotice />
+      </FoundationProviders>
+    </MobileIdentityProvider>
+  );
+}
+
+function StartupDestinationReady() {
+  const pathname = usePathname();
+  // Home releases after its first reads and layout; other destinations are ready on mount.
+  useStartupReady(!['/', '/index', '/home'].includes(pathname));
+  return null;
+}
+
+function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
+  const preferenceEnabled = useAppShellStore(
+    (state) => state.privacyLock?.enabled === true
+  );
+  const appLockEnabled = isAppLockEnabled() && preferenceEnabled;
   const pathname = usePathname();
   const autoLockDuration = useAppShellStore(
     (state) => state.privacyLock?.autoLockDuration
@@ -39,30 +106,23 @@ export default function RootLayout() {
   }, [lockNow]);
 
   return (
-    <MobileIdentityProvider>
-      <FontGate>
-        <FoundationProviders>
-          <AppShellProvider>
-            <AppPrivacyGate
-              immediate={autoLockDuration === 'immediate'}
-              lockAfterMs={lockAfterMs}
-              locked={
-                appLockStatus !== undefined &&
-                appLockStatus !== 'unlocked' &&
-                pathname !== '/security/unlock' &&
-                pathname !== '/security/pin/forgot'
-              }
-              onLock={handleLock}
-            >
-              <NotificationResponseRuntime />
-              <ProtectedRouteGate>
-                <RootStack />
-              </ProtectedRouteGate>
-            </AppPrivacyGate>
-          </AppShellProvider>
-        </FoundationProviders>
-      </FontGate>
-    </MobileIdentityProvider>
+    <AppPrivacyGate
+      immediate={
+        appLockEnabled &&
+        autoLockDuration === 'immediate' &&
+        pathname !== '/security/unlock'
+      }
+      lockAfterMs={appLockEnabled ? lockAfterMs : null}
+      locked={
+        appLockEnabled &&
+        appLockStatus !== undefined &&
+        appLockStatus !== 'unlocked' &&
+        pathname !== '/security/unlock'
+      }
+      onLock={appLockEnabled ? handleLock : undefined}
+    >
+      {children}
+    </AppPrivacyGate>
   );
 }
 
@@ -71,6 +131,12 @@ function RootStack() {
 
   return (
     <Stack
+      screenLayout={({ children }) => (
+        <ProtectedRouteGate>
+          <StartupDestinationReady />
+          {children}
+        </ProtectedRouteGate>
+      )}
       screenOptions={{
         contentStyle: { backgroundColor: theme.colors.surfaces.page },
         headerShown: false

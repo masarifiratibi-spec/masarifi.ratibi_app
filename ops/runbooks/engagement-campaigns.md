@@ -6,4 +6,4 @@ Verify campaign state, scheduled time, published template, and fixed audience cl
 
 ## Approval incident
 
-For audiences above the configured threshold, confirm creator and approver differ and recent MFA/audit evidence exists. Do not bypass the database guard. Recreate an expired preview instead of copying an audience list or accepting arbitrary SQL.
+For audiences above the configured threshold, confirm creator and approver differ and recent Clerk login/audit evidence exists. Do not bypass the database guard. Recreate an expired preview instead of copying an audience list or accepting arbitrary SQL.

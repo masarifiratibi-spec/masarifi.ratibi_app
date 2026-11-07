@@ -20,8 +20,8 @@ export function filterUsers<User extends FilterableUser>(users: User[], filters:
       && (!filters.language || user.language === filters.language)
       && (!filters.registeredFrom || user.registeredAt >= filters.registeredFrom)
       && (!filters.registeredTo || user.registeredAt.slice(0, 10) <= filters.registeredTo)
-      && (!filters.lastActiveFrom || user.lastActiveAt >= filters.lastActiveFrom)
-      && (!filters.lastActiveTo || user.lastActiveAt <= filters.lastActiveTo)
+      && (!filters.lastActiveFrom || user.lastActiveAt !== null && user.lastActiveAt >= filters.lastActiveFrom)
+      && (!filters.lastActiveTo || user.lastActiveAt !== null && user.lastActiveAt <= filters.lastActiveTo)
       && platformMatches
       && (!filters.appVersion || user.appVersion === filters.appVersion)
       && (!filters.verification || user.verification === filters.verification)
@@ -29,7 +29,7 @@ export function filterUsers<User extends FilterableUser>(users: User[], filters:
   });
 }
 
-const riskRank = { low: 0, medium: 1, high: 2 } as const;
+const riskRank = { unknown: -1, low: 0, medium: 1, high: 2 } as const;
 
 export function sortUsers<User extends AdminUserListItem>(
   users: User[],
@@ -43,7 +43,7 @@ export function sortUsers<User extends AdminUserListItem>(
       : sort === "registeredAt"
         ? left.registeredAt.localeCompare(right.registeredAt)
         : sort === "lastActive"
-          ? left.lastActiveAt.localeCompare(right.lastActiveAt)
+          ? (left.lastActiveAt ?? "").localeCompare(right.lastActiveAt ?? "")
           : riskRank[left.risk] - riskRank[right.risk];
     return comparison * direction || left.id.localeCompare(right.id);
   });

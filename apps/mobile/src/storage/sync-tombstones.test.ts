@@ -1,16 +1,17 @@
 import { CoreFinanceSyncAdapter } from './core-finance-sync-adapter';
 
-it('keeps a pending edit and exposes a delete conflict instead of resurrecting or discarding it', async () => {
+it('keeps a conflicted local edit and exposes a delete conflict instead of discarding it', async () => {
   const statements: string[] = [];
   const runAsync = jest.fn(async (sql: string) => {
     statements.push(sql);
   });
   const transaction = {
-    getFirstAsync: jest
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ present: 1 }),
+    getFirstAsync: jest.fn(async (sql: string) =>
+      // Conflicted work is not in flight, but still blocks a remote tombstone.
+      sql.includes("status IN ('pending','sending','conflict')")
+        ? { present: 1 }
+        : null
+    ),
     runAsync
   };
   const database = {
@@ -36,6 +37,34 @@ it('keeps a pending edit and exposes a delete conflict instead of resurrecting o
   const sql = statements.join('\n');
   expect(sql).toContain('finance_sync_conflicts');
   expect(sql).not.toContain('UPDATE finance_transactions SET status=?');
+});
+
+it('defers the whole delta while a local command is in flight without advancing its cursor', async () => {
+  const transaction = {
+    getFirstAsync: jest.fn(async (sql: string) =>
+      sql.includes("status IN ('pending','sending')") ? { present: 1 } : null
+    ),
+    runAsync: jest.fn()
+  };
+  const database = {
+    ...transaction,
+    withExclusiveTransactionAsync: jest.fn(
+      async (action: (value: unknown) => Promise<void>) => action(transaction)
+    )
+  };
+  const accepted = await new CoreFinanceSyncAdapter(database as never).applyDelta(
+    'transactions',
+    [{
+      resourceId: 'transaction-one',
+      operation: 'delete',
+      version: 2,
+      deletedAt: '2026-08-31T00:00:00.000Z'
+    }],
+    'cursor-two',
+    null
+  );
+  expect(accepted).toBe(false);
+  expect(transaction.runAsync).not.toHaveBeenCalled();
 });
 
 it('applies a repeated tombstone to a missing row without failing cursor progress', async () => {

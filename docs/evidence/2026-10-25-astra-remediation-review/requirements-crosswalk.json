@@ -1,0 +1,1592 @@
+{
+  "date": "2026-10-25",
+  "sourceCommit": "5aa1267dccac67a8b95249dbddbf398c25d1bb49",
+  "originalReferences": 69,
+  "acceptanceUnits": 88,
+  "coverageMissingIds": [],
+  "coverageExtraIds": [],
+  "newDeviceAcceptanceExecuted": false,
+  "units": [
+    {
+      "originalAcceptanceId": "1.1",
+      "normalizedId": "1.1",
+      "originalReportReference": "1.1",
+      "pdfPage": "1",
+      "title": "Release signing",
+      "priorImplementationState": "Partial",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Match the existing approved upload key to the intended Play publisher and verify the final AAB certificate and package. DEV signing is not release signing acceptance.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "existing_eas_signing_credential_verified_play_match_and_signed_candidate_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.2.a",
+      "normalizedId": "1.2.a",
+      "originalReportReference": "1.2",
+      "pdfPage": "1",
+      "title": "Production API and Clerk binding",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Approve and qualify the final production API/Clerk binding. The inspected working setup is Staging with a Clerk live instance on a Staging domain.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "live_clerk_and_staging_api_verified_production_binding_unselected",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.2.b",
+      "normalizedId": "1.2.b",
+      "originalReportReference": "1.2",
+      "pdfPage": "1",
+      "title": "Production app-lock flag",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify the resolved final release configuration and artifact. PIN works in DEV, but that does not qualify the production build.",
+      "tasks": [
+        "T02",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.2.c",
+      "normalizedId": "1.2.c",
+      "originalReportReference": "1.2",
+      "pdfPage": "1",
+      "title": "Production automation/diagnostics flags",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify disabled automation/diagnostics in the final production artifact. Enabled DEV tools are intentional.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.2.d",
+      "normalizedId": "1.2.d",
+      "originalReportReference": "1.2",
+      "pdfPage": "1",
+      "title": "Release version and build number",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Check intended Play/EAS release history and approve next identifiers; DEV remains 0.0.1/versionCode 1.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "existing_0_0_1_code_1_next_eas_code_2_subject_to_play_history_version_decision_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.3",
+      "normalizedId": "1.3",
+      "originalReportReference": "1.3",
+      "pdfPage": "1",
+      "title": "R8 and resource shrinking",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Exercise startup, SQLCipher, Clerk, voice, notifications and tracking in the final signed/minified artifact.",
+      "tasks": [
+        "T20",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.4",
+      "normalizedId": "1.4",
+      "originalReportReference": "1.4",
+      "pdfPage": "1",
+      "title": "SMS disclosure and Play declaration",
+      "priorImplementationState": "Partial",
+      "historicalDeviceAcceptance": "Partial device coverage; D023, D024",
+      "requiredNextAcceptance": "Complete permission grant/revocation and real capture tests, then obtain applicable Play approval and verify Data safety/disclosures.",
+      "tasks": [
+        "T15",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "disclosure_and_permission_path_implemented_console_approval_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.5",
+      "normalizedId": "1.5",
+      "originalReportReference": "1.5",
+      "pdfPage": "1",
+      "title": "Playback foreground permission",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Inspect the final merged release manifest and verify recording/playback after permission removal.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.6.a",
+      "normalizedId": "1.6.a",
+      "originalReportReference": "1.6",
+      "pdfPage": "1",
+      "title": "Storage/overlay permission removal",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify supported file sharing and notification flows in the final artifact without unjustified permissions.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.6.b",
+      "normalizedId": "1.6.b",
+      "originalReportReference": "1.6",
+      "pdfPage": "1",
+      "title": "Unrelated wallet queries",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Inspect the final merged release manifest for reintroduced unrelated package queries.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.7.a",
+      "normalizedId": "1.7.a",
+      "originalReportReference": "1.7",
+      "pdfPage": "2",
+      "title": "Immediate and delayed server erasure",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Qualify actual eligible-data erasure after both deletion paths against an authorized candidate schema; do not delete this real owner for testing.",
+      "tasks": [
+        "T12"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "safeCurrentOwnerBoundary": "Only safe nondestructive current-owner cases. Destructive recovery/deletion uses isolated synthetic fixtures or explicit actual-device-not-verified; no original data/setting/session loss."
+    },
+    {
+      "originalAcceptanceId": "1.7.b",
+      "normalizedId": "1.7.b",
+      "originalReportReference": "1.7",
+      "pdfPage": "2",
+      "title": "Deletion/provider retry safety",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify cancellation, expiry, retries, partial-provider failures and truthful completion across all configured providers.",
+      "tasks": [
+        "T12"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "safeCurrentOwnerBoundary": "Only safe nondestructive current-owner cases. Destructive recovery/deletion uses isolated synthetic fixtures or explicit actual-device-not-verified; no original data/setting/session loss."
+    },
+    {
+      "originalAcceptanceId": "1.7.c",
+      "normalizedId": "1.7.c",
+      "originalReportReference": "1.7",
+      "pdfPage": "2",
+      "title": "Public deletion request page",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Publish/verify the correct public deletion request/status route and retention copy through a separately authorized release action.",
+      "tasks": [
+        "T12",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "safeCurrentOwnerBoundary": "Only safe nondestructive current-owner cases. Destructive recovery/deletion uses isolated synthetic fixtures or explicit actual-device-not-verified; no original data/setting/session loss."
+    },
+    {
+      "originalAcceptanceId": "1.8",
+      "normalizedId": "1.8",
+      "originalReportReference": "1.8",
+      "pdfPage": "2",
+      "title": "Public-repository privacy review",
+      "priorImplementationState": "Limited inspection",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Preserve the targeted text scan's limits; investigate confirmed exposures individually. No broad asset deletion or history rewrite is authorized.",
+      "tasks": [
+        "T20",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "bounded_tracked_text_review_no_confirmed_credential_exposure",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.9",
+      "normalizedId": "1.9",
+      "originalReportReference": "1.9",
+      "pdfPage": "2",
+      "title": "Integration PR and required CI",
+      "priorImplementationState": "Partial",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Run exact-candidate CI after including local PIN changes and have a repository administrator configure required checks. Historical green CI does not cover uncommitted changes.",
+      "tasks": [
+        "T20",
+        "T22"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "1.10",
+      "normalizedId": "1.10",
+      "originalReportReference": "1.10",
+      "pdfPage": "2",
+      "title": "Closed-testing eligibility",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify the intended Play publisher's account eligibility, required tester history and production-access decision.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "current_google_account_shows_signup_intended_publisher_and_testing_eligibility_unverified",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.1",
+      "normalizedId": "2.1",
+      "originalReportReference": "2.1",
+      "pdfPage": "2",
+      "title": "Cached offline access and queued edits",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D018, D019, D056, D057, D058",
+      "requiredNextAcceptance": "Resolve the observed offline note-save failure, then test cold unlock, durable supported edits, restart, sync and owner switching.",
+      "tasks": [
+        "T03",
+        "T04"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.2",
+      "normalizedId": "2.2",
+      "originalReportReference": "2.2",
+      "pdfPage": "2",
+      "title": "Startup performance",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D041, D058",
+      "requiredNextAcceptance": "Record complete cold/warm startup timings. PIN latency improved, but the interrupted cold-offline launch is not startup acceptance.",
+      "tasks": [
+        "T02",
+        "T03"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.3",
+      "normalizedId": "2.3",
+      "originalReportReference": "2.3",
+      "pdfPage": "2",
+      "title": "Saudi/Gulf assistant wording",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D050",
+      "requiredNextAcceptance": "Verify varied generated and deterministic/error responses on the intended server version, beyond the limited sampled wording.",
+      "tasks": [
+        "T17"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.4",
+      "normalizedId": "2.4",
+      "originalReportReference": "2.4",
+      "pdfPage": "2",
+      "title": "Intermittent assistant failures",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Partial device coverage; D047, D050, D053",
+      "requiredNextAcceptance": "Correlate redacted request/model diagnostics and exercise actual provider success, timeout, rate limit, cancellation and idempotent recovery.",
+      "tasks": [
+        "T17",
+        "T18"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "external_reproduction_or_verification_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.5",
+      "normalizedId": "2.5",
+      "originalReportReference": "2.5",
+      "pdfPage": "3",
+      "title": "Support submission safety",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D017",
+      "requiredNextAcceptance": "Test local-save failure, offline retry, double-tap and successful server creation followed by cleanup failure, without sending unapproved support messages.",
+      "tasks": [
+        "T10"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.6.a",
+      "normalizedId": "2.6.a",
+      "originalReportReference": "2.6",
+      "pdfPage": "3",
+      "title": "Tracking activation persistence",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Enable tracking with controlled fixtures and verify reload/restart persistence and stale-response fencing.",
+      "tasks": [
+        "T15",
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.6.b",
+      "normalizedId": "2.6.b",
+      "originalReportReference": "2.6",
+      "pdfPage": "3",
+      "title": "OEM battery/settings guidance",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify contextual guidance and background behavior on Xiaomi/Samsung and another available OEM.",
+      "tasks": [
+        "T15",
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.6.c",
+      "normalizedId": "2.6.c",
+      "originalReportReference": "2.6",
+      "pdfPage": "3",
+      "title": "Tracking permission lifecycle",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D024",
+      "requiredNextAcceptance": "Complete grant, denial, revocation and return-from-settings flows. Only disclosure cancellation was accepted in this round.",
+      "tasks": [
+        "T15",
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.7",
+      "normalizedId": "2.7",
+      "originalReportReference": "2.7",
+      "pdfPage": "3",
+      "title": "Planning journeys",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Observed device failure; open; D033, D035, D042",
+      "requiredNextAcceptance": "Correct the invalid-month form trap later; complete planning retrieval, interrupted retries and version conflicts beyond the successful QA budget/obligation saves.",
+      "tasks": [
+        "T07"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "external_reproduction_or_verification_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.8",
+      "normalizedId": "2.8",
+      "originalReportReference": "2.8",
+      "pdfPage": "3",
+      "title": "First onboarding save",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Partial device coverage; D001, D002",
+      "requiredNextAcceptance": "Complete interruption/double-submit/server-durability acceptance; the observed online restart is only a bounded positive result.",
+      "tasks": [
+        "T07"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "external_reproduction_or_verification_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.9",
+      "normalizedId": "2.9",
+      "originalReportReference": "2.9",
+      "pdfPage": "3",
+      "title": "Opening-balance leading zero",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D003, D004",
+      "requiredNextAcceptance": "Finish decimal/Arabic/Persian and applicable account-type coverage; the basic 50 and 50.25 paths passed.",
+      "tasks": [
+        "T07"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.10.a",
+      "normalizedId": "2.10.a",
+      "originalReportReference": "2.10",
+      "pdfPage": "3",
+      "title": "Period presentation",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D025",
+      "requiredNextAcceptance": "Correct the observed cross-year clipping and verify narrow widths, RTL and larger fonts.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "2.10.b",
+      "normalizedId": "2.10.b",
+      "originalReportReference": "2.10",
+      "pdfPage": "3",
+      "title": "Assistant narrative dates",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D048",
+      "requiredNextAcceptance": "Correct the observed raw ISO date bounds in Arabic responses and retest both languages.",
+      "tasks": [
+        "T17"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R4",
+      "normalizedId": "R4",
+      "originalReportReference": "R4",
+      "pdfPage": "4",
+      "title": "Malformed SMS rows",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D038",
+      "requiredNextAcceptance": "Complete JS/native integration and cursor/queue-failure tests with controlled capture; synthetic production-scanner cases already passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "fix-01",
+      "normalizedId": "fix-01",
+      "originalReportReference": "fix-01",
+      "pdfPage": "4",
+      "title": "Voice database acceptance",
+      "priorImplementationState": "Automated verification recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify the exact authorized schema target and applicable voice/posting/idempotency/RLS cases; no hosted reset or migration was executed.",
+      "tasks": [
+        "T05",
+        "T18"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "local_pg18_candidate_checks_pass_hosted_pg17_acceptance_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R5",
+      "normalizedId": "R5",
+      "originalReportReference": "R5",
+      "pdfPage": "4",
+      "title": "Lost SQLCipher key recovery",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Use an isolated owner/test data set to verify quarantine, explicit recovery and unsynced-data warnings; do not remove the real owner's key.",
+      "tasks": [
+        "T04"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "safeCurrentOwnerBoundary": "Only safe nondestructive current-owner cases. Destructive recovery/deletion uses isolated synthetic fixtures or explicit actual-device-not-verified; no original data/setting/session loss."
+    },
+    {
+      "originalAcceptanceId": "R6",
+      "normalizedId": "R6",
+      "originalReportReference": "R6",
+      "pdfPage": "4",
+      "title": "AI model identity validation",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Qualify missing/incorrect/valid identities against actual configured provider contracts on the candidate API.",
+      "tasks": [
+        "T17",
+        "T18"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "جديد 1 (New-1)",
+      "normalizedId": "New-1",
+      "originalReportReference": "جديد 1 (New-1)",
+      "pdfPage": "4",
+      "title": "Ambiguous bare riyal",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036",
+      "requiredNextAcceptance": "Verify actual tracking/account evidence and conflicts in both modes; the synthetic parser probes are not real sender/account acceptance.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج1 (J1)",
+      "normalizedId": "J1",
+      "originalReportReference": "ج1 (J1)",
+      "pdfPage": "4",
+      "title": "Linked refunds",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D014, D015",
+      "requiredNextAcceptance": "Restore normal access to the eligible-expense refund flow later, then test full/partial refunds, remaining balance, currency/account checks and over-refund rejection.",
+      "tasks": [
+        "T06"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج7 (J7)",
+      "normalizedId": "J7",
+      "originalReportReference": "ج7 (J7)",
+      "pdfPage": "4",
+      "title": "Arabic brand/greeting spelling",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D010",
+      "requiredNextAcceptance": "Review every affected onboarding/screen string visually; language switching and the welcome sample do not cover all occurrences.",
+      "tasks": [
+        "T13",
+        "T17"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج8 (J8).a",
+      "normalizedId": "J8.a",
+      "originalReportReference": "ج8 (J8)",
+      "pdfPage": "4",
+      "title": "Obligation layout",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D042, D055",
+      "requiredNextAcceptance": "Complete Arabic and English layout checks at larger fonts and narrow widths; inspect the observed excessive shrinking of a long list name.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج8 (J8).b",
+      "normalizedId": "J8.b",
+      "originalReportReference": "ج8 (J8)",
+      "pdfPage": "4",
+      "title": "Obligation date locale",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Partial device coverage; D042, D055",
+      "requiredNextAcceptance": "Complete date/missing-date/cross-year coverage. The observed Arabic and English obligation dates were localized.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج8 (J8).c",
+      "normalizedId": "J8.c",
+      "originalReportReference": "ج8 (J8)",
+      "pdfPage": "4",
+      "title": "Net-worth comparison",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Blocked by unavailable reports; D016",
+      "requiredNextAcceptance": "Unblock reports and verify balances, liabilities, FX/missing rates and zero/near-zero comparison bases.",
+      "tasks": [
+        "T05",
+        "T09",
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج8 (J8).d",
+      "normalizedId": "J8.d",
+      "originalReportReference": "ج8 (J8)",
+      "pdfPage": "4",
+      "title": "Subscription capability",
+      "priorImplementationState": "Deferred",
+      "historicalDeviceAcceptance": "DEFERRED — final phase; No device case assigned",
+      "requiredNextAcceptance": "Deferred to the final billing phase; purchases and entitlement acceptance remain open.",
+      "tasks": [
+        "D00"
+      ],
+      "disposition": "deferred: billing/payments/subscriptions",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "deferred_open",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "21",
+      "normalizedId": "21",
+      "originalReportReference": "21",
+      "pdfPage": "4",
+      "title": "Budget/subscription date presentation",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D033",
+      "requiredNextAcceptance": "Finish budget transaction headings, missing/cross-year dates and renewal-date formatting; formatting is separate from deferred billing.",
+      "tasks": [
+        "T07",
+        "T13",
+        "D00"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "scopeOverride": "Budget-date formatting remains T07/T13; subscription renewal-date work is deferred D00."
+    },
+    {
+      "originalAcceptanceId": "16",
+      "normalizedId": "16",
+      "originalReportReference": "16",
+      "pdfPage": "4",
+      "title": "Assistant timestamp locale/clock",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D049, D053, D054",
+      "requiredNextAcceptance": "Correct the observed failure to honor 24-hour preference; Arabic and English timestamp localization passed bounded checks.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "20",
+      "normalizedId": "20",
+      "originalReportReference": "20",
+      "pdfPage": "4",
+      "title": "Period-chip clipping",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D025",
+      "requiredNextAcceptance": "Correct ending-year clipping later and retest same-year/cross-year ranges, RTL and larger fonts.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "26",
+      "normalizedId": "26",
+      "originalReportReference": "26",
+      "pdfPage": "4",
+      "title": "Budget validation and correction",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D030, D031, D033, D034, D035",
+      "requiredNextAcceptance": "Keep invalid month input editable instead of replacing the entire form; retest all fields and successful recovery. Missing name/amount focus checks passed.",
+      "tasks": [
+        "T07"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "24",
+      "normalizedId": "24",
+      "originalReportReference": "24",
+      "pdfPage": "4",
+      "title": "Category mini-bars",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Blocked by unavailable reports; D016",
+      "requiredNextAcceptance": "Unblock the actual report and test zero, one, two and more than seven values; preserve legitimate zero time buckets.",
+      "tasks": [
+        "T09",
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "47",
+      "normalizedId": "47",
+      "originalReportReference": "47",
+      "pdfPage": "4",
+      "title": "Demo banks and verified sender registry",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Qualify the effective published registry and verified Saudi/UAE fixtures; apply candidate migration only through an authorized server release.",
+      "tasks": [
+        "T15",
+        "T19"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R10",
+      "normalizedId": "R10",
+      "originalReportReference": "R10",
+      "pdfPage": "5",
+      "title": "Recent-auth step-up",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D027, D028",
+      "requiredNextAcceptance": "Finish cancellation, failure, expiry and idempotent resume across protected operations; export replay progressed beyond 403 but then failed with 500.",
+      "tasks": [
+        "T04",
+        "T11",
+        "T12"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R11",
+      "normalizedId": "R11",
+      "originalReportReference": "R11",
+      "pdfPage": "5",
+      "title": "Route-specific AI deadlines",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Retain the supported existing deadlines; verify a real long voice request. The original blanket three-second claim remains unsupported.",
+      "tasks": [
+        "E00",
+        "T18"
+      ],
+      "disposition": "accepted exception / unsupported old claim",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "accepted_exception_or_unsupported",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R13",
+      "normalizedId": "R13",
+      "originalReportReference": "R13",
+      "pdfPage": "5",
+      "title": "Pinned Admin dependencies",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Retain prior clean-install/build/test evidence and rerun relevant checks for the exact integration candidate; this is not a phone test.",
+      "tasks": [
+        "T20"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "verified_closed_local_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R14",
+      "normalizedId": "R14",
+      "originalReportReference": "R14",
+      "pdfPage": "5",
+      "title": "Validated Node/npm toolchain",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Retain the validated Node 24.16.0/npm 11.17.0 setup and investigate bounded peer warnings; qualify exact-candidate installation/CI.",
+      "tasks": [
+        "T20"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج9 (J9)",
+      "normalizedId": "J9",
+      "originalReportReference": "ج9 (J9)",
+      "pdfPage": "5",
+      "title": "System theme and contrast",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D007, D008",
+      "requiredNextAcceptance": "Correct dark regional-label contrast later; complete remaining release-build theme and override scenarios.",
+      "tasks": [
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج10 (J10)",
+      "normalizedId": "J10",
+      "originalReportReference": "ج10 (J10)",
+      "pdfPage": "5",
+      "title": "Per-currency largest expense",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D047",
+      "requiredNextAcceptance": "Qualify the forward SQL change and real SAR/JPY/KWD ranking. A single-SAR assistant response does not close this finding.",
+      "tasks": [
+        "T05",
+        "T09",
+        "T17"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "ج11 (J11)",
+      "normalizedId": "J11",
+      "originalReportReference": "ج11 (J11)",
+      "pdfPage": "5",
+      "title": "API formatting",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Retain prior read-only formatting evidence and recheck affected exact-candidate changes; no phone-specific acceptance applies.",
+      "tasks": [
+        "T20"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "verified_closed_local_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R16",
+      "normalizedId": "R16",
+      "originalReportReference": "R16",
+      "pdfPage": "5",
+      "title": "Controlled feeMinor SQL errors",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Qualify the forward migration with malformed, fractional, negative, overflow, missing and valid values in a verified database target.",
+      "tasks": [
+        "T05"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R17",
+      "normalizedId": "R17",
+      "originalReportReference": "R17",
+      "pdfPage": "5",
+      "title": "Unknown sync-operation rejection",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Preserve API/direct-SQL rejection and reverify it; the original restore-fallback claim remains unsupported.",
+      "tasks": [
+        "E00",
+        "T04",
+        "T05"
+      ],
+      "disposition": "accepted exception / unsupported old claim",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "accepted_exception_or_unsupported",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R18",
+      "normalizedId": "R18",
+      "originalReportReference": "R18",
+      "pdfPage": "5",
+      "title": "Dedicated cursor signing key",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Configure the separate server key through approved secret handling and verify tampering, rotation and explicit resync without losing queued work.",
+      "tasks": [
+        "T04"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R19",
+      "normalizedId": "R19",
+      "originalReportReference": "R19",
+      "pdfPage": "5",
+      "title": "Execution-time authentication age",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Qualify delayed queued protected operations, legacy entries and retry after re-verification on the intended API/schema.",
+      "tasks": [
+        "T04"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R20",
+      "normalizedId": "R20",
+      "originalReportReference": "R20",
+      "pdfPage": "5",
+      "title": "Replica-aware circuit/rate semantics",
+      "priorImplementationState": "Open",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify deployed replica topology and actual provider limits before requiring shared enforcement; no speculative Redis service was added.",
+      "tasks": [
+        "T17",
+        "T18",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "external_reproduction_or_verification_pending",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "R21",
+      "normalizedId": "R21",
+      "originalReportReference": "R21",
+      "pdfPage": "5",
+      "title": "Recoverable Admin mock bootstrap",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Retain prior failed-import/start/retry tests and production MSW exclusion; this is an Admin development check, not a DEV phone journey.",
+      "tasks": [
+        "T20"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "verified_closed_local_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.1",
+      "normalizedId": "4.1",
+      "originalReportReference": "4.1",
+      "pdfPage": "5–6",
+      "title": "Arabic morphology",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Complete real controlled JS/native capture parity beyond the passing synthetic parser/discovery cases.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.2",
+      "normalizedId": "4.2",
+      "originalReportReference": "4.2",
+      "pdfPage": "6",
+      "title": "Promotional context",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Retest controlled real receipts/merchant near-matches in both tracking modes; synthetic merchant-preservation checks passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.3",
+      "normalizedId": "4.3",
+      "originalReportReference": "4.3",
+      "pdfPage": "6",
+      "title": "OTP/security context",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Retest controlled receipt/OTP capture and merchant near-matches; synthetic classification cases passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.4",
+      "normalizedId": "4.4",
+      "originalReportReference": "4.4",
+      "pdfPage": "6",
+      "title": "Encrypted SMS/voice payload storage",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Preserve the prior verified closure and automated migration/isolation evidence; inspect encryption in the final release artifact. No replacement storage was needed.",
+      "tasks": [
+        "T15",
+        "T16",
+        "T18",
+        "T21"
+      ],
+      "disposition": "preserve prior closure; final-artifact requalification",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "baseline_verified_closed_preserved",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.5",
+      "normalizedId": "4.5",
+      "originalReportReference": "4.5",
+      "pdfPage": "6",
+      "title": "Bills, requests and URLs",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Complete real controlled tracking of posted receipts versus non-posted obligations; synthetic cases passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.6",
+      "normalizedId": "4.6",
+      "originalReportReference": "4.6",
+      "pdfPage": "6",
+      "title": "Transaction versus balance/limit amounts",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Complete real multi-amount receipt capture/order/decimal cases; synthetic role-separation cases passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.7",
+      "normalizedId": "4.7",
+      "originalReportReference": "4.7",
+      "pdfPage": "6",
+      "title": "Merchant suffix boundaries",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Complete real Arabic/English merchant capture and missing-name cases; synthetic boundary cases passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.8.a",
+      "normalizedId": "4.8.a",
+      "originalReportReference": "4.8",
+      "pdfPage": "6",
+      "title": "Pending-notification retention",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify more than 200 pending entries on the actual capture/acknowledgment path without eviction.",
+      "tasks": [
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.8.b",
+      "normalizedId": "4.8.b",
+      "originalReportReference": "4.8",
+      "pdfPage": "6",
+      "title": "Parsed policy caching",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify owner/generation/release invalidation on the actual listener path and safe missing-policy behavior.",
+      "tasks": [
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.8.c",
+      "normalizedId": "4.8.c",
+      "originalReportReference": "4.8",
+      "pdfPage": "6",
+      "title": "Queue performance and compaction",
+      "priorImplementationState": "Partial",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Measure processing/capacity and acknowledged-entry compaction on the phone without dropping pending entries.",
+      "tasks": [
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.9",
+      "normalizedId": "4.9",
+      "originalReportReference": "4.9",
+      "pdfPage": "6",
+      "title": "Persistent escalating PIN lockout",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D011, D041",
+      "requiredNextAcceptance": "Complete owner-specific 30s/5m/30m/60m escalation, restart/expiry and successful-unlock reset. Fast existing-PIN verification is only one accepted subcase.",
+      "tasks": [
+        "T02"
+      ],
+      "disposition": "user-accepted testing exception; actual unperformed cases unverified",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "currentAcceptanceOverride": "User accepts PIN implementation complete and remaining physical30/60-minute tests as testing exception. Lower-stage actual evidence preserved; unperformed cases not passed. Nonblocking for subsequent work."
+    },
+    {
+      "originalAcceptanceId": "4.10",
+      "normalizedId": "4.10",
+      "originalReportReference": "4.10",
+      "pdfPage": "6",
+      "title": "Botim/imo exclusions",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Verify real package notifications and legitimate-bank controls in both tracking modes; shared/native synthetic exclusions passed.",
+      "tasks": [
+        "T15",
+        "T16"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.11",
+      "normalizedId": "4.11",
+      "originalReportReference": "4.11",
+      "pdfPage": "6",
+      "title": "Release deep-link allowlist",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Verify final release schemes/auth callbacks; DEV intentionally retains its development scheme.",
+      "tasks": [
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "4.12",
+      "normalizedId": "4.12",
+      "originalReportReference": "4.12",
+      "pdfPage": "6",
+      "title": "Native financial SMS pagination",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D038",
+      "requiredNextAcceptance": "Complete controlled integration with queue failure, crashes and owner changes. Native synthetic scanning/filtering/tie traversal passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.1",
+      "normalizedId": "8.1",
+      "originalReportReference": "8.1",
+      "pdfPage": "25,27",
+      "title": "Currency aliases and bare dinar",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D036, D037",
+      "requiredNextAcceptance": "Verify published policy version, trustworthy account evidence and actual tracking in both modes; synthetic alias/precision/conflict cases passed.",
+      "tasks": [
+        "T15"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.2.a",
+      "normalizedId": "8.2.a",
+      "originalReportReference": "8.2",
+      "pdfPage": "25,27–28",
+      "title": "Billing/subscriptions",
+      "priorImplementationState": "Deferred",
+      "historicalDeviceAcceptance": "DEFERRED — final phase; No device case assigned",
+      "requiredNextAcceptance": "Explicitly deferred to the final phase. Review intended Stripe flow against applicable Play rules/programs before selecting/enabling the real integration.",
+      "tasks": [
+        "D00"
+      ],
+      "disposition": "deferred: billing/payments/subscriptions",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "deferred_open",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.2.b",
+      "normalizedId": "8.2.b",
+      "originalReportReference": "8.2",
+      "pdfPage": "25,27–28",
+      "title": "Reports/output/schedules/history",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D016, D052",
+      "requiredNextAcceptance": "Diagnose unavailable report reads; then verify preview, download, email, create/edit/pause schedules, conflicts, retries and delivery history.",
+      "tasks": [
+        "T08",
+        "T09"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.2.c",
+      "normalizedId": "8.2.c",
+      "originalReportReference": "8.2",
+      "pdfPage": "25,27–28",
+      "title": "Support workflow",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D017",
+      "requiredNextAcceptance": "Correct raw status translation later and complete mobile-to-Admin reply/refresh/owner-isolation acceptance using authorized support messages.",
+      "tasks": [
+        "T10"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.2.d",
+      "normalizedId": "8.2.d",
+      "originalReportReference": "8.2",
+      "pdfPage": "25,27–28",
+      "title": "Security event retrieval",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D012",
+      "requiredNextAcceptance": "Remove the observed live-route/menu blocks later, then test owner-only retrieval, ordering, pagination and safe metadata rendering.",
+      "tasks": [
+        "T06"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.2.e",
+      "normalizedId": "8.2.e",
+      "originalReportReference": "8.2",
+      "pdfPage": "25,27–28",
+      "title": "Export lifecycle",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Observed device failure; open; D027, D028, D029",
+      "requiredNextAcceptance": "Correlate hosted HTTP 500 request IDs, then verify request/status/download, expiry, contents, retries and owner-only access.",
+      "tasks": [
+        "T11"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.3",
+      "normalizedId": "8.3",
+      "originalReportReference": "8.3",
+      "pdfPage": "25,28",
+      "title": "Localized amount input",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D004, D032, D043",
+      "requiredNextAcceptance": "Complete remaining voice, allocation, filter and edit-comparison UI paths and 0/2/3-decimal currency boundaries; observed budget/payoff and module cases passed.",
+      "tasks": [
+        "T07"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.4",
+      "normalizedId": "8.4",
+      "originalReportReference": "8.4",
+      "pdfPage": "25,29",
+      "title": "Monthly financial cycle",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D051",
+      "requiredNextAcceptance": "Unblock report totals and establish client/server period parity, historical/calendar-preset stability and the November 3/day-25 example.",
+      "tasks": [
+        "T09"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.5",
+      "normalizedId": "8.5",
+      "originalReportReference": "8.5",
+      "pdfPage": "25,29",
+      "title": "Timezone-aware civil today",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D046, D051",
+      "requiredNextAcceptance": "Verify Riyadh/Dubai midnight, month/year rollover and inclusive/exclusive conversion boundaries; normal daytime/zone propagation is insufficient.",
+      "tasks": [
+        "T09",
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.6.a",
+      "normalizedId": "8.6.a",
+      "originalReportReference": "8.6",
+      "pdfPage": "25,29",
+      "title": "Salary timezone fallback",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D045, D046",
+      "requiredNextAcceptance": "Verify valid profile zone, valid device fallback, persisted server zone and explicit selection when neither is valid; normal QA salary save alone is insufficient.",
+      "tasks": [
+        "T09",
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.6.b",
+      "normalizedId": "8.6.b",
+      "originalReportReference": "8.6",
+      "pdfPage": "25,29",
+      "title": "Budget timezone fallback",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Independently verify the budget profile/device/no-valid-zone cases and the persisted server operation zone.",
+      "tasks": [
+        "T09",
+        "T13"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.7",
+      "normalizedId": "8.7",
+      "originalReportReference": "8.7",
+      "pdfPage": "25,29",
+      "title": "Screenshots intentionally permitted",
+      "priorImplementationState": "Reviewed / preserved",
+      "historicalDeviceAcceptance": "Accepted scope exception; observed screenshots allowed; D020",
+      "requiredNextAcceptance": "Preserve the approved scope exception and verify remaining screens in the release build; observed screenshots including PIN were allowed.",
+      "tasks": [
+        "E00",
+        "T21"
+      ],
+      "disposition": "accepted exception / unsupported old claim",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "accepted_exception_or_unsupported",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.8",
+      "normalizedId": "8.8",
+      "originalReportReference": "8.8",
+      "pdfPage": "25,29",
+      "title": "Production/demo entrypoint separation",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Inspect the actual final release bundle for excluded fixtures/mock purchase/session paths. DEV diagnostics are intentional and not release-bundle proof.",
+      "tasks": [
+        "T20",
+        "T21"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    },
+    {
+      "originalAcceptanceId": "8.9",
+      "normalizedId": "8.9",
+      "originalReportReference": "8.9",
+      "pdfPage": "25,30",
+      "title": "Sync-first logout and removal",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Not exercised on this device; No device case assigned",
+      "requiredNextAcceptance": "Test cancellation, offline/failed sync, unsynced financial/tracking/voice work, explicit removal and owner switching in an isolated owner context.",
+      "tasks": [
+        "T04"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false,
+      "safeCurrentOwnerBoundary": "Only safe nondestructive current-owner cases. Destructive recovery/deletion uses isolated synthetic fixtures or explicit actual-device-not-verified; no original data/setting/session loss."
+    },
+    {
+      "originalAcceptanceId": "8.10",
+      "normalizedId": "8.10",
+      "originalReportReference": "8.10",
+      "pdfPage": "25,30",
+      "title": "Truthful privacy lifecycle copy",
+      "priorImplementationState": "Code changes recorded",
+      "historicalDeviceAcceptance": "Partial device coverage; D026",
+      "requiredNextAcceptance": "Complete English and all lifecycle/error states, including Security Settings; observed Arabic privacy distinctions do not prove actual erasure/export completion.",
+      "tasks": [
+        "T11",
+        "T12"
+      ],
+      "disposition": "qualification/fix pending; historical evidence retained",
+      "sourceImplementationCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+      "priorOutcome": "implemented_pending_acceptance",
+      "newDeviceAcceptanceExecuted": false
+    }
+  ],
+  "additionalFindings": [
+    {
+      "id": "N01",
+      "finding": "Report picker coerces every selection to monthly and discards start",
+      "tasks": [
+        "T09"
+      ]
+    },
+    {
+      "id": "N02",
+      "finding": "Report cache omits resolved timezone/bounds",
+      "tasks": [
+        "T08"
+      ]
+    },
+    {
+      "id": "N03",
+      "finding": "Edit/composer draft lifecycle gaps require promised-scope qualification",
+      "tasks": [
+        "T14"
+      ]
+    },
+    {
+      "id": "N04",
+      "finding": "Nullable source_version SQL CHECK permits UNKNOWN; bounded hardening",
+      "tasks": [
+        "T05"
+      ]
+    },
+    {
+      "id": "N05",
+      "finding": "Long obligation name readability under large fonts",
+      "tasks": [
+        "T13"
+      ]
+    }
+  ]
+}

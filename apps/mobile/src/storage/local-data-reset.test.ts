@@ -4,6 +4,8 @@ import { clearAppShellUserData } from './app-shell-storage';
 import { resetLocalUserData } from './local-data-reset';
 import { clearPersistedPreferences } from './secure-preferences';
 import { registerRuntimeUserDataReset } from './runtime-user-data-reset';
+import { readTransactionDraftSnapshot } from './transaction-draft-snapshots';
+import { runExclusiveDatabaseTransaction } from './database';
 
 let mockDatabase: StatefulSqlite;
 
@@ -78,4 +80,20 @@ test('rolls back all deletes on failure and replays completed operations', async
   await expect(resetLocalUserData('local-delete-2')).resolves.toMatchObject({ deletedRows: clearedTables.length });
   await expect(resetLocalUserData('local-delete-2')).resolves.toMatchObject({ deletedRows: clearedTables.length });
   unregister();
+});
+
+test('bypasses and invalidates draft snapshots throughout local deletion', async () => {
+  const owner = { userId: 'local-reset-owner', assertCurrent: async () => undefined };
+  const read = jest.fn(async () => null);
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  jest.mocked(runExclusiveDatabaseTransaction).mockImplementationOnce(async (db, operation) => {
+    await readTransactionDraftSnapshot(owner, 'manual', read);
+    await readTransactionDraftSnapshot(owner, 'manual', read);
+    expect(read).toHaveBeenCalledTimes(3);
+    await (db as unknown as StatefulSqlite).withExclusiveTransactionAsync(async () => operation(db));
+  });
+  await resetLocalUserData('local-delete-snapshots');
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  await readTransactionDraftSnapshot(owner, 'manual', read);
+  expect(read).toHaveBeenCalledTimes(4);
 });

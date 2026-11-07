@@ -1,18 +1,85 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { fireEvent } from '@testing-library/react-native';
 
-import { changeLocale } from '@/localization/i18n';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { financialPlanningKeys } from '@/features/financial-planning/financial-planning-queries';
+import { changeLocale, translate } from '@/localization/i18n';
 import {
   createMockFinancialPlanningService,
   financialPlanningService
 } from '@/services/mocks/financial-planning-service';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
-import { renderWithProviders } from '@/test-utils/render';
-import { formatMinorAmount } from '@/utils/format-financial-value';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
+import {
+  fixtureSalaryProfile,
+  fixtureSalaryReceipt
+} from '@/test-utils/financial-planning-fixtures';
+import { ThemeContext } from '@/state/theme-context';
+import { resolveTheme } from '@/design-system/theme';
 import { SalaryOverviewScreen } from './SalaryOverviewScreen';
 import { SalaryProfileForm } from './SalaryProfileForm';
 import { SalaryReceiptReview } from './SalaryReceiptReview';
+
+it('shows salary cards during the initial read without false setup or receipt actions', () => {
+  changeLocale('en');
+  usePreferenceStore.setState({ hideBalances: false });
+  const overview = jest
+    .spyOn(financialPlanningService, 'getSalaryOverview')
+    .mockImplementation(() => new Promise<never>(() => {}));
+  const snapshot = financialPlanningService.getPlanningSnapshot
+    ? jest
+        .spyOn(financialPlanningService, 'getPlanningSnapshot')
+        .mockImplementation(() => new Promise<never>(() => {}))
+    : null;
+  const view = renderWithProviders(<SalaryOverviewScreen />);
+  try {
+    expect(
+      view.getByText(translate('planning.salary.cycleDetails'))
+    ).toBeOnTheScreen();
+    expect(view.getAllByText('—').length).toBeGreaterThan(0);
+    expect(
+      view.queryByText(translate('planning.salary.emptySubtitle'))
+    ).toBeNull();
+    expect(
+      view.queryByRole('button', {
+        name: translate('planning.salary.confirmReceipt')
+      })
+    ).toBeNull();
+    expect(view.queryByText(/^0(?:\.00)?$/)).toBeNull();
+  } finally {
+    view.unmount();
+    overview.mockRestore();
+    snapshot?.mockRestore();
+  }
+});
+
+it('offers manual receipt confirmation and readable salary details in dark mode', async () => {
+  changeLocale('en');
+  const push = jest.spyOn(router, 'push').mockImplementation(() => {});
+  const dark = resolveTheme('dark');
+  const screen = renderWithProviders(
+    <ThemeContext.Provider value={{ theme: dark }}>
+      <SalaryOverviewScreen />
+    </ThemeContext.Provider>
+  );
+  try {
+    expect(
+      await screen.findByText(translate('planning.salary.spent'))
+    ).toHaveStyle({ color: dark.colors.content.secondary });
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: translate('planning.salary.confirmReceipt')
+      })
+    );
+    expect(push).toHaveBeenCalledWith('/salary/receipt/select');
+  } finally {
+    screen.unmount();
+    push.mockRestore();
+  }
+});
 
 jest.mock('@/services/mocks/core-finance-service', () => {
   const actual = jest.requireActual<
@@ -41,10 +108,11 @@ it('renders salary overview, setup, and receipt review states', async () => {
     <SalaryOverviewScreen />
   );
   expect(await findByText('Your salary cycle')).toBeTruthy();
+  expect(await findByText('Edit salary settings')).toBeTruthy();
   expect(await findByLabelText(/Remaining from your salary/)).toBeTruthy();
-  // The daily insight shows the reason when suggested daily is unavailable
-  // When cycle has elapsed (fixture cycle is Jan 2026, real Date.now() is later), reason is cycle_elapsed
-  expect(await findByText('Current salary cycle has ended')).toBeTruthy();
+  expect(
+    await findByText(translate('planning.reason.salary_overdue'))
+  ).toBeTruthy();
   unmount();
 
   await financialPlanningService.saveDraft({
@@ -172,11 +240,12 @@ it('keeps multiline Arabic salary copy aligned to the right', async () => {
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   const profile = renderWithProviders(<SalaryProfileForm />);
 
+  expect(await profile.findByText('جهة العمل أو مصدر الراتب')).toHaveStyle({
+    textAlign: 'left',
+    writingDirection: 'rtl'
+  });
   expect(
-    await profile.findByText('جهة العمل أو مصدر الراتب')
-  ).toHaveStyle({ textAlign: 'left', writingDirection: 'rtl' });
-  expect(
-    profile.getByText('سنكتشف إيداع راتبك تلقائيًا في الحساب المحدد.')
+    profile.getByText(translate('planning.salary.automaticDetectionSubtitle'))
   ).toHaveStyle({ textAlign: 'left', writingDirection: 'rtl' });
   profile.unmount();
 });
@@ -242,22 +311,141 @@ it('shows the detected transaction before salary confirmation', async () => {
   receiptLookup.mockRestore();
 });
 
-it('guides an unconfigured user to set up a salary cycle', async () => {
+it('prefills the actual expected occurrence for a late manual receipt and shows a confirmation error', async () => {
   changeLocale('en');
-  const emptyService = createMockFinancialPlanningService();
-  const emptyCycle = await emptyService.getSalaryOverview({
-    today: '2026-08-26',
-    timeZone: 'Asia/Riyadh'
-  });
-  const loadSalary = jest
-    .spyOn(financialPlanningService, 'getSalaryOverview')
-    .mockResolvedValue(emptyCycle);
-
-  const overview = renderWithProviders(<SalaryOverviewScreen />);
-
-  expect(
-    await overview.findByRole('header', { name: 'Plan from payday to payday' })
-  ).toBeTruthy();
-  expect(overview.getByRole('button', { name: 'Salary setup' })).toBeTruthy();
-  loadSalary.mockRestore();
+  const account = (await coreFinanceService.listAccounts()).find(
+    (item) => item.currencyCode === 'SAR'
+  )!;
+  const income = await coreFinanceService.createTransaction(
+    {
+      type: 'income',
+      amountMinor: 5000,
+      currencyCode: 'SAR',
+      accountId: account.id,
+      categoryId: 'salary',
+      title: 'Manual salary candidate',
+      occurredAt: Date.parse('2026-09-27T10:00:00Z')
+    },
+    'isolated-manual-review',
+    'manual'
+  );
+  const profile = jest
+    .spyOn(financialPlanningService, 'getSalaryProfile')
+    .mockResolvedValue({
+      ...fixtureSalaryProfile,
+      receivingAccountId: account.id
+    });
+  const receipt = jest
+    .spyOn(financialPlanningService, 'getSalaryReceiptReview')
+    .mockResolvedValue(null);
+  const dates = jest
+    .spyOn(financialPlanningService, 'listSalaryExpectedDates')
+    .mockResolvedValue(['2026-09-25', '2026-10-25']);
+  const confirm = jest
+    .spyOn(financialPlanningService, 'confirmSalaryReceipt')
+    .mockRejectedValue(new Error('isolated rejection'));
+  const screen = renderWithProviders(
+    <SalaryReceiptReview receiptId={income.value.id} />
+  );
+  try {
+    expect(
+      await screen.findByText(
+        formatDate(Date.parse('2026-09-25T12:00:00'), 'en')
+      )
+    ).toBeTruthy();
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: translate('planning.salary.confirmReceipt')
+      })
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      translate('planning.state.error')
+    );
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: income.value.id,
+        expectedOccurrenceDate: '2026-09-25',
+        receivedDate: '2026-09-27'
+      }),
+      expect.any(String)
+    );
+  } finally {
+    screen.unmount();
+    profile.mockRestore();
+    receipt.mockRestore();
+    dates.mockRestore();
+    confirm.mockRestore();
+  }
 });
+
+it('shows receipt undo failures instead of leaving an unexplained old receipt', async () => {
+  changeLocale('en');
+  const receipt = jest
+    .spyOn(financialPlanningService, 'getSalaryReceiptReview')
+    .mockResolvedValue(fixtureSalaryReceipt);
+  const undo = jest
+    .spyOn(financialPlanningService, 'undoSalaryReceipt')
+    .mockRejectedValue(new Error('isolated rejection'));
+  const screen = renderWithProviders(
+    <SalaryReceiptReview receiptId={fixtureSalaryReceipt.id} />
+  );
+  try {
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: translate('planning.salary.undoReceipt')
+      })
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      translate('planning.state.error')
+    );
+  } finally {
+    screen.unmount();
+    receipt.mockRestore();
+    undo.mockRestore();
+  }
+});
+
+it.each(['ar', 'en'] as const)(
+  'shows zero placeholders until the salary cycle is configured in %s',
+  async (locale) => {
+    changeLocale(locale);
+    const timeZone = 'Asia/Riyadh';
+    usePreferenceStore.setState({ timeZone, hideBalances: false });
+    const today = localDateInTimeZone(Date.now(), timeZone);
+    const emptyCycle =
+      await createMockFinancialPlanningService().getSalaryOverview({
+        today,
+        timeZone
+      });
+    const push = jest.spyOn(router, 'push').mockImplementation(() => {});
+    try {
+      const overview = renderWithQueryData(<SalaryOverviewScreen />, [
+        [financialPlanningKeys.salary(today, timeZone), emptyCycle]
+      ]);
+
+      expect(
+        overview.getByRole('header', {
+          name: translate('planning.salary.yourCycle')
+        })
+      ).toBeTruthy();
+      expect(
+        overview.getByLabelText(translate('planning.salary.cycleDetails'))
+      ).toBeTruthy();
+      expect(overview.getAllByText('0')).toHaveLength(7);
+      expect(
+        overview.queryByText(translate('planning.salary.emptyTitle'))
+      ).toBeNull();
+      expect(
+        overview.getByText(translate('planning.salary.emptySubtitle'))
+      ).toBeTruthy();
+      fireEvent.press(
+        overview.getByRole('button', {
+          name: translate('planning.salary.setup')
+        })
+      );
+      expect(push).toHaveBeenCalledWith('/salary/profile');
+    } finally {
+      push.mockRestore();
+    }
+  }
+);

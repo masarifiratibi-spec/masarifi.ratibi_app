@@ -13,14 +13,18 @@ describe('QueueHealthIndicator', () => {
       [],
       1_000,
     );
-    expect(database.query).toHaveBeenCalledWith(expect.stringContaining('limit 101'), [], 1_000);
     expect(database.query).toHaveBeenCalledWith(
-      expect.stringContaining("status='processing'"),
+      expect.stringContaining('claim_client_mutations(text,integer,integer)'),
       [],
       1_000,
     );
     expect(database.query).toHaveBeenCalledWith(
-      expect.stringContaining('private.planning_job_claims'),
+      expect.stringContaining('claim_planning_job(text,uuid,integer,integer)'),
+      [],
+      1_000,
+    );
+    expect(database.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('from private.planning_job_claims'),
       [],
       1_000,
     );

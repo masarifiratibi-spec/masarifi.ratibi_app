@@ -1,5 +1,6 @@
 import React from 'react';
-import { PixelRatio, StyleSheet } from 'react-native';
+import { Dimensions, PixelRatio, StyleSheet } from 'react-native';
+import { act } from '@testing-library/react-native';
 
 import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -14,6 +15,49 @@ describe('transaction row', () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it('responds to native text-scale changes beneath an unchanged memoized parent', () => {
+    const windowBefore = Dimensions.get('window');
+    const screenBefore = Dimensions.get('screen');
+    const StableRow = React.memo(() => (
+      <TransactionRow
+        title="Market"
+        category="Groceries"
+        date="6 Aug"
+        account="Main"
+        source="Manual"
+        meaning="expense"
+        amount={85}
+        currency="SAR"
+      />
+    ));
+    const view = renderWithProviders(<StableRow />);
+    try {
+      act(() =>
+        Dimensions.set({
+          window: { ...windowBefore, fontScale: 2 },
+          screen: { ...screenBefore, fontScale: 2 }
+        })
+      );
+      expect(view.getByTestId('transaction-row')).toHaveStyle({
+        flexDirection: 'column',
+        minHeight: 88
+      });
+      act(() =>
+        Dimensions.set({
+          window: { ...windowBefore, fontScale: 1 },
+          screen: { ...screenBefore, fontScale: 1 }
+        })
+      );
+      expect(view.getByTestId('transaction-row')).toHaveStyle({
+        flexDirection: 'row',
+        minHeight: 75
+      });
+    } finally {
+      view.unmount();
+      act(() => Dimensions.set({ window: windowBefore, screen: screenBefore }));
+    }
+  });
 
   it('keeps source accessible and renders exceptional status without repeating financial meaning', () => {
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1);

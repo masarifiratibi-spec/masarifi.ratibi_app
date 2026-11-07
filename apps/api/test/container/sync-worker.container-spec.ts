@@ -7,6 +7,13 @@ import { SyncWorker } from '../../src/sync/sync.worker';
 import { WorkerModule } from '../../src/worker.module';
 
 describe('sync worker container registration', () => {
+  beforeEach(() => {
+    jest.replaceProperty(process, 'env', {
+      ...process.env,
+      MASARIFI_SYNC_COMMAND_DATABASE_URL: 'postgresql://api_fixture@127.0.0.1:55473/inert',
+    });
+  });
+
   it('registers all four bounded jobs and stops before shutdown completes', async () => {
     const repository = {
       claimMutations: jest.fn().mockResolvedValue([]),

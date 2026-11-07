@@ -263,7 +263,7 @@ export const queueCountersSchema = z.object({
 
 export const queueSnapshotSchema = z.object({
   queue: queueKeySchema,
-  label: z.string().min(1).max(80),
+  label: z.string().min(1).max(128),
   counters: queueCountersSchema,
   oldestWaitingSeconds: z.number().int().nonnegative().nullable(),
   throughput: metricValueSchema,
@@ -275,8 +275,10 @@ export const queueSnapshotSchema = z.object({
   access: accessProjectionSchema,
 }).strict();
 
+// This is the registered job set, not a 50-row cursor page (53 jobs are currently registered).
+const maxRegisteredQueues = 128;
 export const queueHealthPageSchema = z.object({
-  items: z.array(queueSnapshotSchema).max(50),
+  items: z.array(queueSnapshotSchema).max(maxRegisteredQueues),
   range: operationalRangeSchema,
   platform: platformScopeSchema.extract(["all", "ios", "android"]),
   freshness: freshnessSchema,
@@ -467,7 +469,7 @@ export const phase13QueueSummarySchema = z.object({
     failed: z.number().int().nonnegative(),
     oldestWaitingSeconds: z.number().int().nonnegative().nullable(),
     status: z.enum(["operational", "degraded", "outage", "unknown"]),
-  }).strict()).max(50),
+  }).strict()).max(maxRegisteredQueues),
   freshness: phase13FreshnessSchema,
   partial: z.boolean(),
 }).strict();

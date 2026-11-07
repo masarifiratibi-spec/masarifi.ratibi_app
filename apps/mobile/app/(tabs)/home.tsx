@@ -3,5 +3,6 @@ import { HomeScreen } from '@/features/home/HomeScreen';
 import { TrackingHomeCard } from '@/features/tracking/TrackingHomeCard';
 
 export default function HomeRoute() {
-  return <HomeScreen notice={<TrackingHomeCard />} />;
+  const notice = React.useMemo(() => <TrackingHomeCard />, []);
+  return <HomeScreen notice={notice} />;
 }

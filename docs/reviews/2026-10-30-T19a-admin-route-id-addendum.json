@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "actionSet": "T19A-ADMIN-UUID-ONE",
+  "humanApprovalRecorded": false,
+  "purpose": "Publish the qualified shared UUID route fix and complete only the existing approved feedback workflow",
+  "baseCommit": "01ae6311444cee597bda76c20c55399fd6fd913d",
+  "overlayCommit": "97662218cedd9202f15d70ee9ebe5236fd5deff9",
+  "buildId": "rwReCYw14sWyGKZKt603e",
+  "artifactSha256": "2e1526c56c1b72ea8008668bc4ed4d90036c9743788d8e4f62b095f0fda7e759",
+  "artifactFiles": 1200,
+  "publicReleaseSha256": "4990ce23f0e8f86718a29be9819b8b15cd599aff50c0006d26f443c1a483fd64",
+  "candidateUnitSha256": "edb4cc7826fcc19478ab43ed5fb972d692623ece42790a527e0d95d5b804d58f",
+  "candidateDirectory": "/opt/masarifi/admin-releases/t19a-feedback-route-97662218-01/apps/admin-web",
+  "candidateService": "masarifi-admin-feedback-route-97662218-01.service",
+  "candidatePort": 3038,
+  "productionFiles": [
+    {
+      "path": "src/features/communications/CommunicationRoutes.tsx",
+      "sha256": "068bdf70ec60c0b7dd8fecc9b413206abdfa180c2f4e165991d6387b2fae477d"
+    },
+    {
+      "path": "src/features/communications/shared/OperationalFilters.tsx",
+      "sha256": "b4ce12910e730c5783c18a9c449f939d32dd8c1d794be70378e23be404b9fda5"
+    },
+    {
+      "path": "src/core/localization/display-labels.ts",
+      "sha256": "05795a06820d672c5092694999b1a0d9d8a355da4c2725654990f3e1b28b6f79"
+    },
+    {
+      "path": "src/features/security/SecurityViews.tsx",
+      "sha256": "3bcd4310b07af9b98c3eb304ac6f8c797a136bce4ed78632dad42d9e61bcf0f4"
+    },
+    {
+      "path": "src/features/communications/contracts.ts",
+      "sha256": "231e20be23524dbffdf9b8d85b59697bce4fb6adb13a818fc4967175ab715279"
+    }
+  ],
+  "oldNativePid": 2120823,
+  "oldNativeService": "masarifi-admin-feedback-a7d21c42-01.service",
+  "oldUnitSha256": "572ab001d3149ffc9681e3802e0f8d98a0909f9c375170a21be53cf84dbf020c",
+  "oldNativeDirectory": "/opt/masarifi/admin-releases/t19a-feedback-a7d21c42-01/apps/admin-web",
+  "oldBuildId": "-LWm9OdcQ7tGhi1ELl0cy",
+  "oldArtifactSha256": "9dedc6f7c701fe4929c2ec58803413853d3aa00261e955e44159d2e409c8e753",
+  "originalNativePid": 3725633,
+  "originalNativeService": "masarifi-admin-recovery-ui-01ae6311.service",
+  "originalUnitSha256": "2359cea51f0d4ca3f52406887e2da1fb301598ef38c7ddaaceae553e99fe0066",
+  "environmentFileSha256": "a31b61e8c034e2f9585f98f08ebeb18b40ce1cc0aacdf0e6d87782958d13b9d7",
+  "untouchedDockerServicesSha256": "2042707817c7bff49047f1f1ffca89850796eb8d1a41f8a939e518868bfe82e8",
+  "nginxPath": "/etc/nginx/sites-enabled/masarifi-staging",
+  "nginxResolvedPath": "/etc/nginx/sites-available/masarifi-staging",
+  "nginxBeforeSha256": "505550ae24314713931932106abba57ea20a3ece7c3eb2a67c3e836366e0644c",
+  "nginxAfterSha256": "87e37521da104eabed5295153f91ca09c59b641cb32dc60a41323b80368a56bf",
+  "nginxMetadata": {
+    "mode": 420,
+    "uid": 0,
+    "gid": 0
+  },
+  "applicationServerStarted": false,
+  "nginxChanged": false,
+  "unitSyntaxPassed": true,
+  "currentNginxSyntaxPassed": true,
+  "otherDockerServices": 36,
+  "existingNativeServicesUnchanged": 2,
+  "runtimeProposalSha256": "c4682986e00c4bb6d5f8b9f1378b50b322e1aaf9403e069cc7254aa39b8dd33e",
+  "previousApprovedPacket": "7156ceeec69a6da438b1f2b737c7be8f9a7b1367288b0ff5035e1e3a1c9e875a",
+  "scope": {
+    "nativeServicesStarted": 1,
+    "current3037AndOriginal3036KeptRunning": true,
+    "oneNginxUpstreamChange": {
+      "from": "http://[::1]:3037",
+      "to": "http://[::1]:3038"
+    },
+    "dockerServicesUnchanged": 36,
+    "apiImageUnchanged": "sha256:4bcd2e7fbdc31060df6614b41f9ca19a13f48a65b50d1ba9ce34abbd357bf9f9",
+    "environmentAndClerkUnchanged": true,
+    "securityControlsRetained": true,
+    "resources": {
+      "memoryMaxMiB": 1200,
+      "cpuPercent": 50,
+      "tasksMax": 128,
+      "stopTimeoutSeconds": 30,
+      "sendSigkill": false
+    },
+    "handoverDeadlineSeconds": 120,
+    "beginRollbackBySeconds": 70,
+    "knownOldPublicMarkerSettlementMaximumSeconds": 8,
+    "freshClientDataNativeApkMetroGateRequired": true,
+    "hostMinimumAvailableMiB": 1400,
+    "diskMinimumFreeGiB": 15,
+    "rollback": "Restore exact5055 Nginx bytes to current3037, validate/reload and verify its original build. Keep3037 and3036 running; stop only3038 gracefully without SIGKILL.",
+    "newFeedbackRecords": 0,
+    "newPdfRequests": 0,
+    "newPdfDownloads": 0,
+    "zipRequests": 0,
+    "consumerWindows": 0,
+    "providerQuestions": 0,
+    "financialMutations": 0,
+    "databaseMigrationsOrGrants": 0,
+    "roleChanges": 0,
+    "productionChanges": 0,
+    "postHealthActions": "Only the already approved existing feedback review, plan, resolve, close sequence, plus read-only owner/Admin confirmation. Preserve recent-auth requirements."
+  },
+  "validation": {
+    "localAffectedAdminCasesPassed": 29,
+    "localAdminFullTypesPassed": true,
+    "exactChangedFileLintErrors": 0,
+    "candidateCasesPassed": 16,
+    "candidateSuites": 4,
+    "strictNativeProductionTypesPassed": true,
+    "staticPagesGenerated": 85,
+    "unitSyntaxPassed": true,
+    "nginxSyntaxPassed": true,
+    "applicationProcessStarted": false,
+    "nginxChanged": false,
+    "previousNativeServicesUnchanged": 2,
+    "otherDockerServicesUnchanged": 36,
+    "sourceBaseline": "555 tracked baseline files;5 explicit production overlays from97662218; original2 test-only monorepo report dependencies at original paths; independent existing-dependency copy; no package install."
+  }
+}

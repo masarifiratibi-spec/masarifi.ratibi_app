@@ -12,6 +12,7 @@ import {
 } from '@/features/categories/category-presentation';
 import { useCategories } from '@/features/core-finance/core-finance-queries';
 import { currentLocale, translate } from '@/localization/i18n';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 
 export function CategoryFilterPicker({
   selectedId,
@@ -58,7 +59,7 @@ export function CategoryFilterPicker({
         ),
     [byId, categories.data, excludedIds, locale, search]
   );
-  if (categories.isError) {
+  if (categories.isError && !hasReadableSnapshot(categories)) {
     return (
       <StateView
         state="error"

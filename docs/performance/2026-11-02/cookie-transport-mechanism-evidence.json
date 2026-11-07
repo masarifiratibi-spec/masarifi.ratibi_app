@@ -1,0 +1,225 @@
+{
+  "sourceCommit": "d3789ca031a71119df4d3d0c7d14499862893246",
+  "design": "sequential six-launch A/B/A mechanism experiment, English, process-cold cached data",
+  "arms": {
+    "control-before": {
+      "apkSha256": "13579a24b27c8bb8e145be74f063b1215f1fb3677ec7183a28fcd52c37d6dcac",
+      "rawEvidenceSha256": "cac4c3c1cb3c293dface370b01b0d8af47db3791c2a841eb9a41ae784c868ea7",
+      "samples": 6,
+      "readResponses": 54,
+      "allReads200": true,
+      "timingMs": {
+        "homeReadyFromActivityCreate": {
+          "n": 6,
+          "median": 3723.169,
+          "min": 3413.584,
+          "max": 7434.573
+        },
+        "activityToFirstFetch": {
+          "n": 6,
+          "median": 1932.547537446022,
+          "min": 1766.1900010108948,
+          "max": 4638.027271986008
+        },
+        "firstFetchToLastResponse": {
+          "n": 6,
+          "median": 1489.1830201148987,
+          "min": 1277.2793219089508,
+          "max": 2637.2136969566345
+        },
+        "lastResponseToHome": {
+          "n": 6,
+          "median": 143.15093803405762,
+          "min": 27.02859401702881,
+          "max": 169.3623960018158
+        },
+        "identityWaveFetchToLastResponse": {
+          "n": 6,
+          "median": 699.2191926240921,
+          "min": 510.60630202293396,
+          "max": 1645.6632809638977
+        },
+        "identityFetchToResponse": {
+          "n": 18,
+          "median": 698.3601560592651,
+          "min": 498.0235929489136,
+          "max": 1645.6632809638977
+        },
+        "ledgerFetchToResponse": {
+          "n": 36,
+          "median": 173.48687493801117,
+          "min": 139.26348996162415,
+          "max": 1112.8599481582642
+        },
+        "identityReadiness": {
+          "n": 6,
+          "median": 625.3231763839722,
+          "min": 447.7769272327423,
+          "max": 2430.6279678344727
+        }
+      }
+    },
+    "candidate": {
+      "apkSha256": "9074d5bb3be321708e5906a89e20579d26fb3580debb5d6966d5ecee61ec60ef",
+      "rawEvidenceSha256": "d520a7c7e4a5385c90c519a31696a01b23550ce31c6f054874cfd15311a9cdb1",
+      "samples": 6,
+      "readResponses": 54,
+      "allReads200": true,
+      "timingMs": {
+        "homeReadyFromActivityCreate": {
+          "n": 6,
+          "median": 3862.768,
+          "min": 3531.308,
+          "max": 5486.46
+        },
+        "activityToFirstFetch": {
+          "n": 6,
+          "median": 2234.992375731468,
+          "min": 1897.4226570129395,
+          "max": 2965.702605009079
+        },
+        "firstFetchToLastResponse": {
+          "n": 6,
+          "median": 1522.2898173332214,
+          "min": 1243.4549479484558,
+          "max": 2354.4617178440094
+        },
+        "lastResponseToHome": {
+          "n": 6,
+          "median": 157.3733071088791,
+          "min": 95.71828103065491,
+          "max": 168.95859289169312
+        },
+        "identityWaveFetchToLastResponse": {
+          "n": 6,
+          "median": 718.6859630346298,
+          "min": 487.3711459636688,
+          "max": 1583.8358850479126
+        },
+        "identityFetchToResponse": {
+          "n": 18,
+          "median": 671.8970836400986,
+          "min": 483.488333940506,
+          "max": 1583.0131769180298
+        },
+        "ledgerFetchToResponse": {
+          "n": 36,
+          "median": 189.3796089887619,
+          "min": 141.23031210899353,
+          "max": 643.6632812023163
+        },
+        "identityReadiness": {
+          "n": 6,
+          "median": 692.0547395944595,
+          "min": 548.0264060497284,
+          "max": 826.5981249809265
+        }
+      }
+    },
+    "control-after": {
+      "apkSha256": "13579a24b27c8bb8e145be74f063b1215f1fb3677ec7183a28fcd52c37d6dcac",
+      "rawEvidenceSha256": "07694a192ae7449455cfe9564861ff30c26426cafd6ad1c111c9ea01aa2aed53",
+      "samples": 6,
+      "readResponses": 54,
+      "allReads200": true,
+      "timingMs": {
+        "homeReadyFromActivityCreate": {
+          "n": 6,
+          "median": 3934.571,
+          "min": 3392.508,
+          "max": 4428.539
+        },
+        "activityToFirstFetch": {
+          "n": 6,
+          "median": 2169.7143654823303,
+          "min": 1882.113989830017,
+          "max": 2490.196031808853
+        },
+        "firstFetchToLastResponse": {
+          "n": 6,
+          "median": 1442.0114575624466,
+          "min": 1336.0912499427795,
+          "max": 1812.7961971759796
+        },
+        "lastResponseToHome": {
+          "n": 6,
+          "median": 166.0529429912567,
+          "min": 125.54677104949951,
+          "max": 190.07833290100098
+        },
+        "identityWaveFetchToLastResponse": {
+          "n": 6,
+          "median": 633.8034377098083,
+          "min": 550.4574480056763,
+          "max": 1052.3861980438232
+        },
+        "identityFetchToResponse": {
+          "n": 18,
+          "median": 628.8726300001144,
+          "min": 537.491457939148,
+          "max": 1052.3861980438232
+        },
+        "ledgerFetchToResponse": {
+          "n": 36,
+          "median": 182.8395050764084,
+          "min": 139.71072912216187,
+          "max": 922.9828119277954
+        },
+        "identityReadiness": {
+          "n": 6,
+          "median": 592.7485935688019,
+          "min": 516.0337488651276,
+          "max": 1015.4032289981842
+        }
+      }
+    }
+  },
+  "observedContrasts": {
+    "control-before": {
+      "homeReadyFromActivityCreate": {
+        "candidateMinusControlMedianMs": 139.59900000000016,
+        "candidateMedianReductionPercent": -3.7494671877639663
+      },
+      "identityFetchToResponse": {
+        "candidateMinusControlMedianMs": -26.463072419166565,
+        "candidateMedianReductionPercent": 3.7893158980451425
+      },
+      "identityWaveFetchToLastResponse": {
+        "candidateMinusControlMedianMs": 19.46677041053772,
+        "candidateMedianReductionPercent": -2.7840726650367076
+      }
+    },
+    "control-after": {
+      "homeReadyFromActivityCreate": {
+        "candidateMinusControlMedianMs": -71.80299999999988,
+        "candidateMedianReductionPercent": 1.8249257670022945
+      },
+      "identityFetchToResponse": {
+        "candidateMinusControlMedianMs": 43.02445363998413,
+        "candidateMedianReductionPercent": -6.841521094657321
+      },
+      "identityWaveFetchToLastResponse": {
+        "candidateMinusControlMedianMs": 84.88252532482147,
+        "candidateMedianReductionPercent": -13.392563099931554
+      }
+    }
+  },
+  "totalReadResponses": 162,
+  "allReadResponses200": true,
+  "qualified2236ApkRestored": true,
+  "originalTwoApplicationBindingsUnchanged": true,
+  "existingAccountHomeReadyInEveryArm": true,
+  "sameSigningManifestAnd25NativePayloads": true,
+  "originalCompletedCohortsOverwritten": false,
+  "p95Qualified": false,
+  "coldThreeSecondTargetQualified": false,
+  "generalStartupSpeedupQualified": false,
+  "hostedDatabaseOrServerRuntimeChanged": false,
+  "limitations": [
+    "Six sequential samples per arm; no randomized or paired causal estimate, confidence interval, p95/p99 qualification or broad speedup claim.",
+    "Bracketing controls expose but cannot eliminate device/radio/thermal/order conditions and install effects.",
+    "Fetch-to-Response excludes token acquisition/JSON/local projection and does not isolate DNS/TLS/bridge/database time.",
+    "No new origin log was installed; JavaScript200 statuses do not identify native200/304 cache statuses.",
+    "Empty authenticated account, warm OS/filesystem/data caches; no populated-list, complete warm/cached transition or capacity qualification."
+  ]
+}

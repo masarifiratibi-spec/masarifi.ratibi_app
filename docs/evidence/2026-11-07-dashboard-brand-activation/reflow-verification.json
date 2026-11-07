@@ -1,0 +1,58 @@
+{
+  "scope": "Local synthetic source qualification; not hosted acceptance",
+  "uiAndOperations": {
+    "passed": 50,
+    "projects": 5,
+    "duration": "3.4m"
+  },
+  "finalLongLabelRegression": {
+    "testsPassed": 5,
+    "combinations": 20,
+    "widths": [
+      1440,
+      1280,
+      1024,
+      768,
+      390
+    ],
+    "locales": [
+      "ar",
+      "en"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "labelLength": 128,
+    "textLineBoundsChecked": true,
+    "screenshots": 20
+  },
+  "typecheck": 0,
+  "fullLint": 0,
+  "finalTestFileLint": 0,
+  "redEvidence": "Initial test timed out because overflow obstructed the theme control. A later refined run crossed a CSS hot reload and is diagnosis only, not a final qualification receipt.",
+  "actuallyInspected": [
+    "1440/ar/dark",
+    "1024/en/dark",
+    "390/en/light",
+    "390/ar/dark"
+  ],
+  "privateLogSha256": {
+    "queue-reflow-red.log": "f906dbc551bef135829d159d7314cec2466189f92b26591f60990f6cdb461122",
+    "reflow-ui-operations.log": "807f91c76c659d20318200438e1606483f6f6c9e8145527f184e854aa0f52f44",
+    "reflow-final-labels.log": "8f6d510685e8647233742c4d82ad08804ecdcce1be4dbef79da2cff09b9222e3",
+    "reflow-lint.log": "51a1bd3fc62d67d9082ce207ee35bdb81a1fbac93322af2520ee366b2e83caf7",
+    "reflow-final-test-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "reflow-final-typecheck.log": "fcdf720a10735f323fa1297cc000f695e9091646c55bbcb387713638b65378cb"
+  },
+  "unchangedEvidenceReused": [
+    "1029 unit tests",
+    "106 route patterns inventory/rendering"
+  ],
+  "remaining": [
+    "New exact-source Linux artifact",
+    "Fresh isolated canary and authenticated hosted acceptance",
+    "Available hosted route/layout sweep"
+  ],
+  "firstActivationResult": "rejected and rolled back; see separate execution-result.json"
+}

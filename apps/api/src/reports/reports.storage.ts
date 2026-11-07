@@ -4,6 +4,7 @@ import { Transform } from 'node:stream';
 import { Injectable, Optional } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 import type { ReportFormat } from './reports.schemas';
 
 const KEY =
@@ -119,7 +120,10 @@ export class ReportsStorage {
         ? (payload as { signedURL?: unknown }).signedURL
         : undefined;
     if (typeof candidate !== 'string') throw failure();
-    const signed = new URL(candidate, this.origin);
+    const signed = new URL(
+      candidate.startsWith('/object/sign/') ? `/storage/v1${candidate}` : candidate,
+      this.origin,
+    );
     const expected = `/storage/v1/object/sign/report-exports/${this.encoded(this.valid(key))}`;
     if (
       signed.origin !== this.origin.origin ||
@@ -128,6 +132,73 @@ export class ReportsStorage {
     )
       throw failure();
     return signed.toString();
+  }
+
+  async readPdf(
+    attemptId: string,
+    userId: string,
+    key: string,
+    maximumBytes: number,
+  ): Promise<Buffer> {
+    if (
+      this.key(attemptId, userId, 'pdf') !== key ||
+      !Number.isSafeInteger(maximumBytes) ||
+      maximumBytes < 1
+    )
+      throw failure('REPORT_STORAGE_INVALID');
+    const response = await this.request(key, '', { method: 'GET', redirect: 'error' });
+    const declared = response.headers.get('content-length');
+    if (
+      response.headers.get('content-type')?.split(';')[0] !== 'application/pdf' ||
+      !response.body
+    ) {
+      await response.body?.cancel();
+      throw failure('REPORT_STORAGE_INVALID');
+    }
+    if (declared !== null && (!Number.isSafeInteger(Number(declared)) || Number(declared) < 1)) {
+      await response.body.cancel();
+      throw failure('REPORT_STORAGE_INVALID');
+    }
+    if (declared !== null && Number(declared) > maximumBytes) {
+      await response.body.cancel();
+      throw failure('REPORT_LIMIT_EXCEEDED');
+    }
+    const reader = response.body.getReader();
+    const timeout = new AbortController();
+    let size = 0;
+    const chunks: Buffer[] = [];
+    const timer = setTimeout(() => {
+      timeout.abort();
+      void reader.cancel().catch(() => undefined);
+    }, 10_000);
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (timeout.signal.aborted) throw failure();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maximumBytes) {
+          await reader.cancel();
+          throw failure('REPORT_LIMIT_EXCEEDED');
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      reader.releaseLock();
+    }
+    if (declared !== null && Number(declared) !== size)
+      throw failure('REPORT_STORAGE_INTEGRITY_FAILED');
+    const pdf = Buffer.concat(chunks, size);
+    if (
+      pdf.subarray(0, 5).toString() !== '%PDF-' ||
+      !pdf.subarray(-1024).toString('latin1').trimEnd().endsWith('%%EOF')
+    )
+      throw failure('REPORT_STORAGE_INVALID');
+    return pdf;
   }
 
   async delete(key: string): Promise<void> {
@@ -167,7 +238,11 @@ export class ReportsStorage {
           signal: controller.signal,
         },
       );
-      if (!response.ok && !(missingOkay && response.status === 404)) throw failure();
+      if (
+        !response.ok &&
+        !(missingOkay && (await isMissingStorageObject(response, controller.signal)))
+      )
+        throw failure();
       return response;
     } catch (error) {
       if (

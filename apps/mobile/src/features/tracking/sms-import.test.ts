@@ -8,10 +8,11 @@ import { prepareFinancialMessageImport, prepareSmsImport } from './sms-import';
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   digestStringAsync: async (_algorithm: string, value: string) =>
-    Array.from(value).reduce(
-      (hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0,
-      0
-    ).toString(16)
+    jest
+      .requireActual<typeof import('node:crypto')>('node:crypto')
+      .createHash('sha256')
+      .update(value)
+      .digest('hex')
 }));
 
 const account = (patch: Partial<Account> = {}): Account => ({
@@ -70,250 +71,978 @@ const sender = (enabled = true): SenderRule => ({
   updatedAt: 1
 });
 
-describe('SMS import preparation', () => {
-  it('rejects OTP and marketing-only messages before financial rules', async () => {
+const options = (patch: Record<string, unknown> = {}) => ({
+  keywordRules: [],
+  senderRules: [sender()],
+  accounts: [account()],
+  knownFingerprints: new Set<string>(),
+  deviceId: 'test-device-00000001',
+  ...patch
+});
+describe('financial capture preparation', () => {
+  it('resolves bare riyal only through a unique trusted instrument, never the default currency', async () => {
+    const input = message({ body: 'Purchase 50 ريال with card 4242' });
     const result = await prepareSmsImport(
-      [
-        message({ id: 'otp', body: 'رمز التحقق OTP هو 123456 ولا تشاركه' }),
-        message({ id: 'promo', body: 'عرض خصم 20% استخدم الرابط https://example.test' })
-      ],
-      {
-        keywordRules: [keyword('otp'), keyword('خصم')],
-        senderRules: [sender()],
-        accounts: [account()],
-        knownFingerprints: new Set()
-      }
+      [input],
+      options({ accounts: [account({ currencyCode: 'QAR' })] })
     );
-
-    expect(result.events).toEqual([]);
-    expect(result.skippedFingerprints).toHaveLength(2);
-  });
-
-  it('admits enabled sender, keyword, and conservative transaction patterns only', async () => {
-    const result = await prepareSmsImport(
-      [
-        message({ id: 'sender', body: '12 SAR', receivedAt: 10 }),
-        message({ id: 'keyword', body: 'special activity 13 SAR', receivedAt: 11 }),
-        message({ id: 'pattern', sender: 'OTHER', body: 'Purchase 14 SAR', receivedAt: 12 }),
-        message({ id: 'disabled', sender: 'OTHER', body: 'disabled 15 SAR', receivedAt: 13 }),
-        message({ id: 'noise', sender: 'OTHER', body: 'Reference 16 SAR', receivedAt: 14 })
-      ],
-      {
-        keywordRules: [keyword('special activity'), keyword('disabled', false)],
-        senderRules: [sender()],
-        accounts: [account()],
-        knownFingerprints: new Set()
-      }
+    expect(result.events[0]).toMatchObject({
+      currency: 'QAR',
+      amountMinor: -5000
+    });
+    const ambiguous = await prepareSmsImport(
+      [input],
+      options({
+        accounts: [
+          account(),
+          account({
+            id: '10000000-0000-4000-8000-000000000002',
+            currencyCode: 'QAR'
+          })
+        ]
+      })
     );
-
-    expect(result.events.map((event) => event.amountMinor)).toEqual([-1300, -1400]);
-    expect(result.newestReceivedAt).toBe(14);
+    expect(ambiguous.events[0]?.classification).toMatchObject({
+      currency: null,
+      disposition: 'review'
+    });
+    const noInstrument = await prepareSmsImport(
+      [message({ body: 'Purchase 50 ريال' })],
+      options()
+    );
+    expect(noInstrument.events[0]?.classification).toMatchObject({
+      currency: null,
+      disposition: 'review'
+    });
   });
+  it.each([
+    ['reference', undefined],
+    ['reference number', undefined],
+    [
+      'reference QA2310DD4FA1',
+      '9755732b92224dd4ba631bdd3359e5198ea0b3e3179392a631a784bdef0f745b'
+    ]
+  ])(
+    'only sends a provider identity when the SMS has its code: %s',
+    async (suffix, expectedDigest) => {
+      const result = await prepareSmsImport(
+        [message({ body: `Paid SAR0.01 at APK TEST ${suffix}` })],
+        options({
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1'
+        })
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.amountMinor).toBe(-1);
+      expect(result.events[0]?.providerReferenceDigest).toBe(expectedDigest);
+    }
+  );
+
+  it('resolves a short date from a personal SMS in the device timezone', async () => {
+    const original = Intl.DateTimeFormat().resolvedOptions();
+    const zone = jest
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({ ...original, timeZone: 'Asia/Riyadh' });
+    try {
+      const result = await prepareSmsImport(
+        [
+          message({
+            sender: '+966500000001',
+            body: 'تم خصم 2 ريال بتاريخ 22-10-26',
+            receivedAt: Date.parse('2026-10-22T11:08:16Z')
+          })
+        ],
+        options({
+          accountingPolicy: 'default_account_nominal_v1',
+          sourceAdmissionPolicy: 'financial_content_v1'
+        })
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.occurredAt).toBe('2026-10-21T21:00:00.000Z');
+      expect(result.events[0]?.classification?.reasonCodes).not.toContain(
+        'date_ambiguous'
+      );
+    } finally {
+      zone.mockRestore();
+    }
+  });
+  const walletReceipt = {
+    key: 'wallet-receipt',
+    packageName: 'example.new.wallet',
+    title: 'Wallet',
+    text: 'You have received 1.00 EGP from someone@wallet',
+    postedAt: 1000,
+    capturePolicy: 'default_account_nominal_v1' as const
+  };
+  const walletAccount = account({
+    id: '10000000-0000-4000-8000-000000000002',
+    type: 'wallet',
+    currencyCode: 'EGP'
+  });
+  const walletOptions = () =>
+    options({
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAdmissionPolicy: 'financial_content_v1',
+      notificationAccountId: walletAccount.id,
+      accounts: [account({ isDefault: true }), walletAccount]
+    });
 
   it.each([
-    ['Purchase 12 SAR at Store using mada', 'expense', 'mada'],
-    ['Paid 13 SAR at Cafe using Apple Pay', 'expense', 'apple_pay'],
-    ['POS purchase 14 SAR at Market', 'expense', 'pos'],
-    ['Transferred 15 SAR to beneficiary', 'transfer', null],
-    ['ATM withdrawal 16 SAR', 'expense', null],
-    ['Salary credited 17 SAR', 'income', null],
-    ['Refunded 18 SAR from Store', 'refund', null]
-  ])('parses bank notification %s', async (text, kind, paymentRail) => {
-    const record: RawBankNotification = {
-      key: `notification-${kind}-${paymentRail}`,
-      packageName: 'com.example.bank',
-      title: 'Example Bank',
-      text,
-      postedAt: 1_757_678_401_000
-    };
+    ['owned matching', walletAccount, walletAccount.id],
+    ['wrong currency', account(), undefined],
+    ['closed', { ...walletAccount, status: 'closed' as const }, undefined],
+    [
+      'tracking disabled',
+      { ...walletAccount, automaticTrackingEnabled: false },
+      undefined
+    ],
+    ['not owned', undefined, undefined]
+  ])(
+    'keeps source currency and only hints a valid current selection: %s',
+    async (_label, selected, expectedId) => {
+      const result = await prepareFinancialMessageImport(
+        [{ ...walletReceipt, sourceDisplayName: '  New Wallet  ' }],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1',
+          preferredAccountId: walletAccount.id,
+          notificationAccountId: 'missing-legacy-binding',
+          accounts: selected ? [selected] : []
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toMatchObject({
+        currency: 'EGP',
+        amountMinor: 100,
+        metadata: { sourceDisplayName: 'New Wallet' }
+      });
+      expect(result.events[0].metadata?.preferredAccountId).toBe(expectedId);
+      expect(result.events[0].metadata).not.toHaveProperty(
+        'notificationAccountId'
+      );
+      expect(result.events[0]).not.toHaveProperty('accountId');
+      expect(result.events[0]).not.toHaveProperty('kind');
+      expect(result.accountRequiredCount).toBe(0);
+      expect(result.consumedSourceKeys).toEqual(['wallet-receipt']);
+    }
+  );
 
-    const result = await prepareFinancialMessageImport([record], {
-      keywordRules: [],
-      senderRules: [],
-      accounts: [account()],
-      knownFingerprints: new Set()
-    });
+  it.each([
+    ['  ExampleBank  ', 'ExampleBank'],
+    ['+966 50 123 4567', undefined],
+    ['12345', undefined],
+    ['Bank\nPrivate', undefined],
+    ['https://bank.example', undefined],
+    ['www.bank.example', undefined]
+  ])(
+    'uses only safe SMS sender provenance (%s)',
+    async (senderName, expectedName) => {
+      const result = await prepareSmsImport(
+        [message({ sender: senderName, body: 'تم إيداع 1 جنيه مصري' })],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1',
+          preferredAccountId: walletAccount.id
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].metadata?.sourceDisplayName).toBe(expectedName);
+      expect(result.events[0].metadata?.preferredAccountId).toBe(
+        walletAccount.id
+      );
+    }
+  );
 
-    expect(result.events[0]).toMatchObject({
-      kind,
-      metadata: expect.objectContaining({
-        sourcePackage: 'com.example.bank',
-        ...(paymentRail ? { paymentRail } : {})
-      })
-    });
-    expect(result.consumedSourceKeys).toEqual([record.key]);
-  });
-
-  it('extracts merchant and last-four account hints without retaining raw notification text', async () => {
+  it('retains a parsed real merchant independently from the notification source display label', async () => {
     const result = await prepareFinancialMessageImport(
       [
         {
-          key: 'notification-merchant',
-          packageName: 'com.example.bank',
-          title: 'Purchase alert',
-          text: 'Purchase 125.50 SAR at Example Store using Apple Pay card 4242',
-          postedAt: 1_757_678_401_000
+          ...walletReceipt,
+          sourceDisplayName: 'New Wallet',
+          text: 'Paid 12.50 EGP at COFFEE HOUSE'
         }
       ],
       {
-        keywordRules: [],
-        senderRules: [],
-        accounts: [account()],
-        knownFingerprints: new Set()
+        ...walletOptions(),
+        currencyAccountPolicy: 'source_currency_v1'
       }
     );
-
     expect(result.events[0]).toMatchObject({
-      amountMinor: -12550,
-      merchant: 'Example Store',
-      accountId: account().id,
+      merchant: 'COFFEE HOUSE',
+      metadata: { sourceDisplayName: 'New Wallet' }
+    });
+  });
+
+  it.each([
+    [undefined, undefined],
+    ['https://wallet.example', undefined],
+    ['Wallet\u202ePrivate', undefined],
+    [' Wallet\nPrivate ', undefined],
+    ['W'.repeat(120), 'W'.repeat(100)]
+  ])(
+    'bounds and validates OS source labels independently from notification titles (%s)',
+    async (sourceDisplayName, expectedName) => {
+      const result = await prepareFinancialMessageImport(
+        [
+          {
+            ...walletReceipt,
+            title: 'Private transaction title',
+            sourceDisplayName
+          }
+        ],
+        {
+          ...walletOptions(),
+          currencyAccountPolicy: 'source_currency_v1'
+        }
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].metadata?.sourceDisplayName).toBe(expectedName);
+    }
+  );
+
+  it('preserves legacy account binding when the currency flag lacks the content cohort capability', async () => {
+    const result = await prepareFinancialMessageImport([walletReceipt], {
+      ...walletOptions(),
+      sourceAdmissionPolicy: undefined,
+      currencyAccountPolicy: 'source_currency_v1',
+      senderRules: [
+        { ...sender(), normalizedSender: walletReceipt.packageName }
+      ]
+    });
+    expect(result.events[0].metadata?.notificationAccountId).toBe(
+      walletAccount.id
+    );
+    expect(result.events[0].metadata).not.toHaveProperty('preferredAccountId');
+  });
+
+  it('routes a wallet notification to its selected currency account without changing SMS routing', async () => {
+    const result = await prepareFinancialMessageImport(
+      [walletReceipt],
+      walletOptions()
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      metadata: { notificationAccountId: walletAccount.id },
+      currency: 'EGP',
+      amountMinor: 100
+    });
+    expect(result.events[0]).not.toHaveProperty('accountId');
+    expect(result.events[0]).not.toHaveProperty('kind');
+    const sms = await prepareSmsImport(
+      [message({ body: 'تم إيداع 1 جنيه مصري' })],
+      walletOptions()
+    );
+    expect(sms.events).toHaveLength(1);
+    expect(sms.events[0]).not.toHaveProperty('accountId');
+  });
+
+  it.each([
+    { status: 'closed' as const },
+    { automaticTrackingEnabled: false },
+    { currencyCode: 'SAR' }
+  ])(
+    'retains a notification when the selected destination is unavailable: %j',
+    async (patch) => {
+      const result = await prepareFinancialMessageImport([walletReceipt], {
+        ...walletOptions(),
+        accounts: [account(), { ...walletAccount, ...patch }]
+      });
+      expect(result.events).toEqual([]);
+      expect(result.accountRequiredCount).toBe(1);
+      expect(result.consumedSourceKeys).toEqual([]);
+      expect(result.skippedFingerprints).toEqual([]);
+    }
+  );
+
+  it('retains a notification if its selected account is absent from this owner', async () => {
+    const result = await prepareFinancialMessageImport([walletReceipt], {
+      ...walletOptions(),
+      accounts: [account()]
+    });
+    expect(result.events).toEqual([]);
+    expect(result.consumedSourceKeys).toEqual([]);
+    expect(result.accountRequiredCount).toBe(1);
+  });
+
+  it('prepares financial content from a personal sender with private source provenance', async () => {
+    const result = await prepareSmsImport(
+      [message({ sender: '+966500000001', body: 'تم خصم 2 ريال' })],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1'
+      })
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      classification: {
+        currency: null,
+        amountMinor: null,
+        disposition: 'review'
+      },
+      sourceAmountDecimal: '2',
+      metadata: { sourceAdmissionPolicy: 'financial_content_v1' }
+    });
+    expect(result.events[0]?.sender).toBeUndefined();
+    expect(result.events[0]?.metadata?.sourceIdentityDigest).toMatch(
+      /^[a-f0-9]{64}$/
+    );
+  });
+  it('prepares an unknown non-chat financial notification without an app whitelist', async () => {
+    const result = await prepareFinancialMessageImport(
+      [
+        {
+          key: 'content-notification',
+          packageName: 'example.new.wallet',
+          title: '',
+          text: 'تم إيداع 3 ريال',
+          postedAt: 1000,
+          capturePolicy: 'default_account_nominal_v1'
+        }
+      ],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1'
+      })
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      classification: {
+        currency: null,
+        amountMinor: null,
+        disposition: 'review'
+      },
       metadata: {
-        paymentRail: 'apple_pay',
-        sourcePackage: 'com.example.bank'
+        sourcePackage: 'example.new.wallet',
+        sourceAdmissionPolicy: 'financial_content_v1'
       }
     });
-    expect(JSON.stringify(result.events)).not.toContain('Purchase alert');
-    expect(JSON.stringify(result.events)).not.toContain('125.50 SAR');
   });
-
-  it('keeps an account-required notification unconsumed for retry', async () => {
-    const result = await prepareFinancialMessageImport(
-      [
-        {
-          key: 'notification-account-required',
-          packageName: 'com.example.bank',
-          title: 'Bank',
-          text: 'Purchase 12 SAR',
-          postedAt: 1_757_678_401_000
-        }
-      ],
+  it('preserves separate principal and additional fee identities on replay', async () => {
+    const config = options({ accountingPolicy: 'default_account_nominal_v1' });
+    const first = await prepareSmsImport(
+      [message({ body: 'Paid SAR50; additional fee SAR2' })],
+      config
+    );
+    expect(first.events.map((e) => e.sourceAmountDecimal)).toEqual(['50', '2']);
+    expect(new Set(first.events.map((e) => e.sourceItemKey)).size).toBe(2);
+    const replay = await prepareSmsImport(
+      [message({ body: 'Paid SAR50; additional fee SAR2' })],
       {
-        keywordRules: [],
-        senderRules: [],
-        accounts: [],
-        knownFingerprints: new Set()
+        ...config,
+        knownFingerprints: new Set(first.events.map((e) => e.sourceItemKey))
       }
     );
-
-    expect(result).toMatchObject({
-      events: [],
-      accountRequiredCount: 1,
-      consumedSourceKeys: []
-    });
+    expect(replay.events).toEqual([]);
   });
-
-  it.each([
-    'OTP 123456 for purchase 10 SAR',
-    'Discount 50% on your next purchase',
-    'Your balance is available in the app',
-    'Reference 10 SAR'
-  ])('rejects unsafe or incomplete bank notification: %s', async (text) => {
-    const result = await prepareFinancialMessageImport(
-      [
-        {
-          key: text,
-          packageName: 'com.example.bank',
-          title: 'Bank',
-          text,
-          postedAt: 1_757_678_401_000
-        }
-      ],
-      {
-        keywordRules: [keyword('reference')],
-        senderRules: [],
-        accounts: [account()],
-        knownFingerprints: new Set()
-      }
-    );
-
-    expect(result.events).toEqual([]);
-  });
-
-  it('normalizes Arabic-Indic digits and SAR aliases into minor units', async () => {
-    const result = await prepareSmsImport(
-      [message({ body: 'تم شراء بمبلغ ١٢٣٫٤٥ ر.س من البطاقة ٤٢٤٢' })],
-      {
-        keywordRules: [],
-        senderRules: [],
-        accounts: [account()],
-        knownFingerprints: new Set()
-      }
-    );
-
-    expect(result.events).toEqual([
-      expect.objectContaining({
-        amountMinor: -12345,
-        currency: 'SAR',
-        kind: 'expense',
-        accountId: '10000000-0000-4000-8000-000000000001'
-      })
-    ]);
-  });
-
-  it('creates stable distinct fingerprints and omits known messages', async () => {
-    const options = {
-      keywordRules: [] as KeywordRule[],
-      senderRules: [] as SenderRule[],
-      accounts: [account()],
-      knownFingerprints: new Set<string>()
+  it('keeps later notification movements separate when an app reuses the same native slot', async () => {
+    const input = {
+      key: 'posted-one',
+      nativeKey: 'slot',
+      packageName: 'com.finance.app',
+      title: 'Bank',
+      text: 'Paid SAR50',
+      postedAt: 1000,
+      captureActivatedAt: 0,
+      capturePolicy: 'default_account_nominal_v1'
     };
-    const original = await prepareSmsImport([message()], options);
-    const repeated = await prepareSmsImport([message()], options);
-    const changed = await prepareSmsImport(
-      [message({ body: 'Paid 13.50 SAR with card 4242' })],
-      options
-    );
-    const fingerprint = original.events[0]?.sourceItemKey;
-
-    expect(fingerprint).toBe(repeated.events[0]?.sourceItemKey);
-    expect(changed.events[0]?.sourceItemKey).not.toBe(fingerprint);
-    await expect(
-      prepareSmsImport([message()], {
-        ...options,
-        knownFingerprints: new Set([fingerprint!])
-      })
-    ).resolves.toMatchObject({ events: [], skippedFingerprints: [fingerprint] });
-  });
-
-  it('emits minimized structured data without sensitive source text', async () => {
-    const raw = 'Paid 12.50 SAR card 4242 OTP 987654 phone +966501234567 https://secret.test';
-    const result = await prepareSmsImport(
-      [message({ body: raw.replace('OTP', 'reference') })],
+    const config = options({
+      accountingPolicy: 'default_account_nominal_v1',
+      senderRules: [{ ...sender(), normalizedSender: 'com.finance.app' }]
+    });
+    const first = await prepareFinancialMessageImport([input], config);
+    const second = await prepareFinancialMessageImport(
+      [{ ...input, key: 'posted-two', postedAt: 10000000 }],
       {
-        keywordRules: [],
-        senderRules: [sender()],
-        accounts: [account()],
-        knownFingerprints: new Set()
+        ...config,
+        knownFingerprints: new Set(first.events.map((e) => e.sourceItemKey))
       }
     );
-    const serialized = JSON.stringify(result.events);
-
-    expect(serialized).not.toContain(raw);
-    expect(serialized).not.toContain('987654');
-    expect(serialized).not.toContain('+966501234567');
-    expect(serialized).not.toContain('https://secret.test');
-    expect(result.events[0]).not.toHaveProperty('body');
+    expect(second.events).toHaveLength(1);
+    expect(second.events[0]?.sourceItemKey).not.toBe(
+      first.events[0]?.sourceItemKey
+    );
+    expect(second.events[0]?.transport?.nativeIdDigest).toBe(
+      first.events[0]?.transport?.nativeIdDigest
+    );
   });
-
-  it('chooses exact last four, then sole currency account, then default, otherwise requires an account', async () => {
-    const exact = account({ id: 'exact', lastFour: '4242' });
-    const other = account({ id: 'other', lastFour: '1111' });
-    const exactResult = await prepareSmsImport([message()], {
-      keywordRules: [], senderRules: [], accounts: [other, exact], knownFingerprints: new Set()
+  it('prepares nominal captures without inventing an account or converting source currency', async () => {
+    const prepared = await prepareSmsImport(
+      [message({ body: 'تم دفع خمسين جنيه' })],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        accounts: [account({ type: 'cash', isDefault: true })]
+      })
+    );
+    expect(prepared.events[0]).toMatchObject({
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAmountDecimal: '50',
+      currency: 'EGP',
+      amountMinor: -5000
     });
-    const soleResult = await prepareSmsImport([message({ body: 'Paid 12 SAR' })], {
-      keywordRules: [], senderRules: [], accounts: [account({ id: 'sar' }), account({ id: 'usd', currencyCode: 'USD' })], knownFingerprints: new Set()
+    expect(prepared.events[0]?.accountId).toBeUndefined();
+    expect(prepared.events[0]?.destinationAccountId).toBeUndefined();
+  });
+  it('retains eligible undecodable evidence as private diagnostics', async () => {
+    const prepared = await prepareSmsImport(
+      [message({ body: 'تم دفع مبلغ غير واضح' })],
+      options({ accountingPolicy: 'default_account_nominal_v1' })
+    );
+    expect(prepared.events).toEqual([]);
+    expect(prepared.diagnostics?.[0]?.sourceText).toBe('تم دفع مبلغ غير واضح');
+  });
+  it('never admits a chat package through an explicitly trusted source rule', async () => {
+    const prepared = await prepareFinancialMessageImport(
+      [
+        {
+          key: 'chat',
+          nativeKey: 'chat',
+          packageName: 'com.whatsapp',
+          title: 'Bank',
+          text: 'Paid SAR50',
+          postedAt: 100
+        }
+      ],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        senderRules: [{ ...sender(), normalizedSender: 'com.whatsapp' }]
+      })
+    );
+    expect(prepared.events).toEqual([]);
+    expect(prepared.diagnostics ?? []).toEqual([]);
+  });
+  it('keeps a transfer to another owned but tracking-disabled account in review', async () => {
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            body: 'Outgoing transfer SAR8.49 from account XX4242 to account XX2323'
+          })
+        ],
+        options({
+          accounts: [
+            account(),
+            account({
+              id: '10000000-0000-4000-8000-000000000003',
+              lastFour: '2323',
+              automaticTrackingEnabled: false
+            })
+          ]
+        })
+      )
+    ).events[0];
+    expect(event).toMatchObject({
+      kind: 'transfer',
+      classification: { disposition: 'review' }
     });
-    const defaultResult = await prepareSmsImport([message({ body: 'Paid 12 SAR' })], {
-      keywordRules: [], senderRules: [], accounts: [account({ id: 'first' }), account({ id: 'default', isDefault: true })], knownFingerprints: new Set()
+    expect(event?.classification?.reasonCodes).toContain(
+      'transfer_counterparty_required'
+    );
+  });
+  it.each(['incoming', 'outgoing'] as const)(
+    'classifies an external %s transfer as ordinary income/expense without requiring a counterpart mapping',
+    async (direction) => {
+      const body =
+        direction === 'incoming'
+          ? 'Incoming transfer SAR8.47 to account XX4242'
+          : 'Outgoing transfer SAR8.48 from account XX4242 to Ahmed';
+      const event = (await prepareSmsImport([message({ body })], options()))
+        .events[0];
+      expect(event).toMatchObject({
+        kind: direction === 'incoming' ? 'income' : 'expense',
+        accountId: account().id,
+        classification: {
+          direction,
+          subtype:
+            direction === 'incoming' ? 'transfer_received' : 'transfer_sent',
+          disposition: 'capture_candidate',
+          reasonCodes: []
+        }
+      });
+      expect(event?.destinationAccountId).toBeUndefined();
+    }
+  );
+  it('uses only a previously confirmed cash destination for a withdrawal', async () => {
+    const bank = account({ currencyCode: 'AED' });
+    const cash = account({
+      id: '10000000-0000-4000-8000-000000000002',
+      type: 'cash',
+      currencyCode: 'AED',
+      lastFour: null
     });
-    const ambiguous = await prepareSmsImport([message({ body: 'Paid 12 SAR' })], {
-      keywordRules: [], senderRules: [], accounts: [account({ id: 'first' }), account({ id: 'second' })], knownFingerprints: new Set()
+    const input = message({
+      sender: 'ADCBAlert',
+      body: 'Cash withdrawal AED8.19 card XX4242'
     });
-
-    expect(exactResult.events[0]?.accountId).toBe('exact');
-    expect(soleResult.events[0]?.accountId).toBe('sar');
-    expect(defaultResult.events[0]?.accountId).toBe('default');
-    expect(ambiguous).toMatchObject({ events: [], accountRequiredCount: 1 });
+    const unmapped = (
+      await prepareSmsImport([input], options({ accounts: [bank, cash] }))
+    ).events[0];
+    expect(unmapped?.destinationAccountId).toBeUndefined();
+    expect(unmapped?.classification?.reasonCodes).toContain(
+      'cash_destination_required'
+    );
+    const configured = {
+      accounts: [bank, cash],
+      senderRules: [{ ...sender(), normalizedSender: 'adcbalert' }],
+      bindings: [
+        {
+          provider: 'adcb',
+          role: 'cash_card',
+          suffix: '4242',
+          accountId: cash.id
+        }
+      ]
+    };
+    const mapped = (await prepareSmsImport([input], options(configured)))
+      .events[0];
+    expect(mapped).toMatchObject({
+      kind: 'transfer',
+      accountId: bank.id,
+      destinationAccountId: cash.id,
+      amountMinor: -819,
+      currency: 'AED',
+      classification: {
+        subtype: 'withdrawal',
+        direction: 'outgoing',
+        disposition: 'capture_candidate',
+        reasonCodes: []
+      }
+    });
+    const disabled = (
+      await prepareSmsImport(
+        [input],
+        options({
+          ...configured,
+          accounts: [bank, { ...cash, automaticTrackingEnabled: false }]
+        })
+      )
+    ).events[0];
+    expect(disabled?.destinationAccountId).toBeUndefined();
+    expect(disabled?.classification?.reasonCodes).toContain(
+      'cash_destination_required'
+    );
+  });
+  it('sends only a digest of the explicit original refund reference and keeps missing linkage in review', async () => {
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            body: 'Refund SAR 5 card XX4242 original reference OLD123456'
+          })
+        ],
+        options()
+      )
+    ).events[0];
+    expect(event?.originalProviderReferenceDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(event?.providerReferenceDigest).toBeUndefined();
+    expect(event?.metadata?.referenceScheme).toBe('plain-v2');
+    expect(event?.classification?.reasonCodes).toContain(
+      'original_transaction_required'
+    );
+    expect(JSON.stringify(event)).not.toContain('OLD123456');
+  });
+  it('records the SMS native observation time as provenance without replacing the bank event timestamp', async () => {
+    const event = (
+      await prepareSmsImport(
+        [message({ observedAt: message().receivedAt + 5000 })],
+        options()
+      )
+    ).events[0];
+    expect(event?.metadata?.nativeObservedAt).toBe(message().receivedAt + 5000);
+    expect(event?.receivedAt).toBe(
+      new Date(message().receivedAt).toISOString()
+    );
+  });
+  it('retains equal reference digests across unknown notification and trusted SMS without trusting the unknown source', async () => {
+    const text = 'Purchase SAR 12 with card XX4242 reference ABC123456';
+    const captures = await prepareFinancialMessageImport(
+      [
+        message({ body: text }),
+        {
+          key: 'app-reference',
+          packageName: 'com.unknown.bank',
+          title: '',
+          text,
+          postedAt: message().receivedAt
+        }
+      ],
+      options()
+    );
+    expect(captures.events).toHaveLength(2);
+    expect(captures.events[0]?.providerReferenceDigest).toBe(
+      captures.events[1]?.providerReferenceDigest
+    );
+    expect(captures.events[1]?.metadata).toMatchObject({
+      referenceScheme: 'plain-v2',
+      sourcePackage: 'com.unknown.bank'
+    });
+    expect(captures.events[1]?.classification?.reasonCodes).toContain(
+      'source_untrusted'
+    );
+    expect(JSON.stringify(captures.events)).not.toContain('ABC123456');
+  });
+  it('keeps numeric SMS source identity as a digest so configured trust can be checked without a raw phone number', async () => {
+    const numeric = '+201012345678';
+    const event = (
+      await prepareSmsImport(
+        [message({ sender: numeric })],
+        options({ senderRules: [{ ...sender(), normalizedSender: numeric }] })
+      )
+    ).events[0];
+    expect(event?.sender).toBeUndefined();
+    expect(event?.metadata?.sourceIdentityDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(event)).not.toContain(numeric);
+  });
+  it.each([
+    [
+      'تحويل صادر SAR 5 من حساب XX1111 إلى حساب XX2222',
+      'outgoing',
+      -500,
+      '10000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000002'
+    ],
+    [
+      'Incoming transfer SAR 5 from account XX1111 to account XX2222',
+      'incoming',
+      500,
+      '10000000-0000-4000-8000-000000000002',
+      '10000000-0000-4000-8000-000000000001'
+    ]
+  ])(
+    'resolves both owned transfer endpoints without converting movement into expense/income: %s',
+    async (body, direction, amountMinor, accountId, destinationAccountId) => {
+      const event = (
+        await prepareSmsImport(
+          [message({ body: String(body) })],
+          options({
+            accounts: [
+              account({ lastFour: '1111' }),
+              account({
+                id: '10000000-0000-4000-8000-000000000002',
+                lastFour: '2222'
+              })
+            ]
+          })
+        )
+      ).events[0];
+      expect(event).toMatchObject({
+        kind: 'transfer',
+        amountMinor,
+        accountId,
+        destinationAccountId,
+        classification: {
+          direction,
+          status: 'completed',
+          disposition: 'capture_candidate',
+          reasonCodes: []
+        }
+      });
+    }
+  );
+  it('binds eligibility to the exact owner configuration used for capture', async () => {
+    const configurationRevision = 'b'.repeat(64);
+    const event = (
+      await prepareSmsImport([message()], options({ configurationRevision }))
+    ).events[0];
+    expect(event?.metadata?.ruleConfigurationRevision).toBe(
+      configurationRevision
+    );
+  });
+  it.each(['Hello SAR 5', 'MyBank alert SAR 5', 'Available Balance SAR 5'])(
+    'discards weak unknown content without submitting financial fields: %s',
+    async (body) => {
+      const result = await prepareSmsImport(
+        [message({ body, sender: 'UNKNOWN' })],
+        options({ keywordRules: [keyword('MyBank alert')] })
+      );
+      expect(result.events).toHaveLength(0);
+    }
+  );
+  it('blocks a disabled source even if its content is strongly financial', async () => {
+    const result = await prepareSmsImport(
+      [message()],
+      options({ senderRules: [sender(false)] })
+    );
+    expect(result.events).toHaveLength(0);
+  });
+  it('retains unknown strong evidence without assigning the single currency account', async () => {
+    const result = await prepareSmsImport(
+      [message({ sender: 'UNKNOWN', body: 'Purchase SAR 5' })],
+      options()
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]?.accountId).toBeUndefined();
+    expect(result.events[0]?.classification?.reasonCodes).toContain(
+      'source_untrusted'
+    );
+  });
+  it.each([
+    'OTP 123456 purchase SAR 12',
+    'payee addition request SAR 12',
+    'Purchase SAR 12 declined',
+    'Purchase SAR 12 failed',
+    'Purchase SAR 12 cancelled',
+    'شراء SAR 12 تم رفض العملية'
+  ])('never captures excluded lifecycle: %s', async (body) => {
+    const result = await prepareSmsImport([message({ body })], options());
+    expect(result.events).toHaveLength(0);
+    expect(result.skippedFingerprints).toHaveLength(1);
+  });
+  it.each(['SAR', 'AED', 'USD', 'EUR', 'GBP', 'EGP', 'QAR'])(
+    'extracts supported currency %s',
+    async (currency) => {
+      const result = await prepareSmsImport(
+        [message({ body: 'Paid ' + currency + '12.50 with card XX4242' })],
+        options({ accounts: [account({ currencyCode: currency })] })
+      );
+      expect(result.events[0]).toMatchObject({
+        amountMinor: -1250,
+        currency,
+        kind: 'expense',
+        accountId: account().id,
+        classification: {
+          disposition: 'capture_candidate',
+          direction: 'outgoing'
+        }
+      });
+    }
+  );
+  it.each([
+    'credited AED12.50',
+    'deposit AED12.50',
+    'cash withdrawal AED12.50',
+    'transfer to SAMPLE AED12.50',
+    'AED12.50 refunded',
+    'AED12.50 refunded will be credited within 2-3 working days'
+  ])('retains accounting ambiguity: %s', async (body) => {
+    const event = (
+      await prepareSmsImport(
+        [message({ body })],
+        options({ accounts: [account({ currencyCode: 'AED' })] })
+      )
+    ).events[0];
+    expect(event?.classification?.disposition).toBe('review');
+    if (!body.startsWith('deposit')) expect(event?.kind).not.toBe('income');
+  });
+  it.each([
+    'Deposited SAR 5 to account XX4242',
+    'SAR 5 credited to account XX4242'
+  ])('prepares a complete bank credit as ordinary income: %s', async (body) => {
+    const event = (await prepareSmsImport([message({ body })], options()))
+      .events[0];
+    expect(event).toMatchObject({
+      kind: 'income',
+      amountMinor: 500,
+      accountId: account().id,
+      classification: {
+        direction: 'incoming',
+        status: 'completed',
+        disposition: 'capture_candidate'
+      }
+    });
+  });
+  it('does not map a trusted EGP notification to the only EGP account without instrument proof', async () => {
+    const event = (
+      await prepareSmsImport(
+        [message({ body: 'Payment EGP 5' })],
+        options({ accounts: [account({ currencyCode: 'EGP' })] })
+      )
+    ).events[0];
+    expect(event?.accountId).toBeUndefined();
+    expect(event?.classification?.reasonCodes).toContain('ambiguous_account');
+  });
+  it('treats explicit salary as income', async () => {
+    const event = (
+      await prepareSmsImport([message({ body: 'Salary SAR 1200' })], options())
+    ).events[0];
+    expect(event).toMatchObject({ amountMinor: 120000, kind: 'income' });
+  });
+  it('keeps transaction amount separate from balance and fees', async () => {
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            body: 'Debit Card XX4242 was used for AED126.50 at SAMPLE SHOP, AE. Available Balance AED8126.03 fee AED2.00'
+          })
+        ],
+        options({ accounts: [account({ currencyCode: 'AED' })] })
+      )
+    ).events[0];
+    expect(event).toMatchObject({
+      amountMinor: -12650,
+      merchant: 'SAMPLE SHOP'
+    });
+  });
+  it('normalizes Arabic numbers and du bill acknowledgement without bank account inference', async () => {
+    const event = (
+      await prepareSmsImport(
+        [
+          message({
+            sender: 'du',
+            body: 'شكراً على سدادك مبلغ ٥٠.٠٠ درهم لحسابك 1.99999999. الرقم المرجعي للمعاملة هو 999999999'
+          })
+        ],
+        options({
+          accounts: [account({ currencyCode: 'AED' })],
+          senderRules: [{ ...sender(), normalizedSender: 'du' }]
+        })
+      )
+    ).events[0];
+    expect(event).toMatchObject({
+      amountMinor: -5000,
+      kind: 'expense',
+      classification: { instruments: [], subtype: 'bill_payment' }
+    });
+  });
+  it('holds unsupported SEK and ambiguous embedded dates', async () => {
+    const events = (
+      await prepareSmsImport(
+        [
+          message({ id: 'sek', body: 'credited SEK 123.45' }),
+          message({ id: 'date', body: 'Paid SAR 12 on 26-09-26 08:56' })
+        ],
+        options()
+      )
+    ).events;
+    expect(events).toHaveLength(2);
+    expect(
+      events.every((e) => e.classification?.disposition === 'review')
+    ).toBe(true);
+  });
+  it('retains explicit unmatched/conflicting instruments without default fallback', async () => {
+    const event = (
+      await prepareSmsImport(
+        [message({ body: 'Paid SAR 12 card XX9999 account XX004242' })],
+        options({ accounts: [account({ isDefault: true })] })
+      )
+    ).events[0];
+    expect(event?.accountId).toBeUndefined();
+    expect(event?.classification?.reasonCodes).toContain('ambiguous_account');
+  });
+  it('only uses a binding for the resolved provider', async () => {
+    const result = await prepareSmsImport(
+      [
+        message({
+          sender: 'ADCBAlert',
+          body: 'Debit card XX9999 linked to acc. XX004242 was used for AED12'
+        })
+      ],
+      options({
+        accounts: [account({ currencyCode: 'AED', lastFour: '1111' })],
+        bindings: [
+          {
+            provider: 'alinma',
+            role: 'card',
+            suffix: '9999',
+            accountId: account().id
+          },
+          {
+            provider: 'alinma',
+            role: 'account',
+            suffix: '004242',
+            accountId: account().id
+          }
+        ]
+      })
+    );
+    expect(result.events[0]?.accountId).toBeUndefined();
+  });
+  it('holds an untrusted sender even with a matching account', async () => {
+    const event = (
+      await prepareSmsImport([message()], options({ senderRules: [] }))
+    ).events[0];
+    expect(event?.classification?.reasonCodes).toContain('source_untrusted');
+  });
+  it.each([
+    { status: 'archived' },
+    { automaticTrackingEnabled: false },
+    { type: 'cash' },
+    { type: 'investment' }
+  ])('never selects ineligible account %j', async (patch) => {
+    const event = (
+      await prepareSmsImport(
+        [message()],
+        options({ accounts: [account(patch as Partial<Account>)] })
+      )
+    ).events[0];
+    expect(event?.accountId).toBeUndefined();
+  });
+  it('keeps distinct identical-body SMS native IDs and stable replay identity', async () => {
+    const input = [message({ id: '1' }), message({ id: '2' })];
+    const first = await prepareSmsImport(input, options());
+    expect(first.events).toHaveLength(2);
+    expect(first.events[0]?.sourceItemKey).not.toBe(
+      first.events[1]?.sourceItemKey
+    );
+    const replay = await prepareSmsImport(
+      input,
+      options({
+        knownFingerprints: new Set(first.events.map((e) => e.sourceItemKey))
+      })
+    );
+    expect(replay.events).toHaveLength(0);
+  });
+  it('acknowledges notification revisions only after the caller commits them', async () => {
+    const notification: RawBankNotification = {
+      key: 'revision1',
+      nativeKey: 'native1',
+      packageName: 'com.bank',
+      title: 'Bank',
+      text: 'Paid SAR 12',
+      postedAt: 100
+    };
+    const first = await prepareFinancialMessageImport(
+      [notification],
+      options({ senderRules: [{ ...sender(), normalizedSender: 'com.bank' }] })
+    );
+    const second = await prepareFinancialMessageImport(
+      [{ ...notification, key: 'revision2', text: 'Paid SAR 12.00' }],
+      options()
+    );
+    expect(first.consumedSourceKeys).toEqual(['revision1']);
+    expect(second.events[0]?.transport?.nativeIdDigest).toBe(
+      first.events[0]?.transport?.nativeIdDigest
+    );
+    expect(second.events[0]?.sourceItemKey).not.toBe(
+      first.events[0]?.sourceItemKey
+    );
+  });
+  it('does not deduplicate SMS and notifications by similar text', async () => {
+    const result = await prepareFinancialMessageImport(
+      [
+        message(),
+        {
+          key: 'notification',
+          packageName: 'com.bank',
+          title: '',
+          text: message().body,
+          postedAt: message().receivedAt
+        }
+      ],
+      options()
+    );
+    expect(result.events).toHaveLength(2);
+  });
+  it('custom wording without independent financial evidence cannot invent income', async () => {
+    const result = await prepareSmsImport(
+      [message({ body: 'Funding SAR 12' })],
+      options({ keywordRules: [{ ...keyword('Funding'), group: 'income' }] })
+    );
+    expect(result.events).toHaveLength(0);
+  });
+  it('disabling action wording prevents automatic eligibility', async () => {
+    const result = await prepareSmsImport(
+      [message()],
+      options({ keywordRules: [keyword('paid', false)] })
+    );
+    expect(result.events).toHaveLength(0);
+  });
+  it('contains no raw body or reference number in durable financial payload', async () => {
+    const result = await prepareSmsImport(
+      [message({ body: 'Paid SAR12 reference ABC123456' })],
+      options()
+    );
+    expect(result.events[0]?.body).toBeUndefined();
+    expect(JSON.stringify(result.events)).not.toContain('ABC123456');
+    expect(result.events[0]?.providerReferenceDigest).toMatch(/^[a-f0-9]{64}$/);
   });
 });

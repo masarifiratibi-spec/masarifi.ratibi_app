@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
@@ -59,12 +59,15 @@ export function FirstLaunchOnboardingScreen({
   const setLocale = usePreferenceStore((state) => state.setLocale);
   const [submitting, setSubmitting] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const startPending = useRef(false);
   const direction = locale === 'ar' ? 'rtl' : 'ltr';
   const textAlign = locale === 'ar' ? 'right' : 'left';
   const cardRadius = Math.round(theme.radius.card * 1.06);
   const controlRadius = Math.round(theme.radius.control * 1.06);
 
   async function completeOnboarding() {
+    if (startPending.current) return;
+    startPending.current = true;
     setSubmitting(true);
     setSaveFailed(false);
     try {
@@ -72,6 +75,7 @@ export function FirstLaunchOnboardingScreen({
     } catch {
       setSaveFailed(true);
     } finally {
+      startPending.current = false;
       setSubmitting(false);
     }
   }
@@ -293,7 +297,15 @@ export function FirstLaunchOnboardingScreen({
           onPress={() => void completeOnboarding()}
           style={{
             borderRadius: controlRadius,
-            minHeight: theme.spacing.xxl + theme.spacing.xl
+            minHeight: theme.spacing.xxl + theme.spacing.xl,
+            backgroundColor:
+              theme.mode === 'light'
+                ? colorTokens.onboarding.start
+                : theme.colors.primary,
+            borderColor:
+              theme.mode === 'light'
+                ? colorTokens.onboarding.start
+                : theme.colors.primary
           }}
         />
       </View>

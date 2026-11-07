@@ -34,7 +34,7 @@ interface Route {
   operation: string;
   status: number;
   permission?: 'reference.read' | 'reference.write';
-  recentMfa?: boolean;
+  recentAuth?: boolean;
 }
 interface ReferenceHttpRequest {
   operation: string;
@@ -124,8 +124,8 @@ export const REFERENCE_ROUTES: readonly Route[] = Object.freeze(
       true,
     ],
   ].map(
-    ([method, path, operation, status, permission, recentMfa]) =>
-      ({ method, path, operation, status, permission, recentMfa }) as Route,
+    ([method, path, operation, status, permission, recentAuth]) =>
+      ({ method, path, operation, status, permission, recentAuth }) as Route,
   ),
 );
 
@@ -203,7 +203,7 @@ for (const route of REFERENCE_ROUTES) {
   );
   ApiBearerAuth('ClerkBearer')(ReferenceController.prototype, route.operation, descriptor);
   if (route.permission) {
-    adminPermission(route.permission, { recentMfa: route.recentMfa })(
+    adminPermission(route.permission, { recentAuth: route.recentAuth })(
       ReferenceController.prototype,
       route.operation,
       descriptor,

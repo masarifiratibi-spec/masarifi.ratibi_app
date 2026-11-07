@@ -16,6 +16,35 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
 beforeEach(() => jest.clearAllMocks());
 
+it('limits live review to supported transaction types and offers date and note correction', () => {
+  const proposal = fixtureProposalGroup({
+    scenario: 'clear_en',
+    sessionId: 'live',
+    recordedAt: Date.now(),
+    timezoneOffsetMinutes: 0
+  }).proposals[0];
+  renderWithProviders(
+    <VoiceReview
+      live
+      proposal={proposal}
+      accounts={fixtureAccounts}
+      categories={fixtureCategories}
+      onChange={jest.fn()}
+      onConfirmField={jest.fn()}
+      onRemove={jest.fn()}
+    />
+  );
+  expect(
+    screen.queryByText(translate('voice.review.paymentMethod'))
+  ).toBeNull();
+  expect(screen.queryByText(translate('coreFinance.type.transfer'))).toBeNull();
+  expect(screen.queryByText(translate('voice.category.always'))).toBeNull();
+  expect(screen.getByLabelText(translate('voice.review.date'))).toBeTruthy();
+  expect(
+    screen.getByLabelText(translate('coreFinance.form.note'))
+  ).toBeTruthy();
+});
+
 it('separates payment method and account and confirms uncertainty', () => {
   const proposal = fixtureProposalGroup({
     scenario: 'low_confidence',

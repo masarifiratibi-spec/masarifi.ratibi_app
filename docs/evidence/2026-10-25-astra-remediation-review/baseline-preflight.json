@@ -1,0 +1,168 @@
+{
+  "sourceCommit": "5aa1267dccac67a8b95249dbddbf398c25d1bb49",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "trackedFileCount": 5452,
+  "trackedByArea": {
+    ".agents": 22,
+    ".dockerignore": 1,
+    ".github": 18,
+    ".gitignore": 1,
+    ".gitleaksignore": 1,
+    ".superpowers": 29,
+    ".zcode": 1,
+    "PRODUCT.md": 1,
+    "PROJECT_REORGANIZATION_PLAN.md": 1,
+    "PROJECT_STRUCTURE.md": 1,
+    "README.md": 1,
+    "REORGANIZATION_REPORT.md": 1,
+    "apps/admin-web": 563,
+    "apps/api": 1193,
+    "apps/marketing-web": 1,
+    "apps/mobile": 2854,
+    "docker": 14,
+    "docs/Back end": 1,
+    "docs/CLIENT_REMEDIATION_PLAN.md": 1,
+    "docs/admin": 6,
+    "docs/api": 1,
+    "docs/architecture": 1,
+    "docs/deployment": 1,
+    "docs/design-system": 2,
+    "docs/evidence": 58,
+    "docs/handoffs": 25,
+    "docs/mobile": 3,
+    "docs/mobile_app": 1,
+    "docs/plans": 1,
+    "docs/product": 1,
+    "docs/qa": 16,
+    "docs/recovery": 1,
+    "docs/reports": 2,
+    "docs/reviews": 33,
+    "docs/runbooks": 6,
+    "docs/security": 1,
+    "docs/superpowers": 101,
+    "docs/voice-v3-implementation.md": 1,
+    "ops": 22,
+    "packages/api-client": 1,
+    "packages/config": 1,
+    "packages/eslint-config": 1,
+    "packages/finance-core": 1,
+    "packages/shared-types": 1,
+    "packages/transaction-parser": 14,
+    "packages/ui-tokens": 1,
+    "packages/validation": 1,
+    "scripts": 193,
+    "skills-lock.json": 1,
+    "supabase": 249
+  },
+  "preexistingDirtyFiles": [
+    {
+      "status": " M",
+      "path": ".github/workflows/mobile-preservation-qualification.yml",
+      "sha256": "6f41714eeaac6f450d69605aff5a464d5cdcce788313e8be7f959ea49ca697df"
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/security/privacy-lock.ts",
+      "sha256": "48c42ac2ad048b6c4f7ddf17b50b9bec055e5ec45e97eeb75837c5fc29f2e851"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/android/build.gradle",
+      "sha256": "db2441efb33208dbb1266402ec823bcc025d72238e6079eba64ce8912abe128c"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/android/src/main/java/com/masarifi/pincrypto/MasarifiPinCryptoModule.kt",
+      "sha256": "f25e0115747a6a6a4590597704bb8055aecfcdfd2d735220bc89e5bfeb85ba46"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/android/src/main/java/com/masarifi/pincrypto/PinKeyDerivation.kt",
+      "sha256": "cd49b81396681f2eacf210ba9ccf76865e4d6e60d9d26b310bbba1983a133f81"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/android/src/test/java/com/masarifi/pincrypto/PinKeyDerivationTest.kt",
+      "sha256": "95dd156482e0a9697bbcb84b91ef4c50f871718945136508179bd3f5f30f557f"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/expo-module.config.json",
+      "sha256": "4802585e356285001b9b1e21a9ad7dba9366f8a36716b075b71ba34a1e5f9597"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/modules/masarifi-pin-crypto/index.ts",
+      "sha256": "f4ee44df92983a44bd11864331cc766a0f8718ceb8cdce1ad251789efc0e2e3b"
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/features/security/privacy-lock.native.test.ts",
+      "sha256": "ee36e3e5318bf7609c0e6e2628207dddf5ef3f9e6c584362e2396fcf345caa9c"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/final-review-and-remaining-checklist.en.md",
+      "sha256": "e6978161431531bfe5034da0f7db0a7efef1c0cc252902dec7d7fb649c36a53c"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/open-device-issues.md",
+      "sha256": "c23738023666a665f0c7f9024b857f460cf6243c46082f521602a067550ff822"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/pin-latency-fix.md",
+      "sha256": "2be5a6ed8a0d9701fd9ff16ab88175af8bb7f8a6700a47172171272bfeb9a2af"
+    }
+  ],
+  "device": {
+    "serial": "f66a40694eca",
+    "model": "23076RN8DY",
+    "android": "15",
+    "abi": "arm64-v8a",
+    "devPackage": "com.masarifi.mobile.dev",
+    "acceptanceExecutedThisReview": false,
+    "pageSizeBytes": 4096
+  },
+  "modelChecks": {
+    "plannerReviewer": {
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "three_read_only_reviews_executed"
+    },
+    "codex": {
+      "version": "0.147.0",
+      "auth": "ChatGPT",
+      "requestedModel": "gpt-5.1",
+      "effort": "high",
+      "status": "rejected",
+      "errorCode": "model_not_found",
+      "message": "The 'gpt-5.1' model is not supported when using Codex with a ChatGPT account."
+    },
+    "opencode": {
+      "version": "1.18.21",
+      "openaiCredentialPresent": true,
+      "requestedModelListed": false
+    },
+    "substitutionApproved": true,
+    "approvedImplementer": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "authorization": "explicit user reply,2026-10-25",
+      "delegateProbe": "native gpt-6.1-sol/high handshake succeeded; CLI rejected model_not_found",
+      "verifiedRoute": "native agent"
+    }
+  },
+  "ci": {
+    "pr": 9,
+    "head": "5aa1267dccac67a8b95249dbddbf398c25d1bb49",
+    "success": 18,
+    "skipped": 1,
+    "run": 40093020154,
+    "performanceSteps": "passed",
+    "uncommittedChangesCovered": false,
+    "androidSignedReleaseQualified": false,
+    "skippedJob": "tag_only_backend_image_provenance"
+  }
+}

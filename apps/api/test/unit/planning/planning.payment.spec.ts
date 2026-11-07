@@ -27,6 +27,37 @@ describe('payment and match planning service', () => {
     allocations: [{ scheduleItemId, amountMinor: '300' }],
   };
 
+  it('accepts one atomic create-and-allocate command and rejects dual transaction inputs', async () => {
+    const allocation: Record<string, unknown> = { ...payment };
+    Reflect.deleteProperty(allocation, 'transactionId');
+    const transaction = {
+      kind: 'expense',
+      amountMinor: 300,
+      currency: 'SAR',
+      accountId: transactionId,
+      title: 'Loan',
+      occurredAt: '2026-10-01T00:00:00.000Z',
+    };
+    await service.allocateObligationPayment(obligationId, {
+      principal,
+      idempotencyKey: 'atomic-payment-test-key',
+      requestId: 'request',
+      body: { ...allocation, transaction },
+    });
+    expect(mutate.mock.calls.at(-1)?.[0].command.transaction).toMatchObject({
+      kind: 'expense',
+      amountMinor: 300,
+    });
+    expect(() =>
+      service.allocateObligationPayment(obligationId, {
+        principal,
+        idempotencyKey: 'atomic-payment-both-key',
+        requestId: 'request',
+        body: { ...payment, transaction },
+      }),
+    ).toThrow(HttpException);
+  });
+
   it('normalizes an explicit exact payment intent and allocation set', async () => {
     await service.allocateObligationPayment(obligationId, {
       principal,

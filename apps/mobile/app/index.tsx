@@ -2,10 +2,16 @@ import React from 'react';
 import { Redirect } from 'expo-router';
 
 import { StateView } from '@/design-system/components/feedback/StateView';
+import {
+  StartupLoadingStage,
+  useStartupReady
+} from '@/design-system/components/feedback/StartupLoadingBoundary';
+import { StartupConnectionState } from '@/features/shell/StartupConnectionState';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useLiveIdentityStatus } from '@/services/live/clerk-context';
 
 /**
  * Entry route. Uses the mount-safe <Redirect> instead of an imperative
@@ -17,8 +23,12 @@ import { usePreferenceStore } from '@/state/preferences';
  * view (destination '/index').
  */
 export default function AppEntry() {
+  const identity = useLiveIdentityStatus();
   const shellHydrated = useAppShellStore((state) => state.hydrated);
   const preferencesHydrated = usePreferenceStore((state) => state.hydrated);
+  const locale = usePreferenceStore((state) => state.locale);
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const firstLaunchOnboardingCompleted = usePreferenceStore(
     (state) => state.firstLaunchOnboardingCompleted
   );
@@ -42,11 +52,70 @@ export default function AppEntry() {
     privacyLock
   });
 
+  useStartupReady(
+    identity.status === 'unavailable' ||
+      identity.status === 'error' ||
+      (identity.status === 'ready' &&
+        ['unavailable', 'error'].includes(profileSetupStatus))
+  );
+
+  if (session?.restoration === 'local' && destination !== '/index')
+    return <Redirect href={destination} />;
+
+  if (
+    identity.status === 'unavailable' ||
+    (identity.status === 'ready' && profileSetupStatus === 'unavailable')
+  ) {
+    return (
+      <StartupConnectionState
+        onAction={
+          identity.status === 'unavailable'
+            ? identity.retry
+            : () => useAppShellStore.getState().retryBootstrap()
+        }
+      />
+    );
+  }
+
+  if (identity.status === 'error') {
+    return (
+      <StateView
+        state="error"
+        title={translate('appShell.error.unknown')}
+        actionLabel={translate('profileSetup.retry')}
+        onAction={identity.retry}
+      />
+    );
+  }
+  if (identity.status === 'loading' || identity.status === 'sso') {
+    return (
+      <StartupLoadingStage
+        locale={locale}
+        themePreference={themePreference}
+        reducedMotion={reducedMotion}
+      />
+    );
+  }
+  if (profileSetupStatus === 'error') {
+    return (
+      <StateView
+        state="error"
+        title={translate('settings.profile.error')}
+        actionLabel={translate('profileSetup.retry')}
+        onAction={() => useAppShellStore.getState().retryBootstrap()}
+      />
+    );
+  }
+
   if (destination !== '/index') {
     return <Redirect href={destination} />;
   }
 
   return (
-    <StateView state="loading" title={translate('appShell.state.loading')} />
+    <StartupLoadingStage
+      locale={locale}
+      themePreference={themePreference}
+      reducedMotion={reducedMotion}
+    />
   );
 }

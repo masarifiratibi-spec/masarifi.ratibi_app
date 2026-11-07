@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { Injectable, Optional } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 
 const KEY = /^support\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/i;
 
@@ -128,7 +129,10 @@ export class SupportStorage {
         headers,
         signal: controller.signal,
       });
-      if (!response.ok && !(allowMissing && response.status === 404))
+      if (
+        !response.ok &&
+        !(allowMissing && (await isMissingStorageObject(response, controller.signal)))
+      )
         throw new Error('SUPPORT_STORAGE_UNAVAILABLE');
       return response;
     } catch (error) {

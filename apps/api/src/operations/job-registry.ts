@@ -7,6 +7,7 @@ import { LedgerWorker } from '../ledger/ledger.worker';
 import { OutboxWorkerService } from '../platform/outbox/outbox-worker.service';
 import { PlanningWorker } from '../planning/planning.worker';
 import { ReportsWorker } from '../reports/reports.worker';
+import { FinancialResetWorker } from '../security/financial-reset.worker';
 import { SecurityWorkerService } from '../security/security.worker';
 import { SyncWorker } from '../sync/sync.worker';
 import { TrackingWorker } from '../tracking/tracking.worker';
@@ -37,6 +38,7 @@ export const GOVERNED_JOB_KEYS = Object.freeze([
   'privacy.export-generate',
   'privacy.export-expire',
   'privacy.account-delete',
+  'privacy.financial-reset-cleanup',
   'retention.apply',
   'ledger.reconcile',
   'sync-mutations.retry',
@@ -55,6 +57,7 @@ export const GOVERNED_JOB_KEYS = Object.freeze([
   'tracking.reconcile',
   'ai.evaluate_route',
   'voice.transcribe_extract',
+  'voice.finalize',
   'assistant.respond',
   'ai.usage_rollup',
   'voice-media.purge',
@@ -89,6 +92,7 @@ export class OperationsJobRegistry {
     @Optional() private readonly ai?: AiWorker,
     @Optional() private readonly reports?: ReportsWorker,
     @Optional() private readonly engagement?: EngagementWorker,
+    @Optional() private readonly financialReset?: FinancialResetWorker,
   ) {}
 
   async run(jobKey: string): Promise<Record<string, string | number | boolean | null>> {
@@ -102,6 +106,8 @@ export class OperationsJobRegistry {
       result = await this.required(this.clerk).runJob(
         jobKey as Parameters<ClerkWebhookWorker['runJob']>[0],
       );
+    else if (jobKey === 'privacy.financial-reset-cleanup')
+      result = await this.required(this.financialReset).run();
     else if (/^(security\.|privacy\.|retention\.)/u.test(jobKey)) {
       await this.required(this.security).runJob(jobKey);
       result = 1;
@@ -116,7 +122,10 @@ export class OperationsJobRegistry {
       result = await this.required(this.tracking).runJob(
         jobKey as Parameters<TrackingWorker['runJob']>[0],
       );
-    else if (/^(ai\.|voice\.|assistant\.|financial-insights\.)/u.test(jobKey))
+    else if (
+      jobKey === 'voice-media.purge' ||
+      /^(ai\.|voice\.|assistant\.|financial-insights\.)/u.test(jobKey)
+    )
       result = await this.required(this.ai).runJob(jobKey as Parameters<AiWorker['runJob']>[0]);
     else if (jobKey.startsWith('report.'))
       result = await this.required(this.reports).runJob(

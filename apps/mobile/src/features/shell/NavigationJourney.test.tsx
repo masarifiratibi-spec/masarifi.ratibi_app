@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { notifyManager } from '@tanstack/react-query';
 
@@ -8,23 +8,51 @@ import TransactionsRoute from '@app/(tabs)/transactions';
 import AddRoute from '@app/(tabs)/add';
 import ReportsRoute from '@app/(tabs)/reports';
 import MoreRoute from '@app/(tabs)/more';
+import * as financialReset from '@/services/financial-reset';
 import AccountsRoute from '@app/accounts';
 import AssistantRoute from '@app/assistant';
 import { createClientDemoSession } from '@/domain/demo-session';
 import { translate, translateDynamic } from '@/localization/i18n';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { settingsKeys } from '@/features/settings/settings-queries';
+import { changeLocale } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { settingsService } from '@/services/mocks/subscription-settings-service';
+import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import type { UserProfile } from '@/domain/settings';
+import { ProfileScreen } from '@/features/settings/ProfileScreen';
+import { PrimaryShellHeader } from '@/features/shell/PrimaryShellHeader';
 
 let mockSearchParams: { returnTo?: string } = {};
+const mockClerkName = jest.fn(() => null as string | null);
+jest.mock('@clerk/expo', () => ({
+  getClerkInstance: () => ({
+    user: { id: 'user_fabricated_subject', fullName: mockClerkName() }
+  })
+}));
+
+const publicProfile: UserProfile = {
+  name: 'Saved Person',
+  googleAccount: 's***@example.test',
+  email: 'editable@example.test',
+  avatar: 'default',
+  phone: null,
+  country: 'SA',
+  currency: 'SAR',
+  timeZone: 'Asia/Riyadh',
+  completion: [],
+  version: 1
+};
 
 jest.mock('expo-router', () => ({
   router: {
     push: jest.fn(),
     replace: jest.fn(),
     back: jest.fn(),
-    navigate: jest.fn()
+    navigate: jest.fn(),
+    dismissTo: jest.fn()
   },
   useLocalSearchParams: () => mockSearchParams,
   useFocusEffect: (callback: () => void) =>
@@ -99,6 +127,8 @@ afterAll(() => {
 
 describe('navigation journey', () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
+    mockClerkName.mockReturnValue(null);
     mockSearchParams = {};
     jest.clearAllMocks();
     mockAssistantQueries.useAssistantConsent.mockReturnValue({
@@ -142,6 +172,177 @@ describe('navigation journey', () => {
     });
   });
 
+  it.each([
+    [
+      'en',
+      '  Saved Person  ',
+      'Provider Person',
+      'Saved Person',
+      's***@example.test'
+    ],
+    [
+      'ar',
+      'اسم محفوظ طويل — 李',
+      'Provider Person',
+      'اسم محفوظ طويل — 李',
+      's***@example.test'
+    ],
+    ['en', ' ', 'Provider Person', 'Provider Person', null],
+    ['en', '', null, 'Masarifi & Ratibi User', null],
+    ['ar', '', null, 'مستخدم مصاريفي وراتبي', null]
+  ] as const)(
+    'shows public account copy in %s with saved name %s',
+    (locale, name, provider, expected, googleAccount) => {
+      changeLocale(locale);
+      useAppShellStore.setState({
+        session: {
+          ...authenticatedSession,
+          userId: 'user_fabricated_subject',
+          method: 'google'
+        }
+      });
+      mockClerkName.mockReturnValue(provider);
+      renderWithQueryData(<MoreRoute />, [
+        [settingsKeys.profile(), { ...publicProfile, name, googleAccount }]
+      ]);
+      expect(screen.getByText(expected)).toBeOnTheScreen();
+      expect(
+        screen.getByText(
+          googleAccount ??
+            (locale === 'ar'
+              ? 'حساب مصاريفي وراتبي'
+              : 'Masarifi & Ratibi account')
+        )
+      ).toBeOnTheScreen();
+      expect(JSON.stringify(screen.toJSON())).not.toContain(
+        'user_fabricated_subject'
+      );
+      expect(screen.queryByText('editable@example.test')).toBeNull();
+      expect(screen.queryByText(/user(\.ar)?@masarifi\.app/)).toBeNull();
+    }
+  );
+
+  it('keeps public fallbacks during a delayed profile read and after its failure', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    let fail!: (error: Error) => void;
+    jest.spyOn(settingsService, 'getProfile').mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      })
+    );
+    renderWithProviders(<MoreRoute />);
+    expect(screen.getByText('Masarifi & Ratibi User')).toBeOnTheScreen();
+    await act(async () => fail(new Error('offline')));
+    expect(screen.getByText('Masarifi & Ratibi User')).toBeOnTheScreen();
+    expect(screen.getByText('Masarifi & Ratibi account')).toBeOnTheScreen();
+    expect(JSON.stringify(screen.toJSON())).not.toContain(
+      'user_fabricated_subject'
+    );
+  });
+
+  it('renders a complete Unicode character as the account initial', () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    renderWithQueryData(<MoreRoute />, [
+      [settingsKeys.profile(), { ...publicProfile, name: '𐐀 Person' }]
+    ]);
+    expect(screen.getByText('𐐀')).toBeOnTheScreen();
+  });
+
+  it('discards a late previous-owner profile after the identity cache is reset', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    mockClerkName.mockReturnValue('Previous Provider');
+    let finish!: (profile: UserProfile) => void;
+    jest
+      .spyOn(settingsService, 'getProfile')
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+      )
+      .mockResolvedValue({ ...publicProfile, name: 'Next Person' });
+    renderWithProviders(<MoreRoute />);
+    expect(screen.getByText('Previous Provider')).toBeOnTheScreen();
+    await act(async () => {
+      await resetRuntimeIdentityData();
+      useAppShellStore.setState({
+        session: {
+          ...authenticatedSession,
+          userId: 'user_next_subject',
+          method: 'google'
+        }
+      });
+    });
+    expect(screen.queryByText('Previous Provider')).toBeNull();
+    await act(async () =>
+      finish({ ...publicProfile, name: 'Previous Person' })
+    );
+    await waitFor(() =>
+      expect(screen.getByText('Next Person')).toBeOnTheScreen()
+    );
+    expect(screen.queryByText('Previous Person')).toBeNull();
+  });
+
+  it('updates More and shared initials after a versioned profile edit through query invalidation', async () => {
+    changeLocale('en');
+    useAppShellStore.setState({
+      session: {
+        ...authenticatedSession,
+        userId: 'user_fabricated_subject',
+        method: 'google'
+      }
+    });
+    let saved = publicProfile;
+    jest
+      .spyOn(settingsService, 'getProfile')
+      .mockImplementation(async () => saved);
+    jest
+      .spyOn(settingsService, 'saveProfile')
+      .mockImplementation(async (input, expectedVersion) => {
+        if (expectedVersion !== saved.version)
+          throw new Error('PROFILE_VERSION_CONFLICT');
+        saved = { ...saved, ...input, version: saved.version + 1 };
+        return { value: saved, affectedScopes: ['settings.profile'] };
+      });
+    renderWithProviders(
+      <>
+        <MoreRoute />
+        <PrimaryShellHeader origin="/(tabs)/home">{null}</PrimaryShellHeader>
+        <ProfileScreen />
+      </>
+    );
+    await screen.findByDisplayValue('Saved Person');
+    expect(screen.getByText('SP')).toBeOnTheScreen();
+    fireEvent.changeText(
+      screen.getByLabelText(translate('settings.profile.name')),
+      'Edited Person'
+    );
+    fireEvent.press(screen.getByText(translate('settings.profile.save')));
+    await screen.findByText('Edited Person');
+    expect(await screen.findByText('EP')).toBeOnTheScreen();
+    expect(screen.queryByText('Saved Person')).toBeNull();
+  });
+
   it('renders every primary and representative secondary destination', async () => {
     const home = renderWithProviders(<HomeRoute />);
     expect(
@@ -168,9 +369,6 @@ describe('navigation journey', () => {
     reports.unmount();
 
     const more = renderWithProviders(<MoreRoute />);
-    expect(
-      screen.getByLabelText(translate('appShell.shell.security'))
-    ).toBeOnTheScreen();
     for (const [label, route] of [
       [translate('appShell.shell.profile'), '/profile'],
       [translate('appShell.shell.security'), '/security/settings'],
@@ -198,6 +396,32 @@ describe('navigation journey', () => {
     assistant.unmount();
   });
 
+  it('shows the reset entry and standard sheet immediately while owner state loads in the background', async () => {
+    useAppShellStore.setState({ session: authenticatedSession });
+    jest.spyOn(financialReset, 'financialResetRuntimeAvailable').mockReturnValue(true);
+    let confirm!: () => void;
+    jest.spyOn(financialReset, 'loadFinancialResetOperation').mockResolvedValue(null);
+    const read = jest.spyOn(financialReset, 'fetchFinancialResetState').mockImplementation(() => new Promise(resolve => {
+      confirm = () => resolve({ generation: 0, status: 'ready', resetAt: null, requestId: null });
+    }));
+    renderWithProviders(<MoreRoute />);
+    const label = translate('financialReset.title');
+    expect(screen.getByText(label)).toBeOnTheScreen();
+    const links = screen.getAllByRole('link').map(link => link.props.accessibilityLabel);
+    const tracking = links.indexOf(translate('tracking.action.openTracking'));
+    expect(tracking).toBeGreaterThanOrEqual(0);
+    expect(links[tracking + 1]).toContain(label);
+    fireEvent.press(screen.getByLabelText(links[tracking + 1]));
+    expect(screen.getByTestId('app-sheet-menu')).toBeOnTheScreen();
+    expect(screen.getByText(translate('financialReset.confirmMessage'))).toBeOnTheScreen();
+    const submit = screen.getByRole('button', { name: translate('financialReset.submit') });
+    expect(submit).toBeDisabled();
+    await act(async () => confirm());
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalledWith('/financial-reset');
+  });
+
   it('makes More the directory for every relocated secondary destination', async () => {
     useAppShellStore.setState({ profilePromptDismissed: true });
     renderWithProviders(<MoreRoute />);
@@ -213,7 +437,6 @@ describe('navigation journey', () => {
     for (const [label, route] of [
       [translate('appShell.shell.accounts'), '/accounts'],
       [translate('coreFinance.action.categories'), '/categories'],
-      [translate('planning.savings.title'), '/savings'],
       [translate('planning.salary.title'), '/salary'],
       [translate('planning.obligations.title'), '/obligations'],
       [translate('appShell.shell.assistant'), '/assistant'],
@@ -226,6 +449,9 @@ describe('navigation journey', () => {
 
     expect(
       screen.queryByLabelText(translate('planning.budgets.title'))
+    ).toBeNull();
+    expect(
+      screen.queryByLabelText(translate('planning.savings.title'))
     ).toBeNull();
   });
 
@@ -245,11 +471,14 @@ describe('navigation journey', () => {
     expect(router.replace).toHaveBeenCalledWith('/(public)/auth-pending');
   });
 
-  it('keeps the client demo profile separate from subscriptions', () => {
+  it('keeps the client demo public profile separate from subscriptions', async () => {
     useAppShellStore.setState({ session: createClientDemoSession(Date.now()) });
     const more = renderWithProviders(<MoreRoute />);
 
-    expect(screen.getAllByText('client-demo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('client-demo')).toBeNull();
+    expect(
+      await screen.findByText(translate('appShell.more.defaultUserEmail'))
+    ).toBeOnTheScreen();
     expect(
       screen.queryByLabelText(
         `client-demo, ${translate('appShell.more.planBasic')}`
@@ -307,7 +536,7 @@ describe('navigation journey', () => {
     fireEvent.press(
       await screen.findByLabelText(translate('appShell.navigation.back'))
     );
-    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/reports');
+    expect(router.dismissTo).toHaveBeenCalledWith('/(tabs)/reports');
   });
 
   it('returns from Reports to its sanitized primary origin', () => {
@@ -330,14 +559,30 @@ describe('navigation journey', () => {
     expect(router.navigate).toHaveBeenCalledWith('/(tabs)/home');
   });
 
-  it('opens notification preferences from the main settings group', () => {
-    renderWithProviders(<MoreRoute />);
-
-    fireEvent.press(
-      screen.getByLabelText(translate('appShell.shell.notifications'))
-    );
-    expect(router.push).toHaveBeenCalledWith('/notifications/preferences');
-  });
+  it.each(['en', 'ar'] as const)(
+    'opens Security Settings from More while notification preferences stay hidden (%s)',
+    (locale) => {
+      changeLocale(locale);
+      renderWithProviders(<MoreRoute />);
+      expect(
+        screen.queryByLabelText(translate('appShell.shell.notifications'))
+      ).toBeNull();
+      const securityLink = screen.getByRole('link', {
+        name: translate('appShell.shell.security')
+      });
+      expect(securityLink).toBeOnTheScreen();
+      fireEvent.press(securityLink);
+      expect(router.push).toHaveBeenCalledWith('/security/settings');
+      expect(
+        screen.getByRole('link', {
+          name: translate('tracking.action.openTracking')
+        })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: translate('appShell.auth.signOut') })
+      ).toBeTruthy();
+    }
+  );
 
   it('opens assistant from More and announces disabled and limit states', async () => {
     mockAssistantQueries.useAssistantConsent.mockReturnValue({

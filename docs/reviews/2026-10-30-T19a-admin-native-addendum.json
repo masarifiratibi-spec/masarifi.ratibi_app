@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "actionSet": "T19A-ADMIN-NATIVE-ONE",
+  "humanApprovalRecorded": false,
+  "purpose": "One native Staging Admin promotion for the already approved single synthetic feedback workflow",
+  "artifactSha256": "9dedc6f7c701fe4929c2ec58803413853d3aa00261e955e44159d2e409c8e753",
+  "buildId": "-LWm9OdcQ7tGhi1ELl0cy",
+  "publicReleaseSha256": "9e6223b3fa86a724b00df74eecbc72035f19903345c0cce859ec0dd03420a500",
+  "candidateUnitSha256": "572ab001d3149ffc9681e3802e0f8d98a0909f9c375170a21be53cf84dbf020c",
+  "oldUnitSha256": "2359cea51f0d4ca3f52406887e2da1fb301598ef38c7ddaaceae553e99fe0066",
+  "environmentFileSha256": "a31b61e8c034e2f9585f98f08ebeb18b40ce1cc0aacdf0e6d87782958d13b9d7",
+  "untouchedDockerServicesSha256": "2042707817c7bff49047f1f1ffca89850796eb8d1a41f8a939e518868bfe82e8",
+  "nginxPath": "/etc/nginx/sites-enabled/masarifi-staging",
+  "nginxResolvedPath": "/etc/nginx/sites-available/masarifi-staging",
+  "nginxBeforeSha256": "1f4ebba134ca22dd28c7f41fda44972061cb6d9f4e3dde304ed4b017867f8990",
+  "nginxAfterSha256": "505550ae24314713931932106abba57ea20a3ece7c3eb2a67c3e836366e0644c",
+  "nginxMetadata": {
+    "mode": 420,
+    "uid": 0,
+    "gid": 0
+  },
+  "oldNativePid": 3725633,
+  "oldNativeService": "masarifi-admin-recovery-ui-01ae6311.service",
+  "candidateService": "masarifi-admin-feedback-a7d21c42-01.service",
+  "candidateDirectory": "/opt/masarifi/admin-releases/t19a-feedback-a7d21c42-01/apps/admin-web",
+  "productionFiles": [
+    {
+      "path": "src/features/communications/CommunicationRoutes.tsx",
+      "sha256": "068bdf70ec60c0b7dd8fecc9b413206abdfa180c2f4e165991d6387b2fae477d"
+    },
+    {
+      "path": "src/features/communications/shared/OperationalFilters.tsx",
+      "sha256": "b4ce12910e730c5783c18a9c449f939d32dd8c1d794be70378e23be404b9fda5"
+    },
+    {
+      "path": "src/core/localization/display-labels.ts",
+      "sha256": "05795a06820d672c5092694999b1a0d9d8a355da4c2725654990f3e1b28b6f79"
+    },
+    {
+      "path": "src/features/security/SecurityViews.tsx",
+      "sha256": "3bcd4310b07af9b98c3eb304ac6f8c797a136bce4ed78632dad42d9e61bcf0f4"
+    }
+  ],
+  "applicationServerStarted": false,
+  "nginxChanged": false,
+  "unitSyntaxPassed": true,
+  "currentNginxSyntaxPassed": true,
+  "sourceDependencyClosureRepaired": true,
+  "otherDockerServices": 36,
+  "runtimeProposalSha256": "efccecbbac8018ba8115b9f9c39efc42a08b8a5a21900d8bbde0045d133b053d",
+  "baseCommit": "01ae6311444cee597bda76c20c55399fd6fd913d",
+  "overlayCommit": "a7d21c42ccfa3bd24868e8e5354b008240231bd0",
+  "testOnlyMonorepoClosure": [
+    {
+      "path": "apps/api/src/reports/reports.admin.ts",
+      "sha256": "8d84a76a4a1a21fa3c734da656f8fcea67d1d5b457e3b9ca1a60f00bf0270efb"
+    },
+    {
+      "path": "apps/api/src/reports/reports.admin-types.ts",
+      "sha256": "cd6ab17f290a3499c10289acb0c43365546c355f08554000ba3828668fc4a28c"
+    }
+  ],
+  "scope": {
+    "nativeServicesStarted": 1,
+    "oldAdminKeptRunning": true,
+    "oneNginxUpstreamChange": {
+      "from": "http://[::1]:3036",
+      "to": "http://[::1]:3037"
+    },
+    "apiImageUnchanged": "sha256:4bcd2e7fbdc31060df6614b41f9ca19a13f48a65b50d1ba9ce34abbd357bf9f9",
+    "dockerServicesUnchanged": 36,
+    "environmentAndClerkUnchanged": true,
+    "securityControlsRetained": true,
+    "newUnitResources": {
+      "memoryMaxMiB": 1200,
+      "cpuPercent": 50,
+      "tasksMax": 128,
+      "stopTimeoutSeconds": 30,
+      "sendSigkill": false
+    },
+    "handoverDeadlineSeconds": 120,
+    "beginRollbackBySeconds": 70,
+    "freshClientDataNativeApkMetroGateRequired": true,
+    "hostMinimumAvailableMiB": 1400,
+    "diskMinimumFreeGiB": 15,
+    "rollback": "Restore exact old Nginx bytes, validate and reload; retain original3036 Admin running. Gracefully stop only the candidate without SIGKILL. Preserve all receipts/artifacts.",
+    "financialMutations": 0,
+    "newFeedbackRecords": 0,
+    "newPdfRequests": 0,
+    "newPdfDownloads": 0,
+    "zipRequests": 0,
+    "consumerWindows": 0,
+    "providerQuestions": 0,
+    "databaseMigrationsOrGrants": 0,
+    "roleChanges": 0,
+    "productionChanges": 0,
+    "postHealthActions": "Only the previously approved existing feedback review, plan, resolve, close sequence, plus read-only owner/Admin confirmation."
+  },
+  "validation": {
+    "candidateTestsPassed": 8,
+    "strictNextTypesPassed": true,
+    "staticPagesGenerated": 85,
+    "buildDependenciesInstalled": 0,
+    "sourceBaseline": "555 tracked files match deployed baseline;552 differ only by CRLF representation,3 raw exact; public release marker updated separately.",
+    "candidateApplicationStarted": false,
+    "nginxCurrentSyntaxPassed": true,
+    "unitSyntaxPassed": true,
+    "originalAdminAnd36DockerUnchanged": true
+  }
+}

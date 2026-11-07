@@ -1,0 +1,42 @@
+{
+  "reviewer": "fresh independent /root/astra_t03_review, gpt-6-astra high",
+  "quality": "REQUEST_CHANGES",
+  "spec": "BLOCKED",
+  "candidateManifestSha256": "DEB03FF62DF335D95456F90A4288910727B1BFCB419DC823CBC2C89FB8D4A568",
+  "findings": [
+    {
+      "priority": 1,
+      "title": "Reconnected direct PATCH bypasses unresolved per-resource queue",
+      "files": [
+        "apps/mobile/src/services/core-finance-runtime.ts:831",
+        "apps/mobile/src/services/live/core-finance-service.ts:840"
+      ],
+      "publicRepro": {
+        "directPatchCount": 1,
+        "unresolvedQueuedCount": 1,
+        "returnedSave": true
+      },
+      "required": "Durable owner/resource queue authority before fresh direct PATCH, reconstruction and race regression; no unrelated drain"
+    },
+    {
+      "priority": 2,
+      "title": "New receipt follow-up lacks background cancellation",
+      "file": "apps/mobile/src/services/live/core-finance-service.ts:1339",
+      "required": "Cancel only new follow-up on lifecycle change, retain pending identity, cleanup timers/listeners, resume through existing foreground entry"
+    }
+  ],
+  "verification": {
+    "suites": 6,
+    "passed": 292,
+    "failed": 0,
+    "seconds": 21.447,
+    "serial": false,
+    "note": "npm wrapper stripped runInBand; default Jest execution, no forceExit/skips",
+    "independentP1Regression": "failed as expected; 86 filtered-out cases; in-memory runner, no source/evidence edits",
+    "sourceHashesMatched": 15,
+    "baselineHashesMatched": 21,
+    "phoneImagesInspected": true
+  },
+  "acceptedExceptions": "T02 long-stage exceptions preserved; no full-device or hosted acceptance",
+  "next": "Same Sol correction round only; no T04"
+}

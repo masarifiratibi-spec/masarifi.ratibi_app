@@ -1,4 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
+import { getCurrencyMinorUnitScale } from '@/domain/currencies';
+import { useReportAnchorDate } from './useReportAnchorDate';
+import React, { useContext, useMemo, useState } from 'react';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   Pressable,
   ScrollView,
@@ -21,7 +27,6 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { AppIcon, IconBadge } from '@/design-system/icons';
 import {
-  colorTokens,
   elevation,
   minTouchTarget,
   radius,
@@ -40,7 +45,7 @@ import {
   useHomeSummary
 } from '@/features/core-finance/core-finance-queries';
 import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
-import type { DatePeriod } from '@/features/filters/date-period';
+import { formatDaySpan, type DatePeriod } from '@/features/filters/date-period';
 import { translate, translateDynamic } from '@/localization/i18n';
 import {
   applyAccountScope,
@@ -56,6 +61,8 @@ import {
   useReport,
   useReportInput
 } from './report-queries';
+import { ReportPdfExport } from './ReportPdfExport';
+import { ReportLocalStatus } from './ReportLocalStatus';
 
 const timeframeOptions: readonly [ReportTimeframe, string][] = [
   ['week', '1W'],
@@ -66,17 +73,21 @@ const timeframeOptions: readonly [ReportTimeframe, string][] = [
 ];
 
 export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
+  const insets = useContext(SafeAreaInsetsContext);
+  const anchorDate = useReportAnchorDate();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const timeZone = usePreferenceStore((state) => state.timeZone);
-  const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
+  const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
+  const baseCurrencyCode = usePreferenceStore(
+    (state) => state.baseCurrencyCode
+  );
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const selectedAccountId = useCoreFinanceViewState(
     (state) => state.selectedAccountId
   );
-  const { anchorDate, scrollOffset, setPeriod, setScrollOffset } =
-    useReportsViewState();
+  const { scrollOffset, setPeriod, setScrollOffset } = useReportsViewState();
   const { fontScale, width } = useWindowDimensions();
   const stackMetrics = width < 350 || fontScale >= 1.6;
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
@@ -87,13 +98,18 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   const selectedAccount = accounts.data?.find(
     (account: Account) => account.id === selectedAccountId
   );
+  const currencyCode = selectedAccount?.currencyCode ?? baseCurrencyCode;
   const home = useHomeSummary(
     currencyCode,
     applyAccountScope(emptyTransactionFilters, selectedAccountId)
   );
-  const reportQuery = useReport(
-    useReportInput('monthly', anchorDate, currencyCode, accountIds)
+  const reportInput = useReportInput(
+    'monthly',
+    anchorDate,
+    currencyCode,
+    accountIds
   );
+  const reportQuery = useReport(reportInput);
   const trendQuery = useNetWorthTrend({
     accountIds,
     anchorDate,
@@ -101,98 +117,158 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     timeframe
   });
   const period = useMemo(
-    () => monthDatePeriod(anchorDate, timeZone),
-    [anchorDate, timeZone]
+    () => monthDatePeriod(anchorDate, timeZone, monthStartDay),
+    [anchorDate, timeZone, monthStartDay]
   );
 
+  const onPerformanceLayout = useScreenPerformance(
+    'reports',
+    [accounts, home, reportQuery, trendQuery],
+    JSON.stringify(reportInput) + timeframe
+  );
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.colors.surfaces.page }}
-      contentOffset={{ x: 0, y: scrollOffset }}
-      contentContainerStyle={styles.page}
-      onMomentumScrollEnd={(event) =>
-        setScrollOffset(event.nativeEvent.contentOffset.y)
-      }
-      onScrollEndDrag={(event) =>
-        setScrollOffset(event.nativeEvent.contentOffset.y)
-      }
+    <View
+      onLayout={onPerformanceLayout}
+      style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}
     >
-      <View style={styles.ltrCanvas}>
-        <AnalyticsHeader direction={direction} onBack={onBack} />
-        <View
-          style={[
-            styles.selectorRow,
-            {
-              direction: 'ltr',
-              flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
-            }
-          ]}
-        >
-          <Selector
+      <ScrollView
+        style={{ backgroundColor: theme.colors.surfaces.page }}
+        contentOffset={{ x: 0, y: scrollOffset }}
+        contentContainerStyle={[
+          styles.page,
+          {
+            paddingBottom:
+              Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm
+          }
+        ]}
+        onMomentumScrollEnd={(event) =>
+          setScrollOffset(event.nativeEvent.contentOffset.y)
+        }
+        onScrollEndDrag={(event) =>
+          setScrollOffset(event.nativeEvent.contentOffset.y)
+        }
+      >
+        <View style={styles.ltrCanvas}>
+          <AnalyticsHeader direction={direction} onBack={onBack} />
+          <FinancialRefreshStatus query={reportQuery} />
+          <ReportLocalStatus report={reportQuery.data} />
+          <View
+            style={[
+              styles.selectorRow,
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
+              }
+            ]}
+          >
+            <Selector
+              direction={direction}
+              label={
+                selectedAccount?.name ??
+                translate('coreFinance.home.allAccounts')
+              }
+              onPress={() => setAccountSheetOpen(true)}
+            />
+            <Selector
+              accent
+              direction={direction}
+              label={
+                monthStartDay === 1
+                  ? formatMonthLabel(anchorDate, locale, timeZone)
+                  : formatDaySpan(
+                      period.periodStart,
+                      period.periodEnd,
+                      locale,
+                      timeZone
+                    )
+              }
+              onPress={() => setDateSheetOpen(true)}
+            />
+          </View>
+
+          {!reportQuery.data && !reportQuery.isPending ? (
+            <StateView
+              state="error"
+              title={translate('reports.state.error')}
+              actionLabel={translate('reports.action.retry')}
+              onAction={() => {
+                void reportQuery.refetch();
+                void home.refetch();
+                void trendQuery.refetch();
+              }}
+            />
+          ) : (
+            <AnalyticsContent
+              direction={direction}
+              hidden={hideBalances}
+              currencyCode={currencyCode}
+              report={reportQuery.data}
+              netWorthMinor={
+                reportQuery.data
+                  ? (trendQuery.data?.at(-1)?.minorUnits ??
+                    home.data?.totalBalanceMinor ??
+                    null)
+                  : null
+              }
+              stackMetrics={stackMetrics}
+              timeframe={timeframe}
+              trend={reportQuery.data ? (trendQuery.data ?? []) : []}
+              trendPending={reportQuery.isPending || trendQuery.isPending}
+              trendFeedback={
+                trendQuery.isError && hasReadableSnapshot(trendQuery) ? (
+                  <FinancialRefreshStatus query={trendQuery} />
+                ) : trendQuery.isError ? (
+                  <StateView
+                    state="error"
+                    title={translate('reports.state.error')}
+                    actionLabel={translate('reports.action.retry')}
+                    onAction={() => void trendQuery.refetch()}
+                  />
+                ) : undefined
+              }
+              onTimeframeChange={setTimeframe}
+            />
+          )}
+          <AssistantActions
+            accountName={selectedAccountId ? selectedAccount?.name : null}
             direction={direction}
-            label={
-              selectedAccount?.name ?? translate('coreFinance.home.allAccounts')
+            report={
+              reportQuery.data ?? {
+                key: `monthly:${anchorDate}:${currencyCode}:${timeZone}${selectedAccountId ? `:${selectedAccountId}` : ''}`,
+                period: {
+                  startDate: localDateInTimeZone(period.periodStart, timeZone),
+                  endDate: localDateInTimeZone(period.periodEnd, timeZone)
+                },
+                currencyCode
+              }
             }
-            onPress={() => setAccountSheetOpen(true)}
-          />
-          <Selector
-            accent
-            direction={direction}
-            label={formatMonthLabel(anchorDate, locale, timeZone)}
-            onPress={() => setDateSheetOpen(true)}
+            stacked={stackMetrics}
           />
         </View>
 
-        {reportQuery.isLoading || home.isLoading ? (
-          <StateView
-            state="loading"
-            title={translate('reports.state.loading')}
-          />
-        ) : reportQuery.isError || home.isError || !reportQuery.data ? (
-          <StateView
-            state="error"
-            title={translate('reports.state.error')}
-            actionLabel={translate('reports.action.retry')}
-            onAction={() => {
-              void reportQuery.refetch();
-              void home.refetch();
-              void trendQuery.refetch();
-            }}
-          />
-        ) : (
-          <AnalyticsContent
-            direction={direction}
-            hidden={hideBalances}
-            report={reportQuery.data}
-            netWorthMinor={
-              trendQuery.data?.at(-1)?.minorUnits ??
-              home.data?.totalBalanceMinor ??
-              0
-            }
-            stackMetrics={stackMetrics}
-            timeframe={timeframe}
-            trend={trendQuery.data ?? []}
-            onTimeframeChange={setTimeframe}
-          />
-        )}
-      </View>
-
-      <AccountScopeSheet
-        visible={accountSheetOpen}
-        onDismiss={() => setAccountSheetOpen(false)}
+        <AccountScopeSheet
+          visible={accountSheetOpen}
+          onDismiss={() => setAccountSheetOpen(false)}
+        />
+        <DateRangeSheet
+          visible={dateSheetOpen}
+          period={period}
+          monthlyOnly
+          onApply={(next) => {
+            if (next.kind !== 'month') return;
+            setPeriod(
+              'monthly',
+              localDateInTimeZone(next.periodEnd, timeZone) as LocalDate
+            );
+          }}
+          onDismiss={() => setDateSheetOpen(false)}
+        />
+      </ScrollView>
+      <ReportPdfExport
+        input={reportInput}
+        offline={reportQuery.data?.dataState === 'offline'}
       />
-      <DateRangeSheet
-        visible={dateSheetOpen}
-        period={period}
-        onApply={(next) =>
-          setPeriod(
-            'monthly',
-            localDateInTimeZone(next.periodEnd, timeZone) as LocalDate
-          )
-        }
-        onDismiss={() => setDateSheetOpen(false)}
-      />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -203,6 +279,7 @@ function AnalyticsHeader({
   direction: 'ltr' | 'rtl';
   onBack?: () => void;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={[
@@ -223,10 +300,10 @@ function AnalyticsHeader({
         >
           <AppIcon
             name="back"
-            direction="ltr"
+            direction={direction}
             label={translate('appShell.navigation.back')}
             size="md"
-            color={colorTokens.ink['900']}
+            color={theme.colors.content.primary}
             decorative
           />
         </Pressable>
@@ -236,6 +313,7 @@ function AnalyticsHeader({
         style={[
           styles.screenTitle,
           {
+            color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'right' : 'left',
             writingDirection: direction
           }
@@ -276,7 +354,7 @@ function Selector({
         name="chevronDown"
         label={label}
         size="sm"
-        color={accent ? theme.colors.status.sync : theme.colors.content.muted}
+        color={accent ? theme.colors.content.link : theme.colors.content.muted}
         decorative
       />
       <Text
@@ -284,7 +362,7 @@ function Selector({
           styles.selectorText,
           {
             color: accent
-              ? theme.colors.status.sync
+              ? theme.colors.content.link
               : theme.colors.content.primary,
             writingDirection: direction
           }
@@ -296,7 +374,25 @@ function Selector({
   );
 }
 
+function ReportCard({ style, ...props }: React.ComponentProps<typeof View>) {
+  const theme = useTheme();
+  return (
+    <View
+      {...props}
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.borders.default
+        },
+        style
+      ]}
+    />
+  );
+}
+
 function AnalyticsContent({
+  currencyCode,
   direction,
   hidden,
   netWorthMinor,
@@ -304,41 +400,50 @@ function AnalyticsContent({
   report,
   stackMetrics,
   timeframe,
-  trend
+  trend,
+  trendPending,
+  trendFeedback
 }: {
+  currencyCode: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  netWorthMinor: number;
+  netWorthMinor: number | null;
   onTimeframeChange: (value: ReportTimeframe) => void;
-  report: FinancialReport;
+  report?: FinancialReport;
   stackMetrics: boolean;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendPending: boolean;
+  trendFeedback?: React.ReactNode;
 }) {
-  const income = report.summary.income.value?.minorUnits ?? 0;
-  const expense = report.summary.expense.value?.minorUnits ?? 0;
-  const netCashFlow = report.summary.netCashFlow.value?.minorUnits ?? 0;
-  const savingsRate =
-    report.summary.savingsRateBasisPoints.value ??
-    (income > 0 ? Math.round((netCashFlow * 10_000) / income) : null);
-  const budgetBreakdown = report.breakdowns.find(
+  const currency = report?.currencyCode ?? currencyCode;
+  const income = report?.summary.income.value?.minorUnits ?? null;
+  const expense = report?.summary.expense.value?.minorUnits ?? null;
+  const netCashFlow = report?.summary.netCashFlow.value?.minorUnits ?? null;
+  const savingsRate = report?.summary.savingsRateBasisPoints.value ?? null;
+  const budgetBreakdown = report?.breakdowns.find(
     (breakdown) => breakdown.dimension === 'budget'
   );
-  const budgetValue = report.insights.find(
+  const budgetValue = report?.insights.find(
     (insight) => insight.kind === 'budget_performance'
   )?.value.value;
   const budgetRemaining =
     typeof budgetValue === 'number' ? undefined : budgetValue?.minorUnits;
 
   return (
-    <View style={styles.contentStack}>
+    <View
+      style={styles.contentStack}
+      accessibilityState={{ busy: report === undefined }}
+    >
       <NetWorthCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
         netWorthMinor={netWorthMinor}
         timeframe={timeframe}
         trend={trend}
+        trendPending={trendPending}
+        trendFeedback={trendFeedback}
         onTimeframeChange={onTimeframeChange}
       />
 
@@ -346,10 +451,11 @@ function AnalyticsContent({
         {translate('reports.analytics.cashFlow')}
       </SectionTitle>
       <ExpenseCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
-        breakdownItems={report.breakdowns[0]?.items ?? []}
+        pending={report === undefined}
+        breakdownItems={report?.breakdowns[0]?.items ?? []}
         value={expense}
       />
       <View
@@ -366,7 +472,7 @@ function AnalyticsContent({
         ]}
       >
         <SmallMetricCard
-          currency={report.currencyCode}
+          currency={currency}
           direction={direction}
           hidden={hidden}
           label={translate('reports.metric.income')}
@@ -374,21 +480,22 @@ function AnalyticsContent({
           value={income}
         />
         <SmallMetricCard
-          currency={report.currencyCode}
+          currency={currency}
           direction={direction}
           hidden={hidden}
           label={translate('reports.metric.netCashFlow')}
-          tone={netCashFlow < 0 ? 'expense' : 'income'}
+          tone={netCashFlow !== null && netCashFlow < 0 ? 'expense' : 'income'}
           value={netCashFlow}
         />
       </View>
 
       <SavingsRateCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         expense={expense}
         hidden={hidden}
         income={income}
+        pending={report === undefined}
         savingsRateBasisPoints={savingsRate}
       />
 
@@ -396,18 +503,13 @@ function AnalyticsContent({
         {translate('reports.analytics.budget')}
       </SectionTitle>
       <BudgetCard
-        currency={report.currencyCode}
+        currency={currency}
         direction={direction}
         hidden={hidden}
+        pending={report === undefined}
         remainingMinor={
           budgetBreakdown?.items.length ? budgetRemaining : undefined
         }
-      />
-
-      <AssistantActions
-        direction={direction}
-        reportKey={report.key}
-        stacked={stackMetrics}
       />
     </View>
   );
@@ -420,24 +522,31 @@ function NetWorthCard({
   netWorthMinor,
   onTimeframeChange,
   timeframe,
-  trend
+  trend,
+  trendPending,
+  trendFeedback
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  netWorthMinor: number;
+  netWorthMinor: number | null;
   onTimeframeChange: (value: ReportTimeframe) => void;
   timeframe: ReportTimeframe;
   trend: readonly { at: number; minorUnits: number }[];
+  trendPending: boolean;
+  trendFeedback?: React.ReactNode;
 }) {
   const theme = useTheme();
   const first = trend[0]?.minorUnits ?? netWorthMinor;
-  const change = netWorthMinor - first;
-  const changePercent = first
-    ? Math.round((change * 10_000) / Math.abs(first)) / 100
-    : null;
+  const change =
+    netWorthMinor !== null && first !== null ? netWorthMinor - first : 0;
+  const changePercent =
+    first !== null &&
+    Math.abs(first) >= 10 ** getCurrencyMinorUnitScale(currency)
+      ? Math.round((change * 10_000) / Math.abs(first)) / 100
+      : null;
   return (
-    <View style={[styles.card, styles.netWorthCard]}>
+    <ReportCard testID="reports-net-worth" style={styles.netWorthCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {translate('reports.analytics.netWorth')}
       </DirectionalText>
@@ -448,36 +557,48 @@ function NetWorthCard({
         size="hero"
         value={netWorthMinor}
       />
-      <View
-        style={[
-          styles.changeBadge,
-          {
-            alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
-            backgroundColor:
-              change < 0
-                ? theme.colors.financial.expenseSurface
-                : theme.colors.financial.incomeSurface
-          }
-        ]}
-      >
-        <Text
+      {trend.length > 0 && netWorthMinor !== null ? (
+        <View
           style={[
-            styles.changeText,
+            styles.changeBadge,
             {
-              color:
+              alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
+              backgroundColor:
                 change < 0
-                  ? theme.colors.financial.expense
-                  : theme.colors.financial.income
+                  ? theme.colors.financial.expenseSurface
+                  : theme.colors.financial.incomeSurface
             }
           ]}
         >
-          {hidden
-            ? translate('designSystem.privacy.hidden')
-            : `${change < 0 ? '▼' : '▲'} ${moneyInline(change, currency)} · ${changePercent === null ? '—' : `${changePercent}%`}`}
-        </Text>
-      </View>
-      <NetWorthLine trend={trend} />
-      <ChartDateLabels direction={direction} trend={trend} />
+          <Text
+            style={[
+              styles.changeText,
+              {
+                color:
+                  change < 0
+                    ? theme.colors.financial.expense
+                    : theme.colors.financial.income
+              }
+            ]}
+          >
+            {hidden
+              ? translate('designSystem.privacy.hidden')
+              : `${change < 0 ? '▼' : '▲'} ${moneyInline(change, currency)} · ${changePercent === null ? '—' : `${changePercent}%`}`}
+          </Text>
+        </View>
+      ) : null}
+      {trendFeedback}
+      {trend.length > 0 ? (
+        <>
+          <NetWorthLine trend={trend} />
+          <ChartDateLabels trend={trend} />
+        </>
+      ) : trendPending ? (
+        <>
+          <View style={styles.chartPlaceholder} />
+          <View style={styles.chartDatesPlaceholder} />
+        </>
+      ) : null}
       <View
         style={[
           styles.timeframeRow,
@@ -498,7 +619,9 @@ function NetWorthCard({
               onPress={() => onTimeframeChange(value)}
               style={[
                 styles.timeframeButton,
-                selected && { backgroundColor: theme.colors.status.sync }
+                selected && {
+                  backgroundColor: theme.colors.interactions.primary
+                }
               ]}
             >
               <Text
@@ -517,7 +640,7 @@ function NetWorthCard({
           );
         })}
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -562,7 +685,7 @@ function NetWorthLine({
       <Path
         d={linePath}
         fill="none"
-        stroke={theme.colors.horizon.heroEnd}
+        stroke={theme.colors.financial.income}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={3}
@@ -570,7 +693,7 @@ function NetWorthLine({
       <Circle
         cx={lastPoint.x}
         cy={lastPoint.y}
-        fill={theme.colors.horizon.heroEnd}
+        fill={theme.colors.financial.income}
         r={4.5}
         stroke={theme.colors.surface}
         strokeWidth={2}
@@ -580,12 +703,11 @@ function NetWorthLine({
 }
 
 function ChartDateLabels({
-  direction,
   trend
 }: {
-  direction: 'ltr' | 'rtl';
   trend: readonly { at: number; minorUnits: number }[];
 }) {
+  const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const formatter = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
@@ -595,11 +717,14 @@ function ChartDateLabels({
   });
   const start = trend[0]?.at;
   const end = trend.at(-1)?.at;
-  const labels = direction === 'rtl' ? [end, start] : [start, end];
+  const labels = [start, end];
   return (
-    <View style={styles.chartDateRow}>
+    <View testID="reports-trend-dates" style={styles.chartDateRow}>
       {labels.map((value, index) => (
-        <Text key={`${value}-${index}`} style={styles.chartDateText}>
+        <Text
+          key={`${value}-${index}`}
+          style={[styles.chartDateText, { color: theme.colors.content.muted }]}
+        >
           {value ? formatter.format(value) : '—'}
         </Text>
       ))}
@@ -612,16 +737,18 @@ function ExpenseCard({
   currency,
   direction,
   hidden,
+  pending,
   value
 }: {
   breakdownItems: readonly ReportBreakdownItem[];
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  value: number;
+  pending: boolean;
+  value: number | null;
 }) {
   return (
-    <View style={[styles.card, styles.expenseCard]}>
+    <ReportCard style={styles.expenseCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {translate('reports.metric.expense')}
       </DirectionalText>
@@ -632,8 +759,12 @@ function ExpenseCard({
         size="large"
         value={value}
       />
-      <MiniBars breakdownItems={breakdownItems} />
-    </View>
+      {pending ? (
+        <View style={styles.miniBars} />
+      ) : (
+        <MiniBars breakdownItems={breakdownItems} />
+      )}
+    </ReportCard>
   );
 }
 
@@ -644,13 +775,18 @@ function MiniBars({
 }) {
   const theme = useTheme();
   const categoryValues = breakdownItems
-    .slice(0, 7)
-    .map((item) => item.value.value?.minorUnits ?? 0);
+    .filter(
+      (item) => item.value.status === 'available' && item.value.value !== null
+    )
+    .map((item) => item.value.value!.minorUnits);
   const max = Math.max(...categoryValues, 1);
-  const bars = Array.from(
-    { length: 7 },
-    (_, index) => categoryValues[index] ?? 0
-  );
+  if (!categoryValues.length)
+    return (
+      <Text style={{ color: theme.colors.content.muted }}>
+        {translate('reports.state.empty')}
+      </Text>
+    );
+  const bars = categoryValues;
   return (
     <View style={styles.miniBars}>
       {bars.map((value, index) => (
@@ -661,8 +797,8 @@ function MiniBars({
             {
               backgroundColor:
                 index === 0
-                  ? theme.colors.horizon.heroEnd
-                  : theme.colors.borders.subtle,
+                  ? theme.colors.financial.income
+                  : theme.colors.content.muted,
               height: 4 + (48 * value) / max
             }
           ]}
@@ -685,12 +821,12 @@ function SmallMetricCard({
   hidden: boolean;
   label: string;
   tone: 'income' | 'expense';
-  value: number;
+  value: number | null;
 }) {
   const theme = useTheme();
   const color = theme.colors.financial[tone];
   return (
-    <View style={[styles.card, styles.smallMetricCard]}>
+    <ReportCard style={styles.smallMetricCard}>
       <DirectionalText direction={direction} style={styles.cardLabel} muted>
         {label}
       </DirectionalText>
@@ -702,7 +838,7 @@ function SmallMetricCard({
         size="large"
         value={value}
       />
-      {tone === 'expense' && value < 0 ? (
+      {tone === 'expense' && value !== null && value < 0 ? (
         <DirectionalText
           direction={direction}
           style={[styles.negativeLabel, { color }]}
@@ -710,10 +846,15 @@ function SmallMetricCard({
           {translate('reports.analytics.negative')}
         </DirectionalText>
       ) : null}
-      <View style={styles.metricTrack}>
+      <View
+        style={[
+          styles.metricTrack,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <View style={[styles.metricProgress, { backgroundColor: color }]} />
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -723,13 +864,15 @@ function SavingsRateCard({
   expense,
   hidden,
   income,
+  pending,
   savingsRateBasisPoints
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
-  expense: number;
+  expense: number | null;
   hidden: boolean;
-  income: number;
+  income: number | null;
+  pending: boolean;
   savingsRateBasisPoints: number | null;
 }) {
   const theme = useTheme();
@@ -739,12 +882,7 @@ function SavingsRateCard({
       : Math.round(savingsRateBasisPoints / 100);
   const progress = Math.min(100, Math.abs(percentage ?? 0));
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={translate('reports.analytics.savingsRate')}
-      onPress={() => router.push('/savings')}
-      style={[styles.card, styles.savingsCard]}
-    >
+    <ReportCard style={styles.savingsCard}>
       <View
         style={[
           styles.savingsTop,
@@ -767,7 +905,12 @@ function SavingsRateCard({
               }
             ]}
           >
-            <Text style={styles.savingsPercent}>
+            <Text
+              style={[
+                styles.savingsPercent,
+                { color: theme.colors.content.primary }
+              ]}
+            >
               {hidden
                 ? '••••'
                 : percentage === null
@@ -792,7 +935,12 @@ function SavingsRateCard({
           decorative
         />
       </View>
-      <View style={styles.savingsTrack}>
+      <View
+        style={[
+          styles.savingsTrack,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <View
           style={[
             styles.savingsProgress,
@@ -809,12 +957,16 @@ function SavingsRateCard({
       <DirectionalText direction={direction} style={styles.savingsFooter} muted>
         {hidden
           ? translate('designSystem.privacy.hidden')
-          : translateDynamic('reports.analytics.spentOfIncome', {
-              expense: moneyInline(expense, currency),
-              income: moneyInline(income, currency)
-            })}
+          : pending
+            ? '—'
+            : expense === null || income === null
+              ? translate('reports.state.unavailable')
+              : translateDynamic('reports.analytics.spentOfIncome', {
+                  expense: moneyInline(expense, currency),
+                  income: moneyInline(income, currency)
+                })}
       </DirectionalText>
-    </Pressable>
+    </ReportCard>
   );
 }
 
@@ -822,18 +974,21 @@ function BudgetCard({
   currency,
   direction,
   hidden,
+  pending,
   remainingMinor
 }: {
   currency: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
+  pending: boolean;
   remainingMinor?: number;
 }) {
   const theme = useTheme();
   const hasBudget = remainingMinor !== undefined;
-  const label = hasBudget
-    ? translate('reports.insight.budget_performance')
-    : translate('reports.analytics.setBudget');
+  const label =
+    pending || hasBudget
+      ? translate('reports.insight.budget_performance')
+      : translate('reports.analytics.setBudget');
   return (
     <Pressable
       accessibilityRole="button"
@@ -843,17 +998,24 @@ function BudgetCard({
         styles.card,
         styles.navigationCard,
         {
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.borders.default,
           direction: 'ltr',
           flexDirection: direction === 'rtl' ? 'row-reverse' : 'row'
         }
       ]}
     >
-      <View style={styles.addCircle}>
+      <View
+        style={[
+          styles.addCircle,
+          { backgroundColor: theme.colors.surfaces.inset }
+        ]}
+      >
         <AppIcon
           name="add"
           label={label}
           size="md"
-          color={theme.colors.status.sync}
+          color={theme.colors.content.link}
           decorative
         />
       </View>
@@ -866,15 +1028,19 @@ function BudgetCard({
           style={styles.navigationSubtitle}
           muted
         >
-          {hasBudget
+          {pending
             ? hidden
               ? translate('designSystem.privacy.hidden')
-              : formatMinorAmount(
-                  remainingMinor,
-                  currency,
-                  usePreferenceStore.getState().locale
-                )
-            : translate('reports.analytics.setBudgetHint')}
+              : '—'
+            : hasBudget
+              ? hidden
+                ? translate('designSystem.privacy.hidden')
+                : formatMinorAmount(
+                    remainingMinor,
+                    currency,
+                    usePreferenceStore.getState().locale
+                  )
+              : translate('reports.analytics.setBudgetHint')}
         </DirectionalText>
       </View>
       <AppIcon
@@ -890,12 +1056,16 @@ function BudgetCard({
 }
 
 function AssistantActions({
+  accountName,
   direction,
-  reportKey,
+  report,
   stacked
 }: {
+  accountName: string | null | undefined;
   direction: 'ltr' | 'rtl';
-  reportKey: string;
+  report: Pick<FinancialReport, 'key' | 'currencyCode'> & {
+    period: Pick<FinancialReport['period'], 'startDate' | 'endDate'>;
+  };
   stacked: boolean;
 }) {
   const actions = [
@@ -909,15 +1079,26 @@ function AssistantActions({
   const openAssistant = (action: (typeof actions)[number][0]) =>
     router.push({
       pathname: '/assistant',
-      params: { action, reportKey, returnTo: '/(tabs)/reports' }
+      params: {
+        action,
+        reportKey: report.key,
+        reportContext: JSON.stringify({
+          startDate: report.period.startDate,
+          endDate: report.period.endDate,
+          currencyCode: report.currencyCode,
+          accountName
+        }),
+        returnTo: '/(tabs)/reports'
+      }
     });
 
   return (
-    <View
-      testID="reports-assistant-card"
-      style={[styles.card, styles.assistantCard]}
-    >
-      <View
+    <ReportCard testID="reports-assistant-card" style={styles.assistantCard}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={translate('assistant.hero.title')}
+        disabled={accountName === undefined}
+        onPress={() => openAssistant('explain')}
         style={[
           styles.assistantHeader,
           {
@@ -948,9 +1129,10 @@ function AssistantActions({
             {translate('assistant.hero.subtitle')}
           </DirectionalText>
         </View>
-      </View>
+      </Pressable>
       <ActionButton
         label={translate(primaryAction[1])}
+        disabled={accountName === undefined}
         onPress={() => openAssistant(primaryAction[0])}
       />
       <View
@@ -968,6 +1150,7 @@ function AssistantActions({
         {suggestions.map(([action, labelKey]) => (
           <ActionButton
             key={action}
+            disabled={accountName === undefined}
             label={translate(labelKey)}
             variant="secondary"
             labelStyle={styles.assistantActionLabel}
@@ -978,7 +1161,7 @@ function AssistantActions({
           />
         ))}
       </View>
-    </View>
+    </ReportCard>
   );
 }
 
@@ -1032,7 +1215,7 @@ function DirectionalText({
 
 function ReportAmount({
   align,
-  color = colorTokens.ink['900'],
+  color,
   currency,
   hidden,
   size,
@@ -1043,33 +1226,41 @@ function ReportAmount({
   currency: string;
   hidden: boolean;
   size: 'hero' | 'large';
-  value: number;
+  value: number | null;
 }) {
+  const theme = useTheme();
+  const amountColor = color ?? theme.colors.content.primary;
   const locale = usePreferenceStore((state) => state.locale);
   const formatted = hidden
     ? '••••'
-    : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
+    : value === null
+      ? '—'
+      : formatMinorAmount(value, currency, locale).split('\u00a0')[0];
   return (
     <View
       accessible
       accessibilityLabel={
         hidden
           ? translate('designSystem.privacy.hidden')
-          : formatMinorAmount(value, currency, locale)
+          : value === null
+            ? translate('reports.state.unavailable')
+            : formatMinorAmount(value, currency, locale)
       }
       style={[
         styles.amountRow,
         { alignSelf: align === 'right' ? 'flex-end' : 'flex-start' }
       ]}
     >
-      <Text style={[styles.currencyCode, { color }]}>{currency}</Text>
+      <Text style={[styles.currencyCode, { color: amountColor }]}>
+        {currency}
+      </Text>
       <Text
         adjustsFontSizeToFit
         minimumFontScale={0.62}
         numberOfLines={1}
         style={[
           size === 'hero' ? styles.heroAmount : styles.largeAmount,
-          { color }
+          { color: amountColor }
         ]}
       >
         {formatted}
@@ -1078,17 +1269,21 @@ function ReportAmount({
   );
 }
 
-function monthDatePeriod(anchorDate: LocalDate, timeZone: string): DatePeriod {
+function monthDatePeriod(
+  anchorDate: LocalDate,
+  timeZone: string,
+  monthStartDay: number
+): DatePeriod {
   const boundary = buildFinancialPeriod({
     anchorDate,
-    monthStartDay: 1,
-    preset: 'calendar_month',
+    monthStartDay,
+    preset: 'current_cycle',
     timeZone
   });
   return {
     kind: 'month',
     periodStart: boundary.startInstant,
-    periodEnd: boundary.endInstant - 1
+    periodEnd: boundary.endInstant
   };
 }
 
@@ -1134,7 +1329,6 @@ const styles = StyleSheet.create({
     width: minTouchTarget
   },
   screenTitle: {
-    color: colorTokens.ink['900'],
     flexShrink: 1,
     fontSize: 30,
     fontWeight: '800',
@@ -1161,8 +1355,6 @@ const styles = StyleSheet.create({
   },
   card: {
     ...elevation.card,
-    backgroundColor: colorTokens.surface.white,
-    borderColor: colorTokens.sand['400'],
     borderRadius: radius.card,
     borderWidth: 1
   },
@@ -1217,18 +1409,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     writingDirection: 'ltr'
   },
+  chartPlaceholder: {
+    height: 150
+  },
+  chartDatesPlaceholder: {
+    height: 18
+  },
   chartDateRow: {
+    direction: 'ltr',
     flexDirection: 'row',
     justifyContent: 'space-between'
   },
   chartDateText: {
-    color: colorTokens.ink['500'],
     fontSize: 12,
     lineHeight: 18,
     writingDirection: 'ltr'
   },
   timeframeRow: {
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.xs,
     justifyContent: 'space-between',
     marginTop: spacing.sm
@@ -1286,7 +1485,6 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   metricTrack: {
-    backgroundColor: colorTokens.raw.E0E0E0,
     borderRadius: radius.pill,
     height: 9,
     justifyContent: 'center',
@@ -1314,10 +1512,10 @@ const styles = StyleSheet.create({
   },
   savingsValueRow: {
     alignItems: 'baseline',
+    flexWrap: 'wrap',
     gap: spacing.sm
   },
   savingsPercent: {
-    color: colorTokens.ink['900'],
     fontSize: 34,
     fontVariant: ['tabular-nums'],
     fontWeight: '900',
@@ -1330,7 +1528,6 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   savingsTrack: {
-    backgroundColor: colorTokens.raw.E0E0E0,
     borderRadius: radius.pill,
     height: 8,
     overflow: 'hidden'
@@ -1351,7 +1548,6 @@ const styles = StyleSheet.create({
   },
   addCircle: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw.EAF4F4,
     borderRadius: radius.pill,
     height: 56,
     justifyContent: 'center',

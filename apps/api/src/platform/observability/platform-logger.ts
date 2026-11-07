@@ -1,4 +1,5 @@
 import type { LoggerService } from '@nestjs/common';
+import type { SafeWorkerException } from './worker-error';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -16,6 +17,26 @@ export interface SafeLogFields {
   jobName?: string;
   severity?: string;
   durationMs?: number;
+  attempt?: number;
+  round?: number;
+  readCount?: number;
+  httpStatus?: number;
+  failureStage?: string;
+  exception?: SafeWorkerException;
+  exceptionChain?: SafeWorkerException[];
+  causeTruncated?: boolean;
+  providerCode?: string;
+  workload?: string;
+  modelId?: string;
+  provider?: string;
+  providerReason?: 'UNSPECIFIED_INVALID_ARGUMENT';
+  providerRequestIdHash?: string;
+  rejectedFields?: string[];
+  rejectedKeywords?: string[];
+  extractedEventCount?: number;
+  eligibleEventCount?: number;
+  skippedEventCount?: number;
+  skipReasonCounts?: Record<string, number>;
 }
 
 const levels: Record<LogLevel, number> = {

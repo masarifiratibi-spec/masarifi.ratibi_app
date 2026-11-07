@@ -4,6 +4,7 @@ import { localizedDemoTransactionTitle } from '@/domain/core-finance-seeds';
 import type { Locale } from '@/domain/foundation';
 import { translate } from '@/localization/i18n';
 import { formatDate } from '@/utils/format-financial-value';
+import { getDateFormatter } from '@/utils/intl-formatters';
 
 const localeTags: Record<Locale, string> = {
   ar: 'ar-u-nu-latn',
@@ -25,19 +26,20 @@ export function projectTransaction(
   transaction: Transaction,
   locale: Locale,
   account?: Account,
-  category?: Category
+  category?: Category,
+  timeZone?: string
 ): TransactionPresentation {
   return {
     transaction,
     title:
-      localizedDemoTransactionTitle(transaction.id, locale) ?? transaction.title,
+      localizedDemoTransactionTitle(transaction.id, locale) ?? localizedSystemTitle(transaction, locale),
     accountName: account?.name ?? null,
     categoryName: category
       ? locale === 'ar'
         ? category.labelAr
         : category.labelEn
       : null,
-    dateLabel: formatDate(transaction.occurredAt, locale),
+    dateLabel: formatDate(transaction.occurredAt, locale, timeZone),
     meaning: financialMeaning(transaction),
     sourceLabelKey: `coreFinance.source.${transaction.source}`,
     syncLabelKey:
@@ -52,7 +54,7 @@ export function formatTransactionMonth(
   locale: Locale,
   timeZone: string
 ): string {
-  return new Intl.DateTimeFormat(localeTags[locale], {
+  return getDateFormatter(localeTags[locale], {
     month: 'long',
     year: 'numeric',
     timeZone
@@ -70,7 +72,7 @@ export function formatTransactionTimestamp(
   const yesterday = previousCalendarKey(today);
 
   if (key !== today && key !== yesterday) {
-    return new Intl.DateTimeFormat(localeTags[locale], {
+    return getDateFormatter(localeTags[locale], {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -84,7 +86,7 @@ export function formatTransactionTimestamp(
       : 'coreFinance.ledger.period.yesterday',
     locale
   );
-  const time = new Intl.DateTimeFormat(localeTags[locale], {
+  const time = getDateFormatter(localeTags[locale], {
     hour: '2-digit',
     minute: '2-digit',
     timeZone
@@ -93,7 +95,7 @@ export function formatTransactionTimestamp(
 }
 
 function calendarKey(timestamp: number, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US-u-nu-latn', {
+  const parts = getDateFormatter('en-US-u-nu-latn', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -114,11 +116,21 @@ function previousCalendarKey(key: string): string {
   ].join('-');
 }
 
+function localizedSystemTitle(transaction: Transaction, locale: Locale): string {
+  if (transaction.source === 'adjustment' && transaction.title === 'Opening balance')
+    return translate('coreFinance.accounts.openingBalance', locale);
+  if (transaction.source === 'voice' && transaction.title === 'Voice transaction')
+    return translate('voice.title', locale);
+  return transaction.title;
+}
+
 function financialMeaning(transaction: Transaction): FinancialMeaning {
   if (transaction.type === 'income') return 'income';
   if (transaction.type === 'transfer') return 'transfer';
   if (transaction.type === 'refund') return 'refund';
   if (transaction.type === 'obligation_payment') return 'debt';
   if (transaction.type === 'recurring_payment') return 'expense';
+  if (transaction.type === 'adjustment' || transaction.type === 'reversal')
+    return transaction.adjustmentSign === 1 ? 'income' : 'expense';
   return transaction.amountMinor < 0 ? 'income' : 'expense';
 }

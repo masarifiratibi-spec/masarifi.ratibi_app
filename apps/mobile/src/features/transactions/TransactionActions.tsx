@@ -31,7 +31,7 @@ export function useTransactionActions(
       : null;
   const activeDeletedUntil = undoExpired
     ? null
-    : deletedUntil ?? restoredDeletedUntil;
+    : (deletedUntil ?? restoredDeletedUntil);
   const deleted = transaction.status === 'deleted' || deletedUntil !== null;
 
   useEffect(() => onDeletedChange?.(deleted), [deleted, onDeletedChange]);
@@ -57,7 +57,10 @@ export function useTransactionActions(
                   transaction.id
                 );
                 setDeletedUntil(deletion.undoExpiresAt);
-                await invalidateCoreFinanceScopes(client, deletion.affectedScopes);
+                await invalidateCoreFinanceScopes(
+                  client,
+                  deletion.affectedScopes
+                );
               } catch {
                 setError(translate('coreFinance.state.error'));
               } finally {
@@ -118,21 +121,25 @@ export function useTransactionActions(
 
 export function TransactionActions({
   transaction,
-  onDeletedChange
+  onDeletedChange,
+  variant = 'full'
 }: {
   transaction: Transaction;
   onDeletedChange?: (deleted: boolean) => void;
+  variant?: 'full' | 'delete-only';
 }) {
   const theme = useTheme();
   const actions = useTransactionActions(transaction, onDeletedChange);
   return (
     <>
-      <ActionButton
-        label={translate('support.report.transaction')}
-        variant="secondary"
-        onPress={actions.reportSupport}
-      />
-      {transaction.source === 'automatic' ? (
+      {variant === 'full' ? (
+        <ActionButton
+          label={translate('support.report.transaction')}
+          variant="secondary"
+          onPress={actions.reportSupport}
+        />
+      ) : null}
+      {variant === 'full' && transaction.source === 'automatic' ? (
         <ActionButton
           label={translate('tracking.action.reportWrong')}
           variant="secondary"
@@ -161,7 +168,10 @@ export function TransactionActions({
         </Text>
       ) : null}
       {actions.error ? (
-        <Text accessibilityRole="alert" style={{ color: theme.colors.status.danger }}>
+        <Text
+          accessibilityRole="alert"
+          style={{ color: theme.colors.status.danger }}
+        >
           {actions.error}
         </Text>
       ) : null}

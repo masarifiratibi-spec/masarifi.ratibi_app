@@ -1,4 +1,11 @@
-import { type CanActivate, type ExecutionContext, HttpException, Injectable } from '@nestjs/common';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  HttpException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
@@ -14,6 +21,16 @@ export interface ClerkPrincipal {
 
 export interface ClerkPrincipalRequest extends Request {
   clerkPrincipal?: ClerkPrincipal;
+}
+
+export function isRecentClerkAuthentication(
+  principal: ClerkPrincipal,
+  maximumAgeSeconds: number,
+): boolean {
+  const age = principal.factorAgeSeconds;
+  return (
+    typeof age === 'number' && Number.isSafeInteger(age) && age >= 0 && age <= maximumAgeSeconds
+  );
 }
 
 function authError(
@@ -37,6 +54,23 @@ export class ClerkAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<ClerkPrincipalRequest>();
     request.clerkPrincipal = await this.authenticate(request);
+    const requestId =
+      (request as ClerkPrincipalRequest & { requestId?: string }).requestId ??
+      request.headers['x-request-id'];
+    if (
+      process.env.SUPABASE_URL === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED === 'true' &&
+      /^\/api\/v1\/voice(?:\/|$)/.test(request.originalUrl) &&
+      typeof requestId === 'string' &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)
+    ) {
+      new Logger('VoiceAdmissionDiagnostics').log('voice.auth_binding', {
+        context: 'VoiceAdmissionDiagnostics',
+        failureStage: 'voice-auth',
+        requestId,
+        resourceId: createHash('sha256').update(request.clerkPrincipal.sessionId).digest('hex'),
+      });
+    }
     return true;
   }
 

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "ASSISTANT-RESPONSE-LAYOUT-QA-20261031-04",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "supersedesConsumedScope": "SAUDI-ASSISTANT-QA-20261031-03",
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "runtimePromptSha256": "74dc3fd497b41e8e503df2ff5889441f5b4342a078043d00706141f3b98cca4e",
+  "nginxConfigSha256": "f4da6759b5a8d97cff9ff24a92b58c566415fa4ec180ddd595bb38ee3f9dea69",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Same owner's necessary financial context, including the three explicitly authorized new transactions; no raw client data in Git.",
+  "maxQuestions": 2,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.20",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.18670080",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "كم مصروفاتي المؤكدة في أكتوبر 2026 مقارنة بسبتمبر 2026؟ أبي تفسير مختصر واقتراح توفير مبني على المسجّل.",
+    "Summarize my confirmed spending in October 2026 versus September 2026. Briefly explain a recorded category change and suggest a saving target only if supported. Answer in English."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/runtime/preservation before first admission and configured route before each question.",
+    "Preserve all existing financial rows and planning draft2026-13, including the three authorized transactions. Only approved assistant conversation/message/usage records may be added.",
+    "Do not execute financial action, permission change, migration, quota increase, native capture or additional delivery."
+  ],
+  "evidence": "New durable intent before Send; actual same-owner job/provider/prompt/cost receipts, typed metadata and native UI, current confirmed records, no financial writes. Scope03 stays closed.",
+  "authority": "Requires current human approval of this new scope; implementation/deployment authorization is already granted.",
+  "baseWorkerImage": "sha256:4b45280ee49b3e8a463f3ce27c1567ec6894422650e7b32d656b6ad243b0da21",
+  "runtimeModuleSha256": "d58fb802ef1bf7c9e0e5b1623bae62a6d54f6cc81857626a71a67ed9a60f1cc7",
+  "runtimeHelperSha256": "d042c7a8f69143e600ebc41c671b0287405e9a612cea7c17b82176d1ec41f8ed",
+  "qualifiedWorkerImageRequiredBeforeFirstAdmission": true
+}

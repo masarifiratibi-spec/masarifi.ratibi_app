@@ -1,3 +1,4 @@
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -40,6 +41,7 @@ export function AccountScopeSheet({
 
   const handleManageAccounts = () => {
     close();
+    beginScreenNavigation('/accounts');
     router.push('/accounts');
   };
 

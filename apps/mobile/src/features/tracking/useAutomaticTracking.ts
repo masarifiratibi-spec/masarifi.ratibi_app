@@ -1,6 +1,4 @@
-import {
-  useSyncExternalStore,
-} from 'react';
+import { useSyncExternalStore } from 'react';
 import {
   useMutation,
   useQuery,
@@ -19,37 +17,110 @@ import {
 } from '@/services/automatic-tracking-coordinator';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
-import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
+import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
+import {
+  automaticTrackingKeys,
+  automaticTrackingReadKey
+} from '@/state/automatic-tracking-view-state';
+import { useAppShellStore } from '@/state/app-shell';
+import {
+  captureTrackingAdmission,
+  useTrackingAdmission
+} from '@/state/tracking-admission';
+import { TrackingError } from '@/services/contracts/automatic-tracking-service';
+import { withReadContext } from '@/services/live/read-context';
+
+function assertTrackingReadOwner(ownerId: string | null) {
+  if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+    throw new TrackingError('permission_required');
+}
+
+export async function prefetchTrackingKeywords(
+  client: QueryClient,
+  ownerId: string
+) {
+  if (
+    !useTrackingAdmission.getState().ready ||
+    useAppShellStore.getState().session?.userId !== ownerId
+  )
+    return;
+  await client.prefetchQuery({
+    queryKey: automaticTrackingReadKey(
+      automaticTrackingKeys.keywords(),
+      ownerId
+    ),
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        const assertAdmission = captureTrackingAdmission(ownerId);
+        assertTrackingReadOwner(ownerId);
+        const rules = await automaticTrackingService.listKeywordRules();
+        assertAdmission();
+        assertTrackingReadOwner(ownerId);
+        return rules;
+      })
+  });
+}
+
+function useTrackingRead<T>({
+  queryKey,
+  queryFn,
+  enabled = true,
+  refetchOnMount
+}: {
+  queryKey: readonly unknown[];
+  queryFn: () => Promise<T>;
+  enabled?: boolean;
+  refetchOnMount?: 'always';
+}) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return useQuery({
+    queryKey: automaticTrackingReadKey(queryKey, ownerId),
+    enabled,
+    refetchOnMount,
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        assertTrackingReadOwner(ownerId);
+        const data = await queryFn();
+        assertTrackingReadOwner(ownerId);
+        return data;
+      })
+  });
+}
 
 export function useTrackingStatus() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.status,
-    queryFn: async () => {
-      const [status, permission, notificationAccess] = await Promise.all([
-        automaticTrackingService.getStatus(),
-        createTrackingPermissionService().getState(),
-        bankNotificationService.getAccessState()
-      ]);
-      if (status.platform !== 'android') return status;
-      const sourceGranted =
-        permission.status === 'granted' || notificationAccess === 'granted';
-      const sourcesUnavailable =
-        permission.status === 'unavailable' && notificationAccess === 'unavailable';
-      return {
-        ...status,
-        permissionStatus: sourceGranted
-          ? ('granted' as const)
-          : permission.status === 'unavailable'
-            ? notificationAccess
-            : permission.status,
-        smsPermissionStatus: permission.status,
-        notificationAccessStatus: notificationAccess,
-        serviceState:
-          sourcesUnavailable
+    queryFn: () =>
+      withReadContext(undefined, async () => {
+        const [status, permission, notificationAccess, sources] =
+          await Promise.all([
+            automaticTrackingService.getStatus(),
+            createTrackingPermissionService().getState(),
+            bankNotificationService.getAccessState(),
+            trackingSourcePreferences.load()
+          ]);
+        if (status.platform !== 'android') return status;
+        const sourceGranted =
+          permission.status === 'granted' || notificationAccess === 'granted';
+        const sourcesUnavailable =
+          permission.status === 'unavailable' &&
+          notificationAccess === 'unavailable';
+        return {
+          ...status,
+          permissionStatus: sourceGranted
+            ? ('granted' as const)
+            : permission.status === 'unavailable'
+              ? notificationAccess
+              : permission.status,
+          smsPermissionStatus: permission.status,
+          notificationAccessStatus: notificationAccess,
+          smsTrackingEnabled: sources.smsEnabled,
+          notificationTrackingEnabled: sources.notificationEnabled,
+          serviceState: sourcesUnavailable
             ? ('unavailable' as const)
             : status.serviceState
-      };
-    },
+        };
+      }),
     refetchOnMount: 'always'
   });
 }
@@ -63,21 +134,21 @@ export function useAutomaticTrackingSyncState() {
 }
 
 export function useTrackingHistory() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.history(),
     queryFn: () => automaticTrackingService.listHistory()
   });
 }
 
 export function useReviewItems() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.review(),
     queryFn: () => automaticTrackingService.listReviewItems()
   });
 }
 
 export function useReviewItem(id: string) {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.reviewItem(id),
     queryFn: () => automaticTrackingService.getReviewItem(id),
     enabled: Boolean(id)
@@ -85,7 +156,7 @@ export function useReviewItem(id: string) {
 }
 
 export function useDuplicateCandidate(id: string) {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.duplicate(id),
     queryFn: () => automaticTrackingService.getDuplicate(id),
     enabled: Boolean(id)
@@ -93,21 +164,21 @@ export function useDuplicateCandidate(id: string) {
 }
 
 export function useDuplicateCandidates() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.duplicates(),
     queryFn: () => automaticTrackingService.listDuplicates()
   });
 }
 
 export function useKeywordRules() {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.keywords(),
     queryFn: () => automaticTrackingService.listKeywordRules()
   });
 }
 
 export function useSenderRules(search = '') {
-  return useQuery({
+  return useTrackingRead({
     queryKey: automaticTrackingKeys.senders({ search }),
     queryFn: () => automaticTrackingService.listSenderRules({ search })
   });

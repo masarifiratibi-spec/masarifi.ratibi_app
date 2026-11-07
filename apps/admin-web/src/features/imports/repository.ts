@@ -1,5 +1,7 @@
 import {
   apiClient,
+  liveCursor,
+  rememberLiveCursor,
   mocksAllowed,
   requestJson,
   unavailableClientOperation,
@@ -60,12 +62,13 @@ const resourcePaths: Record<Phase4Resource, string> = {
 };
 
 const nullableDateTime = z.iso.datetime({ offset: true }).nullable();
+const supportedImportSchemaVersion = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 const liveRecordSchema = z
   .object({
     id: z.string().min(1),
     sourceType: z.enum(["sms", "file", "manual", "provider"]).optional(),
     sourceName: z.string().max(120).nullable().optional(),
-    schemaVersion: z.literal(1).optional(),
+    schemaVersion: supportedImportSchemaVersion.optional(),
     status: z.string().min(1).max(40).optional(),
     itemCount: z.number().int().nonnegative().optional(),
     acceptedCount: z.number().int().nonnegative().optional(),
@@ -102,6 +105,7 @@ const liveRecordSchema = z
     ruleId: z.string().optional(),
     versionId: z.string().optional(),
     parserVersionId: z.string().nullable().optional(),
+    parentRuleVersion: z.number().int().positive().optional(),
     versionNo: z.number().int().positive().optional(),
     versionNumber: z.number().int().positive().optional(),
     definitionHash: z
@@ -130,7 +134,7 @@ const liveRecordSchema = z
 const liveSessionSchema = liveRecordSchema.extend({
   sourceType: z.enum(["sms", "file", "manual", "provider"]),
   sourceName: z.string().max(120).nullable(),
-  schemaVersion: z.literal(1),
+  schemaVersion: supportedImportSchemaVersion,
   status: z.string().min(1).max(40),
   itemCount: z.number().int().nonnegative(),
   acceptedCount: z.number().int().nonnegative(),
@@ -187,6 +191,7 @@ function source(value: unknown): "sms" | "file" | "manual" | "provider" {
 
 function sourceType(value: ListQuery["source"]): string | undefined {
   if (!value) return undefined;
+  if (["sms", "file", "manual", "provider"].includes(value)) return value;
   if (value.includes("sms") || value === "android_notification") return "sms";
   if (["csv", "pdf_statement", "screenshot", "receipt"].includes(value))
     return "file";
@@ -194,11 +199,12 @@ function sourceType(value: ListQuery["source"]): string | undefined {
 }
 
 function liveListParams(input: ListQuery, cursor?: string): URLSearchParams {
-  const params = new URLSearchParams({ limit: "100" });
+  const params = new URLSearchParams({ limit: String(input.pageSize) });
   const filters = {
     cursor,
     search: input.search,
     status: input.status,
+    severity: input.severity,
     sourceType: sourceType(input.source),
     institutionId: input.bankId,
     parserVersionId: input.parserVersionId,
@@ -206,7 +212,7 @@ function liveListParams(input: ListQuery, cursor?: string): URLSearchParams {
     to: input.dateTo,
   };
   for (const [key, value] of Object.entries(filters))
-    if (value) params.set(key, value);
+    if (value) params.set(key, value.trim());
   return params;
 }
 
@@ -220,7 +226,7 @@ function recordFor(
     value.corpusRequestedAt ??
     value.publishedAt ??
     value.createdAt;
-  const revision = value.version ?? value.versionNo;
+  const revision = value.parentRuleVersion ?? value.version ?? value.versionNo;
   if (!revision) throw new Error("live record version is missing");
   const status =
     value.status ??
@@ -245,7 +251,6 @@ function recordFor(
     status,
     ...(value.sourceType ? { source: source(value.sourceType) } : {}),
     ...(value.sourceName ? { bank: value.sourceName } : {}),
-    ...(value.sourceType === "sms" ? { platform: "android" as const } : {}),
     ...(value.attemptCount === undefined
       ? {}
       : { attempts: value.attemptCount }),
@@ -256,7 +261,20 @@ function recordFor(
     updatedAt: timestamp,
     accessLevel: "limited",
     revision,
-    actions: [],
+    ...(value.parentRuleVersion
+      ? { parentRuleVersion: value.parentRuleVersion }
+      : {}),
+    ...(value.versionNo ? { version: String(value.versionNo) } : {}),
+    actions:
+      resource === "versions"
+        ? value.status === "published"
+          ? ["retire"]
+          : value.status === "retired"
+            ? ["rollback"]
+            : value.corpusStatus === "passed"
+              ? ["release"]
+              : []
+        : [],
   });
 }
 
@@ -318,6 +336,10 @@ export const importsRepository: ImportsRepository = {
         phase4Repository.list("sessions", {
           page: query.page,
           pageSize: query.pageSize,
+          search: query.query,
+          source: query.source as ListQuery["source"],
+          status: query.status,
+          severity: query.severity,
         }),
       ]);
       return importsResponseSchema.parse({
@@ -407,7 +429,8 @@ export const phase4Repository = {
         `/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}`,
         importOverviewSchema,
       );
-    if (parsedPlatform !== "all") return unavailableClientOperation();
+    if (parsedPlatform !== "all")
+      throw new Error("IMPORT_PLATFORM_ATTRIBUTION_UNAVAILABLE");
     return apiClient
       .get("/api/v1/admin/imports/overview", liveOverviewSchema)
       .then((value) => {
@@ -435,32 +458,29 @@ export const phase4Repository = {
         `${resourcePaths[resource]}?${params}`,
         operationalListSchema,
       );
-    if (resource === "failures") return unavailableClientOperation();
-    let cursor: string | undefined;
-    const cursors = new Set<string>();
-    const records: z.infer<typeof liveRecordSchema>[] = [];
-    do {
-      const payload = await apiClient.get(
-        `${resourcePaths[resource]}?${liveListParams(input, cursor)}`,
-        livePageSchema,
-      );
-      records.push(...payload.items);
-      cursor = payload.nextCursor ?? undefined;
-      if (cursor && cursors.has(cursor)) throw new Error("CURSOR_REPEATED");
-      if (cursor) cursors.add(cursor);
-    } while (cursor);
-    const start = (input.page - 1) * input.pageSize;
-    const items = records
-      .slice(start, start + input.pageSize)
-      .map((entry) => recordFor(resource, entry));
+    const filters = liveListParams(input);
+    const scope = `imports:${resource}:${filters}`;
+    const cursor = liveCursor(scope, input.page);
+    if (cursor) filters.set("cursor", cursor);
+    const payload = await apiClient.get(
+      `${resourcePaths[resource]}?${filters}`,
+      livePageSchema,
+    );
+    rememberLiveCursor(scope, input.page, payload.nextCursor);
+    const items = payload.items.map((entry) => recordFor(resource, entry));
     return operationalListSchema.parse({
       items,
       page: input.page,
       pageSize: input.pageSize,
-      totalItems: records.length,
-      totalPages: records.length
-        ? Math.ceil(records.length / input.pageSize)
-        : 0,
+      totalItems:
+        (input.page - 1) * input.pageSize +
+        items.length +
+        (payload.nextCursor ? 1 : 0),
+      totalPages:
+        items.length || payload.nextCursor
+          ? input.page + (payload.nextCursor ? 1 : 0)
+          : 0,
+      totalIsLowerBound: Boolean(payload.nextCursor),
       region: { availability: items.length ? "available" : "empty" },
     });
   },

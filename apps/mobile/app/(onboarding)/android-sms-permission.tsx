@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { PermissionEducation } from '@/features/onboarding/PermissionEducation';
 import { createTrackingPermissionService } from '@/services/platform/tracking-permission-service';
 import { StyledText } from '@/components/StyledText';
+import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import type { PermissionState } from '@/domain/app-shell';
 import { routeForOnboardingProgress } from '@/features/onboarding/onboarding-progress';
@@ -82,27 +83,37 @@ export default function AndroidSmsPermissionRoute() {
   }
 
   return (
-    <>
-      <PermissionEducation
-        onEnable={
-          requiresSettings
-            ? openSettings
-            : permission?.status === 'granted'
-              ? continueWithTracking
-              : enable
-        }
-        onSkip={skip}
-        primaryLabel={
-          permission?.status === 'granted'
-            ? translate('appShell.onboarding.continue')
-            : requiresSettings
-              ? translate('appShell.permission.openSettings')
-              : permission?.status === 'denied'
-                ? translate('appShell.permission.retry')
-                : undefined
-        }
-      />
-      {permission ? (
+    <PermissionEducation
+      onEnable={
+        requiresSettings
+          ? openSettings
+          : permission?.status === 'granted'
+            ? continueWithTracking
+            : enable
+      }
+      onSkip={skip}
+      primaryLabel={
+        permission?.status === 'granted'
+          ? translate('appShell.onboarding.continue')
+          : requiresSettings
+            ? translate('appShell.permission.openSettings')
+            : permission?.status === 'denied'
+              ? translate('appShell.permission.retry')
+              : undefined
+      }
+    >
+      {requiresSettings ? (
+        <>
+          <StyledText accessibilityRole="alert">
+            appShell.permission.settingsHelp
+          </StyledText>
+          <ActionButton
+            label="appShell.permission.requestAgain"
+            variant="secondary"
+            onPress={() => void enable()}
+          />
+        </>
+      ) : permission ? (
         <StyledText accessibilityRole="alert">
           {translate(
             `appShell.permission.status.${statusKey(permission.status)}` as never
@@ -114,7 +125,7 @@ export default function AndroidSmsPermissionRoute() {
           {translate('appShell.error.unknown')}
         </StyledText>
       ) : null}
-    </>
+    </PermissionEducation>
   );
 }
 

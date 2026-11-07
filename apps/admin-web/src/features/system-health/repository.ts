@@ -1,4 +1,4 @@
-import { apiClient, mocksEnabled } from "@/core/api/client";
+import { apiClient, liveCursor, rememberLiveCursor, mocksEnabled } from "@/core/api/client";
 import { z } from "zod";
 import {
   apiMonitoringSchema,
@@ -23,7 +23,6 @@ import {
   phase13JobActionResultSchema,
   phase13JobRunDetailSchema,
   phase13JobRunPageSchema,
-  phase13PerformanceSchema,
   phase13ProviderPageSchema,
   phase13QueueSummarySchema,
   phase13RecoverySchema,
@@ -78,22 +77,20 @@ function presentFreshness(value: SourceFreshness | Phase13Freshness): Phase13Fre
   return value.state === "unknown" ? unknownFreshness : value as Phase13Freshness;
 }
 
-async function allCursorItems<T>(
+async function cursorPage<T>(
   path: string,
-  params: URLSearchParams,
+  filters: URLSearchParams,
   schema: z.ZodType<{ items: T[]; nextCursor: string | null }>,
-): Promise<T[]> {
-  const items: T[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < 100; page += 1) {
-    const query = new URLSearchParams(params);
-    if (cursor) query.set("cursor", cursor);
-    const response = await apiClient.get(`${path}?${query.toString()}`, schema);
-    items.push(...response.items);
-    cursor = response.nextCursor;
-    if (!cursor) return items;
-  }
-  throw new Error("CURSOR_PAGE_LIMIT_EXCEEDED");
+  page: number,
+) {
+  const scope = `${path}:${filters.toString()}`;
+  const cursor = liveCursor(scope, page);
+  const query = new URLSearchParams(filters);
+  if (cursor) query.set("cursor", cursor);
+  const response = await apiClient.get(`${path}?${query.toString()}`, schema);
+  rememberLiveCursor(scope, page, response.nextCursor);
+  const pageSize = Number(filters.get("limit"));
+  return { ...response, total: (page - 1) * pageSize + response.items.length + (response.nextCursor ? 1 : 0) };
 }
 
 const unavailableMetric = (
@@ -191,20 +188,12 @@ export const systemHealthRepository: SystemHealthRepository = {
   async getApiMonitoring(query) {
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/system-health/api?${monitoringParams(query)}`, apiMonitoringSchema);
-    const value = await apiClient.get(`/api/v1/admin/performance?range=${query.range}`, phase13PerformanceSchema);
-    const budget = value.budgets["operations.jobs"];
     return apiMonitoringSchema.parse({
-      range: value.range,
-      requestVolume: unavailableMetric("request_volume", "Request volume", "count", value.freshness),
-      errorRate: unavailableMetric("error_rate", "Error rate", "percent", value.freshness),
-      latency: {
-        ...unavailableMetric("latency", "P95 latency", "milliseconds", value.freshness, budget?.p95 ?? null),
-        summary: budget?.status,
-      },
-      series: value.series,
-      endpoints: [],
-      statusCodes: [],
-      freshness: presentFreshness(value.freshness),
+      range: query.range,
+      requestVolume: unavailableMetric("request_volume", "Request volume", "count", unknownFreshness),
+      errorRate: unavailableMetric("error_rate", "Error rate", "percent", unknownFreshness),
+      latency: unavailableMetric("latency", "P95 HTTP latency", "milliseconds", unknownFreshness),
+      series: [], endpoints: [], statusCodes: [], freshness: unknownFreshness,
     });
   },
   async getDatabaseMonitoring(query) {
@@ -251,22 +240,26 @@ export const systemHealthRepository: SystemHealthRepository = {
     if (parsed.scenario) params.set("__scenario", parsed.scenario);
     const liveParams = new URLSearchParams({ limit: String(parsed.pageSize) });
     if (parsed.category !== "all" && ["database", "storage", "identity", "ai", "email", "push"].includes(parsed.category)) liveParams.set("provider", parsed.category);
-    if (["up", "degraded", "down", "unknown"].includes(parsed.status)) liveParams.set("status", parsed.status);
+    const providerStatus = { operational: "up", degraded: "degraded", partial_outage: "down", major_outage: "down", unknown: "unknown" }[parsed.status as string];
+    if (providerStatus) liveParams.set("status", providerStatus);
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/system-health/providers?${params.toString()}`, providerHealthPageSchema);
-    const items = await allCursorItems("/api/v1/admin/system-health/providers", liveParams, phase13ProviderPageSchema);
+    const response = await cursorPage("/api/v1/admin/system-health/providers", liveParams, phase13ProviderPageSchema, parsed.page);
     return providerHealthPageSchema.parse({
-      items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize).map((provider) => {
+      items: response.items.map((provider) => {
+        const staleAt = new Date(Date.parse(provider.checkedAt) + 300_000).toISOString();
+        const stale = Date.parse(staleAt) <= Date.now();
+        const freshness = { observedAt: provider.checkedAt, staleAt, state: stale ? "stale" as const : "fresh" as const };
         return {
           id: provider.provider,
           name: provider.provider,
           category: provider.provider,
-          status: healthStatus(provider.status),
-          latency: unavailableMetric("latency", "Latency", "milliseconds", unknownFreshness, provider.latencyMs),
+          status: stale ? "unknown" : healthStatus(provider.status),
+          latency: unavailableMetric("latency", "Latency", "milliseconds", freshness, provider.latencyMs),
           errorRate: unavailableMetric("error_rate", "Error rate", "percent", unknownFreshness),
           lastSuccessAt: null,
           lastCheckedAt: provider.checkedAt,
-          freshness: unknownFreshness,
+          freshness,
           capabilities: [provider.provider],
           fallbackState: "not_applicable",
           safeError: provider.safeCode ?? null,
@@ -276,9 +269,9 @@ export const systemHealthRepository: SystemHealthRepository = {
       }),
       page: parsed.page,
       pageSize: parsed.pageSize,
-      total: items.length,
+      total: response.total,
       freshness: unknownFreshness,
-      partial: parsed.platform !== "all",
+      partial: parsed.platform !== "all" || response.items.some(provider => provider.status === "unknown" || Date.parse(provider.checkedAt) + 300_000 <= Date.now()),
     });
   },
   async listQueueHealth(query) {
@@ -326,12 +319,9 @@ export const systemHealthRepository: SystemHealthRepository = {
     if (parsed.state !== "all") liveParams.set("status", ({ waiting: "queued", active: "running", completed: "succeeded", failed: "failed", delayed: "retrying", cancelled: "canceled" } as const)[parsed.state]);
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/jobs/runs?${params.toString()}`, paginatedJobRunsSchema);
-    const allItems = await allCursorItems("/api/v1/admin/jobs/runs", liveParams, phase13JobRunPageSchema);
-    const items = allItems.filter((run) =>
-      (parsed.queue === "all" || queueKey(run.jobKey) === parsed.queue) &&
-      (!parsed.search || run.jobKey.toLocaleLowerCase().includes(parsed.search.toLocaleLowerCase())),
-    );
-    return paginatedJobRunsSchema.parse({ items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize).map(adaptRun), page: parsed.page, pageSize: parsed.pageSize, total: items.length, freshness: unknownFreshness, partial: false });
+    if (parsed.queue !== "all" || parsed.search) throw new Error("JOB_FILTER_UNAVAILABLE");
+    const response = await cursorPage("/api/v1/admin/jobs/runs", liveParams, phase13JobRunPageSchema, parsed.page);
+    return paginatedJobRunsSchema.parse({ items: response.items.map(adaptRun), page: parsed.page, pageSize: parsed.pageSize, total: response.total, freshness: unknownFreshness, partial: false });
   },
   getJobRun(jobRunId) {
     const parsed = jobRunIdSchema.parse(jobRunId);
@@ -373,16 +363,13 @@ export const systemHealthRepository: SystemHealthRepository = {
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/jobs/scheduled?${params.toString()}`, scheduledJobsPageSchema);
     const liveParams = new URLSearchParams({ limit: String(parsed.pageSize) });
-    const allItems = await allCursorItems("/api/v1/admin/jobs/scheduled", liveParams, phase13ScheduledJobPageSchema);
-    const items = allItems.filter((job) =>
-      (parsed.queue === "all" || queueKey(job.key) === parsed.queue) &&
-      (!parsed.search || job.key.toLocaleLowerCase().includes(parsed.search.toLocaleLowerCase())),
-    );
+    if (parsed.queue !== "all" || parsed.search) throw new Error("JOB_FILTER_UNAVAILABLE");
+    const response = await cursorPage("/api/v1/admin/jobs/scheduled", liveParams, phase13ScheduledJobPageSchema, parsed.page);
     return scheduledJobsPageSchema.parse({
-      items: items.slice((parsed.page - 1) * parsed.pageSize, parsed.page * parsed.pageSize).map((job) => ({ id: job.id, name: job.key, queue: queueKey(job.key), schedule: job.schedule ? `Every ${job.schedule.everySeconds} seconds (${job.schedule.timezone})` : "Manual", lastRun: null, lastRunAt: null, nextRunAt: job.nextRunAt, lastState: null, enabled: job.enabled, freshness: unknownFreshness, access: "full" })),
+      items: response.items.map((job) => ({ id: job.id, name: job.key, queue: queueKey(job.key), schedule: job.schedule ? `Every ${job.schedule.everySeconds} seconds (${job.schedule.timezone})` : "Manual", lastRun: null, lastRunAt: null, nextRunAt: job.nextRunAt, lastState: null, enabled: job.enabled, freshness: unknownFreshness, access: "full" })),
       page: parsed.page,
       pageSize: parsed.pageSize,
-      total: items.length,
+      total: response.total,
       freshness: unknownFreshness,
       partial: false,
     });

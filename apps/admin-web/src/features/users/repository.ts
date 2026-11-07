@@ -64,7 +64,6 @@ function detailPath(path: string, input: UserDetailRequest): string {
 
 export const usersRepository: UsersRepository = {
   getUsers(input) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     const query = adminUsersQuerySchema.parse(input);
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
@@ -74,7 +73,6 @@ export const usersRepository: UsersRepository = {
     return apiClient.get(`/api/v1/admin/users?${params}`, adminUsersPageSchema);
   },
   getUser(input) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     const request = userDetailRequestSchema.parse(input);
     return apiClient.get(
       detailPath(`/api/v1/admin/users/${encodeURIComponent(request.userId)}`, request),
@@ -82,7 +80,6 @@ export const usersRepository: UsersRepository = {
     );
   },
   getDevices(input) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     const request = userDevicesQuerySchema.parse(input);
     return apiClient.get(
       detailPath(`/api/v1/admin/users/${encodeURIComponent(request.userId)}/devices`, request),
@@ -90,7 +87,6 @@ export const usersRepository: UsersRepository = {
     );
   },
   getSessions(input) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     const request = userSessionsQuerySchema.parse(input);
     return apiClient.get(
       detailPath(`/api/v1/admin/users/${encodeURIComponent(request.userId)}/sessions`, request),
@@ -98,15 +94,13 @@ export const usersRepository: UsersRepository = {
     );
   },
   suspendUser(userId, input, role) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     return apiClient.post(
       rolePath(`/api/v1/admin/users/${userIdSchema.parse(userId)}/suspend`, role),
-      suspendUserRequestSchema.parse(input),
+      mocksEnabled() ? suspendUserRequestSchema.parse(input) : { reason: input.reason, internalNote: input.internalNote },
       userActionResultSchema,
     );
   },
   reactivateUser(userId, input, role) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     return apiClient.post(
       rolePath(`/api/v1/admin/users/${userIdSchema.parse(userId)}/reactivate`, role),
       reactivateUserRequestSchema.parse(input),
@@ -122,7 +116,6 @@ export const usersRepository: UsersRepository = {
     );
   },
   revokeDevice(userId, deviceId, input, role) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     return apiClient.post(
       rolePath(`/api/v1/admin/users/${userIdSchema.parse(userId)}/devices/${deviceIdSchema.parse(deviceId)}/revoke`, role),
       revokeDeviceRequestSchema.parse(input),
@@ -130,7 +123,6 @@ export const usersRepository: UsersRepository = {
     );
   },
   revokeSessions(userId, input, role) {
-    if (!mocksEnabled()) return unavailableClientOperation();
     return apiClient.post(
       rolePath(`/api/v1/admin/users/${userIdSchema.parse(userId)}/sessions/revoke`, role),
       revokeSessionsRequestSchema.parse(input),

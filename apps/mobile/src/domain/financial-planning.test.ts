@@ -43,7 +43,7 @@ it('keeps local dates and integer minor-unit money explicit', () => {
 it('derives salary cycles from confirmed primary receipts only', () => {
   const cycle = deriveSalaryCycle({
     profile: fixtureSalaryProfile,
-    receipts: [fixtureSalaryReceipt],
+    receipts: [{...fixtureSalaryReceipt, expectedOccurrenceDate:'2025-12-31'}],
     transactions: [
       fixtureSalaryTransaction,
       {

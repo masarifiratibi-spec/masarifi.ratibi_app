@@ -1,4 +1,7 @@
 import { HttpException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
+import type { PlatformEnvironment } from '../../../src/platform/config/environment.types';
 
 import { SecurityService } from '../../../src/security/security.service';
 
@@ -15,7 +18,9 @@ describe('SecurityService boundaries', () => {
     getReadyExportReference: jest.fn(() => Promise.resolve('private/export.zip')),
   };
   const config = {
-    get: jest.fn(() => 600),
+    get: jest.fn((key: string) =>
+      key === 'MASARIFI_PRIVACY_HANDLER_MANIFEST' ? ['identity@1'] : undefined,
+    ),
     getRequired: jest.fn((key: string) =>
       key.includes('IP_HASH')
         ? `active:${Buffer.alloc(32, 7).toString('base64url')}`
@@ -37,6 +42,7 @@ describe('SecurityService boundaries', () => {
     config as never,
     clerk as never,
     storage as never,
+    {} as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -66,7 +72,7 @@ describe('SecurityService boundaries', () => {
     },
   );
 
-  it('requires idempotency, recent MFA, and a bounded reason', async () => {
+  it('requires idempotency, recent login, and a bounded reason', async () => {
     const base = {
       operation: 'createRole',
       permission: 'access.roles.write',
@@ -86,7 +92,7 @@ describe('SecurityService boundaries', () => {
       service.execute({
         ...base,
         idempotencyKey: 'request-key',
-        principal: { ...principal, mfaAgeSeconds: null },
+        principal: { ...principal, factorAgeSeconds: null },
       }),
     ).rejects.toMatchObject({ status: 403 });
     await expect(
@@ -96,6 +102,65 @@ describe('SecurityService boundaries', () => {
         body: { ...base.body, reason: 'short' },
       }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it.each([
+    ['createAdminInvitation', { email: 'admin@example.test' }, {}, 'access.invites.write'],
+    ['acceptAdminInvitation', { token: 'x'.repeat(32) }, {}, undefined],
+    [
+      'assignAdminRole',
+      { userId: 'user_2', roleId: 'role_1', reason: 'Approved role assignment' },
+      {},
+      'access.assignments.write',
+    ],
+    [
+      'revokeAdminRole',
+      { expectedVersion: 1, reason: 'Approved role revocation' },
+      { assignmentId: 'assignment_1' },
+      'access.assignments.write',
+    ],
+  ])(
+    'requires recent login for %s even with fresh MFA',
+    async (operation, body, params, permission) => {
+      await expect(
+        service.execute({
+          operation,
+          permission,
+          principal: { ...principal, factorAgeSeconds: 601 },
+          body,
+          query: {},
+          params,
+          requestId: 'request-1',
+          idempotencyKey: 'request-key',
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves the governed role command with recent login and no MFA claim', async () => {
+    const recentPrincipal = {
+      userId: principal.userId,
+      sessionId: principal.sessionId,
+      factorAgeSeconds: 0,
+    };
+    const input = {
+      operation: 'createRole',
+      permission: 'access.roles.write',
+      principal: recentPrincipal,
+      body: {
+        key: 'custom-role',
+        name: 'Custom',
+        permissionKeys: ['audit.read'],
+        reason: 'Approved role creation',
+      },
+      query: {},
+      params: {},
+      requestId: 'request-recent',
+      idempotencyKey: 'recent-role-key',
+    };
+    await expect(service.execute(input)).resolves.toBeDefined();
+    expect(repository.execute).toHaveBeenCalledWith(expect.objectContaining(input));
   });
 
   it('returns a stable 429 when immutable database evidence reaches its bound', async () => {
@@ -132,6 +197,79 @@ describe('SecurityService boundaries', () => {
       expect.stringMatching(/^h1:active:[0-9a-f]{64}$/),
     );
     expect(JSON.stringify(repository.consumeRateLimit.mock.calls)).not.toContain('192.0.2.10');
+  });
+
+  it('returns a retryable service error without creating an export when its manifest is unavailable', async () => {
+    const isolatedEnvironment = { ...process.env };
+    delete isolatedEnvironment.MASARIFI_PRIVACY_HANDLER_MANIFEST;
+    const environment = jest.replaceProperty(process, 'env', isolatedEnvironment);
+    try {
+      const missingManifest = new PlatformConfigService(
+        new ConfigService<PlatformEnvironment, true>({
+          MASARIFI_SECURITY_IP_HASH_KEYS: `active:${Buffer.alloc(32, 7).toString('base64url')}`,
+          MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: 600,
+        }),
+      );
+      const unconfiguredService = new SecurityService(
+        repository as never,
+        missingManifest,
+        clerk as never,
+        storage as never,
+        {} as never,
+      );
+      await expect(
+        unconfiguredService.execute({
+          operation: 'createMyPrivacyExport',
+          principal,
+          body: {},
+          query: {},
+          params: {},
+          requestId: 'request-export-config',
+          idempotencyKey: 'export-config-operation',
+        }),
+      ).rejects.toMatchObject({ status: 503, response: { code: 'SECURITY_OPERATION_FAILED' } });
+      expect(repository.execute).not.toHaveBeenCalled();
+      expect(storage.sign).not.toHaveBeenCalled();
+    } finally {
+      environment.restore();
+    }
+  });
+
+  it('uses the configured privacy export scope without inventing a fallback domain', async () => {
+    const configuredService = new SecurityService(
+      repository as never,
+      new PlatformConfigService(
+        new ConfigService<PlatformEnvironment, true>({
+          MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS: 600,
+          MASARIFI_PRIVACY_HANDLER_MANIFEST: ['identity@1', 'tracking@1', 'ai@1', 'engagement@1'],
+        }),
+      ),
+      clerk as never,
+      storage as never,
+      {} as never,
+    );
+    repository.execute.mockResolvedValueOnce({
+      id: '69c11da7-26c7-43d1-8f46-78182cbb849b',
+      status: 'verified',
+    } as never);
+    await expect(
+      configuredService.execute({
+        operation: 'createMyPrivacyExport',
+        principal,
+        body: {},
+        query: {},
+        params: {},
+        requestId: 'request-export-configured',
+        idempotencyKey: 'export-configured-operation',
+      }),
+    ).resolves.toMatchObject({ id: '69c11da7-26c7-43d1-8f46-78182cbb849b', status: 'verified' });
+    expect(repository.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal,
+        idempotencyKey: 'export-configured-operation',
+        body: { scope: ['identity@1', 'tracking@1', 'ai@1', 'engagement@1'] },
+      }),
+    );
   });
 
   it('requires recent authentication before returning a ready export download URL', async () => {
@@ -189,6 +327,28 @@ describe('SecurityService boundaries', () => {
         idempotencyKey: 'request-key',
       }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('accepts invitations only with a Clerk-verified primary email and recent Clerk login', async () => {
+    clerk.getIdentityUser.mockResolvedValueOnce({
+      id: principal.userId,
+      primaryEmail: 'owner@example.test',
+      primaryEmailVerified: false,
+      banned: false,
+      locked: false,
+    });
+    await expect(
+      service.execute({
+        operation: 'acceptAdminInvitation',
+        principal,
+        body: { token: 'x'.repeat(32) },
+        query: {},
+        params: {},
+        requestId: 'request-1',
+        idempotencyKey: 'request-key',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(repository.execute).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -253,6 +413,44 @@ describe('SecurityService boundaries', () => {
       ],
     });
   });
+
+  it.each(['createMyDeletionRequest', 'getMyDeletionRequest'])(
+    'keeps internal deletion errors out of the strict mobile response for %s',
+    async (operation) => {
+      // 2026-10-20: a real processing response exposed errorCode and failed mobile decoding.
+      const response = {
+        id: '963c1be4-83ec-42af-8b92-fcd89aa7b4bd',
+        status: 'processing',
+        requestedAt: '2026-10-20T12:17:00.000Z',
+        coolingOffEndsAt: '2026-10-20T12:17:00.000Z',
+        completedAt: null,
+        retainedCategories: {},
+        version: 3,
+        errorCode: 'DELETION_HANDLER_FAILED',
+      };
+      repository.execute.mockResolvedValueOnce(response);
+      await expect(
+        service.execute({
+          operation,
+          principal,
+          body:
+            operation === 'createMyDeletionRequest' ? { confirmation: 'DELETE_MY_ACCOUNT' } : {},
+          query: {},
+          params: {},
+          requestId: 'deletion-contract-regression',
+          idempotencyKey: 'deletion-contract-operation',
+        }),
+      ).resolves.toEqual({
+        id: '963c1be4-83ec-42af-8b92-fcd89aa7b4bd',
+        status: 'processing',
+        requestedAt: '2026-10-20T12:17:00.000Z',
+        coolingOffEndsAt: '2026-10-20T12:17:00.000Z',
+        completedAt: null,
+        retainedCategories: [],
+        version: 3,
+      });
+    },
+  );
 
   it('uses Clerk rather than device links for the live self-session count', async () => {
     repository.execute.mockResolvedValueOnce({

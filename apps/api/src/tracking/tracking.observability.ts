@@ -1,7 +1,7 @@
 import { recordPlatformMetric, TRACKING_METRICS } from '../platform/observability/platform-metrics';
 
 const jobs = new Set(['import.parse', 'parser.corpus', 'raw.purge', 'tracking.reconcile']);
-const sources = new Set(['sms', 'manual', 'file']);
+const sources = new Set(['sms', 'provider', 'manual', 'file']);
 
 export function recordTrackingJob(job: string, outcome: string, count = 1): void {
   if (

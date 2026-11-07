@@ -26,6 +26,9 @@ export function createMockBiometricService(
     },
     async authenticate() {
       return { status: result };
+    },
+    async cancel() {
+      return undefined;
     }
   };
 }

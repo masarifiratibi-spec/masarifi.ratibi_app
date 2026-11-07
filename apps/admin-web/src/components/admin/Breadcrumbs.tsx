@@ -7,6 +7,7 @@ import type { Locale } from "@/core/localization/direction";
 const labels = {
   ar: {
     "/admin": "نظرة عامة",
+    "/admin/social-media": "السوشيال ميديا",
     "/admin/users": "المستخدمون",
     "/admin/imports": "الاستيراد والمعاملات",
     "/admin/system-health": "صحة النظام",
@@ -14,6 +15,7 @@ const labels = {
     "/admin/system-health/database": "مراقبة قاعدة البيانات",
     "/admin/system-health/storage": "مراقبة التخزين",
     "/admin/system-health/providers": "صحة المزودين",
+    "/admin/system-health/ai-usage-limits": "حدود استخدام الذكاء الاصطناعي",
     "/admin/jobs/queues": "قوائم الانتظار",
     "/admin/jobs/runs": "تشغيلات المهام",
     "/admin/jobs/scheduled": "المهام المجدولة",
@@ -33,6 +35,7 @@ const labels = {
   },
   en: {
     "/admin": "Overview",
+    "/admin/social-media": "Social media",
     "/admin/users": "Users",
     "/admin/imports": "Imports",
     "/admin/system-health": "System Health",
@@ -40,6 +43,7 @@ const labels = {
     "/admin/system-health/database": "Database Monitoring",
     "/admin/system-health/storage": "Storage Monitoring",
     "/admin/system-health/providers": "Provider Health",
+    "/admin/system-health/ai-usage-limits": "AI Usage Limits",
     "/admin/jobs/queues": "Queues",
     "/admin/jobs/runs": "Job Runs",
     "/admin/jobs/scheduled": "Scheduled Jobs",

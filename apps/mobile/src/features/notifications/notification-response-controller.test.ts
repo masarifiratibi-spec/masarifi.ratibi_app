@@ -56,6 +56,62 @@ function phoneService(lastResponse: PhoneNotificationResponse | null = null) {
 }
 
 describe('notification response controller', () => {
+  it.each([
+    ['view', '/budgets/transactions/budget-1'],
+    ['edit', '/budgets/edit/budget-1']
+  ] as const)('opens an existing budget destination for a %s notification without posting', async (action, destination) => {
+    const target = { kind: 'budget' as const, budgetId: 'budget-1' };
+    const service = targetService({
+      resolveTarget: jest.fn(async () => ({ status: 'exact' as const, target })),
+      revalidateAction: jest.fn(async (_id, kind) => ({
+        status: 'available' as const,
+        target,
+        action: kind
+      }))
+    });
+    const navigate = jest.fn();
+    const controller = createNotificationResponseController({
+      notificationService: service,
+      phoneService: phoneService().phone,
+      navigate,
+      unlock: async () => true
+    });
+
+    await controller.handle({ notificationId: 'budget-notification', action });
+
+    expect(navigate).toHaveBeenCalledWith(destination);
+    expect(service.executeAction).not.toHaveBeenCalled();
+  });
+
+  it('defers a cold remote tap until delayed shell and Clerk readiness, then resolves it once', async () => {
+    let becomeReady!: (ready: boolean) => void;
+    const ready = new Promise<boolean>((resolve) => { becomeReady = resolve; });
+    const service = targetService();
+    const navigate = jest.fn();
+    const controller = createNotificationResponseController({ notificationService: service, phoneService: phoneService({ notificationId: 'cold', action: 'view' }).phone, navigate, unlock: async () => true, waitForRemoteReady: () => ready });
+    const starting = controller.start();
+    await Promise.resolve();
+    expect(service.resolveTarget).not.toHaveBeenCalled();
+    becomeReady(true);
+    await starting;
+    expect(service.resolveTarget).toHaveBeenCalledWith('cold');
+    expect(navigate).toHaveBeenCalledWith('/transactions/transaction-1');
+    controller.stop();
+  });
+  it.each(['cold', 'live'])('handles %s local onboarding taps separately from authenticated financial resolution', async (mode) => {
+    const service = targetService();
+    const resumeOnboarding = jest.fn(async () => undefined);
+    const navigate = jest.fn();
+    const local = { kind: 'onboarding_resume' as const, cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', action: 'view' as const };
+    const phone = phoneService(mode === 'cold' ? local : null);
+    const controller = createNotificationResponseController({ notificationService: service, phoneService: phone.phone, navigate, unlock: async () => true, resumeOnboarding });
+    await controller.start();
+    if (mode === 'live') await phone.emit(local);
+    expect(resumeOnboarding).toHaveBeenCalledWith('78c71e06-457f-4f20-95f6-9db73c114a73');
+    expect(service.resolveTarget).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    controller.stop();
+  });
   it('opens the credit card from a due reminder', async () => {
     const target = { kind: 'account' as const, accountId: 'card-1' };
     const navigate = jest.fn();

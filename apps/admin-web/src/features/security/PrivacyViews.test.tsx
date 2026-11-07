@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { http, HttpResponse } from "msw";
 import { LocaleProvider } from "@/core/localization/provider";
 import { mockServer } from "@/mocks/server";
-import { DeletionDetailRoute, DeletionRequestsRoute } from "./PrivacyViews";
+import { DeletionDetailRoute, DeletionRequestsRoute, ExportRequestsRoute, RetentionPoliciesRoute } from "./PrivacyViews";
 
 const deletionId = "13000000-0000-4000-8000-000000000021";
 const roots: Root[] = [];
@@ -61,6 +61,16 @@ afterEach(async () => {
 });
 
 describe("live account deletion views", () => {
+  test.each([
+    ["/api/v1/admin/privacy/exports", ExportRequestsRoute],
+    ["/api/v1/admin/privacy/deletions", DeletionRequestsRoute],
+    ["/api/v1/admin/retention/policies", RetentionPoliciesRoute],
+  ] as const)("explains recent authentication required for %s", async (endpoint, View) => {
+    mockServer.use(http.get(endpoint, () => HttpResponse.json({ code: "RECENT_AUTH_REQUIRED" }, { status: 403 })));
+    const host = await renderView(<View />);
+    await expect.poll(() => host.querySelector('[role="alert"]')?.textContent ?? "").toContain("Sign out and sign in again");
+  });
+
   test("renders real workflow dates without inventing customer or checklist data", async () => {
     const host = await renderView(<DeletionRequestsRoute />);
 

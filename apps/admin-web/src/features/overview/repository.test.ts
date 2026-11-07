@@ -133,7 +133,7 @@ describe("platform analytics repository", () => {
             c.androidOnlyCustomers +
             c.multiPlatformCustomers,
         ).toBe(c.uniqueCustomersTotal);
-        expect(c.newIosCustomers + c.newAndroidCustomers).toBe(
+        expect((c.newIosCustomers ?? 0) + (c.newAndroidCustomers ?? 0)).toBe(
           c.newCustomersTotal,
         );
         expect(result.errorRateTrend.points.length).toBeGreaterThan(0);

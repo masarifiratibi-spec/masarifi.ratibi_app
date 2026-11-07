@@ -143,10 +143,29 @@ it('accepts real engagement cursor pages, preferences, categories, ticket detail
       'AdminTicketDetail',
       {
         ...ticket,
+        assignedAdminId: null,
+        customerReference: 'CUS-0123456789abcdef',
         messages: [],
         nextCursor: null,
         hasMore: false,
         internalNotes: [{ id: id(6), body: 'Reviewed by support.', createdAt: at }],
+      },
+    ],
+    [
+      'AdminTicketPage',
+      {
+        items: [{ ...ticket, assignedAdminId: null, customerReference: 'CUS-0123456789abcdef' }],
+        totalItems: 26,
+        nextCursor: 'next',
+        hasMore: true,
+      },
+    ],
+    [
+      'SupportWorkload',
+      {
+        total: 26,
+        unassigned: 20,
+        byStatus: { open: 20, waiting_support: 6, waiting_customer: 0, resolved: 0, closed: 0 },
       },
     ],
     [

@@ -1,0 +1,61 @@
+{
+  "diagnosticOnly": true,
+  "productionSigningAndConfigurationQualified": false,
+  "profile": "staging-client",
+  "apiOrigin": "https://inert.invalid",
+  "package": "com.masarifi.mobile",
+  "permissions": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.INTERNET",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.READ_APP_BADGE",
+    "android.permission.READ_SMS",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.USE_BIOMETRIC",
+    "android.permission.USE_FINGERPRINT",
+    "android.permission.VIBRATE",
+    "android.permission.WAKE_LOCK",
+    "com.anddoes.launcher.permission.UPDATE_COUNT",
+    "com.google.android.c2dm.permission.RECEIVE",
+    "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+    "com.htc.launcher.permission.READ_SETTINGS",
+    "com.htc.launcher.permission.UPDATE_SHORTCUT",
+    "com.huawei.android.launcher.permission.CHANGE_BADGE",
+    "com.huawei.android.launcher.permission.READ_SETTINGS",
+    "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+    "com.majeur.launcher.permission.UPDATE_BADGE",
+    "com.masarifi.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+    "com.oppo.launcher.permission.READ_SETTINGS",
+    "com.oppo.launcher.permission.WRITE_SETTINGS",
+    "com.sec.android.provider.badge.permission.READ",
+    "com.sec.android.provider.badge.permission.WRITE",
+    "com.sonyericsson.home.permission.BROADCAST_BADGE",
+    "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+    "me.everything.badger.permission.BADGE_COUNT_READ",
+    "me.everything.badger.permission.BADGE_COUNT_WRITE"
+  ],
+  "queryPackages": [],
+  "exportedActivities": [
+    "com.masarifi.mobile.MainActivity",
+    "com.clerk.api.sso.SSOReceiverActivity"
+  ],
+  "manifestSHA256": "b79d57b059d4fdbab22014dfbcca9a3af7b1ffa71c66e8cae141a2ea768fff51",
+  "r8MappingSHA256": "261e8d68be4cc88ebc5304a2db4fc6b1c8bf4e6d4cd4061a8da595ee55846774",
+  "r8Version": "8.13.19",
+  "nativeArm64LibrarySHA256": "73c0d1bb3fc2325c5e1b62ef0c318649ae1ba9df3de93380ffc3a4219691c493",
+  "unresolvedWarnings": [
+    "R8 Kotlin metadata parsing warnings require release runtime qualification",
+    "Gradle deprecations and CMake Windows path warnings"
+  ],
+  "intentSchemes": [
+    "clerk",
+    "masarifi"
+  ],
+  "queriedSchemes": [
+    "https"
+  ],
+  "evidenceScope": "R8 compiler/class mapping from full prebuild qualification; final manifest independently regenerated after release-only wallet-query overlay. No packaged production AAB."
+}

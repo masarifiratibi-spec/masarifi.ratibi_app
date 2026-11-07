@@ -1,3 +1,4 @@
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -12,6 +13,9 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import type { PrimaryTabRoute } from './navigation-context';
+import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
+import { resolvePublicDisplayName } from '@/services/live/clerk-name';
+import { useInitialHomeReadiness } from './InitialHomeLoadingBoundary';
 
 export function PrimaryShellHeader({
   origin,
@@ -30,8 +34,27 @@ export function PrimaryShellHeader({
 }) {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
-  const userId = useAppShellStore((state) => state.session?.userId ?? null);
+  const locale = usePreferenceStore((state) => state.locale);
+  const userId = useAppShellStore((state) =>
+    state.session?.status === 'authenticated' ? state.session.userId : null
+  );
   const profile = useSettingsProfile(showAvatar && userId !== null);
+  useInitialHomeReadiness(
+    'header',
+    origin === '/(tabs)/home'
+      ? !showAvatar ||
+        userId === null ||
+        profile.data !== undefined ||
+        profile.isError
+        ? 'ready'
+        : 'pending'
+      : null
+  );
+  const publicName = resolvePublicDisplayName(
+    userId ? profile.data?.name : null,
+    getLiveClerkDisplayName(userId),
+    translate('appShell.more.defaultUserName', locale)
+  );
   const reportsLabel = translate('appShell.navigation.reports');
   const backLabel = translate('appShell.navigation.back');
   const moreLabel = translate('appShell.navigation.more');
@@ -79,12 +102,13 @@ export function PrimaryShellHeader({
           testID="primary-shell-reports-action"
           accessibilityLabel={reportsLabel}
           accessibilityRole="button"
-          onPress={() =>
+          onPress={() => {
+            beginScreenNavigation('/reports');
             router.push({
               pathname: '/(tabs)/reports',
               params: { returnTo: origin }
-            })
-          }
+            });
+          }}
           style={styles.action}
         >
           <DesignIcon
@@ -138,11 +162,7 @@ export function PrimaryShellHeader({
                 }
               ]}
             >
-              {profileInitials(
-                profile.data?.name ?? null,
-                profile.data?.email ?? null,
-                userId
-              )}
+              {profileInitials(publicName)}
             </StyledText>
           </View>
         </Pressable>
@@ -184,13 +204,8 @@ const styles = StyleSheet.create({
   }
 });
 
-export function profileInitials(
-  name: string | null,
-  email: string | null,
-  userId: string | null
-): string {
-  const source =
-    name?.trim() || email?.split('@')[0]?.trim() || userId?.trim() || 'M';
+export function profileInitials(name: string | null): string {
+  const source = name?.trim() || 'M';
   const words = source
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()

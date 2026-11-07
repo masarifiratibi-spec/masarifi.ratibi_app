@@ -124,6 +124,8 @@ export interface BiometricAvailability {
   status: 'supported' | 'unsupported' | 'not_enrolled' | 'locked_out';
   /** Present only when hardware is supported and enrolled. */
   kinds?: readonly BiometricKind[];
+  /** The operating system can verify its own device PIN, password or pattern. */
+  deviceCredential?: boolean;
 }
 
 export interface BiometricResult {
@@ -134,6 +136,7 @@ export interface BiometricResult {
 export interface BiometricService {
   getAvailability(): Promise<BiometricAvailability>;
   authenticate(): Promise<BiometricResult>;
+  cancel(): Promise<void>;
 }
 
 export interface AppShellStorage {
@@ -150,10 +153,6 @@ export interface AppShellStorage {
   savePendingDestination(destination: string | null): Promise<void>;
   loadPrivacyLock(): Promise<PrivacyLockPreference | null>;
   savePrivacyLock(lock: PrivacyLockPreference): Promise<void>;
-  clearPrivacyLock(): Promise<void>;
-  loadPinCredential(): Promise<string | null>;
-  savePinCredential(hash: string): Promise<void>;
-  clearPinCredential(): Promise<void>;
   loadProfilePromptDismissed(): Promise<boolean>;
   saveProfilePromptDismissed(dismissed: boolean): Promise<void>;
   loadTrackingHomeCardDismissed(): Promise<boolean>;

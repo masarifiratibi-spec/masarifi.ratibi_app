@@ -1,11 +1,14 @@
 import React from 'react';
+import { useTheme } from '@/state/theme-context';
 import { View, StyleSheet, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 
 export function AssistantHero() {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   return (
     <View testID="assistant-hero" style={styles.heroContainer}>
       {/* Soft circular mint badge for avatar */}
@@ -26,7 +29,7 @@ export function AssistantHero() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   heroContainer: {
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -37,8 +40,8 @@ const styles = StyleSheet.create({
   },
   avatarCircle: {
     alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.subtle,
     borderRadius: radius.pill,
     borderWidth: 1,
     height: 90,
@@ -47,7 +50,7 @@ const styles = StyleSheet.create({
     width: 90
   },
   sparkleDot: {
-    color: colorTokens.teal['500'],
+    color: colors.borders.focus,
     fontSize: 10,
     opacity: 0.6,
     position: 'absolute'
@@ -66,7 +69,7 @@ const styles = StyleSheet.create({
     maxWidth: 300
   },
   heroSubtitle: {
-    color: colorTokens.ink['700'],
+    color: colors.content.secondary,
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center'

@@ -1,0 +1,32 @@
+{
+  "reviewer": "independent /root/astra_t03_review, gpt-6-astra high",
+  "quality": "REQUEST_CHANGES",
+  "spec": "BLOCKED",
+  "manifestSha256": "92BDA8B150E31BBE1584810E058FDCEB87CEA5DE0E395EBCE6922FD012CDDEDD",
+  "resolved": [
+    "Per-resource durable queue authority before fresh PATCH and exclusive journal insertion",
+    "Lifecycle cancellation/cleanup and foreground resumption",
+    "Acknowledged cache persistence/rollback/newer-version preservation/uncached detail fallback"
+  ],
+  "findings": [
+    {
+      "priority": 2,
+      "title": "Finite waits do not bound receipt submissions",
+      "file": "apps/mobile/src/services/live/core-finance-service.ts:1263",
+      "repro": "Real SQLite public prolonged-receipt case; queue.retry persistence advances clock1.1s; 5 submissions observed vs max4; continued received can loop",
+      "required": "Explicitly stop/defer after nonterminal submission budget; preserve queue for legitimate next invocation"
+    }
+  ],
+  "verification": {
+    "passed": 24,
+    "expectedRegressionFailures": 1,
+    "filtered": 81,
+    "seconds": 32.103,
+    "serial": true,
+    "sourceHashesMatched": 15,
+    "baselineHashesMatched": 21,
+    "noSourceEvidenceEdits": true
+  },
+  "phoneNegativeAttempt": "Not guaranteed zero write; retain fixtures under current fence",
+  "hostedAcceptance": "Unperformed authoritative application, original-note restoration, second cold edit"
+}

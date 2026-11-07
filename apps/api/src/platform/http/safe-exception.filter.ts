@@ -4,7 +4,9 @@ import {
   type ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import { LEDGER_METRICS, recordPlatformMetric } from '../observability/platform-metrics';
@@ -46,6 +48,27 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   PROFILE_SYNC_UNAVAILABLE: {
     status: 503,
     message: 'Profile synchronization is unavailable',
+  },
+  FINANCIAL_CLIENT_UPDATE_REQUIRED: {
+    status: 426,
+    message: 'Update your app to write after a financial reset',
+  },
+  FINANCIAL_GENERATION_STALE: {
+    status: 409,
+    message: 'Refresh financial data or update the app before writing',
+  },
+  FINANCIAL_CAPTURE_BEFORE_RESET: {
+    status: 409,
+    message: 'This capture predates the financial reset',
+  },
+  FINANCIAL_RESET_ACTIVE_HOLD: {
+    status: 409,
+    message: 'Financial data is subject to a retention hold',
+  },
+  FINANCIAL_RESET_WORK_BUSY: { status: 409, message: 'Financial work is still completing' },
+  FINANCIAL_RESET_CLEANUP_PENDING: {
+    status: 409,
+    message: 'Previous reset cleanup is still in progress',
   },
   VERSION_CONFLICT: { status: 409, message: 'Resource version conflict' },
   INVALID_CURSOR: { status: 400, message: 'Cursor is invalid' },
@@ -92,6 +115,10 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   REFUND_EXCEEDS_AVAILABLE: {
     status: 409,
     message: 'Refund exceeds the available amount',
+  },
+  AMOUNT_BELOW_REFUNDED: {
+    status: 409,
+    message: 'Expense amount cannot be less than its confirmed refunds',
   },
   UNDO_EXPIRED: { status: 409, message: 'Undo window has expired' },
   LEDGER_BUSY: { status: 409, message: 'Ledger is busy' },
@@ -141,8 +168,11 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   AI_CONSENT_POLICY_STALE: { status: 409, message: 'Assistant consent policy changed' },
   AI_ACTION_CONFLICT: { status: 409, message: 'AI action changed' },
   AI_UNAVAILABLE: { status: 503, message: 'AI is unavailable' },
+  VOICE_AUTOMATIC_UNAVAILABLE: { status: 503, message: 'Voice is unavailable' },
   AI_TEMPORARILY_UNAVAILABLE: { status: 503, message: 'AI is temporarily unavailable' },
   AI_QUOTA_EXCEEDED: { status: 429, message: 'AI request quota is exhausted' },
+  IMPORT_QUOTA_EXCEEDED: { status: 429, message: 'Import quota is exhausted' },
+  REPORT_QUOTA_EXCEEDED: { status: 429, message: 'Report generation quota is exhausted' },
   AI_BUDGET_EXHAUSTED: { status: 429, message: 'AI budget is exhausted' },
 };
 
@@ -168,7 +198,48 @@ function sanitizeFieldError(error: FieldError): FieldError {
     : { field: 'request', code: 'INVALID', message: 'Invalid value' };
 }
 
+function staleFinancialGeneration(exception: unknown): boolean {
+  return (
+    exception instanceof Error &&
+    exception.message === 'FINANCIAL_GENERATION_STALE' &&
+    'code' in exception &&
+    exception.code === '40001'
+  );
+}
+
+function resetConflict(exception: unknown): string | undefined {
+  if (!(exception instanceof Error) || !('code' in exception) || exception.code !== '55000')
+    return undefined;
+  return [
+    'FINANCIAL_RESET_ACTIVE_HOLD',
+    'FINANCIAL_RESET_WORK_BUSY',
+    'FINANCIAL_RESET_CLEANUP_PENDING',
+  ].includes(exception.message)
+    ? exception.message
+    : undefined;
+}
+
+function clientUpdateRequired(exception: unknown): boolean {
+  if (exception instanceof HttpException) {
+    const response = exception.getResponse();
+    return (
+      typeof response === 'object' &&
+      'code' in response &&
+      response.code === 'FINANCIAL_CLIENT_UPDATE_REQUIRED'
+    );
+  }
+  return (
+    exception instanceof Error &&
+    exception.message === 'FINANCIAL_CLIENT_UPDATE_REQUIRED' &&
+    'code' in exception &&
+    exception.code === '40001'
+  );
+}
+
 function exceptionStatus(exception: unknown): number {
+  if (clientUpdateRequired(exception)) return 426;
+  if (resetConflict(exception)) return 409;
+  if (staleFinancialGeneration(exception)) return 409;
   if (exception instanceof HttpException) return exception.getStatus();
   if (typeof exception !== 'object' || exception === null || !('type' in exception)) return 500;
   const type = Reflect.get(exception, 'type');
@@ -179,6 +250,10 @@ function exceptionStatus(exception: unknown): number {
 }
 
 function exceptionDomainCode(exception: unknown, status: number): string | undefined {
+  if (clientUpdateRequired(exception)) return 'FINANCIAL_CLIENT_UPDATE_REQUIRED';
+  if (staleFinancialGeneration(exception)) return 'FINANCIAL_GENERATION_STALE';
+  const reset = resetConflict(exception);
+  if (reset) return reset;
   if (!(exception instanceof HttpException)) return undefined;
   const response = exception.getResponse();
   if (typeof response !== 'object' || !('code' in response)) return undefined;
@@ -207,13 +282,16 @@ export function safeError(
   const currentVersion = typeof metadata === 'number' ? metadata : details.currentVersion;
   const quotaMetadata =
     (domainCode === 'AI_QUOTA_EXCEEDED' || domainCode === 'AI_BUDGET_EXHAUSTED') &&
-    details.limit === 5 &&
+    typeof details.limit === 'number' &&
+    Number.isSafeInteger(details.limit) &&
+    details.limit >= 1 &&
+    details.limit <= 1000 &&
     typeof details.used === 'number' &&
     Number.isSafeInteger(details.used) &&
-    details.used >= 5 &&
+    details.used >= details.limit &&
     typeof details.resetsAt === 'string' &&
     Number.isFinite(Date.parse(details.resetsAt))
-      ? { limit: 5, used: details.used, resetsAt: details.resetsAt }
+      ? { limit: details.limit, used: details.used, resetsAt: details.resetsAt }
       : {};
   return {
     ...mapped,
@@ -235,6 +313,7 @@ export function safeError(
 
 @Catch()
 export class SafeExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger('ManualFinanceDiagnostics');
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const request = http.getRequest<Request & { requestId?: string }>();
@@ -252,8 +331,24 @@ export class SafeExceptionFilter implements ExceptionFilter {
       )
     )
       recordPlatformMetric(LEDGER_METRICS.error, 1, { reason: domainCode });
-    response
-      .status(status)
-      .json(safeError(status, request.requestId, [], domainCode, domainResponse));
+    const envelope = safeError(status, request.requestId, [], domainCode, domainResponse);
+    if (
+      process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED === 'true' &&
+      process.env.SUPABASE_URL === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      request.path === '/api/v1/transactions'
+    ) {
+      const operation = request.headers['idempotency-key'];
+      this.logger.warn('manual.finance_rejected', {
+        context: 'ManualFinanceDiagnostics',
+        failureStage: 'api-rejection',
+        httpStatus: status,
+        code: envelope.code,
+        requestId: envelope.requestId,
+        ...(typeof operation === 'string' && /^[0-9a-f-]{36}$/i.test(operation)
+          ? { resourceId: createHash('sha256').update(operation).digest('hex').slice(0, 16) }
+          : {}),
+      });
+    }
+    response.status(status).json(envelope);
   }
 }

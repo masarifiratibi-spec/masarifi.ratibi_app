@@ -12,6 +12,7 @@ import {
   useAccounts
 } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
@@ -80,7 +81,10 @@ export function AccountPicker({
 
   const loading = accounts.isLoading || balances.isLoading;
 
-  if (accounts.isError || balances.isError) {
+  if (
+    (accounts.isError && !hasReadableSnapshot(accounts)) ||
+    (balances.isError && !hasReadableSnapshot(balances))
+  ) {
     return (
       <StateView
         state="error"

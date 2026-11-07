@@ -33,7 +33,7 @@ describe('migration runner contracts', () => {
     const client = {
       query: (text: string, values?: readonly unknown[]) => {
         queries.push({ text, values });
-        return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [{ executor_role: 'none' }] });
       },
     };
     const migrations: MigrationFile[] = [
@@ -43,17 +43,19 @@ describe('migration runner contracts', () => {
 
     await applyPendingMigrations(client, migrations, [local[0] ?? ''], 9_000);
 
-    expect(queries.slice(0, 3)).toEqual([
+    expect(queries.slice(0, 4)).toEqual([
       { text: 'begin', values: undefined },
       {
         text: "select set_config('statement_timeout', $1, true)",
         values: ['9000ms'],
       },
+      { text: "select current_setting('role') as executor_role", values: undefined },
       { text: 'select 2;', values: undefined },
     ]);
-    expect(queries[3]?.text).toContain('insert into supabase_migrations.schema_migrations');
-    expect(queries[3]?.values).toEqual([local[1], ['select 2;'], 'outbox']);
-    expect(queries[4]).toEqual({ text: 'commit', values: undefined });
+    expect(queries[4]).toEqual({ text: "select set_config('role', $1, true)", values: ['none'] });
+    expect(queries[5]?.text).toContain('insert into supabase_migrations.schema_migrations');
+    expect(queries[5]?.values).toEqual([local[1], ['select 2;'], 'outbox']);
+    expect(queries[6]).toEqual({ text: 'commit', values: undefined });
   });
 
   it('rolls back a failed migration without recording it', async () => {
@@ -62,7 +64,7 @@ describe('migration runner contracts', () => {
       query: (text: string) => {
         queries.push(text);
         if (text === 'invalid sql') return Promise.reject(new Error('database detail'));
-        return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [{ executor_role: 'none' }] });
       },
     };
 
@@ -77,6 +79,7 @@ describe('migration runner contracts', () => {
     expect(queries).toEqual([
       'begin',
       "select set_config('statement_timeout', $1, true)",
+      "select current_setting('role') as executor_role",
       'invalid sql',
       'rollback',
     ]);

@@ -1,0 +1,70 @@
+{
+  "source": "8678c586f8a7de5d84b74f5da4b0a4ada10355ea",
+  "files": [
+    {
+      "path": "src/app/admin/page.tsx",
+      "before": "ab3e86ab041c641e5082af70a167a1879e31a3b5de68bd344cee05ba882ab7c6",
+      "after": "ab5df9b3e8f12f83b37ed06223027171fd0b99448ee18d4d95a444b74df44921",
+      "url": "https://raw.githubusercontent.com/masarifiratibi-spec/masarifi.ratibi_app/8678c586f8a7de5d84b74f5da4b0a4ada10355ea/apps/admin-web/src/app/admin/page.tsx"
+    },
+    {
+      "path": "src/components/admin/SidebarAccordion.tsx",
+      "before": "81e368fdf7a7909c25b36ca47bccd314655e0f4e950c9cec3ccdfb3445790d40",
+      "after": "ae84240fa34077309b3098813f44bc6ad352378cbaaeb1d0cdcc8f522314954d",
+      "url": "https://raw.githubusercontent.com/masarifiratibi-spec/masarifi.ratibi_app/8678c586f8a7de5d84b74f5da4b0a4ada10355ea/apps/admin-web/src/components/admin/SidebarAccordion.tsx"
+    },
+    {
+      "path": "src/components/admin/SignOutButton.tsx",
+      "before": "b48dc527aba6fe258456502258784ff7c1afb54a678fff2a7e628af84762e040",
+      "after": "90328babc352876d7d864ef6e3943419dd7135b64e01aaeb0e16a3b6db953c59",
+      "url": "https://raw.githubusercontent.com/masarifiratibi-spec/masarifi.ratibi_app/8678c586f8a7de5d84b74f5da4b0a4ada10355ea/apps/admin-web/src/components/admin/SignOutButton.tsx"
+    },
+    {
+      "path": "src/core/localization/display-labels.ts",
+      "before": "05795a06820d672c5092694999b1a0d9d8a355da4c2725654990f3e1b28b6f79",
+      "after": "f18a5474c2e80b1852d43aebed570b305175b1a5bba9fe9ccaddde4b22e84a3e",
+      "url": "https://raw.githubusercontent.com/masarifiratibi-spec/masarifi.ratibi_app/8678c586f8a7de5d84b74f5da4b0a4ada10355ea/apps/admin-web/src/core/localization/display-labels.ts"
+    },
+    {
+      "path": "src/features/foundation/navigation.ts",
+      "before": "79c8274ad8e176e5f61a5c54bf297c1ec521bbdb782caf05d8165e938fae5a77",
+      "after": "c4612ab752d28d3e3026719bec78f5a5112844ad19298f5f4bc2082eff811f12",
+      "url": "https://raw.githubusercontent.com/masarifiratibi-spec/masarifi.ratibi_app/8678c586f8a7de5d84b74f5da4b0a4ada10355ea/apps/admin-web/src/features/foundation/navigation.ts"
+    },
+    {
+      "path": "src/app/globals.css",
+      "before": "0211f9150c8c40f40da1cf6ca292143aa3adbb414ae3450fce768b3e6eb28788",
+      "after": "38acae73f8d3a65037a8c1f998e0b1e3d16600916d06b7724f6a8ca17a80b0ef",
+      "operations": [
+        {
+          "old": "  --text-muted: #707870;\n",
+          "new": "  --text-muted: #4b534e;\n"
+        },
+        {
+          "old": "  --warning: #b06a12;\n",
+          "new": "  --warning: #93663d;\n"
+        },
+        {
+          "old": "  --danger: #c04b45;\n",
+          "new": "  --danger: #b13b36;\n"
+        },
+        {
+          "old": "  --bronze-soft: #3d342a;\n  --success-soft: #1d3830;\n",
+          "new": "  --bronze-soft: #3d342a;\n  --success: #79a99f;\n  --warning: #d0aa7d;\n  --danger: #ff8f87;\n  --info: #9bc9d7;\n  --success-soft: #1d3830;\n"
+        },
+        {
+          "old": ".notification { position: relative; }.notification span { position: absolute; inset-block-start: 4px; inset-inline-end: 3px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 99px; color: white; background: var(--danger); font-size: 9px; }\n.profile { display: flex; align-items: center; gap: 9px; padding-inline-start: 8px; }.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: var(--teal-soft); font-weight: 700; }\n",
+          "new": ".notification { position: relative; }.notification span { position: absolute; inset-block-start: 4px; inset-inline-end: 3px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 99px; color: white; background: var(--danger); font-size: 9px; }\n[data-theme=\"dark\"] .notification span { color: var(--page); }\n.profile { display: flex; align-items: center; gap: 9px; padding-inline-start: 8px; }.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: var(--teal-soft); font-weight: 700; }\n"
+        },
+        {
+          "old": ".page-actions, .toolbar-actions { display: flex; align-items: center; gap: 8px; row-gap: 10px; flex-wrap: wrap; }\n.button {\n",
+          "new": ".page-actions, .toolbar-actions { display: flex; align-items: center; gap: 8px; row-gap: 10px; flex-wrap: wrap; }\n.overview-commands { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }\n.button {\n"
+        },
+        {
+          "old": "  .topbar { height: 64px; }.topbar-actions { gap: 0; }.global-search { display: none; }.page { padding: 20px 14px 40px; }.page-header h1 { font-size: 24px; }.page-actions .select { flex: 1; }.page-actions .button span { display: none; }\n",
+          "new": "  .topbar { height: 64px; }.topbar-actions { gap: 0; }.global-search { display: none; }.page { padding: 20px 14px 40px; }.page-header h1 { font-size: 24px; }.page-actions .select { flex: 1; }\n  .page-actions .segmented-control button, .page-actions .date-presets button { min-height: 44px; }\n  .page-actions .button { max-width: 100%; white-space: normal; }\n  .overview-page .page-actions { width: 100%; }\n  .overview-commands { width: 100%; }\n  .overview-commands .button { flex: 1; }\n  .topbar .sign-out-button { min-width: 44px; padding-inline: 10px; }\n  .topbar .sign-out-button span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }\n"
+        }
+      ]
+    }
+  ]
+}

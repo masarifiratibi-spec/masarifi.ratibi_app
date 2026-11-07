@@ -14,7 +14,7 @@ export interface ThemeContextValue {
   theme: ResolvedTheme;
 }
 
-const fallbackTheme = resolveTheme('system');
+const fallbackTheme = resolveTheme('light');
 
 export const ThemeContext = createContext<ThemeContextValue>({
   theme: fallbackTheme

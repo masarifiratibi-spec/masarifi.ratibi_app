@@ -11,11 +11,13 @@ export function TransactionDateField({
   value,
   disabled = false,
   label: providedLabel,
+  maximumDate,
   onChange
 }: {
   value: number;
   disabled?: boolean;
   label?: string;
+  maximumDate?: Date;
   onChange: (value: number) => void;
 }) {
   const theme = useTheme();
@@ -38,6 +40,11 @@ export function TransactionDateField({
         disabled={disabled}
         dir={direction}
         type="date"
+        max={
+          maximumDate
+            ? `${maximumDate.getFullYear()}-${String(maximumDate.getMonth() + 1).padStart(2, '0')}-${String(maximumDate.getDate()).padStart(2, '0')}`
+            : undefined
+        }
         value={inputValue}
         onInput={(event) => {
           const [year, month, day] = event.currentTarget.value
@@ -45,7 +52,11 @@ export function TransactionDateField({
             .map(Number);
           if (year && month && day) {
             onChange(
-              replaceLocalDate(value, new Date(year, month - 1, day).getTime())
+              replaceLocalDate(
+                value,
+                new Date(year, month - 1, day).getTime(),
+                maximumDate?.getTime()
+              )
             );
           }
         }}

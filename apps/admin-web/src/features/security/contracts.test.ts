@@ -137,7 +137,7 @@ describe("Phase 7 contracts", () => {
     });
     expect(() => retentionPolicyDetailSchema.parse({
       ...retentionPolicyFixture[0],
-      retentionDays: retentionPolicyFixture[0].maximumDays + 1,
+      retentionDays: retentionPolicyFixture[0].maximumDays! + 1,
     })).toThrow();
   });
 });

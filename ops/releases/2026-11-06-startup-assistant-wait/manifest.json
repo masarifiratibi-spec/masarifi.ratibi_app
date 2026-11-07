@@ -1,0 +1,504 @@
+{
+  "status": "prepared-not-activated-not-installed-actual-approval-and-physical-latency-acceptance-open",
+  "applicationSourceCommit": "ab154ebc6436850f32c36bbd890533f15678bc6e",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 122,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkPath": "C:\\mrc1105\\artifacts\\task30-customer-122-resume-native.apk",
+  "candidateApkSha256": "3fee0911d1e8ac3b055901773e95e34357a91e21062052d67278882f209a495d",
+  "candidateApkBytes": 49515158,
+  "candidateHermesSha256": "326fceac8bfdd7797afad68f6c0252e41c41681bfc3726b9da3e369f3c1514a8",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "sameExistingProductionSigner": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "automaticPostingEnabled": true,
+  "currentInstalled": {
+    "apkSha256": "97fd56eb4d4e40d99d171ee6cab33bd269b5507551569b5f129d87caf74e8e08",
+    "uid": "10321",
+    "firstInstallTime": "\u0662\u0660\u0662\u0666-\u0661\u0660-\u0662\u0662 \u0661\u0664:\u0660\u0660:\u0660\u0668",
+    "versionCode": 121
+  },
+  "canonicalDeliveredVersion": 111,
+  "canonicalDeliveredApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "preserveExactOwnerAndSdkSessionDataKeysDraftsPendingWorkUidAndFirstInstallation": true,
+  "api": {
+    "imageBuildSourceCommit": "d1bff2c2921a49ee2b0221ba8ce0c520fd0158d4",
+    "unchangedApiSourcesAtFinalMobileCommit": true,
+    "baseImageId": "sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc",
+    "candidateImageId": "sha256:e3ddc1351fe3649b027e4dd726c125600f1c237bb449d85e764b975561b330b3",
+    "candidateTag": "masarifi-task30-api:d1bff2c2921a",
+    "artifactRoot": "/var/tmp/masarifi-task30-artifacts-20261106",
+    "overlayArchiveSha256": "9b9730ece87b8f19d92a0b8b861d041b326fac4010a22f8b4b8981e5f0e37646",
+    "overlayFilePins": {
+      "Dockerfile": "88bf6cdce19fd5c12e6969d317c2ddc47f3f79b1101fd66a2d989f76ace1fdd4",
+      "ai/ai.controller.js": "f83223d2aaa4adbb44c7acb6952bdc10d86d2f6ce8c77127fd977a99a0c36696",
+      "ai/ai.dto.js": "879e21ee2d17fb4f60c379133546c8552b6a79cec723b1e0ff5793025167f900",
+      "ai/ai.service.js": "305822023e6da58993959be2967554f659e652ade1bac3a1c1d21f801849b5ec"
+    },
+    "changedExecutableFiles": [
+      "ai/ai.controller.js",
+      "ai/ai.dto.js",
+      "ai/ai.service.js"
+    ],
+    "preservedExecutableFiles": 218,
+    "baseLayersAndRuntimeImageConfigurationPreserved": true,
+    "isolatedSmoke": {
+      "sameRequestCompletion": true,
+      "legacyImmediate": true,
+      "abortPreservedPending": true,
+      "invalidBoundRejected": true,
+      "network": "none",
+      "noProviderOrDatabase": true
+    },
+    "expectedCurrentContainerId": "a18a30f8051c9e89b0380915fc17fe2e960bcd13a740a03117ba5b6af43e9b90",
+    "expectedCurrentStartedAt": "2026-11-05T17:49:28.535647846Z",
+    "servingApiRuntime": {
+      "composeFiles": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml,/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml",
+      "composeWorkingDirectory": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal",
+      "composeProject": "masarifi-production-20261105",
+      "environmentSha256": "a2715e6bc1871adc5e25ad5a378ab323d62cea28659222650d76daba2a904aac",
+      "portBindings": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3080"
+          }
+        ]
+      },
+      "networks": ["masarifi-production-20261105_production-core"],
+      "restartPolicy": {
+        "Name": "unless-stopped",
+        "MaximumRetryCount": 0
+      },
+      "readOnlyRootfs": true,
+      "memory": 805306368,
+      "nanoCpus": 500000000
+    },
+    "hostedInputFilePins": [
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml",
+        "sha256": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml",
+        "sha256": "2dce5e027413a3e8a0d3654e3baebf3e66c90e317340060d01d1454f17eeb42e"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/config/api.env",
+        "sha256": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389"
+      }
+    ],
+    "runningContainersUnchanged": 31,
+    "noSchemaModelWorkerEnvironmentDnsTlsChange": true,
+    "activated": false
+  },
+  "changedAndRetainedSource": [
+    {
+      "path": "apps/api/src/ai/ai.controller.ts",
+      "sha256": "3de9d6441be6a50fc94d2b1984025310b093051b9cba7c300d72cfd3e7596f52"
+    },
+    {
+      "path": "apps/api/src/ai/ai.dto.ts",
+      "sha256": "3afa99ed80598631729b26f787f36e1cb050a78b59e6e2d28cce5ba5673626a2"
+    },
+    {
+      "path": "apps/api/src/ai/ai.service.ts",
+      "sha256": "56b5e5db04b0f95115e519d5a6c400e2f88c04d81312fd2423f088d3385d4290"
+    },
+    {
+      "path": "apps/api/test/unit/ai/assistant-result-wait.spec.ts",
+      "sha256": "461a6cb19a11a1e68192359adf9075fcd640da2d67072ba0ae37b1aa26dfe746"
+    },
+    {
+      "path": "apps/mobile/app.config.js",
+      "sha256": "bb12d6d839a0c7713815ad0ed1b93a8ba2833baa3707d704ac61e3a5deb59cd5"
+    },
+    {
+      "path": "apps/mobile/app/(tabs)/more.tsx",
+      "sha256": "5599e7d79c096324f9c2a61c569459c4aa42340002862a2d6bbf2822e5ec82c0"
+    },
+    {
+      "path": "apps/mobile/app/_layout.tsx",
+      "sha256": "48221b6b5baa2a180d74f990dd546b9411f3575b666fc3e6bb949f355a64aadf"
+    },
+    {
+      "path": "apps/mobile/eas.json",
+      "sha256": "456d459c35739b1a335485941591b55e9cb41be80a7c5f8f024a1a088ab4871c"
+    },
+    {
+      "path": "apps/mobile/scripts/check-client-runtime.mjs",
+      "sha256": "2ba0f444934300200c1fbbe46ae10e3fdc7ce3afb2f2a78326c4625f44fa9b78"
+    },
+    {
+      "path": "apps/mobile/scripts/check-client-runtime.test.mjs",
+      "sha256": "c9fe7fc1e4944e21d30b1f82835b0cc8d37db249756054fb44f81f2e9442949f"
+    },
+    {
+      "path": "apps/mobile/scripts/ios-ad-hoc-config.test.mjs",
+      "sha256": "4f09bf0eced3e16adac11c972ea14f295d963101f17e6be2fdb4230c99f16546"
+    },
+    {
+      "path": "apps/mobile/scripts/production-entrypoints.cjs",
+      "sha256": "5dab6b4c643a9076b512cc210c48b4d03d0f9cbd4278cacb22281a9a5f41c07b"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx",
+      "sha256": "dca4807c2887182df9d49ed7b812e0c4146ccae603b9e921f71aec67d0345ac5"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.tsx",
+      "sha256": "d0136276badb7876d097cbd1974293ee7b02f66acc8030237d9388bf49c80cfd"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountListScreen.test.tsx",
+      "sha256": "57a7f743bb0cc4b634da48a2fb07bc16e518196ea82a7c232728a638dd0d4a22"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountListScreen.tsx",
+      "sha256": "739c55a62b19164d3b9d12bb8187e2e7ce370cc5bc0298d10349bb73f2f2e494"
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/AssistantConversationView.test.tsx",
+      "sha256": "2f185ee91369141cc46aa1a82a9af01520d641fda131072fa09ec45542cf1d2b"
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/AssistantConversationView.tsx",
+      "sha256": "9c173a17d3864f53a86b6bfcf2f2d148440716d6ac1addd7801ed4f877118bd9"
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx",
+      "sha256": "1bd6358460c16c78a22658a55a2f1a76d64b8291fe5c773b7451ecab4bb00a2b"
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/components/AssistantComposer.test.tsx",
+      "sha256": "ff7a500d67e5877a6a7c22ae6814a7bc7233f0464402bad32ea01aa8ed57972f"
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/components/AssistantComposer.tsx",
+      "sha256": "9094781b33b49aadf3efb9afa7c260e6a5e4ffda25936e539ddf9dc24e70a630"
+    },
+    {
+      "path": "apps/mobile/src/features/categories/CategoryListScreen.test.tsx",
+      "sha256": "3f059c2e26501a0ec4cddd7daf4b28e42ca6bc66d9f131c75111508f767c3818"
+    },
+    {
+      "path": "apps/mobile/src/features/categories/CategoryListScreen.tsx",
+      "sha256": "917f9a37575e0e67eda8e1db09933cce806f628c9bfb575b962e7ab2476fa1ae"
+    },
+    {
+      "path": "apps/mobile/src/features/core-finance/core-finance-queries.ts",
+      "sha256": "79d9e407816cc9906c28a842727532b0fa199604454dc437f527ee308c1191ab"
+    },
+    {
+      "path": "apps/mobile/src/features/financial-planning/finance-destination-responsiveness.test.tsx",
+      "sha256": "f9f6b27ee7d18f4fbb6e240f556c923bceb693c86febddcfec3d89a1c0113bd2"
+    },
+    {
+      "path": "apps/mobile/src/features/financial-planning/planning-menu-readiness.test.tsx",
+      "sha256": "8ea72ed5df7e455c54cc902d780798302b7b78f792460e3715dedf62d101bef8"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeBalanceReadiness.test.tsx",
+      "sha256": "0040c3126f6d10bd30c7d8fbc2778d2274cd4c51f21ba07cc8311ddf58f6a651"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeCachedContent.test.tsx",
+      "sha256": "525e0371ba81ef09b2f3884a2131af7e299a9cef330fe2010498393648379dae"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeScreen.tsx",
+      "sha256": "c40e74cc28f2e256557ced65dbd79fb49bb6dd768a73920dc47306fc47d92ef7"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeSummary.tsx",
+      "sha256": "80534442276f07c5900689674d86d28fac7ef47726e26718d3ff70115f2d6012"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeTrackingReadiness.test.tsx",
+      "sha256": "e92bcf72c8d7c24f8369b2a352e77a0842b021d97759f4114e69c3421af082ba"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationCenterScreen.test.tsx",
+      "sha256": "765094d136ca16e653467fb05ca491eb7b935d4dc1dc5edbcc02e9d66ed29f46"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationCenterScreen.tsx",
+      "sha256": "5743d52146ee62587b5287ff55495f8c581fb8e12d9d3e32bd312dd9cd9bcea2"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationPreferencesScreen.test.tsx",
+      "sha256": "4bcda3ba800fa7793866f325b1a3a930e127825b782f4f69563e904f86d9253f"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+      "sha256": "dfabfe33e988d2cf973f98942d217f07c15002a1d8ba2e9ed84f709c81777139"
+    },
+    {
+      "path": "apps/mobile/src/features/obligations/ObligationJourney.test.tsx",
+      "sha256": "2a19bb8812afe3288b8d50c8042e7ebab380d28cb78c9ffe404d7e471e8f7178"
+    },
+    {
+      "path": "apps/mobile/src/features/obligations/ObligationOverviewScreen.tsx",
+      "sha256": "342ff93e67d43b72f376a0317f715908eb0ce6d9117f37efb89ef71a69fe61fb"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsAccessibility.test.tsx",
+      "sha256": "f6ebd51412779b628f1672263505d3c8b68dd908d08c2bd5b5b6dff118ea91ac"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsJourney.test.tsx",
+      "sha256": "cf3fe616198497670c88eda268105934b2f7545a1a5b4b26e331465f32836126"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsScreen.tsx",
+      "sha256": "1228c57e7bf54ef2df6ce0053a5d83bab96a2a0d763f211a7847537e4a1adf5b"
+    },
+    {
+      "path": "apps/mobile/src/features/salary/SalaryJourney.test.tsx",
+      "sha256": "a8c001197105a4634f75b903055095c08ae110ccce4d43b1343af84e27605c83"
+    },
+    {
+      "path": "apps/mobile/src/features/salary/SalaryOverviewScreen.tsx",
+      "sha256": "6c990c6b48e4d099c7bd68273c1144f80434149070dbc167e3a4a26172e0d2f6"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/ProfileScreen.tsx",
+      "sha256": "b1a7a968b18cfdc326822dbc412e95f360796b827c0bd7220f77f789d3d28d65"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SecurityEventScreen.tsx",
+      "sha256": "a0f2a266f93fb356b3f1a4c890f93625d396c3d2c55d129ff9ab7c7e4497abfb"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SecuritySessionsJourney.test.tsx",
+      "sha256": "decdb6e807713aefbe7f729c927f9fe4ba7af38e4e795612fa01b2c4f36126d4"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SessionListScreen.tsx",
+      "sha256": "632adead645973dbfee5300ddbe49d893bb7504159259f83f9f3fd5eb2c2eacb"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SettingsJourney.test.tsx",
+      "sha256": "54ba7348d0e5451b9033cda3a06a2fc844f9fbd84679de5fd588a73c25dbb58f"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/BootstrapNavigation.test.tsx",
+      "sha256": "83047d77b4e5e0b85ce3bac9f33e777ab02cb7a7012b29cf4a7ffe61c464b75b"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/InitialHomeLoadingBoundary.test.tsx",
+      "sha256": "54162dfdfdc9307609cc4ed2a19bb645cd94eed33ac6166cfcff44f5a365f74b"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/InitialHomeLoadingBoundary.tsx",
+      "sha256": "5a4f76ad853da12ae0dc3c1e87f9b89e37fbb4d8fbe298e45ef13acd8012fce7"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/ProtectedNavigation.test.tsx",
+      "sha256": "51be21526c61f8dc61c44571ee2caf28b6062469cd5271e15db949bf5c2d6d7f"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/RootLayoutOptions.test.tsx",
+      "sha256": "a8a416f46ff11c5b21ec3f1b44e88e301c7fb5ded6cea4305d50bd646f64137c"
+    },
+    {
+      "path": "apps/mobile/src/features/support/TicketJourney.test.tsx",
+      "sha256": "ae8e0c215c36724a22aaaebaf52c24acca1db27899087a1769a77bfdd2f86c4d"
+    },
+    {
+      "path": "apps/mobile/src/features/support/TicketListScreen.tsx",
+      "sha256": "d0126e8f0ac4182306601a8a0561725756d8cc73e87282c45676b3ccc89008df"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/ReviewQueue.tsx",
+      "sha256": "0e6d3c81849489744c5597c781315d6f526c048554e9075211d65bb15b575311"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingHistoryList.tsx",
+      "sha256": "f2d14f656f4986cb97af9cebb34c5c07b5e0bb0973330b45bb4599ecf635fef7"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingHomeCard.test.tsx",
+      "sha256": "f87a1aea92eaaa82c35546c096c9b9c80503e31b37c0927e4431ca0d245ff040"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.test.tsx",
+      "sha256": "7581e347fb2bcb2894cfa61bde4ddaf52338db536fe7991d91e759f404b9626b"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+      "sha256": "5b0b0d2522b636c4fbd7910869a2ae1ce115063370d17c951d3204ad3164519d"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.test.tsx",
+      "sha256": "7ec8cb928d3d2c3ed5c38ebda9545adaad28b3184c930cb0565a4276ac0debab"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.tsx",
+      "sha256": "6e2ff6e33147cb5fabdec94b8c011285cdb2e0b76ca1b60a28a185819f929ec7"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/offline-tracking-snapshots.test.tsx",
+      "sha256": "bcaf441d4e3aea694208c0996fc8bfdc38dd350f376b476351eaa777710e45da"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "cd1576b6cbeccc81fde20281e608a73ab03f97626120ec3c4710dbc3f2494411"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "9a93c68c0f0db4daa18b9cdc279fbc54a3ea9735aa38d00d5f16e8b14b1ec907"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.test.ts",
+      "sha256": "b1d77552e5d3449acf258324f7665b46c14bd54f79534ab8a1040b4d37006af8"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.ts",
+      "sha256": "156ba999d916e82d123e122491a7e3ed4e458ed0d1d76f697266e5e81bbff6f9"
+    },
+    {
+      "path": "apps/mobile/src/services/contracts/automatic-tracking-service.ts",
+      "sha256": "aa0ffe0be0b056dfaa9b5edc696f887d51c7c710d4c2a8b3cf0ebf182abbf8a6"
+    },
+    {
+      "path": "apps/mobile/src/services/live/assistant-api-service.test.ts",
+      "sha256": "461635114a2544c93e4a171860cafafa916af8b83bd2d6f393e5c3ace34bf506"
+    },
+    {
+      "path": "apps/mobile/src/services/live/assistant-api-service.ts",
+      "sha256": "2f0efa16ad004d5dffa1c9f91224c391d508e971e4a15a9c51ada4481c8bef9c"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.test.ts",
+      "sha256": "5ba2ecc627b441bc30749bb82c76bdbe0b2b53edd76b93706950d5aabea987dc"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.ts",
+      "sha256": "1bdd018d5e073ef51e25610b420a3c039f1e34aafce8485bc37e229c51e21035"
+    },
+    {
+      "path": "apps/mobile/src/services/local-read-cache.test.ts",
+      "sha256": "b06b46cff5a58919d42e42e91bfad1b23aba36d9913728c2b38719a72cc9c4dd"
+    },
+    {
+      "path": "apps/mobile/src/services/local-read-cache.ts",
+      "sha256": "482da1a13ec5d46c77d0235c559a6d49bf00d810c922166cc4f63754901b2b0c"
+    },
+    {
+      "path": "apps/mobile/src/services/platform/tracking-native-runtime.ts",
+      "sha256": "39bc5bcba005e1431b9440b104e3a184d56cd767a4e53b78a89e6077194d63bd"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-background-runtime.ts",
+      "sha256": "ce5ff362f78e94d3293309f813ab88a686c5ccd98c628a0a257c073eb6eb695d"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-ios-availability.test.ts",
+      "sha256": "9f58af24d5baef771e9d7c14ee1ea9a5e87032949f6863836730fa33c0818dcd"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-owner-context.ts",
+      "sha256": "7140d001654889c609a83edce16f2b2fc571672776f29fcfe14453830e540b32"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-save-confirmation.test.ts",
+      "sha256": "2f880b35da1f687277f6ed04cb60ae6634ec7b72ea8d3178b14476e5d40aa16f"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-save-confirmation.ts",
+      "sha256": "8a72c66484aa7796dcbcff79a18f380d80132e381176c7dd870c7874564b89b9"
+    },
+    {
+      "path": "apps/mobile/src/state/AppShellProvider.test.tsx",
+      "sha256": "265f330f58d359a4c043a083928362db9ba1d58ed937710de0f6494904934740"
+    },
+    {
+      "path": "apps/mobile/src/state/AppShellProvider.tsx",
+      "sha256": "03f20885a7efaca7b5e2fef6543dc937ffe593ab206dabdf07d03ee19abcc951"
+    },
+    {
+      "path": "apps/mobile/src/state/FoundationProviders.tsx",
+      "sha256": "1d4c93b07129ea4fcf2529ad7a1f28d099dbb110a236c7072b559a5b29e812ba"
+    },
+    {
+      "path": "apps/mobile/src/state/local-read-cache-context.ts",
+      "sha256": "e7e4885bba5065dfaa5cda8f7096ddcd641ce0e850e1062dbb86c4152c74c7af"
+    },
+    {
+      "path": "apps/mobile/src/state/local-read-cache-runtime.test.tsx",
+      "sha256": "0d0288fb22ba343b7d8b5d4e398ab28edf259dc7e5c6c30a082fc96633bf892d"
+    },
+    {
+      "path": "apps/mobile/src/storage/query-read-cache.test.ts",
+      "sha256": "20e1916948abd5a12530d070ca6d316744c786d638fa8e4dd39d21fca5441ba7"
+    },
+    {
+      "path": "apps/mobile/src/storage/query-read-cache.ts",
+      "sha256": "9cc57ab0a346bacee95f182799803ef4eb611f7fa87dd158bee30d2b9eb8e25c"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "ce95b3a56d1d8d70032defc7d4fc4ddc67122cd90e99f7240c67857c3237a985"
+    },
+    {
+      "path": "compose.api.yml",
+      "sha256": "d95fed86a1d8b32ba8a55ba64210a5db4b6e1c692ba96cca7618c448f86265b7"
+    },
+    {
+      "path": "rollback-api.yml",
+      "sha256": "c2bdd0709c266937c8804f52d39738de5dec5185b81adf55aa16594fc886f8c9"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "88bf6cdce19fd5c12e6969d317c2ddc47f3f79b1101fd66a2d989f76ace1fdd4"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    }
+  ],
+  "finalUniqueAffectedCases": 163,
+  "passedSuitesAcrossQualifiedSelections": 8,
+  "latestStartupSelectionCases": 55,
+  "reusedUnchangedAssistantCases": 81,
+  "reusedUnchangedApiCases": 27,
+  "naturalTestExitZero": true,
+  "typesLintFormatExitZero": true,
+  "changedLintWarnings": 0,
+  "behavioralReds": 4,
+  "independentIosPeerSdkCycleFindingCorrected": true,
+  "otherReviewDirectSelfReview": true,
+  "verifiedSignerApis": [24, 28, 32, 33, 35, 36],
+  "alignment16Kb": true,
+  "r8RecordFieldRetained": true,
+  "nativeLibrariesByteIdenticalTo121": 23,
+  "actualDexConsumer": {
+    "concrete": true,
+    "exactPublicConstructorPresent": true,
+    "stableConsumerClassName": true
+  },
+  "retainedMetadataWarningCounts": {
+    "task29-customer-121": 116,
+    "task30-customer-122-resume": 116
+  },
+  "initial122BuildFailedEnospcNoApk": true,
+  "onlySuccessful122Build": "task30-customer-122-resume-native",
+  "ownedArtifactPathsPreservedViaJunctionAfterVerifiedOffload": true,
+  "temporarySshRuleRemovedAndOriginalUfwFilesEqual": true,
+  "physicalScope": [
+    "One ordinary cached cold Home reopening and normal navigation",
+    "At most one distinct read-only question in the existing Assistant conversation after draft/consent/pending checks",
+    "Preserve resulting question/reply and exact owner AND SDK/complete captured retained state; end Home"
+  ],
+  "noSmsVoiceFinancialFixtureOrDefaultSourceChange": true,
+  "actual122ApiApprovalReceived": false,
+  "installed": false,
+  "actual122PhysicalLatencyAccepted": false,
+  "productionReady": false,
+  "independentIosPeerSdkCycleReviewClosed": true
+}

@@ -1,0 +1,135 @@
+{
+  "atUtc": "2026-11-05T09:35:39.384486+00:00",
+  "sourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+  "package": "com.masarifi.mobile",
+  "artifacts": {
+    "bridge": {
+      "apkPath": "C:\\mrc1105\\artifacts\\task6-customer-v2-bridge-lineage.apk",
+      "apkSha256": "0872d72fcb5a5d4b5463ad54dc9e453d6292e1844460aff07580b55fbe93ab5a",
+      "apkBytes": 55710221,
+      "versionName": "1.0.0",
+      "versionCode": 100,
+      "minSdk": 33,
+      "hermesSha256": "439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41",
+      "verifiedApiSigners": {
+        "33": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "35": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "36": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ]
+      },
+      "alignment16Kb": true,
+      "r8RecordFieldRetained": true,
+      "mappingSha256": "a788c726876159f2d06013cd3169c4a06087c787a46ca55d7887dd7ec72f4584",
+      "sourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+      "package": "com.masarifi.mobile",
+      "staticQualified": true,
+      "currentCleanupProtocolInNativeAndHermes": true,
+      "actualCustomerPhoneAcceptance": false
+    },
+    "final": {
+      "apkPath": "C:\\mrc1105\\artifacts\\task6-customer-v2-final-native.apk",
+      "apkSha256": "29f087f9994016e21821629a9ca79802b83559886b18b1c936d65227427f0f19",
+      "apkBytes": 49502730,
+      "versionName": "1.0.0",
+      "versionCode": 101,
+      "minSdk": 24,
+      "hermesSha256": "439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41",
+      "verifiedApiSigners": {
+        "24": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "28": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "32": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "33": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "35": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "36": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ]
+      },
+      "alignment16Kb": true,
+      "r8RecordFieldRetained": true,
+      "mappingSha256": "763a6246c07d1b4d3a4e89ec7f8d461b14dc077e5fb0613b6a99583cf0731143",
+      "sourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+      "package": "com.masarifi.mobile",
+      "staticQualified": true,
+      "currentCleanupProtocolInNativeAndHermes": true,
+      "actualCustomerPhoneAcceptance": false
+    },
+    "higherCounterRecovery": {
+      "apkPath": "C:\\mrc1105\\artifacts\\task6-customer-v2-rollback-native.apk",
+      "apkSha256": "1d73c7e4f3bb13564288a5cdf431f2463aee4a16e94d22826de889bdcef555f2",
+      "apkBytes": 49502730,
+      "versionName": "1.0.0",
+      "versionCode": 102,
+      "minSdk": 24,
+      "hermesSha256": "439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41",
+      "verifiedApiSigners": {
+        "24": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "28": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "32": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "33": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "35": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ],
+        "36": [
+          "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57"
+        ]
+      },
+      "alignment16Kb": true,
+      "r8RecordFieldRetained": true,
+      "mappingSha256": "763a6246c07d1b4d3a4e89ec7f8d461b14dc077e5fb0613b6a99583cf0731143",
+      "sourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+      "package": "com.masarifi.mobile",
+      "staticQualified": true,
+      "currentCleanupProtocolInNativeAndHermes": true,
+      "actualCustomerPhoneAcceptance": false
+    }
+  },
+  "allThreeHermesAndEmbeddedConfigIdentical": true,
+  "hermesSha256": "439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41",
+  "embeddedConfigSha256": "749f4c62e5baaee3cd3b1732314b3e650ad4815df08998c586fb93246744a764",
+  "existingDevelopmentCertificateSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "existingProductionCertificateSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "existingLineageSha256": "378b4af8b8e6021728711a8c001dcc960a368e6d6ee1c532ba79d160560dff06",
+  "unchangedLineageCapabilities": {
+    "installedData": true,
+    "sharedUid": false,
+    "permission": false,
+    "authentication": false,
+    "rollback": false
+  },
+  "lineageCapabilityInspectionReusedBecauseExactBytesUnchanged": true,
+  "newSigningKeyCreated": false,
+  "primaryInstalledApkSha256AtReadOnlyBaseline": "a4378391e829540fb4c4e7f6345c2806b6c5da10e9437dd65e5e1eb2d391f89a",
+  "existingDeliveryApkSha256": "e9d2dbb77ab98447ed7287b41f6f22a305acacc6e968d74b0275ed3c282d10d3",
+  "separateQaSigningMechanicsPreviouslyPhysicallyQualified": true,
+  "separateQaProofIsCurrentCustomerAcceptance": false,
+  "primaryTransitionApproved": false,
+  "primaryUpdated": false,
+  "actualFinalCustomerRedmiAcceptance": false,
+  "api24To32LegacyUpgradePhysicallyQualified": false,
+  "deliveryReplaced": false,
+  "branchPushed": false,
+  "productionReady": false
+}

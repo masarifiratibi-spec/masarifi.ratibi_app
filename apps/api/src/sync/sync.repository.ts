@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
 
@@ -91,7 +92,10 @@ export interface ConflictRecord {
   resolvedAt: string | null;
 }
 
-interface ClaimedMutationRow extends QueryResultRow {
+export interface ClaimedMutationRow extends QueryResultRow {
+  generation?: string;
+  created_at: Date | string;
+  authenticated_at?: Date | string | null;
   id: string;
   user_id: string;
   device_id: string;
@@ -110,10 +114,12 @@ interface ClaimedMutationRow extends QueryResultRow {
 }
 
 export interface ClaimedMutation {
+  generation?: string;
   id: string;
   userId: string;
   deviceId: string;
   factorAgeSeconds: number | null;
+  authenticatedAt: string | null;
   mutation: SyncMutation;
   attemptCount: number;
   leaseToken: string;
@@ -127,6 +133,37 @@ export interface MutationReceipt {
   error: Record<string, unknown> | null;
 }
 
+export function toClaimedMutation(row: ClaimedMutationRow): ClaimedMutation {
+  return {
+    generation: row.generation,
+    id: row.id,
+    userId: row.user_id,
+    deviceId: row.device_id,
+    factorAgeSeconds: row.factor_age_seconds,
+    authenticatedAt:
+      row.authenticated_at != null
+        ? new Date(row.authenticated_at).toISOString()
+        : row.factor_age_seconds !== null && Number.isFinite(new Date(row.created_at).getTime())
+          ? new Date(
+              new Date(row.created_at).getTime() - row.factor_age_seconds * 1000,
+            ).toISOString()
+          : null,
+    mutation: {
+      operationId: row.operation_id,
+      domain: row.domain,
+      resourceType: row.resource_type,
+      schemaVersion: row.schema_version,
+      dependsOn: row.depends_on,
+      operation: row.operation,
+      resourceId: row.resource_id,
+      baseVersion: row.base_version === null ? null : Number(row.base_version),
+      payload: row.payload,
+    },
+    attemptCount: row.attempt_count,
+    leaseToken: row.lease_token,
+  };
+}
+
 @Injectable()
 export class SyncRepository {
   constructor(private readonly pool: PoolService) {}
@@ -134,11 +171,13 @@ export class SyncRepository {
   private transaction<T>(
     principal: ClerkPrincipal,
     action: (client: PoolClient) => Promise<T>,
-    readOnlyRepeatable = false,
+    repeatableSnapshot = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query(
-        readOnlyRepeatable ? 'begin isolation level repeatable read read only' : 'begin',
+        // Active-profile checks take FOR SHARE locks to fence account freezing.
+        // Keep the stable snapshot while permitting those protection locks.
+        repeatableSnapshot ? 'begin isolation level repeatable read' : 'begin',
       );
       try {
         await client.query("select set_config('request.jwt.claims',$1,true)", [
@@ -546,7 +585,7 @@ export class SyncRepository {
       try {
         await client.query('set local role masarifi_worker');
         const result = await client.query<ClaimedMutationRow>(
-          'select * from private.claim_client_mutations($1,$2,$3)',
+          "select w.*,private.bind_financial_worker_generation('sync',w.id,w.lease_token)::text generation from private.claim_client_mutations($1,$2,$3) w",
           [workerId, limit, leaseSeconds],
         );
         await client.query('commit');
@@ -556,25 +595,22 @@ export class SyncRepository {
         throw error;
       }
     });
-    return rows.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      deviceId: row.device_id,
-      factorAgeSeconds: row.factor_age_seconds,
-      mutation: {
-        operationId: row.operation_id,
-        domain: row.domain,
-        resourceType: row.resource_type,
-        schemaVersion: row.schema_version,
-        dependsOn: row.depends_on,
-        operation: row.operation,
-        resourceId: row.resource_id,
-        baseVersion: row.base_version === null ? null : Number(row.base_version),
-        payload: row.payload,
-      },
-      attemptCount: row.attempt_count,
-      leaseToken: row.lease_token,
-    }));
+    return rows.map(toClaimedMutation);
+  }
+
+  async claimedGeneration(id: string, token: string): Promise<string> {
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query('set local role masarifi_worker');
+        const generation = await bindFinancialClaim(client, 'sync', id, token);
+        await client.query('commit');
+        return generation;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
   }
 
   workerComplete(

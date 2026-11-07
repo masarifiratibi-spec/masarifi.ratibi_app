@@ -1,0 +1,605 @@
+{
+  "summary": {
+    "atUtc": "2026-11-01T23:39:00.549735+00:00",
+    "guestOnly": true,
+    "locale": "ar",
+    "apkSha256": "2759d113a01da6f88fdd0146fe9e9657f67552b52781a3a4fc98ca1d738b6c35",
+    "nativeActivityDrawMs": {
+      "n": 20,
+      "min": 405,
+      "median": 473.5,
+      "p95NearestRank": 530,
+      "max": 580
+    },
+    "stageDurationsMs": {
+      "identity.cache.read": {
+        "n": 80,
+        "min": 15.675,
+        "median": 34.7635,
+        "p95NearestRank": 63.865,
+        "max": 81.428
+      },
+      "startup.fonts": {
+        "n": 20,
+        "min": 136.976,
+        "median": 156.6515,
+        "p95NearestRank": 196.688,
+        "max": 196.986
+      },
+      "startup.identity": {
+        "n": 20,
+        "min": 512.715,
+        "median": 869.0525,
+        "p95NearestRank": 1113.311,
+        "max": 1135.907
+      },
+      "startup.restore": {
+        "n": 20,
+        "min": 4.587,
+        "median": 14.460999999999999,
+        "p95NearestRank": 18.57,
+        "max": 43.574
+      }
+    },
+    "identityCacheReadsPerRun": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "preferenceFailures": 0,
+    "observedTransportMetricCount": 0,
+    "pssKiB": {
+      "n": 20,
+      "min": 170580,
+      "median": 171916.5,
+      "p95NearestRank": 172452,
+      "max": 173605
+    },
+    "limitations": [
+      "Native activity draw is not usable React screen or authenticated data readiness.",
+      "Runtime stage clock is not aligned to process launch; stage durations cannot be added.",
+      "Process cold with cached OS/filesystem; app data preserved.",
+      "No authentication, financial mutations, provider calls or original package launches.",
+      "Arabic only; English and authenticated flows remain unqualified."
+    ]
+  },
+  "samples": [
+    {
+      "run": 1,
+      "atUtc": "2026-11-01T23:37:26.335592+00:00",
+      "nativeActivityTotalMs": 580,
+      "nativeWaitMs": 584,
+      "stages": {
+        "identity.cache.read": [
+          38.654,
+          56.958,
+          17.207,
+          18.195
+        ],
+        "startup.fonts": [
+          136.976
+        ],
+        "startup.identity": [
+          1002.101
+        ],
+        "startup.restore": [
+          15.154
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 173605
+    },
+    {
+      "run": 2,
+      "atUtc": "2026-11-01T23:37:31.458527+00:00",
+      "nativeActivityTotalMs": 510,
+      "nativeWaitMs": 557,
+      "stages": {
+        "identity.cache.read": [
+          48.709,
+          67.325,
+          20.124,
+          25.705
+        ],
+        "startup.fonts": [
+          164.968
+        ],
+        "startup.identity": [
+          891.06
+        ],
+        "startup.restore": [
+          4.588
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171980
+    },
+    {
+      "run": 3,
+      "atUtc": "2026-11-01T23:37:36.249848+00:00",
+      "nativeActivityTotalMs": 453,
+      "nativeWaitMs": 457,
+      "stages": {
+        "identity.cache.read": [
+          42.152,
+          60.288,
+          16.35,
+          23.264
+        ],
+        "startup.fonts": [
+          144.559
+        ],
+        "startup.identity": [
+          979.244
+        ],
+        "startup.restore": [
+          13.764
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171940
+    },
+    {
+      "run": 4,
+      "atUtc": "2026-11-01T23:37:40.923816+00:00",
+      "nativeActivityTotalMs": 457,
+      "nativeWaitMs": 463,
+      "stages": {
+        "identity.cache.read": [
+          53.575,
+          64.85,
+          22.243,
+          23.144
+        ],
+        "startup.fonts": [
+          171.855
+        ],
+        "startup.identity": [
+          773.191
+        ],
+        "startup.restore": [
+          16.99
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 170580
+    },
+    {
+      "run": 5,
+      "atUtc": "2026-11-01T23:37:45.563311+00:00",
+      "nativeActivityTotalMs": 530,
+      "nativeWaitMs": 536,
+      "stages": {
+        "identity.cache.read": [
+          48.007,
+          62.395,
+          21.936,
+          27.048
+        ],
+        "startup.fonts": [
+          164.274
+        ],
+        "startup.identity": [
+          1046.133
+        ],
+        "startup.restore": [
+          7.121
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171997
+    },
+    {
+      "run": 6,
+      "atUtc": "2026-11-01T23:37:50.340279+00:00",
+      "nativeActivityTotalMs": 474,
+      "nativeWaitMs": 478,
+      "stages": {
+        "identity.cache.read": [
+          45.992,
+          62.536,
+          34.748,
+          17.01
+        ],
+        "startup.fonts": [
+          163.986
+        ],
+        "startup.identity": [
+          956.827
+        ],
+        "startup.restore": [
+          43.574
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 172292
+    },
+    {
+      "run": 7,
+      "atUtc": "2026-11-01T23:37:55.060299+00:00",
+      "nativeActivityTotalMs": 514,
+      "nativeWaitMs": 539,
+      "stages": {
+        "identity.cache.read": [
+          41.704,
+          60.153,
+          15.675,
+          26.381
+        ],
+        "startup.fonts": [
+          156.215
+        ],
+        "startup.identity": [
+          1135.907
+        ],
+        "startup.restore": [
+          14.367
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 172452
+    },
+    {
+      "run": 8,
+      "atUtc": "2026-11-01T23:37:59.797956+00:00",
+      "nativeActivityTotalMs": 513,
+      "nativeWaitMs": 524,
+      "stages": {
+        "identity.cache.read": [
+          41.352,
+          59.175,
+          17.028,
+          20.063
+        ],
+        "startup.fonts": [
+          155.223
+        ],
+        "startup.identity": [
+          512.715
+        ],
+        "startup.restore": [
+          14.475
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171493
+    },
+    {
+      "run": 9,
+      "atUtc": "2026-11-01T23:38:04.488405+00:00",
+      "nativeActivityTotalMs": 405,
+      "nativeWaitMs": 408,
+      "stages": {
+        "identity.cache.read": [
+          43.006,
+          60.482,
+          16.152,
+          17.191
+        ],
+        "startup.fonts": [
+          196.688
+        ],
+        "startup.identity": [
+          847.045
+        ],
+        "startup.restore": [
+          13.942
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171555
+    },
+    {
+      "run": 10,
+      "atUtc": "2026-11-01T23:38:09.083227+00:00",
+      "nativeActivityTotalMs": 484,
+      "nativeWaitMs": 487,
+      "stages": {
+        "identity.cache.read": [
+          51.445,
+          81.428,
+          16.809,
+          24.138
+        ],
+        "startup.fonts": [
+          182.448
+        ],
+        "startup.identity": [
+          1113.311
+        ],
+        "startup.restore": [
+          15.061
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 172204
+    },
+    {
+      "run": 11,
+      "atUtc": "2026-11-01T23:38:13.787262+00:00",
+      "nativeActivityTotalMs": 429,
+      "nativeWaitMs": 435,
+      "stages": {
+        "identity.cache.read": [
+          39.469,
+          52.627,
+          15.914,
+          17.728
+        ],
+        "startup.fonts": [
+          147.444
+        ],
+        "startup.identity": [
+          968.116
+        ],
+        "startup.restore": [
+          14.447
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 172178
+    },
+    {
+      "run": 12,
+      "atUtc": "2026-11-01T23:38:18.434454+00:00",
+      "nativeActivityTotalMs": 435,
+      "nativeWaitMs": 440,
+      "stages": {
+        "identity.cache.read": [
+          39.014,
+          56.276,
+          22.819,
+          23.071
+        ],
+        "startup.fonts": [
+          146.988
+        ],
+        "startup.identity": [
+          997.248
+        ],
+        "startup.restore": [
+          11.758
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171893
+    },
+    {
+      "run": 13,
+      "atUtc": "2026-11-01T23:38:23.041454+00:00",
+      "nativeActivityTotalMs": 509,
+      "nativeWaitMs": 515,
+      "stages": {
+        "identity.cache.read": [
+          40.359,
+          59.525,
+          17.681,
+          18.97
+        ],
+        "startup.fonts": [
+          157.088
+        ],
+        "startup.identity": [
+          835.433
+        ],
+        "startup.restore": [
+          15.534
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171994
+    },
+    {
+      "run": 14,
+      "atUtc": "2026-11-01T23:38:27.767893+00:00",
+      "nativeActivityTotalMs": 456,
+      "nativeWaitMs": 483,
+      "stages": {
+        "identity.cache.read": [
+          42.393,
+          59.252,
+          18.315,
+          16.365
+        ],
+        "startup.fonts": [
+          172.202
+        ],
+        "startup.identity": [
+          926.163
+        ],
+        "startup.restore": [
+          18.57
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171985
+    },
+    {
+      "run": 15,
+      "atUtc": "2026-11-01T23:38:32.439283+00:00",
+      "nativeActivityTotalMs": 524,
+      "nativeWaitMs": 530,
+      "stages": {
+        "identity.cache.read": [
+          46.295,
+          63.865,
+          17.62,
+          22.558
+        ],
+        "startup.fonts": [
+          181.093
+        ],
+        "startup.identity": [
+          700.843
+        ],
+        "startup.restore": [
+          16.175
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171215
+    },
+    {
+      "run": 16,
+      "atUtc": "2026-11-01T23:38:37.190402+00:00",
+      "nativeActivityTotalMs": 507,
+      "nativeWaitMs": 513,
+      "stages": {
+        "identity.cache.read": [
+          42.922,
+          56.846,
+          16.159,
+          27.175
+        ],
+        "startup.fonts": [
+          142.804
+        ],
+        "startup.identity": [
+          603.055
+        ],
+        "startup.restore": [
+          14.894
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171036
+    },
+    {
+      "run": 17,
+      "atUtc": "2026-11-01T23:38:41.914228+00:00",
+      "nativeActivityTotalMs": 449,
+      "nativeWaitMs": 456,
+      "stages": {
+        "identity.cache.read": [
+          43.512,
+          59.989,
+          16.594,
+          20.452
+        ],
+        "startup.fonts": [
+          142.695
+        ],
+        "startup.identity": [
+          546.175
+        ],
+        "startup.restore": [
+          14.419
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171059
+    },
+    {
+      "run": 18,
+      "atUtc": "2026-11-01T23:38:46.583566+00:00",
+      "nativeActivityTotalMs": 451,
+      "nativeWaitMs": 455,
+      "stages": {
+        "identity.cache.read": [
+          34.779,
+          51.558,
+          16.875,
+          27.27
+        ],
+        "startup.fonts": [
+          140.119
+        ],
+        "startup.identity": [
+          590.121
+        ],
+        "startup.restore": [
+          15.93
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 170888
+    },
+    {
+      "run": 19,
+      "atUtc": "2026-11-01T23:38:51.226342+00:00",
+      "nativeActivityTotalMs": 473,
+      "nativeWaitMs": 484,
+      "stages": {
+        "identity.cache.read": [
+          40.966,
+          57.719,
+          16.49,
+          16.601
+        ],
+        "startup.fonts": [
+          139.129
+        ],
+        "startup.identity": [
+          636.112
+        ],
+        "startup.restore": [
+          13.57
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171207
+    },
+    {
+      "run": 20,
+      "atUtc": "2026-11-01T23:38:55.883951+00:00",
+      "nativeActivityTotalMs": 440,
+      "nativeWaitMs": 446,
+      "stages": {
+        "identity.cache.read": [
+          43.698,
+          66.998,
+          17.906,
+          19.151
+        ],
+        "startup.fonts": [
+          196.986
+        ],
+        "startup.identity": [
+          578.655
+        ],
+        "startup.restore": [
+          4.587
+        ]
+      },
+      "preferenceFailures": 0,
+      "observedTransportMetricCount": 0,
+      "processPssKiB": 171341
+    }
+  ]
+}

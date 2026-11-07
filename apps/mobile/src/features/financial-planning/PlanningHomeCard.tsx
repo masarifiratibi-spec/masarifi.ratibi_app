@@ -4,24 +4,11 @@ import { router } from 'expo-router';
 
 import { GroupedList } from '@/design-system/components/navigation/GroupedList';
 import { minTouchTarget, spacing } from '@/design-system/tokens';
-import { localDateInTimeZone } from '@/domain/financial-period';
-import type { SavingsProgress } from '@/domain/financial-planning';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
-import { usePlanningOverview } from './financial-planning-queries';
 
 export function PlanningHomeCard() {
-  const timeZone = usePreferenceStore((state) => state.timeZone);
-  const overview = usePlanningOverview(
-    'SAR',
-    localDateInTimeZone(Date.now(), timeZone),
-    timeZone
-  ).data;
-  const savingsPercent = overview?.savings.find(
-    (goal: SavingsProgress) => goal.percentage.status === 'available'
-  )?.percentage;
-
   return (
     <View style={styles.stack}>
       <Text style={styles.heading}>
@@ -29,15 +16,6 @@ export function PlanningHomeCard() {
       </Text>
       <GroupedList label={translate('coreFinance.home.financialProgress')}>
         {/* TODO: Restore the budget entry when the budget experience is ready for release. */}
-        <PlanningRow
-          label={translate('planning.savings.title')}
-          onPress={() => router.push('/savings')}
-          percent={
-            savingsPercent?.status === 'available'
-              ? savingsPercent.value
-              : undefined
-          }
-        />
         <PlanningRow
           label={translate('planning.salary.title')}
           onPress={() => router.push('/salary')}

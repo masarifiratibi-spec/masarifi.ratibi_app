@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -16,7 +18,7 @@ import {
   spacing
 } from '@/design-system/tokens';
 import { minorToMajorAmountText } from '@/domain/currencies';
-import { parseAmountToMinor, type Category } from '@/domain/core-finance';
+import { type Category } from '@/domain/core-finance';
 import {
   FinancialPlanningError,
   type CategoryBudget
@@ -35,6 +37,10 @@ import {
   translateDynamic
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   useBudgetById,
@@ -60,8 +66,20 @@ export function BudgetForm({
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
   const owningCurrencyCode = existing.data?.budget.currencyCode ?? currencyCode;
   const [name, setName] = useState('');
+  const nameInput = useRef<TextInput>(null);
+  const periodInput = useRef<TextInput>(null);
+  const amountInput = useRef<TextInput>(null);
+  const categoryAmountInput = useRef<TextInput>(null);
+  const [errorField, setErrorField] = useState<
+    'name' | 'period' | 'amount' | 'category' | null
+  >(null);
   const [periodKey, setPeriodKey] = useState(
-    () => initialPeriodKey ?? new Date().toISOString().slice(0, 7)
+    () =>
+      initialPeriodKey ??
+      localDateInTimeZone(
+        Date.now(),
+        usePreferenceStore.getState().timeZone
+      ).slice(0, 7)
   );
   const [expenseLimit, setExpenseLimit] = useState('');
   const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>(
@@ -86,38 +104,7 @@ export function BudgetForm({
       )
   );
 
-  useEffect(() => {
-    if (!existing.data) return;
-    setName(
-      existing.data.budget.name ?? translate('planning.budget.defaultName')
-    );
-    setPeriodKey(existing.data.budget.periodKey);
-    setExpenseLimit(
-      minorToMajorAmountText(
-        existing.data.budget.configuredExpenseLimitMinor,
-        existing.data.budget.currencyCode
-      )
-    );
-    setRolloverEnabled(existing.data.budget.rolloverEnabled);
-    setCopiedFromBudgetId(existing.data.budget.copiedFromBudgetId);
-    setCategoryLimits(
-      Object.fromEntries(
-        existing.data.categories.map((item: CategoryBudget) => [
-          item.categoryId,
-          minorToMajorAmountText(
-            item.limitMinor,
-            existing.data.budget.currencyCode
-          )
-        ])
-      )
-    );
-    setSelectedCategoryIds(
-      existing.data.categories.map((category) => category.categoryId)
-    );
-  }, [existing.data]);
-
-  const draftEnabled = !budgetId || Boolean(existing.data);
-  const { draftReady, discardDraft } = usePlanningFormDraft({
+  const { draftReady, discardDraft, hasRestoredDraft } = usePlanningFormDraft({
     id: `planning-form-budget:${budgetId || 'new'}`,
     kind: 'budget',
     entityId: budgetId || null,
@@ -130,10 +117,7 @@ export function BudgetForm({
       rolloverEnabled,
       copiedFromBudgetId
     },
-    meaningful: Boolean(
-      name || expenseLimit || selectedCategoryIds.length
-    ),
-    enabled: draftEnabled,
+    meaningful: Boolean(name || expenseLimit || selectedCategoryIds.length),
     restore: (payload) => {
       const draft = payload as Partial<{
         name: string;
@@ -163,6 +147,36 @@ export function BudgetForm({
     onError: () => setError(translate('planning.state.error'))
   });
 
+  useEffect(() => {
+    if (!existing.data || hasRestoredDraft) return;
+    setName(
+      existing.data.budget.name ?? translate('planning.budget.defaultName')
+    );
+    setPeriodKey(existing.data.budget.periodKey);
+    setExpenseLimit(
+      minorToMajorAmountText(
+        existing.data.budget.configuredExpenseLimitMinor,
+        existing.data.budget.currencyCode
+      )
+    );
+    setRolloverEnabled(existing.data.budget.rolloverEnabled);
+    setCopiedFromBudgetId(existing.data.budget.copiedFromBudgetId);
+    setCategoryLimits(
+      Object.fromEntries(
+        existing.data.categories.map((item: CategoryBudget) => [
+          item.categoryId,
+          minorToMajorAmountText(
+            item.limitMinor,
+            existing.data.budget.currencyCode
+          )
+        ])
+      )
+    );
+    setSelectedCategoryIds(
+      existing.data.categories.map((category) => category.categoryId)
+    );
+  }, [existing.data, hasRestoredDraft]);
+
   const categoryOwners = useMemo(
     () =>
       new Map(
@@ -173,8 +187,7 @@ export function BudgetForm({
               (category) =>
                 [
                   category.categoryId,
-                  detail.budget.name ??
-                    translate('planning.budget.defaultName')
+                  detail.budget.name ?? translate('planning.budget.defaultName')
                 ] as const
             )
           )
@@ -204,9 +217,7 @@ export function BudgetForm({
   });
 
   const applyCopy = (detail: BudgetDetail) => {
-    setName(
-      detail.budget.name ?? translate('planning.budget.defaultName')
-    );
+    setName(detail.budget.name ?? translate('planning.budget.defaultName'));
     setExpenseLimit(
       minorToMajorAmountText(
         detail.budget.configuredExpenseLimitMinor,
@@ -248,6 +259,8 @@ export function BudgetForm({
   };
 
   const submit = () => {
+    if (save.isPending || draftOnly) return;
+    setErrorField(null);
     const configuredExpenseLimitMinor = parseAmountToMinor(
       expenseLimit,
       owningCurrencyCode
@@ -257,34 +270,57 @@ export function BudgetForm({
       !/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey) ||
       configuredExpenseLimitMinor === null
     ) {
+      const field = !name.trim()
+        ? 'name'
+        : !/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey)
+          ? 'period'
+          : 'amount';
+      setErrorField(field);
+      (field === 'name'
+        ? nameInput
+        : field === 'period'
+          ? periodInput
+          : amountInput
+      ).current?.focus();
       setError(translate('planning.validation.required'));
+      return;
+    }
+    const invalidCategory = selectedCategoryIds.find(
+      (id) =>
+        (categoryLimits[id] ?? '').trim() &&
+        parseAmountToMinor(categoryLimits[id], owningCurrencyCode) === null
+    );
+    if (invalidCategory) {
+      setSelectedCategoryId(invalidCategory);
+      setErrorField('category');
+      setError(translate('coreFinance.validation.amount'));
+      setTimeout(() => categoryAmountInput.current?.focus(), 0);
       return;
     }
     const now = Date.now();
     const budgetCategories = selectedCategoryIds.map((categoryId) => {
-        const limitMinor =
-          parseAmountToMinor(
-            categoryLimits[categoryId] ?? '',
-            owningCurrencyCode
-          ) ?? 0;
-        const prior = existing.data?.categories.find(
-          (item: CategoryBudget) => item.categoryId === categoryId
-        );
-        return {
-            id:
-              prior?.id ??
-              `category-budget-${budgetId || periodKey}-${categoryId}`,
-            version: prior?.version ?? 1,
-            syncStatus: prior?.syncStatus ?? ('pending' as const),
-            createdAt: prior?.createdAt ?? now,
-            updatedAt: now,
-            budgetId: budgetId || 'pending',
-            categoryId,
-            limitMinor,
-            alertThresholds: prior?.alertThresholds ?? [80, 90, 100],
-            status: 'active' as const
-          };
-      });
+      const limitMinor =
+        parseAmountToMinor(
+          categoryLimits[categoryId] ?? '',
+          owningCurrencyCode
+        ) ?? 0;
+      const prior = existing.data?.categories.find(
+        (item: CategoryBudget) => item.categoryId === categoryId
+      );
+      return {
+        id:
+          prior?.id ?? `category-budget-${budgetId || periodKey}-${categoryId}`,
+        version: prior?.version ?? 1,
+        syncStatus: prior?.syncStatus ?? ('pending' as const),
+        createdAt: prior?.createdAt ?? now,
+        updatedAt: now,
+        budgetId: budgetId || 'pending',
+        categoryId,
+        limitMinor,
+        alertThresholds: prior?.alertThresholds ?? [80, 90, 100],
+        status: 'active' as const
+      };
+    });
     save.mutate(
       {
         id: budgetId || undefined,
@@ -311,10 +347,10 @@ export function BudgetForm({
         onError: (cause) =>
           setError(
             cause instanceof FinancialPlanningError
-              ? cause.code === 'duplicate' &&
-                cause.details?.kind === 'category'
+              ? cause.code === 'duplicate' && cause.details?.kind === 'category'
                 ? translateDynamic('planning.budget.error.categoryConflict', {
-                    owner: cause.details.owner ||
+                    owner:
+                      cause.details.owner ||
                       translate('planning.budget.defaultName')
                   })
                 : translate(
@@ -330,7 +366,24 @@ export function BudgetForm({
     );
   };
 
-  if (existing.isError || categories.isError || monthBudgets.isError)
+  const validPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey);
+  const draftOnly =
+    hasRestoredDraft &&
+    ![existing, categories, monthBudgets].some((query) =>
+      isAuthoritativeReadDenial(query.error)
+    ) &&
+    ((Boolean(budgetId) && !hasReadableSnapshot(existing)) ||
+      !hasReadableSnapshot(categories) ||
+      (validPeriod && !hasReadableSnapshot(monthBudgets)));
+
+  if (
+    !draftOnly &&
+    ((existing.isError && !hasReadableSnapshot(existing)) ||
+      (categories.isError && !hasReadableSnapshot(categories)) ||
+      (validPeriod &&
+        monthBudgets.isError &&
+        !hasReadableSnapshot(monthBudgets)))
+  )
     return (
       <PlanningScreen
         backgroundColor={colorTokens.neutral.warmSurface}
@@ -347,9 +400,9 @@ export function BudgetForm({
       </PlanningScreen>
     );
   if (
-    (budgetId && existing.isLoading) ||
-    categories.isLoading ||
-    (draftEnabled && !draftReady)
+    (!draftOnly &&
+      ((budgetId && existing.isLoading) || categories.isLoading)) ||
+    !draftReady
   )
     return embedded ? (
       <PlanningState state="loading" />
@@ -364,6 +417,11 @@ export function BudgetForm({
 
   const fields = (
     <View style={{ gap: spacing.md }}>
+      {draftOnly ? (
+        <StyledText variant="caption">
+          {translate('planning.budget.savedDraftOnly')}
+        </StyledText>
+      ) : null}
       {embedded ? (
         <StyledText variant="subtitle">
           {translate('planning.budgets.new')}
@@ -378,16 +436,22 @@ export function BudgetForm({
         }}
       >
         <FormField
+          inputRef={nameInput}
+          errorText={errorField === 'name' ? (error ?? undefined) : undefined}
           label={translate('planning.budget.name')}
           onChangeText={setName}
           value={name}
         />
         <FormField
+          inputRef={periodInput}
+          errorText={errorField === 'period' ? (error ?? undefined) : undefined}
           label={translate('planning.budget.period')}
           onChangeText={setPeriodKey}
           value={periodKey}
         />
         <FormField
+          inputRef={amountInput}
+          errorText={errorField === 'amount' ? (error ?? undefined) : undefined}
           label={translate('planning.budget.expenseLimit')}
           onChangeText={setExpenseLimit}
           value={expenseLimit}
@@ -454,11 +518,20 @@ export function BudgetForm({
         {activeCategoryId ? (
           <FormField
             label={translate('planning.budget.categoryLimit')}
-            onChangeText={(value) =>
+            onChangeText={(value) => {
+              setSelectedCategoryIds((current) =>
+                current.includes(activeCategoryId)
+                  ? current
+                  : [...current, activeCategoryId]
+              );
               setCategoryLimits((current) => ({
                 ...current,
                 [activeCategoryId]: value
-              }))
+              }));
+            }}
+            inputRef={categoryAmountInput}
+            errorText={
+              errorField === 'category' ? (error ?? undefined) : undefined
             }
             value={categoryLimits[activeCategoryId] ?? ''}
             variant="amount"
@@ -472,11 +545,7 @@ export function BudgetForm({
       </SurfaceCard>
 
       <ActionButton
-        disabled={
-          !name.trim() ||
-          !/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey) ||
-          parseAmountToMinor(expenseLimit, owningCurrencyCode) === null
-        }
+        disabled={save.isPending || draftOnly}
         label={translate('planning.action.save')}
         loading={save.isPending}
         onPress={submit}
@@ -499,8 +568,7 @@ export function BudgetForm({
             <ActionButton
               key={detail.budget.id}
               label={
-                detail.budget.name ??
-                translate('planning.budget.defaultName')
+                detail.budget.name ?? translate('planning.budget.defaultName')
               }
               onPress={() => applyCopy(detail)}
               variant="secondary"

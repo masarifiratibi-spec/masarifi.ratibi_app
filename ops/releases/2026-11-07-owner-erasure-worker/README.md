@@ -1,0 +1,7 @@
+# Confirmed account erasure recovery
+
+Release code: 756c3df6. Mobile 132 independently verified at a4d70d23. No schema migration. This release updates the production API and adds a single consumer for the existing governed privacy.account-delete job. It uses the existing worker role and the application's ordinary receipt, hold, retry and identity-provider checks; activating it may finish previously confirmed deletions.
+
+The prepare stage verifies the current API and import worker, patches only the erasure module of the live image, compares it with the qualified compiler output, checks the scoped worker entry point and compares the entire effective Compose configuration. The API stage retains the old image and verifies readiness, public liveness, environment and other container identities. The worker stage enables only the named job on its own service and verifies that the other services remain unchanged. Review the job history, the original receipt, identity outcome, redacted profile and completion event separately. Do not enter a new deletion request to validate this release.
+
+Use each deployment stage once and inspect its receipt before retrying. For rollback stop only account-delete-worker using the prepared extended Compose configuration, then start only core-api with the original Compose files and the generated rollback-api.json override. Do not reverse completed erasure. No customer identifiers, credentials, or generated Compose environments belong in source control.

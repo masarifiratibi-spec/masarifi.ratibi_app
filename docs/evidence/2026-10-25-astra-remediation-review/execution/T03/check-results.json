@@ -1,0 +1,108 @@
+{
+  "combined": {
+    "testsPassed": 314,
+    "seconds": 134.088,
+    "suitesPassed": 9,
+    "testsFailed": 1,
+    "suitesFailed": 1,
+    "failure": "Existing first form test5000ms timeout; retained as failed history"
+  },
+  "formFinal": {
+    "log": "final-form-freeze.log",
+    "seconds": 19.447,
+    "passed": 113,
+    "failed": 0
+  },
+  "voiceFinal": {
+    "log": "final-voice-rerun.log",
+    "seconds": 8.687,
+    "passed": 49,
+    "failed": 0
+  },
+  "typecheck": {
+    "exitCode": 0,
+    "log": "typecheck-complete.log"
+  },
+  "mechanical": {
+    "coreExit": 0,
+    "lintExit": 0,
+    "formatExit": 0
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 8
+  },
+  "overlappingRunsNotSummed": true,
+  "forceExit": false,
+  "skippedInCompleteRuns": 0,
+  "debugInstrumentationRemoved": true,
+  "guardReview": [
+    "clean-code-guard completed",
+    "test-guard completed"
+  ],
+  "independentAstra": "NOT_RUN by implementer",
+  "correctionRound1": {
+    "suites": 6,
+    "passed": 310,
+    "failed": 0,
+    "seconds": 33.377,
+    "serial": true,
+    "forceExit": false,
+    "skipped": 0,
+    "actWarnings": 0,
+    "log": "final-correction-suites-round1.log",
+    "typecheckExit": 0,
+    "typecheckLog": "typecheck-final-round1.log",
+    "coreFiles": 1209,
+    "coreExit": 0,
+    "coreLog": "core-boundaries-final-round1.log",
+    "lintExit": 0,
+    "lintErrors": 0,
+    "lintWarnings": 4,
+    "lintScope": "six files changed since prior review",
+    "lintLog": "eslint-final-round1.log",
+    "formatExit": 0,
+    "formatLog": "format-final-round1.log",
+    "historicalFailures": [
+      "first-correction-suites-round1.log: 140 passed/3 fixture-table failures; fixture corrected with existing queue schema",
+      "typecheck-round1.log: 3 optional RequestInit fixture errors; corrected without assertion change"
+    ],
+    "reds": [
+      "red-queue-authority-round1.log: 2 real public saves resolved behind received queue",
+      "red-receipt-background-round1.log: background backoff continued and resolved",
+      "red-acknowledged-cache-round1.log: saved version3 read cached version2"
+    ],
+    "currentIndependentReview": "PENDING_RE_REVIEW",
+    "phoneCoverage": "Automated-only corrections; no new phone/host action"
+  },
+  "correctionRound2": {
+    "suites": 1,
+    "passed": 106,
+    "failed": 0,
+    "seconds": 4.107,
+    "serial": true,
+    "forceExit": false,
+    "skipped": 0,
+    "log": "final-live-suite-round2.log",
+    "focusedReceiptScenarios": 10,
+    "red": "red-receipt-budget-round2.log: persistent received and 1.1s durable write,17 submissions in25s instead of4",
+    "productionFix": "Explicitly break nonterminal follow-up after initial+3 submissions, independent of expired nextAttemptAt",
+    "resume": "next legitimate constructed factory submits same durable operation/payload with fresh batch key;4 more then returns pending",
+    "bulkControl": "401 applied fixture operations in5 batches [100,100,100,100,1] continue normally",
+    "typecheckExit": 0,
+    "typecheckLog": "typecheck-final-round2.log",
+    "coreFiles": 1209,
+    "coreExit": 0,
+    "coreLog": "core-boundaries-final-round2.log",
+    "lintExit": 0,
+    "lintErrors": 0,
+    "lintWarnings": 3,
+    "lintScope": "two correction files",
+    "lintLog": "eslint-final-round2.log",
+    "formatExit": 0,
+    "formatLog": "format-final-round2.log",
+    "currentIndependentReview": "PENDING_FINAL_DELTA_REVIEW",
+    "phoneHostActions": 0,
+    "runnerImplemented": false
+  }
+}

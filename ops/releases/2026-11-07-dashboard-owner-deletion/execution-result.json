@@ -1,0 +1,17 @@
+{
+  "status": "applied",
+  "reviewedSourceCommit": "4620733e4b8d0b72a5e8ec498422dd0fb88b1160",
+  "version": "20261107083047",
+  "approvedTransactionSha256": "a4cd23a8ec799d2c2811d4ad49ee4c464bc0d8c15ae686e0dd160782c36a9f31",
+  "registeredMigrationSha256": "ad2434e4f1d053660136a5f510da78749257e8563c97a48e3963a103c7412b1f",
+  "matchingHistoryEntries": 1,
+  "historyCountBefore": 175,
+  "historyCountAfter": 176,
+  "matchingFunctionsWithExpectedOwnerAndGrants": 3,
+  "operatorCanSetMigrationRoleAfter": false,
+  "activeStaffAfter": 1,
+  "apiLivenessHttpStatus": 200,
+  "apiLiveness": "ok",
+  "verifiedAtUtc": "2026-11-07T08:43:27.534747Z",
+  "productionAccountDeletionTest": "No account deletion was submitted. The destructive service flow was verified on synthetic local accounts."
+}

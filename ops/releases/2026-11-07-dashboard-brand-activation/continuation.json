@@ -1,0 +1,8 @@
+{
+  "initialReviewCommit": "acd3baa84e2a5e577f90746b9314df1dd7b1f208",
+  "containerId": "726c6d6886ae5972aa8c3deebeef28741846d6acbe54af5d82717bc814e41016",
+  "observedPhase": "container created",
+  "running": false,
+  "exactHostConfigDifference": {"field": "OomKillDisable", "requested": null, "returned": false},
+  "repair": "Send false explicitly, preserving enabled OOM killing. All returned HostConfig fields remain compared exactly. Resume only this never-started creation receipt after artifact/source/environment/protected-service checks."
+}

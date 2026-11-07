@@ -7,7 +7,7 @@ it('runs deterministic proactive insight refresh without an AI provider', async 
     repository as never,
     {} as never,
     gateway as never,
-    { getRequired: jest.fn(() => 25) } as never,
+    { get: () => false, getRequired: jest.fn(() => 25) } as never,
   );
 
   await expect(worker.runJob('financial-insights.generate')).resolves.toBe(2);

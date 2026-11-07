@@ -6,6 +6,13 @@ import { ReportsSmtp } from '../../src/reports/reports.smtp';
 import { WorkerModule } from '../../src/worker.module';
 
 describe('ledger worker container registration', () => {
+  beforeEach(() => {
+    jest.replaceProperty(process, 'env', {
+      ...process.env,
+      MASARIFI_SYNC_COMMAND_DATABASE_URL: 'postgresql://api_fixture@127.0.0.1:55473/inert',
+    });
+  });
+
   it('registers the worker without an HTTP listener and completes one bounded batch', async () => {
     const reconcile = jest.fn().mockResolvedValue({ rows: [], nextCursor: null });
     const module = await Test.createTestingModule({ imports: [WorkerModule] })

@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-24",
+  "target": "Previously approved local PostgreSQL18.6 cluster; admin_recovery_browser",
+  "migration": "20261024105000_report_closure_compensation_lookup.sql",
+  "before": {
+    "trackingTests": 37,
+    "failed": 3,
+    "cases": [
+      {
+        "scenario": "recovers a committed partial-refund after import acknowledgement loss and coalesces reference replay",
+        "status": "failed",
+        "durationMs": 5006
+      },
+      {
+        "scenario": "recovers a committed full-refund after import acknowledgement loss and coalesces reference replay",
+        "status": "failed",
+        "durationMs": 4778
+      },
+      {
+        "scenario": "recovers a committed reversal after import acknowledgement loss and coalesces reference replay",
+        "status": "failed",
+        "durationMs": 5003
+      }
+    ],
+    "profile": {
+      "node": "Seq Scan on transactions",
+      "rowsReturned": 1,
+      "rowsRemoved": 516,
+      "durationMs": 718.57,
+      "filter": "id::text = tracking_committed_capture(item)->>originalTransactionId"
+    }
+  },
+  "after": {
+    "tests": 41,
+    "suites": 3,
+    "failures": 0,
+    "cases": [
+      {
+        "scenario": "recovers a committed partial-refund after import acknowledgement loss and coalesces reference replay",
+        "status": "passed",
+        "durationMs": 181
+      },
+      {
+        "scenario": "recovers a committed full-refund after import acknowledgement loss and coalesces reference replay",
+        "status": "passed",
+        "durationMs": 198
+      },
+      {
+        "scenario": "recovers a committed reversal after import acknowledgement loss and coalesces reference replay",
+        "status": "passed",
+        "durationMs": 183
+      }
+    ]
+  },
+  "timeoutMs": 5000,
+  "timeoutChanged": false,
+  "migrationRunner": "173 registered migrations; exact inventory and idempotency passed",
+  "scope": "Disposable local qualification only; hosted PostgreSQL17 and final release runtime remain external",
+  "sourceCommit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
+}

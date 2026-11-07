@@ -1,0 +1,223 @@
+{
+  "at": "2026-10-28T14:33:34.5910447+00:00",
+  "processes": [
+    {
+      "pid": 8056,
+      "parentPid": 6728,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 8928,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 8976,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 8996,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9016,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9036,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9080,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9428,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9444,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 9468,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 16300,
+      "parentPid": 8056,
+      "name": "postgres.exe",
+      "executable": null,
+      "commandLine": null
+    },
+    {
+      "pid": 25508,
+      "parentPid": 22768,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 30508,
+      "parentPid": 16360,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 12968,
+      "parentPid": 17208,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 18736,
+      "parentPid": 1252,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 14324,
+      "parentPid": 12112,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 28792,
+      "parentPid": 16360,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 28864,
+      "parentPid": 26476,
+      "name": "adb.exe",
+      "executable": "C:\\platform-tools\\platform-tools\\adb.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 22832,
+      "parentPid": 16360,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 14344,
+      "parentPid": 14988,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 16192,
+      "parentPid": 32008,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 32224,
+      "parentPid": 12208,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 33748,
+      "parentPid": 12592,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 30772,
+      "parentPid": 26160,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 21412,
+      "parentPid": 7564,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 36476,
+      "parentPid": 11940,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 12560,
+      "parentPid": 11940,
+      "name": "node.exe",
+      "executable": "C:\\Users\\DELL\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\e8c74e7ee9bd567e\\bin\\node.exe",
+      "commandLine": null
+    },
+    {
+      "pid": 25284,
+      "parentPid": 35264,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": "\"C:\\Program Files\\nodejs\\node.exe\" D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-t04-r18-metro.mjs"
+    },
+    {
+      "pid": 32992,
+      "parentPid": 25284,
+      "name": "node.exe",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLine": "\"C:\\Program Files\\nodejs\\node.exe\" D:\\Masarifi-integration-2026-10-10\\apps\\mobile\\node_modules\\expo\\bin\\cli start --dev-client --localhost --port 8081"
+    }
+  ],
+  "listeners": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 8081,
+      "OwningProcess": 32992
+    }
+  ],
+  "adbState": "device",
+  "devAppPid": "24113",
+  "reverse": "UsbFfs tcp:8081 tcp:8081\n",
+  "wifi": "0",
+  "mobileData": "0",
+  "airplane": "0",
+  "defaultNetwork": "Active default network: none",
+  "untouched": "No process or device state changed for this snapshot"
+}

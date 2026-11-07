@@ -1,0 +1,134 @@
+{
+  "title": "Terms & Conditions",
+  "notice": "Proposed wording — 1.0-draft, prepared 29 October 2026. This draft is not legally approved, has no effective date and does not activate registration consent or replace any existing agreement. Operator details and the legal review items must be completed before publication.",
+  "sections": [
+    {
+      "id": "operator",
+      "title": "1. Operator and scope",
+      "paragraphs": [
+        "These proposed terms concern مصاريفي وراتبي (Masarifi & Ratibi), a personal finance application intended for launch in the United Arab Emirates (UAE). The brand is not confirmation of a registered legal entity. The legal operator/controller identity, registration and address remain pending confirmation. Privacy and support contact supplied by the product owner: masarifi.ratibi@gmail.com. No particular response deadline or registered domicile is inferred from that contact.",
+        "The application may provide accounts and card records, transactions, categories, balances, budgets, salary planning, obligations, recurring records, savings goals, reports, optional tracking, voice input, a financial assistant and support. Availability depends on the platform, application version, permissions and enabled services. This document does not enable hidden, deferred or unavailable features."
+      ]
+    },
+    {
+      "id": "eligibility",
+      "title": "2. Eligibility and registration",
+      "paragraphs": [
+        "The product intention is availability across ages only where applicable UAE law permits. This is not permission for unrestricted registration by children. Legal capacity, age-appropriate access, any required parent/guardian authorization and child-data safeguards must be assessed and implemented before offering the service to the relevant age groups. Google sign-in and a general Terms checkbox do not establish age or verifiable parental consent. No such age/guardian workflow is claimed to exist in the current application.",
+        "The current public mobile sign-in uses Google through Clerk. Authentication, account creation, recovery and verification require the relevant online services. A returning authorized owner may have locally restored access to saved information subject to the application’s security checks. A local session is not proof of a newly verified remote session.",
+        "When an approved consent process is introduced, the final Terms and Privacy Policy must be presented separately with the applicable versions. The draft checkbox currently prepared for review is unchecked and inactive. Signing in or viewing this draft does not record acceptance of it."
+      ]
+    },
+    {
+      "id": "security",
+      "title": "3. Account security and authorized use",
+      "paragraphs": [
+        "Use only an account you are authorized to use and, where required for a minor, the approved guardian process. Keep your Google account and device secure; do not share authentication codes, session credentials or device unlock methods. Report suspected unauthorized access to masarifi.ratibi@gmail.com without sending passwords, authentication codes or unnecessary financial information.",
+        "App lock, hidden balances and operating-system security reduce particular risks but cannot guarantee protection on an unlocked, compromised or shared device. Logout, local-data removal and account deletion have different effects. Follow the application’s pending-work and confirmation messages before switching accounts or removing information."
+      ]
+    },
+    {
+      "id": "records",
+      "title": "4. Financial records and accuracy",
+      "paragraphs": [
+        "You are responsible for reviewing amounts, currencies, accounts, dates, categories, opening balances and imported or generated suggestions before relying on them. Balances and reports reflect the available records and selected periods and filters. An incomplete import, pending change, incorrect opening balance or missing transaction can change the result.",
+        "A card-payment, transfer or obligation-payment entry records activity within Masarifi. Recording an entry does not itself instruct a bank to move money or discharge a real debt. Check the actual bank, card issuer or creditor record separately. Do not submit banking passwords, PINs, card security codes or unnecessary full payment-card details in notes, prompts or support messages."
+      ]
+    },
+    {
+      "id": "offline",
+      "title": "5. Offline use and synchronization",
+      "paragraphs": [
+        "Supported screens can display the latest valid information saved for the authorized owner on that device. Saved information may be older than the server or another device. A last-updated, pending, failed, review or conflict state must be considered when interpreting it. No local data means that the application cannot supply a missing record merely because it is offline.",
+        "Only actions expressly supported by the existing offline workflow can be saved locally. Other actions require an online service, fresh authorization or a current server preview. Local saving or a queued operation does not mean server confirmation. Reconnection can refresh reads and reconcile admitted work under the existing synchronization rules. Follow recovery guidance instead of submitting the same financial instruction again when an outcome is uncertain."
+      ]
+    },
+    {
+      "id": "tracking",
+      "title": "6. Optional SMS and notification tracking",
+      "paragraphs": [
+        "On supported Android devices, separately enabled tracking can inspect SMS or notification content to identify financial activity. Permissions can expose message text, senders, source application and timestamps. Detection and duplicate matching can be wrong. Review uncertain items and the resulting financial records.",
+        "When you authorize an automatic tracking mode, qualifying activity may be recorded according to its rules without asking for confirmation on every item; other items may require review. This records information and does not authorize bank payments. You can change the source settings or revoke operating-system access. Revocation stops permitted future access but does not itself delete previously stored records. Availability and background timing depend on the device and system restrictions."
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "7. AI assistant and voice input",
+      "paragraphs": [
+        "Online AI features can process the questions, authorized financial context, conversation history or audio submitted for that feature using external AI services. Use the feature-specific consent and review controls. Do not provide information about other people unless you have the necessary authority and a lawful reason.",
+        "AI responses and voice transcription may be inaccurate, incomplete or unsuitable. Suggestions are not professional banking, investment, credit, tax, accounting or legal advice and do not promise a financial outcome. Review the relevant records and obtain qualified advice when needed. A generated proposal, preview or answer is not a completed financial action. Only a valid confirmed operation can change records under the applicable workflow. New remote AI processing cannot complete without connectivity."
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "8. Reports, exports and sharing",
+      "paragraphs": [
+        "Reports depend on their stated period, timezone, currency, account selection and data coverage. A local report and a server-generated export can differ if their synchronization state or scope differs. Preserve the associated status and filters when using or sharing a report.",
+        "Downloaded PDF reports, privacy exports, screenshots and files shared with another application can contain sensitive financial information. You control the recipient and destination you select. Files copied outside Masarifi and recipients' copies are not necessarily removed by logout, link expiry or account deletion. Use a secure destination and remove copies you no longer need."
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "9. Privacy and permissions",
+      "paragraphs": [
+        "Read the separate Privacy Policy draft for data categories, purposes, local and server storage, service providers and unresolved retention and transfer matters. A general Terms checkbox is not blanket authorization for every optional tracking source, AI use, microphone recording, notification permission or marketing activity.",
+        "The final operator must identify the lawful basis and any required separate permission for each processing purpose. A proposed privacy notice does not waive your statutory data-protection rights or establish compliance by itself."
+      ]
+    },
+    {
+      "id": "conduct",
+      "title": "10. Your content and acceptable use",
+      "paragraphs": [
+        "You retain rights you have in the information and content you submit. You authorize the processing necessary to deliver the features you request, subject to the final Privacy Policy and applicable law. This proposed authorization does not permit unrelated publication or sale of your financial content.",
+        "Do not access another person's account, evade security controls, submit malicious files, misuse support, impersonate others or use the service unlawfully. Respect third-party privacy and intellectual-property rights. The operator retains rights in its application, branding and original materials, subject to third-party and open-source licenses. Any restriction remains subject to rights that applicable law does not allow to be excluded."
+      ]
+    },
+    {
+      "id": "thirdparties",
+      "title": "11. Third-party services and availability",
+      "paragraphs": [
+        "Authentication, cloud storage, hosting, notifications and AI rely on external services described in the Privacy Policy. Their availability and your separate relationship with them may affect Masarifi. An interruption may delay authentication, synchronization, reports, deliveries or AI processing.",
+        "Features and software may need maintenance or security updates. No fixed uptime, uninterrupted background capture, permanent storage or recovery guarantee is offered by this draft. The operator should communicate material changes and significant interruptions through an appropriate channel once that process is confirmed."
+      ]
+    },
+    {
+      "id": "charges",
+      "title": "12. Charges and future paid features",
+      "paragraphs": [
+        "This draft does not create a subscription, payment obligation or auto-renewal arrangement and does not activate deferred billing features. Any future paid offer must disclose its price, currency, taxes, renewal, cancellation and refund conditions separately before purchase, subject to applicable consumer law and store rules. Connectivity and third-party service charges imposed by your own providers may still apply."
+      ]
+    },
+    {
+      "id": "ending",
+      "title": "13. Ending use, suspension and deletion",
+      "paragraphs": [
+        "You may stop using the application. Where available, use its verified account-deletion process for server-side deletion and the appropriate local-data controls for device copies. Uninstalling the application, logging out or revoking Google access alone does not establish that every server record, backup or exported file has been deleted. Keep records you lawfully need before confirming irreversible removal.",
+        "The proposed operator may restrict access where reasonably necessary for security, abuse prevention or legal obligations, with explanation and a way to seek review where appropriate and legally permitted. The operational suspension and complaint procedures require confirmation. Any retention exception must have a lawful purpose and be explained; this draft does not invent a retention deadline."
+      ]
+    },
+    {
+      "id": "liability",
+      "title": "14. Service limitations and responsibility",
+      "paragraphs": [
+        "Use Masarifi as an organizational aid and verify material financial decisions independently. Software defects, unavailable services, incorrect source information and AI errors can affect results. The application is not a substitute for bank statements, statutory accounts or professional advice.",
+        "Any final warranty exclusion, liability limit or allocation of loss must be reviewed for the operator's jurisdiction and consumer obligations. No monetary liability cap or broad indemnity is established by this draft. Nothing in these terms excludes rights, remedies or liability that applicable law does not permit to be excluded, including any mandatory responsibility for fraud or other non-excludable conduct."
+      ]
+    },
+    {
+      "id": "law",
+      "title": "15. Applicable law, complaints and language",
+      "paragraphs": [
+        "The intended launch country is the United Arab Emirates. Applicable UAE privacy, child-safety, consumer and other mandatory requirements must be reviewed for the operator and actual service. The registered operator and any relevant mainland/free-zone status are still unconfirmed; the governing-law and court clause therefore remains pending legal review. No foreign jurisdiction, arbitration requirement or class-action waiver is selected by this draft. Mandatory rights remain preserved.",
+        "For privacy or support enquiries, contact masarifi.ratibi@gmail.com. Arabic and English drafts are prepared together; neither is designated as controlling. Material discrepancies must be corrected before approval. The contact process does not restrict any right to approach a competent authority or court."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "16. Version changes and final approval",
+      "paragraphs": [
+        "The final approved documents must identify their version and effective date. Material changes should be communicated before they take effect when required, and renewed consent obtained where the applicable legal basis requires it. Changes to this review draft do not retrospectively establish acceptance.",
+        "Before release, the operator must resolve the identity, contact, eligibility, retention, international-transfer, consumer-rights and consent-record issues identified in the accompanying review memo and obtain appropriate professional legal verification."
+      ]
+    }
+  ]
+}

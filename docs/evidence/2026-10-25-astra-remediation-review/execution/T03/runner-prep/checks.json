@@ -1,0 +1,132 @@
+{
+  "status": "BLOCKED_LOCAL_PG17_EXECUTION_NOT_RUN",
+  "preparation": "Sources, disabled template, tests, reviewed startup artifact and local checks prepared for independent Astra review",
+  "overallT03": "BLOCKED",
+  "approvedMobileCandidate": "QUALITY_APPROVED unchanged",
+  "mobileManifestSha256": "53C276C3CAA82C9ACBD639B7FC08E41B5A32A1863B99B017CDAAC5CD7D197E62",
+  "mobile15Preserved": true,
+  "baseline21Preserved": true,
+  "stagingConnections": 0,
+  "stagingClaims": 0,
+  "fixtureClusterInitialized": false,
+  "nativeLaunchRetried": false,
+  "fixtureClosureSha256": "53BDFE9EB004DEF16A1D8CC079B9B84DA8A97080E0A59B7E95DA703D6CCE38F1",
+  "fixtureBundleSha256": "9227C7BF66C34112D8E63958450F8E206EBE39EC462CEE767F0C108B71D8D77D",
+  "checks": [
+    {
+      "gate": "manifest public seam",
+      "outcome": "PASS",
+      "exit": 0,
+      "tests": 11,
+      "log": "final-manifest-tests-at-report.log"
+    },
+    {
+      "gate": "focused sync unit",
+      "outcome": "PASS",
+      "exit": 0,
+      "tests": 58,
+      "suites": 12,
+      "log": "final-sync-regression.log"
+    },
+    {
+      "gate": "focused ledger unit",
+      "outcome": "PASS",
+      "exit": 0,
+      "tests": 155,
+      "suites": 8,
+      "log": "final-ledger-regression.log"
+    },
+    {
+      "gate": "configuration/no background public seam",
+      "outcome": "PASS",
+      "exit": 0,
+      "tests": 2,
+      "log": "green-runtime.log"
+    },
+    {
+      "gate": "API typecheck",
+      "outcome": "PASS",
+      "exit": 0,
+      "log": "final-typecheck.log"
+    },
+    {
+      "gate": "API lint",
+      "outcome": "PASS",
+      "exit": 0,
+      "log": "final-lint.log"
+    },
+    {
+      "gate": "API/worker/migration build",
+      "outcome": "PASS",
+      "exit": 0,
+      "log": "build.log"
+    },
+    {
+      "gate": "scoped format",
+      "outcome": "PASS",
+      "exit": 0,
+      "log": "final-format.log"
+    },
+    {
+      "gate": "CJS syntax",
+      "outcome": "PASS",
+      "exit": 0,
+      "log": "final-script-syntax.log"
+    },
+    {
+      "gate": "CJS ESLint recommended",
+      "outcome": "PASS",
+      "exit": 0,
+      "files": 5,
+      "log": "final-script-lint.log"
+    },
+    {
+      "gate": "disabled template CLI",
+      "outcome": "EXPECTED_REJECTION",
+      "exit": 1,
+      "log": "disabled-template-cli.log"
+    },
+    {
+      "gate": "fixture script parser/static preflight",
+      "outcome": "PASS_NONEXECUTING_ONLY",
+      "exit": 0,
+      "log": "fixture-static-preflight-v4.log"
+    },
+    {
+      "gate": "fixture ownership/reuse/failure doubles",
+      "outcome": "PASS_NONEXECUTING_ONLY",
+      "exit": 0,
+      "log": "green-fixture-current-start-v4.log"
+    },
+    {
+      "gate": "actual PostgreSQL17 SQL/roles/concurrency",
+      "outcome": "NOT_RUN",
+      "exit": 1,
+      "reason": "automatic review rejected launch before execution: blocked by policy",
+      "log": "pg17-notrun.log"
+    }
+  ],
+  "historicalDiagnostics": [
+    "red-manifest.log exit1 missing initial manifest module then green",
+    "red-runtime.log exit1 missing runtime module then green",
+    "worker-regression.log exit1 ts-jest resolution when direct Jest invoked from root",
+    "worker-regression-corrected.log exit0: npm PowerShell wrapper swallowed filter; all183 unit suites/1899 tests passed instead of focused run. MASARIFI_LIVE_DATABASE_TESTS=0. Expected synthetic error/warning logs present; not hosted proof.",
+    "focused-regression.log exit255: cmd interpreted pipe in multi-pattern argument; replaced with simple explicit sync and ledger filters",
+    "initial full runtime manifest job completed exit0 after interruption; attempted stale PID stop failed ownership check after it had finished, no process stopped; redundant generation aborted because manifest already existed",
+    "no forceExit, broad verify, integration, e2e, container, hosted or performance command used",
+    "red-fixture-current-start-v4.log exit1 reproduced Record-present provisional-write-failure with absent PIDfile; green-fixture-current-start-v4.log exit0 covers absent/incomplete, same own-launch resolution, strict normal stop and reused-handle rejection. Only fixture helper/tests and metadata changed; unchanged API/core suites not repeated."
+  ],
+  "remaining": [
+    "independent Astra runner and final fixture closure review",
+    "specific human/policy decision for previously blocked local native fixture action, then actual PG17 gates",
+    "authorized existing host command path and separate bootstrap global visibility/role capability",
+    "actual deployed image/source/schema/functions/triggers/transitive provenance and operational change freeze",
+    "complete private exact operation bindings, resource/payload hashes and original/unchanged financial fields",
+    "complete ordinary runtime configuration and explicit user operational approval; manifest flags are insufficient",
+    "actual authoritative QA application, exactly-one result, original null-note restoration, second cold edit"
+  ],
+  "T02": "accepted long-stage exceptions unchanged",
+  "billing": "deferred",
+  "production": "untouched",
+  "commits": 0
+}

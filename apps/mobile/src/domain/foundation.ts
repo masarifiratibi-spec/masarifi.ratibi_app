@@ -220,6 +220,9 @@ export interface UserPreferences {
   assistantPersonalization: boolean;
   analyticsEnabled: boolean;
   monthStartDay: number;
+  returnRemindersEnabled: boolean;
+  returnRemindersOwnerId: string | null;
+  returnReminderChoices: Record<string, boolean>;
 }
 
 export function buildPreferences(
@@ -248,7 +251,10 @@ export function buildPreferences(
     trackingPersonalization: true,
     assistantPersonalization: true,
     analyticsEnabled: true,
-    monthStartDay: 1
+    monthStartDay: 1,
+    returnRemindersEnabled: false,
+    returnRemindersOwnerId: null,
+    returnReminderChoices: {}
   };
   const merged = { ...defaults, ...overrides };
   // Direction is derived from locale; never store an inconsistent pair.

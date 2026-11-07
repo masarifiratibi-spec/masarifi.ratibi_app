@@ -8,10 +8,150 @@ import {
   normalizeTrackingOwnerFilters,
   normalizeVersion,
 } from '../../../src/tracking/tracking.dto';
+import { classifyFinancialMessage } from '@masarifi/transaction-parser';
 
 const id = '80000000-0000-4000-8000-000000000001';
 
 describe('tracking DTO boundaries', () => {
+  it('accepts nominal source provenance without requiring a client-selected account or source currency', () => {
+    const { providerReference, ...classification } = classifyFinancialMessage({
+      text: 'تم خصم 50، الرصيد 950',
+      receivedAt: Date.parse('2026-10-14T00:01:00Z'),
+    });
+    void providerReference;
+    const event = {
+      accountingPolicy: 'default_account_nominal_v1',
+      sourceAmountDecimal: '50',
+      activatedAt: '2026-10-14T00:00:00Z',
+      sourceItemKey: 'nominal-one',
+      sender: 'BANK',
+      classification,
+      receivedAt: '2026-10-14T00:01:00Z',
+      transport: {
+        deviceId: 'test-device-00000001',
+        channel: 'android_sms',
+        nativeIdDigest: 'b'.repeat(64),
+        revisionDigest: 'c'.repeat(64),
+      },
+    };
+    expect(
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [event],
+      }).events[0],
+    ).toMatchObject({ sourceAmountDecimal: '50', accountingPolicy: 'default_account_nominal_v1' });
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 2,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [event],
+      }),
+    ).toThrow();
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [{ ...event, sourceAmountDecimal: '-50' }],
+      }),
+    ).toThrow();
+    expect(() =>
+      normalizeNormalizedImport({
+        schemaVersion: 3,
+        sourceType: 'sms',
+        sourceChannel: 'android_sms',
+        events: [{ ...event, activatedAt: '2026-10-15T00:00:00Z' }],
+      }),
+    ).toThrow();
+  });
+  it('preserves PostgreSQL microseconds through both cursor boundaries so seeded rules are not skipped', () => {
+    const at = '2026-10-09T13:43:31.263088+00:00';
+    const cursor = encodeTrackingCursor({ at, id });
+    expect(decodeTrackingCursor(cursor)).toEqual({ at: '2026-10-09T13:43:31.263088Z', id });
+    expect(normalizeTrackingList({ cursor, limit: '100' })).toEqual({ cursor, limit: 100 });
+  });
+
+  it('accepts only a bounded digest for original transaction evidence', () => {
+    const { providerReference, ...classification } = classifyFinancialMessage({
+      text: 'Refund EGP 5',
+      country: 'EG',
+      receivedAt: Date.parse('2026-10-09T10:00:00Z'),
+    });
+    void providerReference;
+    const event = {
+      sourceItemKey: 'refund-1',
+      receivedAt: '2026-10-09T10:00:00Z',
+      amountMinor: 500,
+      currency: 'EGP',
+      kind: 'refund',
+      originalProviderReferenceDigest: 'a'.repeat(64),
+      classification,
+      transport: {
+        deviceId: 'test-device-00000001',
+        channel: 'android_notification',
+        nativeIdDigest: 'b'.repeat(64),
+        revisionDigest: 'c'.repeat(64),
+      },
+    };
+    const normalize = (input: unknown) =>
+      normalizeNormalizedImport({
+        schemaVersion: 2,
+        sourceType: 'provider',
+        sourceChannel: 'android_notification',
+        events: [input],
+      });
+    expect(normalize(event).events[0]).toMatchObject({
+      originalProviderReferenceDigest: event.originalProviderReferenceDigest,
+    });
+    expect(() =>
+      normalize({ ...event, originalProviderReferenceDigest: 'raw-reference' }),
+    ).toThrow();
+  });
+  it('preserves and validates the second owned transfer account', () => {
+    const event = {
+      sourceItemKey: 'transfer-1',
+      receivedAt: '2026-10-09T10:00:00Z',
+      amountMinor: -500,
+      currency: 'EGP',
+      kind: 'transfer',
+      accountId: id,
+      destinationAccountId: '80000000-0000-4000-8000-000000000002',
+    };
+    const normalize = (input: unknown) =>
+      normalizeNormalizedImport({
+        schemaVersion: 1,
+        sourceType: 'provider',
+        sourceChannel: 'android_notification',
+        events: [input],
+      });
+    expect(normalize(event).events[0]).toMatchObject({
+      destinationAccountId: event.destinationAccountId,
+    });
+    expect(() => normalize({ ...event, destinationAccountId: 'invented' })).toThrow();
+  });
+  it.each(['1', '2', null, true])(
+    'rejects a nonnumeric schema version %p before version-specific gates',
+    (schemaVersion) => {
+      expect(() =>
+        normalizeNormalizedImport({
+          schemaVersion,
+          sourceType: 'sms',
+          sourceChannel: 'android_sms',
+          events: [
+            {
+              sourceItemKey: 'native-one',
+              receivedAt: '2026-09-02T00:00:00Z',
+              amountMinor: -1200,
+              currency: 'SAR',
+            },
+          ],
+        }),
+      ).toThrow();
+    },
+  );
   it('normalizes IDs, versions, cursors, lists, and one bounded event', () => {
     expect(normalizeTrackingId(id)).toBe(id);
     expect(normalizeVersion(2)).toBe(2);

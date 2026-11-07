@@ -7,7 +7,6 @@ import {
 import { voiceAnalyzerService as developmentVoiceAnalyzerService } from './mocks/voice-analyzer-service';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { createLiveVoiceApiService } from './live/voice-api-service';
-import { getLiveClerkToken } from './live/auth-service';
 
 const unavailableVoiceAnalyzerService: CapabilityProviderHandle<VoiceAnalyzerService> =
   {
@@ -42,5 +41,5 @@ export function selectVoiceAnalyzerService(
 
 export const voiceAnalyzerService = selectVoiceAnalyzerService(
   isFixtureModeEnabled(),
-  createLiveVoiceApiService({ token: getLiveClerkToken })
+  createLiveVoiceApiService()
 );
