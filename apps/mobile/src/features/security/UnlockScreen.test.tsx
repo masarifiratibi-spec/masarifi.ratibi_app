@@ -49,6 +49,46 @@ test('completes exactly once after native authentication succeeds', async () => 
   await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
 });
 
+test('foreground authentication uses the session callback current at prompt start', async () => {
+  AppState.currentState = 'background';
+  const original = AppState.addEventListener;
+  let resume: ((state: AppStateStatus) => void) | undefined;
+  AppState.addEventListener = (event, callback) => {
+    if (event === 'change') resume = callback;
+    return { remove: jest.fn() };
+  };
+  try {
+    const prior = jest.fn();
+    const fresh = jest.fn();
+    const service = serviceWith(async () => ({ status: 'authenticated' }));
+    const view = render(<UnlockScreen biometricService={service} onUnlock={prior} />);
+    view.rerender(<UnlockScreen biometricService={service} onUnlock={fresh} />);
+    AppState.currentState = 'active';
+    await act(async () => resume?.('active'));
+    expect(prior).not.toHaveBeenCalled();
+    expect(fresh).toHaveBeenCalledTimes(1);
+    view.unmount();
+  } finally {
+    AppState.addEventListener = original;
+    AppState.currentState = 'active';
+  }
+});
+
+test('a still-mounted lock offers retry after a successful scan whose session guard declined navigation', async () => {
+  let resolveScan!: (result: BiometricResult) => void;
+  const service = serviceWith(() => new Promise(resolve => { resolveScan = resolve; }));
+  const originalGuard = jest.fn();
+  const nextGuard = jest.fn();
+  const view = render(<UnlockScreen biometricService={service} onUnlock={originalGuard} />);
+  view.rerender(<UnlockScreen biometricService={service} onUnlock={nextGuard} />);
+  await act(async () => resolveScan({ status: 'authenticated' }));
+  expect(originalGuard).toHaveBeenCalledTimes(1);
+  expect(nextGuard).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByRole('button', { name: translate('appShell.security.biometricUnlock') }));
+  await act(async () => resolveScan({ status: 'authenticated' }));
+  expect(nextGuard).toHaveBeenCalledTimes(1);
+});
+
 test.each(['cancelled', 'failed', 'locked_out', 'unavailable'] as const)('native %s keeps protected access locked and allows a new OS attempt', async status => {
   const unlock = jest.fn(async () => undefined);
   const authenticate = jest.fn().mockResolvedValueOnce({ status }).mockResolvedValueOnce({ status: 'authenticated' });

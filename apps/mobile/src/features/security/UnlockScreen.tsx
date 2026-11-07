@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -18,10 +18,13 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
   const [pending, setPending] = useState(true);
   const mounted = useRef(false);
   const active = useRef(false);
-  const completed = useRef(false);
   const attempt = useRef(0);
   const expired = useRef(sessionExpired);
   expired.current = sessionExpired;
+  const startPrompt = useRef(unlockWithDevice);
+  useLayoutEffect(() => {
+    startPrompt.current = unlockWithDevice;
+  });
 
   useEffect(() => {
     mounted.current = true;
@@ -29,7 +32,7 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
     const promptWhenActive = (state: AppStateStatus) => {
       if (state !== 'active' || prompted || expired.current) return;
       prompted = true;
-      void unlockWithDevice();
+      void startPrompt.current();
     };
     const subscription = AppState.addEventListener('change', promptWhenActive);
     promptWhenActive(AppState.currentState);
@@ -39,11 +42,10 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
       attempt.current += 1;
     };
     // A single automatic OS prompt belongs to this mounted owner-scoped screen.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function unlockWithDevice() {
-    if (completed.current || active.current || expired.current) return;
+    if (active.current || expired.current) return;
     active.current = true;
     const currentAttempt = ++attempt.current;
     const current = () => mounted.current && currentAttempt === attempt.current && !expired.current;
@@ -54,7 +56,6 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
       if (!current()) return;
       if (result.status === 'authenticated') {
         await onUnlock?.();
-        if (current()) completed.current = true;
         return;
       }
       if (result.status === 'cancelled') return;
@@ -83,7 +84,7 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
         <StyledText accessibilityRole={status ? 'alert' : undefined} style={[styles.center, { color: theme.colors.textSecondary }]}>
           {status ?? translate('appShell.security.unlockHint')}
         </StyledText>
-        {!pending && !completed.current ? (
+        {!pending ? (
           <ActionButton label="appShell.security.biometricUnlock" onPress={() => void unlockWithDevice()} style={styles.retry} />
         ) : null}
       </View>
