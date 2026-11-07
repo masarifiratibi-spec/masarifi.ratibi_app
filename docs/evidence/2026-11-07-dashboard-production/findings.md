@@ -1,5 +1,7 @@
 # Dashboard UI and integration repair evidence
 
+Current hosted outcome: corrected branded/reflow source97ad2551 was accepted on staging after real53-queue, responsive and route checks. Read the [hosted acceptance and remaining limits](../2026-11-07-dashboard-brand-activation/hosted-acceptance.md). Historical source/fixture observations below do not constitute whole-product production readiness.
+
 Date: 7 November 2026, Asia/Riyadh. Base: `e13a90549788d22b56432377a4cff7da5481f43e`. Repository: `D:/Masarifi-integration-2026-10-10`; same `ratibi` branch `codex/voice-promoted-operating-2026-10-13`.
 
 ## Readiness result

@@ -1,5 +1,7 @@
 # Approved staging dashboard reflow activation
 
+Execution completed and accepted. See the [actual execution receipt](execution-result.json) and [hosted evidence with remaining limits](../../../docs/evidence/2026-11-07-dashboard-brand-activation/hosted-acceptance.md). The manifest below remains the frozen pre-execution review input, not a live service probe.
+
 Source `97ad25515ca283083057f010366516d4cd5931d4` retains the qualified UI/contract fixes and approved emerald/gold logo, and fixes the390px queue-card overflow that rejected the prior rollout. The human's explicit staging approval remains in scope. Only this dashboard is changed; no SQL, API/worker, role, session, DNS, TLS, SSH/firewall, credential or mobile action is authorized here.
 
 | Identity | Pin |
