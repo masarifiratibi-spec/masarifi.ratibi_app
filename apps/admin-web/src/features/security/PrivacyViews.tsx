@@ -144,7 +144,7 @@ export function ExportRequestsRoute() {
   return (
     <div className="page">
       <PageHeader title={copy.exportTitle} description={copy.exportDescription} />
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
+      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : (
         <section className="table-card ops-table-card" aria-labelledby="exports-title">
           <div className="card-heading ops-card-heading"><div><h2 id="exports-title">{copy.exportList}</h2><p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.metadataRequests}</p></div></div>
           <ExportTable requests={query.data.items as ExportRequestDetail[]} />
@@ -223,7 +223,7 @@ export function ExportDetailRoute({ requestId }: { requestId: string }) {
   const mutation = useSecurityAction();
   const [message, setMessage] = useState("");
   if (request.isPending) return <div className="page"><LoadingState /></div>;
-  if (request.isError) return <div className="page"><ErrorState /></div>;
+  if (request.isError) return <div className="page"><ErrorState error={request.error} /></div>;
   const data = request.data;
   return (
     <div className="page">
@@ -254,7 +254,7 @@ export function DeletionRequestsRoute() {
   return (
     <div className="page">
       <PageHeader title={copy.deletionTitle} description={copy.deletionDescription} />
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
+      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : (
         <div className="phase7-cards">
           {(query.data.items as DeletionWorkflowRequest[]).map((request) => <DeletionCard key={request.id} request={request} />)}
         </div>
@@ -288,7 +288,7 @@ export function DeletionDetailRoute({ requestId }: { requestId: string }) {
   const mutation = useSecurityAction();
   const [open, setOpen] = useState(false);
   if (request.isPending) return <div className="page"><LoadingState /></div>;
-  if (request.isError) return <div className="page"><ErrorState /></div>;
+  if (request.isError) return <div className="page"><ErrorState error={request.error} /></div>;
   const data = request.data;
   const action = data.allowedActions[0];
   return (
@@ -328,7 +328,7 @@ export function RetentionPoliciesRoute() {
   return (
     <div className="page">
       <PageHeader title={copy.retentionTitle} description={copy.retentionDescription} />
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
+      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : (
         <div className="phase7-cards">
           {(query.data.items as RetentionPolicyDetail[]).map((policy) => <RetentionCard key={policy.id} policy={policy} />)}
         </div>
@@ -358,7 +358,7 @@ export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: str
   const [days, setDays] = useState(400);
   const [open, setOpen] = useState(false);
   if (policy.isPending) return <div className="page"><LoadingState /></div>;
-  if (policy.isError) return <div className="page"><ErrorState /></div>;
+  if (policy.isError) return <div className="page"><ErrorState error={policy.error} /></div>;
   const data = policy.data;
   return (
     <div className="page">

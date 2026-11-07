@@ -12,6 +12,9 @@
   --border-strong: #d4d8d3;
   --teal: #1c3934;
   --teal-hover: #16332f;
+  --attention-surface: #1c3934;
+  --attention-text: #ffffff;
+  --attention-muted: #d9e5e1;
   --teal-soft: #e3ece9;
   --bronze: #cfa47a;
   --bronze-soft: #f6eadf;
@@ -204,11 +207,11 @@ pre {
 .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }.card-heading h2 { margin: 0; font-size: 17px; }.card-heading p { margin: 3px 0 0; color: var(--text-muted); font-size: 12px; }
 .chart-wrap { margin: 0 -6px -5px; direction: ltr; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; }.legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 11px; }.legend i { width: 8px; height: 8px; border-radius: 2px; }
-.attention-card { background: var(--teal); color: white; border-color: transparent; position: relative; overflow: hidden; }
+.attention-card { background: var(--attention-surface); color: var(--attention-text); border-color: transparent; position: relative; overflow: hidden; }
 .attention-card::after { content: ""; position: absolute; inset-block-start: -80px; inset-inline-end: -50px; width: 200px; height: 200px; border: 1px solid rgba(207,164,122,.28); border-radius: 50%; }
-.attention-card .card-heading, .attention-card .attention-list { position: relative; z-index: 1; }.attention-card .card-heading p { color: rgba(255,255,255,.68); }.attention-card .button { color: white; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
+.attention-card .card-heading, .attention-card .attention-list { position: relative; z-index: 1; }.attention-card .card-heading p { color: var(--attention-muted); }.attention-card .button { color: white; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
 .attention-list, .activity-list, .incident-list { display: grid; gap: 10px; }.attention-item { padding: 13px 0; border-top: 1px solid rgba(255,255,255,.13); }.attention-item:first-child { border-top: 0; }
-.attention-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }.attention-item h3 { margin: 0; font-size: 14px; }.attention-item p { margin: 5px 0 8px; color: rgba(255,255,255,.7); font-size: 12px; }.attention-meta { display: flex; justify-content: space-between; color: rgba(255,255,255,.58); font-size: 10px; }
+.attention-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }.attention-item h3 { margin: 0; font-size: 14px; }.attention-item p { margin: 5px 0 8px; color: var(--attention-muted); font-size: 12px; }.attention-meta { display: flex; justify-content: space-between; color: var(--attention-muted); font-size: 10px; }
 .badge { display: inline-flex; align-items: center; gap: 5px; width: max-content; min-height: 26px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .severity-critical, .severity-high, .status-major-outage { color: var(--danger); background: var(--danger-soft); }.severity-medium, .status-degraded, .status-maintenance { color: var(--warning); background: var(--warning-soft); }
 .severity-info, .severity-low { color: var(--info); background: var(--info-soft); }.status-operational { color: var(--success); background: var(--success-soft); }.status-partial-outage { color: var(--danger); background: var(--danger-soft); }

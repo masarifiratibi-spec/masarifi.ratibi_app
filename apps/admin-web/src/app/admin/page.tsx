@@ -752,7 +752,7 @@ export default function OverviewPage() {
                 : t("overview.importVolumeSubtitle")
             }
             summary={
-              importVolumeSeries?.summary ?? t("overview.importVolumeSummary")
+              demoMode ? t("overview.importVolumeSummary") : importVolumeSeries?.summary ?? t("overview.importVolumeSummary")
             }
           >
             <VolumeChart data={importVolumePoints} stacked />

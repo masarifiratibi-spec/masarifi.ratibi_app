@@ -315,8 +315,8 @@ export const subscriptionRevenue = (platform: PlatformFilter, period: ReportingP
   recurringRevenue: 2480000,
   currency: "SAR",
   distribution: [
-    { plan: "مجاني", customers: 96580, share: 0.58 },
-    { plan: "أساسي", customers: 44630, share: 0.27 },
+    { plan: "Free", customers: 96580, share: 0.58 },
+    { plan: "Basic", customers: 44630, share: 0.27 },
     { plan: "Premium", customers: 24240, share: 0.15 },
   ],
   revenueTrend: makeTrend({

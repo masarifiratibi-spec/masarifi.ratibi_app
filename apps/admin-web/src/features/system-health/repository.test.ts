@@ -129,6 +129,28 @@ describe("BE013 exact live operations mapping", () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true";
   });
 
+  test("accepts the registered queue set beyond 50 without inventing counters", async () => {
+    const items = Array.from({ length: 53 }, (_, index) => ({
+      key: `operations.test-${index}`, waiting: index, active: 0, failed: 0,
+      oldestWaitingSeconds: index === 52 ? 17 : null,
+      status: index === 52 ? "unknown" : "operational",
+    }));
+    items[0].key = `operations.${"x".repeat(80)}`;
+    mockServer.use(http.get("/api/v1/admin/jobs/queues", () => HttpResponse.json({ items, freshness, partial: true })));
+    const result = await systemHealthRepository.listQueueHealth({ range: "24h", platform: "all" });
+    expect(result.items).toHaveLength(53);
+    expect(result.items[0].label).toBe(items[0].key);
+    expect(result.items.at(-1)).toMatchObject({ label: "operations.test-52", backlogState: "unknown", oldestWaitingSeconds: 17,
+      counters: { waiting: { value: 52 }, delayed: { value: null, completeness: "unavailable" } } });
+    expect(result.partial).toBe(true);
+  });
+
+  test("retains an explicit bound on registered queue responses", async () => {
+    const items = Array.from({ length: 129 }, (_, index) => ({ key: `operations.test-${index}`, waiting: 0, active: 0, failed: 0, oldestWaitingSeconds: null, status: "operational" }));
+    mockServer.use(http.get("/api/v1/admin/jobs/queues", () => HttpResponse.json({ items, freshness, partial: false })));
+    await expect(systemHealthRepository.listQueueHealth({ range: "24h", platform: "all" })).rejects.toMatchObject({ code: "contract_mismatch" });
+  });
+
   test("preserves measured latency and only source-provided health rows", async () => {
     mockServer.use(
       http.get("/api/v1/admin/system-health/overview", () =>

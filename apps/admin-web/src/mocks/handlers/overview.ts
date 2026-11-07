@@ -83,6 +83,26 @@ export const overviewHandlers = [
     const period = readPeriod(request);
     const raw = readRawScenario(request);
     const summary = buildOverviewSummary(platform, period);
+    if (new URL(request.url).searchParams.get("locale") === "en") {
+      summary.query.locale = "en";
+      const notes: Record<string, string> = {
+        "unique-customers": "Compared with the previous period",
+        "active-customers": "Session or feature use",
+        "new-customers": "Registration completed",
+        mrr: "Operational estimate",
+        "critical-incidents": "Needs review",
+        "failed-jobs": "Within 24 hours",
+      };
+      const currency = summary.subscriptionRevenue.currency;
+      summary.metrics = summary.metrics.map(metric => ({
+        ...metric,
+        note: notes[metric.id],
+        formattedValue: metric.numericValue === null ? "Unavailable"
+          : metric.kind === "currency"
+            ? currency === null ? "Unavailable" : new Intl.NumberFormat("en", { style: "currency", currency, notation: "compact", maximumFractionDigits: 2 }).format(metric.numericValue)
+            : new Intl.NumberFormat("en", { notation: metric.numericValue >= 1_000_000 ? "compact" : "standard", maximumFractionDigits: 2 }).format(metric.numericValue),
+      }));
+    }
     if (raw === "stale") {
       return HttpResponse.json({
         ...summary,
