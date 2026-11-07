@@ -1,9 +1,9 @@
 import React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { reconcileFinancialReset } from '@/services/financial-generation';
 import {
   acknowledgeFinancialReset,
-  fetchFinancialResetState,
   financialResetRuntimeAvailable,
   loadFinancialResetOperation,
   readFinancialReset,
@@ -12,11 +12,13 @@ import {
 } from '@/services/financial-reset';
 import { HttpError } from '@/services/live/http-client';
 import { useAppShellStore } from '@/state/app-shell';
+import { financialResetStateQuery } from './financial-reset-queries';
 
 type ResetStage =
   'loading' | 'review' | 'retry' | 'stale' | 'processing' | 'completed';
 
 export function useFinancialReset(ownerId: string) {
+  const queryClient = useQueryClient();
   const [generation, setGeneration] = React.useState(0);
   const [stage, setStage] = React.useState<ResetStage>('loading');
   const [busy, setBusy] = React.useState(true);
@@ -29,8 +31,19 @@ export function useFinancialReset(ownerId: string) {
       active.current && useAppShellStore.getState().session?.userId === ownerId,
     [ownerId]
   );
+  const invalidateState = React.useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: financialResetStateQuery(ownerId).queryKey,
+        exact: true,
+        refetchType: 'none'
+      }),
+    [ownerId, queryClient]
+  );
   const accept = React.useCallback(
     async (receipt: FinancialResetReceipt) => {
+      if (!current()) return;
+      await invalidateState();
       if (!current()) return;
       setReceiptId(receipt.id);
       setStage('processing');
@@ -41,7 +54,7 @@ export function useFinancialReset(ownerId: string) {
         if (current()) setStage('completed');
       }
     },
-    [current, ownerId]
+    [current, invalidateState, ownerId]
   );
   const run = React.useCallback(
     async (operation: () => Promise<void>) => {
@@ -69,7 +82,9 @@ export function useFinancialReset(ownerId: string) {
   const refresh = React.useCallback(async () => {
     if (!financialResetRuntimeAvailable()) throw new Error('unavailable');
     const saved = await loadFinancialResetOperation(ownerId);
-    const state = await fetchFinancialResetState(ownerId);
+    const state = await queryClient.fetchQuery(
+      financialResetStateQuery(ownerId)
+    );
     const id =
       saved?.id ?? (state.status === 'processing' ? state.requestId : null);
     const receipt = id && (await readFinancialReset(ownerId, id));
@@ -80,7 +95,7 @@ export function useFinancialReset(ownerId: string) {
       setReceiptId(saved.id);
       setStage('stale');
     } else setStage(id ? 'retry' : 'review');
-  }, [accept, current, ownerId]);
+  }, [accept, current, ownerId, queryClient]);
 
   React.useEffect(() => {
     active.current = true;
@@ -103,8 +118,9 @@ export function useFinancialReset(ownerId: string) {
     return () => clearTimeout(timer);
   }, [accept, busy, error, ownerId, receiptId, run, stage]);
 
-  const submit = () =>
-    run(async () => {
+  const submit = () => {
+    if (stage !== 'review' && stage !== 'retry') return Promise.resolve();
+    return run(async () => {
       try {
         const receipt = await submitFinancialReset(
           ownerId,
@@ -120,6 +136,7 @@ export function useFinancialReset(ownerId: string) {
             'FINANCIAL_GENERATION_STALE'
           ].includes(failure.domainCode ?? '')
         ) {
+          await invalidateState();
           await refresh();
           if (current()) setError('financialReset.reviewChanged');
           return;
@@ -127,9 +144,11 @@ export function useFinancialReset(ownerId: string) {
         throw failure;
       }
     });
+  };
   const reviewAgain = () =>
     run(async () => {
       if (receiptId) await acknowledgeFinancialReset(ownerId, receiptId);
+      await invalidateState();
       await refresh();
     });
   const finish = (onClose: () => void) =>
@@ -144,6 +163,10 @@ export function useFinancialReset(ownerId: string) {
     submit,
     reviewAgain,
     finish,
-    refresh: () => run(refresh)
+    refresh: () =>
+      run(async () => {
+        await invalidateState();
+        await refresh();
+      })
   };
 }
