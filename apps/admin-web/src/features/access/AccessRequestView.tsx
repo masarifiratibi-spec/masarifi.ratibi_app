@@ -434,11 +434,11 @@ function AccessDetail({ requestId }: { requestId: string }) {
         <section className="access-detail-section">
           <h2>{text.scope}</h2>
           <p className="access-scope-summary ltr">{describeScopes(request, request.approvedScope ?? request.requestedScope, request.approvedScope !== null)}</p>
-          <ul className="access-mask-list">{request.maskingRules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
+          <ul className="access-mask-list">{request.maskingRules.map((rule) => <li key={rule}>{rule === "Server-authorized masked, status and aggregate fields only" ? (locale === "ar" ? "حقول مخفية وحالات ومجاميع معتمدة من الخادم فقط" : rule) : mocksEnabled() && locale === "en" ? ({ "البريد الإلكتروني مخفي جزئياً": "Email is partially masked", "القيم المالية والتفاصيل الخام غير متاحة": "Financial values and raw details are unavailable", "المعرّفات التقنية الحساسة غير متاحة": "Sensitive technical identifiers are unavailable" } as Record<string, string>)[rule] ?? rule : rule}</li>)}</ul>
         </section>
         <section className="access-detail-section">
           <h2>{text.timeline}</h2>
-          {request.timeline.length === 0 && <p>{text.noTimeline}</p>}<ol className="timeline access-detail-timeline">{request.timeline.map((entry) => <li className="timeline-item" key={entry.id}>{entry.summary} — <span className="ltr">{entry.actor}</span></li>)}</ol>
+          {request.timeline.length === 0 && <p>{text.noTimeline}</p>}<ol className="timeline access-detail-timeline">{request.timeline.map((entry) => <li className="timeline-item" key={entry.id}>{mocksEnabled() && locale === "en" ? ({ created: "Request created", approved: "Request approved", rejected: "Request rejected", active: "Workspace opened", revoked: "Access revoked", expired: "Access expired", ended: "Access ended" } as const)[entry.event] : entry.summary} — <span className="ltr">{entry.actor}</span></li>)}</ol>
         </section>
         {request.requestedBy === actor && request.status === "pending" && <p className="access-detail-note" role="note">{text.separation}</p>}
         <div className="dialog-actions access-detail-actions">

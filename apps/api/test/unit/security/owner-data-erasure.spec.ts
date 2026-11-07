@@ -3,6 +3,7 @@ import type { PoolService } from '../../../src/platform/database/pool.service';
 import type { ReportsStorage } from '../../../src/reports/reports.storage';
 import type { ExportStorage } from '../../../src/security/export-storage';
 import type { SupportStorage } from '../../../src/engagement/support.storage';
+import type { QueryConfig } from 'pg';
 
 const evidence = {
   requestId: 'bcb9aa9d-6b38-4461-9a02-8df363a235b9',
@@ -11,10 +12,11 @@ const evidence = {
   correlationId: 'erasure',
 };
 
-function fixture(failStorage = false) {
+function fixture(failStorage = false, eraseError?: Error) {
   const calls: string[] = [];
-  const query = jest.fn(async (sql: string) => {
+  const query = jest.fn(async (statement: string | QueryConfig) => {
     await Promise.resolve();
+    const sql = typeof statement === 'string' ? statement : statement.text;
     calls.push(sql);
     if (sql.includes('lock_account_erasure_objects'))
       return {
@@ -32,7 +34,10 @@ function fixture(failStorage = false) {
           { id: 'upload-fence', storage_ref: 'support/ticket/attachment', lease_token: 'lease' },
         ],
       };
-    if (sql.includes('erase_account_owner_payload')) return { rows: [{ result: 12 }] };
+    if (sql.includes('erase_account_owner_payload')) {
+      if (eraseError) throw eraseError;
+      return { rows: [{ result: 12 }] };
+    }
     return { rows: [] };
   });
   const pool = {
@@ -66,11 +71,12 @@ function fixture(failStorage = false) {
       support as unknown as SupportStorage,
     ),
     calls,
+    query,
   };
 }
 
 it('deletes storage objects before erasing their references and commits the counted outcome', async () => {
-  const { service, calls } = fixture();
+  const { service, calls, query } = fixture();
   expect(await service.erase(evidence)).toEqual({
     deletedCount: 12,
     anonymizedCount: 0,
@@ -81,7 +87,26 @@ it('deletes storage objects before erasing their references and commits the coun
   expect(calls.indexOf('report-object')).toBeLessThan(erased);
   expect(calls.indexOf('export-object')).toBeLessThan(erased);
   expect(calls.indexOf('support-object')).toBeLessThan(erased);
+  expect(calls.slice(erased - 2, erased)).toEqual([
+    "set local lock_timeout = '2s'",
+    "set local statement_timeout = '60s'",
+  ]);
+  expect(query).toHaveBeenCalledWith({
+    text: 'select private.erase_account_owner_payload($1::uuid,$2) result',
+    values: [evidence.requestId, evidence.userId],
+    query_timeout: 65_000,
+  });
   expect(calls.at(-1)).toBe('commit');
+});
+
+it('rolls back instead of committing when the bounded erasure query times out', async () => {
+  const timeout = new Error('Query read timeout');
+  const { service, calls } = fixture(false, timeout);
+
+  await expect(service.erase(evidence)).rejects.toBe(timeout);
+
+  expect(calls.at(-1)).toBe('rollback');
+  expect(calls).not.toContain('commit');
 });
 
 it('rolls back and preserves database references when object removal fails', async () => {

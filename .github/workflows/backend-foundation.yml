@@ -336,6 +336,8 @@ jobs:
       - name: Verify both exact historical main migration prefixes
         run: node ../../scripts/integration/verify-migration-baselines.cjs "$RUNNER_TEMP/masarifi-main-baselines.json"
       - run: npm run build
+      - name: Verify the pinned nominal Tracking repository boundary
+        run: node --test ../../scripts/integration/tracking-upgrade-repository.test.cjs
       - name: Verify retained Tracking captures across the nominal migration
         run: |
           npx supabase db reset --local --version 20261013053237 --no-seed --workdir ../.. --yes
@@ -596,6 +598,33 @@ jobs:
       - name: Record local image evidence
         if: github.event_name != 'workflow_dispatch'
         run: docker image inspect masarifi-backend:${{ github.sha }} --format '{{.Id}}' > backend-image-digest.txt
+      - name: Package scanned candidate without activating any service
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker image save "masarifi-backend:${GITHUB_SHA}" | gzip -n > "$RUNNER_TEMP/backend-candidate.tar.gz"
+          docker image inspect "masarifi-backend:${GITHUB_SHA}" --format '{{.Id}}' > "$RUNNER_TEMP/backend-candidate-image.txt"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          archive = root / 'backend-candidate.tar.gz'
+          digest = hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest()
+          manifest = {'sourceCommit': os.environ['GITHUB_SHA'],
+                      'imageId': (root / 'backend-candidate-image.txt').read_text().strip(),
+                      'archiveSha256': digest, 'archiveBytes': archive.stat().st_size,
+                      'format': 'docker-save-gzip', 'hostedActivationPerformed': False}
+          (root / 'backend-candidate-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+      - name: Preserve immutable candidate runtime
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.sha }}-candidate-runtime
+          path: |
+            ${{ runner.temp }}/backend-candidate.tar.gz
+            ${{ runner.temp }}/backend-candidate-image.txt
+            ${{ runner.temp }}/backend-candidate-manifest.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Publish scanned staging image
         if: github.event_name == 'workflow_dispatch'
         env:

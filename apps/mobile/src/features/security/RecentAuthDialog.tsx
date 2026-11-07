@@ -250,7 +250,7 @@ export function RecentAuthDialog({
           ) : null}
           {unsupported && !canUseFreshSignIn ? (
             <StyledText accessibilityRole="alert">
-              recentAuth.unsupported
+              {translate('recentAuth.unsupported')}
             </StyledText>
           ) : null}
           {canUseFreshSignIn ? (
@@ -264,7 +264,7 @@ export function RecentAuthDialog({
           !strategy &&
           current.current?.allowRecentSignIn &&
           !canUseFreshSignIn ? (
-            <StyledText>recentAuth.signInAgain</StyledText>
+            <StyledText>{translate('recentAuth.signInAgain')}</StyledText>
           ) : null}
           {failed ? (
             <StyledText accessibilityRole="alert">
