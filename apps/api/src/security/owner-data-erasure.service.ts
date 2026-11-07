@@ -75,10 +75,16 @@ export class OwnerDataErasureService {
         else if (object.kind === 'export') await this.exports.delete(object.storage_ref);
         else await this.support.delete(object.storage_ref);
       }
-      const result = await client.query<{ result: number }>(
-        'select private.erase_account_owner_payload($1::uuid,$2) result',
-        [evidence.requestId, evidence.userId],
-      );
+      // Erasure may process thousands of owned records. Keep lock waits short
+      // and bound this statement separately from interactive requests.
+      await client.query("set local lock_timeout = '2s'");
+      await client.query("set local statement_timeout = '60s'");
+      const eraseQuery = {
+        text: 'select private.erase_account_owner_payload($1::uuid,$2) result',
+        values: [evidence.requestId, evidence.userId],
+        query_timeout: 65_000,
+      };
+      const result = await client.query<{ result: number }>(eraseQuery);
       const count = Number(result.rows[0]?.result);
       if (!Number.isSafeInteger(count) || count < 0) throw new Error('ERASURE_OUTCOME_INVALID');
       return count;

@@ -117,6 +117,28 @@ describeLocal('immediate deletion committed receipts on the owned local database
   });
   const tokenHash = () => createHash('sha256').update(token).digest('hex');
 
+  it('completes owner erasure that takes longer than the interactive query deadline', async () => {
+    const marker = randomUUID();
+    const suffix = marker.replaceAll('-', '');
+    const name = 'qa_slow_erasure_' + suffix;
+    await pool.query(
+      "select private.enqueue_outbox_event('spec_be_001.integration','spec_be_001',$1,$2::jsonb)",
+      [marker, JSON.stringify({ userId: owner })],
+    );
+    // Only the marked synthetic event on this loopback fixture incurs a delay.
+    await pool.query(`create function private.${name}() returns trigger language plpgsql as
+      $$begin perform pg_sleep(2.3); return old; end$$`);
+    try {
+      await pool.query(`create trigger ${name} before delete on private.outbox_events
+        for each row when (old.aggregate_id = '${marker}'::uuid) execute function private.${name}()`);
+      await expect(service.execute(operation())).resolves.toMatchObject({ status: 'completed' });
+      expect((await pool.query('select id from private.outbox_events where aggregate_id=$1', [marker])).rowCount).toBe(0);
+    } finally {
+      await pool.query(`drop trigger if exists ${name} on private.outbox_events`);
+      await pool.query(`drop function private.${name}()`);
+    }
+  }, 30_000);
+
   it('completes the mobile self-deletion of a dashboard member and revokes their dashboard access', async () => {
     await pool.query(
       "insert into public.admin_profiles(user_id,status,department) values($1,'active','Test')",

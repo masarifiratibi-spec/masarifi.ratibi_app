@@ -6,10 +6,13 @@ import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import type { ThemeColors } from '@/design-system/tokens';
 import type { AssistantAvailability } from '../AssistantFunctionalStatus';
 
 export function AssistantHeaderBanner({availability}: {availability?: AssistantAvailability | null} = {}) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const largeText = PixelRatio.getFontScale() >= 1.5;
 
@@ -67,11 +70,11 @@ export function AssistantHeaderBanner({availability}: {availability?: AssistantA
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   banner: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["FFFFFF"],
-    borderColor: colorTokens.raw["D7E1DC"],
+    backgroundColor: colors.surfaces.card,
+    borderColor: colors.borders.default,
     borderRadius: 20,
     borderWidth: 1,
     ...layoutDirectionStyle('ltr'),
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    shadowColor: colorTokens.raw["103F37"],
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
@@ -91,18 +94,18 @@ const styles = StyleSheet.create({
     gap: 2
   },
   title: {
-    color: colorTokens.raw["10231F"],
+    color: colors.content.primary,
     fontSize: 14.5,
     fontWeight: '700'
   },
   subtitle: {
-    color: colorTokens.raw["657872"],
+    color: colors.content.secondary,
     fontSize: 11.5,
     lineHeight: 15
   },
   securityBadge: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["E6F4EE"],
+    backgroundColor: colors.surfaces.brandSubtle,
     borderRadius: radius.pill,
     flexDirection: 'row',
     gap: 4,
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   securityText: {
-    color: colorTokens.raw["0D684A"],
+    color: colors.content.link,
     fontSize: 10.5,
     fontWeight: '600'
   }

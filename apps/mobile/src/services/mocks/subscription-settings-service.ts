@@ -703,7 +703,7 @@ function completedProfileSetup(profile: UserProfile): ProfileSetupSnapshot {
     preferences: {
       defaultCurrency: profile.currency,
       language: 'ar',
-      theme: 'system',
+      theme: 'light',
       calendar: 'gregorian',
       weekStart: 6,
       privacySettings: {},

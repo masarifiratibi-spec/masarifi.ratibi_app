@@ -157,6 +157,7 @@ const en = {
   'settings.deletion.pending': 'Contacting the account service…',
   'settings.deletion.error':
     'The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.',
+  'settings.deletion.processingRetry': 'Your deletion request is saved. The server will retry. You can close this message or check the status later.',
   'settings.deletion.rateLimited':
     'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
   'settings.deletion.sessionExpired':

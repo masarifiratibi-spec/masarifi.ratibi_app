@@ -45,7 +45,7 @@ beforeEach(() => {
 it('replaces model action text with the guarded inline review without duplicate review controls', () => {
   const response = {...answer('Premature model success'),proposedActionIds:['preview-1']};
   const renderAction = jest.fn((_id: string, _fallback: React.ReactNode) => <StyledText>Actual transaction review</StyledText>);
-  renderWithProviders(<AssistantMessageBubble response={response} renderAction={renderAction} onFeedback={jest.fn()} />);
+  renderWithProviders(<AssistantMessageBubble response={response} renderAction={renderAction} />);
   expect(screen.getByText('Actual transaction review')).toBeTruthy();
   expect(screen.queryByText('Premature model success')).toBeNull();
   expect(screen.queryByText(translateDynamic('assistant.proposal.review'))).toBeNull();

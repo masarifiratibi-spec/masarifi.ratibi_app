@@ -13,7 +13,14 @@ import { DesignIcon } from '@/design-system/icons';
 import type { KeywordRule } from '@/domain/app-shell';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import {
+  lightThemeColors,
+  darkThemeColors,
+  type ThemeColors,
+  radius,
+  spacing
+} from '@/design-system/tokens';
 import {
   addKeywordRule,
   deleteKeywordRule,
@@ -34,6 +41,8 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
   onRestore,
   disabled = false
 }: TrackingKeywordChipsProps) {
+  const { colors, mode: themeMode } = useTheme();
+  const styles = themedStyles[themeMode];
   // Memoization must still respond to native font and layout changes.
   useWindowDimensions();
   const direction = usePreferenceStore((state) => state.direction);
@@ -141,7 +150,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
             <DesignIcon
               name="add"
               size="sm"
-              color={colorTokens.teal['700']}
+              color={colors.content.link}
               direction={direction}
               decorative
             />
@@ -165,7 +174,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
             <DesignIcon
               name="sync"
               size="sm"
-              color={colorTokens.teal['700']}
+              color={colors.content.link}
               direction={direction}
               decorative
             />
@@ -254,7 +263,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
               value={draftKeyword}
               onChangeText={setDraftKeyword}
               placeholder={translate('appShell.tracking.keywords.draft')}
-              placeholderTextColor={colorTokens.ink['500']}
+              placeholderTextColor={colors.content.secondary}
               style={[
                 styles.textInput,
                 {
@@ -292,7 +301,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
               <DesignIcon
                 name="check"
                 size="sm"
-                color={colorTokens.surface.white}
+                color={colors.content.inverse}
                 direction={direction}
                 decorative
               />
@@ -377,7 +386,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
                   <DesignIcon
                     name={editingId === rule.id ? 'check' : 'edit'}
                     size="xs"
-                    color={colorTokens.ink['700']}
+                    color={colors.content.secondary}
                     direction={direction}
                     decorative
                   />
@@ -467,183 +476,189 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-    width: '100%'
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  titleText: {
-    color: colorTokens.ink['900'],
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  actionsGroup: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs
-  },
-  iconActionButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: 'center',
-    width: 34
-  },
-  addKeywordButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    height: 34,
-    justifyContent: 'center',
-    paddingHorizontal: 10
-  },
-  addKeywordText: {
-    color: colorTokens.teal['700'],
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  buttonPressed: {
-    opacity: 0.7
-  },
-  explanationText: {
-    color: colorTokens.ink['500'],
-    fontSize: 12,
-    lineHeight: 17
-  },
-  filterRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    marginVertical: 2
-  },
-  filterPill: {
-    backgroundColor: colorTokens.sand['100'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4
-  },
-  filterPillActive: {
-    backgroundColor: colorTokens.teal['700'],
-    borderColor: colorTokens.teal['700']
-  },
-  filterPillText: {
-    color: colorTokens.ink['700'],
-    fontSize: 11.5,
-    fontWeight: '600'
-  },
-  filterPillTextActive: {
-    color: colorTokens.surface.white,
-    fontWeight: '700'
-  },
-  addCard: {
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.sm
-  },
-  addInputRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs
-  },
-  textInput: {
-    backgroundColor: colorTokens.surface.white,
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    color: colorTokens.ink['900'],
-    flex: 1,
-    fontSize: 13,
-    minHeight: 38,
-    paddingHorizontal: spacing.sm
-  },
-  langBadge: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['100'],
-    borderRadius: radius.sm,
-    height: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 8
-  },
-  langBadgeText: {
-    color: colorTokens.teal['900'],
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  submitAddButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['700'],
-    borderRadius: radius.sm,
-    height: 38,
-    justifyContent: 'center',
-    width: 38
-  },
-  submitAddButtonDisabled: {
-    opacity: 0.4
-  },
-  addErrorText: {
-    color: colorTokens.status.danger,
-    fontSize: 11
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingTop: spacing.xs
-  },
-  chip: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['100'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 7
-  },
-  chipText: {
-    color: colorTokens.ink['900'],
-    fontSize: 13,
-    fontWeight: '600'
-  },
-  editInput: {
-    color: colorTokens.ink['900'],
-    fontSize: 13,
-    minWidth: 96,
-    padding: 0
-  },
-  chipRemoveButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    height: 18,
-    justifyContent: 'center',
-    width: 18
-  },
-  chipActionSymbol: {
-    color: colorTokens.ink['700'],
-    fontSize: 12,
-    lineHeight: 14,
-    includeFontPadding: false,
-    textAlign: 'center',
-    writingDirection: 'ltr'
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      gap: spacing.sm,
+      width: '100%'
+    },
+    headerRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between'
+    },
+    titleText: {
+      color: colors.content.primary,
+      fontSize: 16,
+      fontWeight: '700'
+    },
+    actionsGroup: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs
+    },
+    iconActionButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      height: 34,
+      justifyContent: 'center',
+      width: 34
+    },
+    addKeywordButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 4,
+      height: 34,
+      justifyContent: 'center',
+      paddingHorizontal: 10
+    },
+    addKeywordText: {
+      color: colors.content.link,
+      fontSize: 12,
+      fontWeight: '700'
+    },
+    buttonPressed: {
+      opacity: 0.7
+    },
+    explanationText: {
+      color: colors.content.secondary,
+      fontSize: 12,
+      lineHeight: 17
+    },
+    filterRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      marginVertical: 2
+    },
+    filterPill: {
+      backgroundColor: colors.surfaces.page,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 4
+    },
+    filterPillActive: {
+      backgroundColor: colors.content.link,
+      borderColor: colors.content.link
+    },
+    filterPillText: {
+      color: colors.content.secondary,
+      fontSize: 11.5,
+      fontWeight: '600'
+    },
+    filterPillTextActive: {
+      color: colors.content.inverse,
+      fontWeight: '700'
+    },
+    addCard: {
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      gap: spacing.xs,
+      padding: spacing.sm
+    },
+    addInputRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs
+    },
+    textInput: {
+      backgroundColor: colors.surfaces.card,
+      borderColor: colors.borders.default,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      color: colors.content.primary,
+      flex: 1,
+      fontSize: 13,
+      minHeight: 38,
+      paddingHorizontal: spacing.sm
+    },
+    langBadge: {
+      alignItems: 'center',
+      backgroundColor: colors.borders.default,
+      borderRadius: radius.sm,
+      height: 38,
+      justifyContent: 'center',
+      paddingHorizontal: 8
+    },
+    langBadgeText: {
+      color: colors.content.link,
+      fontSize: 12,
+      fontWeight: '700'
+    },
+    submitAddButton: {
+      alignItems: 'center',
+      backgroundColor: colors.content.link,
+      borderRadius: radius.sm,
+      height: 38,
+      justifyContent: 'center',
+      width: 38
+    },
+    submitAddButtonDisabled: {
+      opacity: 0.4
+    },
+    addErrorText: {
+      color: colors.status.danger,
+      fontSize: 11
+    },
+    chipsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingTop: spacing.xs
+    },
+    chip: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.page,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 6,
+      minHeight: 40,
+      paddingHorizontal: 12,
+      paddingVertical: 7
+    },
+    chipText: {
+      color: colors.content.primary,
+      fontSize: 13,
+      fontWeight: '600'
+    },
+    editInput: {
+      color: colors.content.primary,
+      fontSize: 13,
+      minWidth: 96,
+      padding: 0
+    },
+    chipRemoveButton: {
+      alignItems: 'center',
+      backgroundColor: colors.borders.default,
+      borderRadius: radius.pill,
+      height: 18,
+      justifyContent: 'center',
+      width: 18
+    },
+    chipActionSymbol: {
+      color: colors.content.secondary,
+      fontSize: 12,
+      lineHeight: 14,
+      includeFontPadding: false,
+      textAlign: 'center',
+      writingDirection: 'ltr'
+    }
+  });
+
+const themedStyles = {
+  light: createStyles(lightThemeColors),
+  dark: createStyles(darkThemeColors)
+};

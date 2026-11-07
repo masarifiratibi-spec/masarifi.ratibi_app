@@ -108,7 +108,7 @@ export function DevAccountDeletionPanel({
           'failed',
           'unavailable'
         ].includes(phase)));
-  const problemKey = `${phase ?? ''}:${snapshot?.nextAttemptAt ?? 0}:${error ?? ''}`;
+  const problemKey = `${phase ?? ''}:${snapshot?.error ?? ''}:${error ?? ''}`;
   const dismissProblem = () => setDismissedProblem(problemKey);
   const retryLabel =
     phase === 'verification_required'
@@ -162,7 +162,7 @@ export function DevAccountDeletionPanel({
               settings.deletion.popup.title
             </StyledText>
             <StyledText style={styles.centered}>
-              settings.deletion.popup.body
+              {t(error ?? message ?? 'settings.deletion.popup.body')}
             </StyledText>
             <ActionButton label={retryLabel} onPress={retry} />
             <ActionButton

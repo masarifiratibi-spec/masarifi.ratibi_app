@@ -84,7 +84,7 @@ describe('loadPreferences', () => {
       buildPreferences({
         locale: 'ar',
         direction: 'rtl',
-        theme: 'system',
+        theme: 'light',
         hideBalances: false,
         baseCurrencyCode: 'SAR',
         timeZone: 'Asia/Riyadh',

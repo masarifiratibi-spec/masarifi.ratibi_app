@@ -48,7 +48,14 @@ import {
   useTrackingAdmission
 } from '@/state/tracking-admission';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import {
+  lightThemeColors,
+  darkThemeColors,
+  type ThemeColors,
+  radius,
+  spacing
+} from '@/design-system/tokens';
 import type { KeywordRule } from '@/domain/app-shell';
 import type {
   TrackingMode,
@@ -91,6 +98,8 @@ export function TrackingStatusScreen() {
 }
 
 function TrackingStatusContent() {
+  const { colors, mode: themeMode } = useTheme();
+  const styles = themedStyles[themeMode];
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const statusKey = automaticTrackingReadKey(
     automaticTrackingKeys.status,
@@ -373,6 +382,20 @@ function TrackingStatusContent() {
           } else {
             const access = await bankNotificationService.getAccessState();
             assertIntent();
+            queryClient.setQueryData<TrackingStatusSnapshot>(
+              statusKey,
+              (current) =>
+                current && {
+                  ...current,
+                  notificationAccessStatus: access,
+                  permissionStatus:
+                    access === 'granted' ||
+                    current.smsPermissionStatus === 'granted'
+                      ? 'granted'
+                      : (current.smsPermissionStatus ??
+                        current.permissionStatus)
+                }
+            );
             if (access !== 'granted') {
               awaitingNotificationAccess.current = {
                 assertCurrent: assertIntent,
@@ -751,7 +774,7 @@ function TrackingStatusContent() {
                 <DesignIcon
                   name="warning"
                   size="sm"
-                  color={colorTokens.status.warning}
+                  color={colors.status.warning}
                   direction={direction}
                   decorative
                 />
@@ -775,7 +798,7 @@ function TrackingStatusContent() {
                 <DesignIcon
                   name="chevronEnd"
                   size="sm"
-                  color={colorTokens.status.warning}
+                  color={colors.status.warning}
                   direction={direction}
                   decorative
                 />
@@ -800,7 +823,7 @@ function TrackingStatusContent() {
                 <DesignIcon
                   name="obligation"
                   size="sm"
-                  color={colorTokens.teal['700']}
+                  color={colors.content.link}
                   direction={direction}
                   decorative
                 />
@@ -831,7 +854,7 @@ function TrackingStatusContent() {
                 <DesignIcon
                   name="privacy"
                   size="sm"
-                  color={colorTokens.teal['700']}
+                  color={colors.content.link}
                   direction={direction}
                   decorative
                 />
@@ -950,55 +973,66 @@ function TrackingSourceToggleRow({
   disabled: boolean;
   onValueChange: (value: boolean) => void;
 }) {
+  const styles = themedStyles[useTheme().mode];
   return (
-    <View
-      testID={`${testID}-row`}
-      style={[
-        styles.sourceRow,
-        styles.physicalLtr,
-        { flexDirection: isRtl ? 'row-reverse' : 'row' }
-      ]}
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityHint={description}
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => onValueChange(!value)}
+      testID={testID}
     >
       <View
-        testID={`${testID}-text`}
+        testID={`${testID}-row`}
         style={[
-          styles.sourceText,
-          { alignItems: isRtl ? 'flex-end' : 'flex-start' }
+          styles.sourceRow,
+          styles.physicalLtr,
+          { flexDirection: isRtl ? 'row-reverse' : 'row' }
         ]}
       >
-        <StyledText
-          variant="title"
+        <View
+          testID={`${testID}-text`}
           style={[
-            styles.sourceTitle,
-            {
-              textAlign: isRtl ? 'right' : 'left',
-              writingDirection: isRtl ? 'rtl' : 'ltr'
-            }
+            styles.sourceText,
+            { alignItems: isRtl ? 'flex-end' : 'flex-start' }
           ]}
         >
-          {label}
-        </StyledText>
-        <StyledText
-          variant="caption"
-          style={[
-            styles.sourceDescription,
-            {
-              textAlign: isRtl ? 'right' : 'left',
-              writingDirection: isRtl ? 'rtl' : 'ltr'
-            }
-          ]}
+          <StyledText
+            variant="title"
+            style={[
+              styles.sourceTitle,
+              {
+                textAlign: isRtl ? 'right' : 'left',
+                writingDirection: isRtl ? 'rtl' : 'ltr'
+              }
+            ]}
+          >
+            {label}
+          </StyledText>
+          <StyledText
+            variant="caption"
+            style={[
+              styles.sourceDescription,
+              {
+                textAlign: isRtl ? 'right' : 'left',
+                writingDirection: isRtl ? 'rtl' : 'ltr'
+              }
+            ]}
+          >
+            {description}
+          </StyledText>
+        </View>
+        <View
+          pointerEvents="none"
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
         >
-          {description}
-        </StyledText>
+          <Toggle accessibilityLabel="" disabled={disabled} value={value} />
+        </View>
       </View>
-      <Toggle
-        accessibilityLabel={label}
-        disabled={disabled}
-        onValueChange={onValueChange}
-        testID={testID}
-        value={value}
-      />
-    </View>
+    </Pressable>
   );
 }
 
@@ -1092,148 +1126,154 @@ export function TrackingRecoveryPanel({
   );
 }
 
-const styles = StyleSheet.create({
-  physicalLtr: {
-    ...layoutDirectionStyle('ltr'),
-    writingDirection: 'ltr'
-  },
-  root: {
-    backgroundColor: colorTokens.sand['100'],
-    flex: 1
-  },
-  scrollContent: {
-    gap: spacing.lg,
-    padding: spacing.md,
-    paddingBottom: spacing.xxl
-  },
-  card: {
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.card,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg
-  },
-  keywordCard: {
-    marginHorizontal: -4,
-    padding: 18
-  },
-  statusRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 52
-  },
-  sourceList: {
-    gap: spacing.sm
-  },
-  pendingSwitch: {
-    width: 52,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colorTokens.sand['300']
-  },
-  sourceDivider: {
-    backgroundColor: colorTokens.sand['300'],
-    height: 1
-  },
-  sourceRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-    minHeight: 64
-  },
-  sourceText: {
-    flex: 1,
-    gap: spacing.xs
-  },
-  sourceTitle: {
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  sourceDescription: {
-    color: colorTokens.ink['500']
-  },
-  toggleWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    minWidth: 54
-  },
-  statusTextGroup: {
-    gap: 2
-  },
-  statusLabel: {
-    color: colorTokens.ink['900'],
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  statusValue: {
-    color: colorTokens.ink['500'],
-    fontSize: 13,
-    fontWeight: '600'
-  },
-  warningBanner: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['200'],
-    borderColor: colorTokens.status.warning,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    padding: spacing.md
-  },
-  bannerPressed: {
-    opacity: 0.8
-  },
-  warningIconBadge: {
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  warningText: {
-    color: colorTokens.ink['900'],
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18
-  },
-  explanationList: {
-    gap: spacing.lg
-  },
-  explanationItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md
-  },
-  iconCircle: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38
-  },
-  explanationItemText: {
-    color: colorTokens.ink['700'],
-    flex: 1,
-    fontSize: 13.5,
-    lineHeight: 20
-  },
-  errorBanner: {
-    backgroundColor: colorTokens.financial.expenseSurface,
-    borderColor: colorTokens.status.danger,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    padding: spacing.md
-  },
-  errorText: {
-    color: colorTokens.status.danger,
-    fontSize: 13,
-    textAlign: 'center'
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    physicalLtr: {
+      ...layoutDirectionStyle('ltr'),
+      writingDirection: 'ltr'
+    },
+    root: {
+      backgroundColor: colors.surfaces.page,
+      flex: 1
+    },
+    scrollContent: {
+      gap: spacing.lg,
+      padding: spacing.md,
+      paddingBottom: spacing.xxl
+    },
+    card: {
+      backgroundColor: colors.surfaces.card,
+      borderColor: colors.borders.default,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.lg
+    },
+    keywordCard: {
+      marginHorizontal: -4,
+      padding: 18
+    },
+    statusRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      minHeight: 52
+    },
+    sourceList: {
+      gap: spacing.sm
+    },
+    pendingSwitch: {
+      width: 52,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.borders.default
+    },
+    sourceDivider: {
+      backgroundColor: colors.borders.default,
+      height: 1
+    },
+    sourceRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'space-between',
+      minHeight: 64
+    },
+    sourceText: {
+      flex: 1,
+      gap: spacing.xs
+    },
+    sourceTitle: {
+      fontSize: 18,
+      fontWeight: '700'
+    },
+    sourceDescription: {
+      color: colors.content.secondary
+    },
+    toggleWrapper: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      minWidth: 54
+    },
+    statusTextGroup: {
+      gap: 2
+    },
+    statusLabel: {
+      color: colors.content.primary,
+      fontSize: 18,
+      fontWeight: '700'
+    },
+    statusValue: {
+      color: colors.content.secondary,
+      fontSize: 13,
+      fontWeight: '600'
+    },
+    warningBanner: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.inset,
+      borderColor: colors.status.warning,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+      marginTop: spacing.xs,
+      padding: spacing.md
+    },
+    bannerPressed: {
+      opacity: 0.8
+    },
+    warningIconBadge: {
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    warningText: {
+      color: colors.content.primary,
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18
+    },
+    explanationList: {
+      gap: spacing.lg
+    },
+    explanationItem: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md
+    },
+    iconCircle: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      height: 38,
+      justifyContent: 'center',
+      width: 38
+    },
+    explanationItemText: {
+      color: colors.content.secondary,
+      flex: 1,
+      fontSize: 13.5,
+      lineHeight: 20
+    },
+    errorBanner: {
+      backgroundColor: colors.financial.expenseSurface,
+      borderColor: colors.status.danger,
+      borderRadius: radius.control,
+      borderWidth: 1,
+      padding: spacing.md
+    },
+    errorText: {
+      color: colors.status.danger,
+      fontSize: 13,
+      textAlign: 'center'
+    }
+  });
+
+const themedStyles = {
+  light: createStyles(lightThemeColors),
+  dark: createStyles(darkThemeColors)
+};

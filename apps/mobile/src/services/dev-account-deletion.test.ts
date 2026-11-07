@@ -81,6 +81,7 @@ const fullRequest = {
   version: 3
 };
 const completedReceipt = {
+  coolingOffEndsAt: fullRequest.coolingOffEndsAt,
   id: fullRequest.id,
   status: 'completed',
   completedAt: fullRequest.completedAt,
@@ -694,6 +695,16 @@ test('keeps processing behind one loading message beyond the initial polling win
   } finally {
     jest.useRealTimers();
   }
+});
+
+test('shows a saved processing receipt when the server is retrying erasure', async () => {
+  http.mockResolvedValueOnce(response({ ...fullRequest, status: 'processing', completedAt: null }, 202));
+  await submitDevAccountDeletion(OWNER);
+  http.mockResolvedValueOnce(response({ ...completedReceipt, status: 'processing', completedAt: null,
+    errorCode: 'DELETION_HANDLER_FAILED' }));
+  await reconcileDevAccountDeletions({ force: true });
+  expect(snapshot()).toMatchObject({ phase: 'unavailable', error: 'settings.deletion.processingRetry', automaticRetries: true });
+  expect(http.mock.calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
 });
 
 test('checks valid processing receipts within five seconds and restarts onboarding only after confirmed cleanup', async () => {

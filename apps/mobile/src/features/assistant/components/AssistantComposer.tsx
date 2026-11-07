@@ -11,7 +11,8 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import type { ThemeColors } from '@/design-system/tokens';
 import { useAssistantDraft } from '../useAssistantDraft';
 import { AssistantDraftStatus } from '../AssistantDraftStatus';
 
@@ -34,6 +35,8 @@ export function AssistantComposer({
   const [submitting, setSubmitting] = useState(false);
   const sending = useRef(false);
   const draftRevision = useRef(0);
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const disabled = !text.trim() || loading || submitting || draft.loading;
@@ -85,7 +88,7 @@ export function AssistantComposer({
             }}
             maxLength={1000}
             placeholder={translate('assistant.chat.placeholder')}
-            placeholderTextColor={colorTokens.raw['7C8B85']}
+            placeholderTextColor={colors.content.muted}
             multiline
             style={[
               styles.input,
@@ -118,18 +121,18 @@ export function AssistantComposer({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw['FFFFFF'],
-    borderTopColor: colorTokens.raw['EEF3F0'],
+    backgroundColor: colors.surfaces.card,
+    borderTopColor: colors.borders.subtle,
     borderTopWidth: 1,
     ...layoutDirectionStyle('ltr'),
     gap: spacing.xs,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    shadowColor: colorTokens.raw['103F37'],
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -137,8 +140,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw['F3F8F5'],
-    borderColor: colorTokens.raw['DCE7E2'],
+    backgroundColor: colors.surfaces.inset,
+    borderColor: colors.borders.default,
     borderRadius: radius.pill,
     borderWidth: 1,
     height: 40,
@@ -149,8 +152,8 @@ const styles = StyleSheet.create({
     fontSize: 16
   },
   inputWrapper: {
-    backgroundColor: colorTokens.raw['F8FAF9'],
-    borderColor: colorTokens.raw['DCE7E2'],
+    backgroundColor: colors.surfaces.inset,
+    borderColor: colors.borders.default,
     borderRadius: 20,
     borderWidth: 1,
     flex: 1,
@@ -160,7 +163,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   },
   input: {
-    color: colorTokens.raw['10231F'],
+    color: colors.content.primary,
     fontSize: 14.5,
     maxHeight: 100,
     minHeight: 48,
@@ -169,21 +172,21 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw['103F37'],
+    backgroundColor: colors.interactions.primary,
     borderRadius: radius.pill,
     height: 40,
     justifyContent: 'center',
     width: 40
   },
   sendButtonDisabled: {
-    backgroundColor: colorTokens.raw['D1E0DA'],
+    backgroundColor: colors.borders.disabled,
     opacity: 0.6
   },
   sendButtonPressed: {
     opacity: 0.8
   },
   sendIcon: {
-    color: colorTokens.raw['FFFFFF'],
+    color: colors.content.inverse,
     fontSize: 14,
     fontWeight: '700'
   },

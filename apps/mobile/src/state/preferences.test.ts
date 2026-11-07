@@ -343,7 +343,7 @@ it('finishes hydration with defaults when persisted preferences cannot be read',
   expect(usePreferenceStore.getState()).toMatchObject({
     hydrated: true,
     locale: 'ar',
-    theme: 'system',
+    theme: 'light',
     hideBalances: false
   });
 });

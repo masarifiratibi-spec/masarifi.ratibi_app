@@ -145,6 +145,7 @@ const ar: MessageCatalog = {
   'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
   'settings.deletion.error':
     'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
+  'settings.deletion.processingRetry': 'طلب حذف حسابك محفوظ. سيعيد الخادم محاولة إكمال الحذف. يمكنك إغلاق هذه الرسالة أو التحقق من الحالة لاحقًا.',
   'settings.deletion.rateLimited':
     'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
   'settings.deletion.sessionExpired':

@@ -815,7 +815,7 @@ test('contains an exhausted cleanup failure in a dismissible popup without inlin
     const ownerUi = within(panel!);
     const popup = await ownerUi.findByTestId('account-deletion-error-dialog');
     expect(popup.props.accessibilityViewIsModal).toBe(true);
-    expect(screen.queryByText(t('settings.deletion.dev.localRetry'))).toBeNull();
+    expect(ownerUi.getByText(t('settings.deletion.dev.localRetry'))).toBeOnTheScreen();
     expect(ownerUi.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
     expect(ownerUi.getByRole('button', { name: t('settings.deletion.retry') })).toBeOnTheScreen();
     expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(false);

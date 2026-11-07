@@ -4,7 +4,8 @@ import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import type { ThemeColors } from '@/design-system/tokens';
 
 export interface AssistantFollowUpSuggestionsProps {
   onSelectSuggestion: (prompt: string) => void;
@@ -15,6 +16,8 @@ export function AssistantFollowUpSuggestions({
   onSelectSuggestion,
   disabled = false
 }: AssistantFollowUpSuggestionsProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
 
   const followUps = [
@@ -69,7 +72,7 @@ export function AssistantFollowUpSuggestions({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   scrollView: {
     maxHeight: 44,
     minHeight: 40
@@ -81,29 +84,29 @@ const styles = StyleSheet.create({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["FFFFFF"],
-    borderColor: colorTokens.raw["D7E1DC"],
+    backgroundColor: colors.surfaces.card,
+    borderColor: colors.borders.default,
     borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    shadowColor: colorTokens.raw["103F37"],
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 3,
     elevation: 1
   },
   chipPressed: {
-    backgroundColor: colorTokens.raw["E6F4EE"],
-    borderColor: colorTokens.raw["0D684A"]
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.content.link
   },
   emoji: {
     fontSize: 12
   },
   chipText: {
-    color: colorTokens.raw["10231F"],
+    color: colors.content.primary,
     fontSize: 12,
     fontWeight: '600'
   }

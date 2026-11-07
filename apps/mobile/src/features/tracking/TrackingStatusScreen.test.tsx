@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 
 import { automaticTrackingKeys } from '@/state/automatic-tracking-view-state';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { resolveTheme } from '@/design-system/theme';
 import { changeLocale, translate } from '@/localization/i18n';
 import {
   TrackingStatusScreen,
@@ -108,6 +109,21 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
+  it.each(['dark', 'light'] as const)('uses matching page, card and text colors in %s mode', async mode => {
+    const prior = usePreferenceStore.getState().theme;
+    usePreferenceStore.setState({ theme: mode, hydrated: true });
+    const view = renderStatus(responsiveStatus);
+    try {
+      const { colors } = resolveTheme(mode);
+      expect(await screen.findByTestId('tracking-status-screen')).toHaveStyle({ backgroundColor: colors.surfaces.page });
+      expect(await screen.findByTestId('tracking-keywords-card')).toHaveStyle({ backgroundColor: colors.surfaces.card });
+      expect(screen.getByText(translate('tracking.source.smsTracking'))).toHaveStyle({ color: colors.textPrimary });
+    } finally {
+      view.unmount();
+      usePreferenceStore.setState({ theme: prior });
+    }
+  });
+
   it('does not use a cached SMS grant to activate a newly denied native permission', async () => {
     const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
     const save = jest
