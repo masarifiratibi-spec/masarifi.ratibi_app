@@ -34,7 +34,8 @@ describeLocal('immediate deletion committed receipts on the owned local database
       !(
         (url.port === '15876' && url.pathname === '/reliability_deletion_20261016') ||
         (url.port === '15918' && url.pathname === '/dev_egress_20261020') ||
-        (url.port === '55442' && url.pathname === '/admin_recovery_fresh')
+        (url.port === '55442' &&
+          ['/admin_recovery_fresh', '/qa41_dashboard_deletion'].includes(url.pathname))
       )
     )
       throw new Error('OWNED_LOCAL_DELETION_DATABASE_REQUIRED');
@@ -115,6 +116,31 @@ describeLocal('immediate deletion committed receipts on the owned local database
     params: {},
   });
   const tokenHash = () => createHash('sha256').update(token).digest('hex');
+
+  it('completes the mobile self-deletion of a dashboard member and revokes their dashboard access', async () => {
+    await pool.query(
+      "insert into public.admin_profiles(user_id,status,department) values($1,'active','Test')",
+      [owner],
+    );
+    try {
+      const result = await service.execute(operation());
+      expect(result).toMatchObject({ status: 'completed' });
+      expect(clerk.revokeUserSessions).toHaveBeenCalledWith(owner);
+      expect(clerk.deleteIdentityUser).toHaveBeenCalledWith(owner);
+      const account = await pool.query(
+        'select p.status, a.status as membership, a.department from public.profiles p join public.admin_profiles a on a.user_id=p.id where p.id=$1',
+        [owner],
+      );
+      expect(account.rows).toEqual([
+        { status: 'deleted', membership: 'revoked', department: null },
+      ]);
+      await expect(
+        repository.getDeletionCompletion(operationId, tokenHash(), networkHash),
+      ).resolves.toMatchObject({ value: { status: 'completed' } });
+    } finally {
+      await pool.query('delete from public.admin_profiles where user_id=$1', [owner]);
+    }
+  });
 
   it.each([false, true])(
     'a new confirmed command makes an existing cooling request eligible immediately (prior receipt=%s)',

@@ -1,0 +1,31 @@
+{
+  "version": "20261107083047",
+  "name": "dashboard_owner_self_deletion",
+  "migration": "supabase/migrations/20261107083047_dashboard_owner_self_deletion.sql",
+  "migrationSha256": "ad2434e4f1d053660136a5f510da78749257e8563c97a48e3963a103c7412b1f",
+  "rollbackSha256": "5658321e083942f09d476ec071ddb93db47951d95c004b08c0851455b444383d",
+  "policies": [],
+  "functions": [
+    {
+      "signature": "private.assert_account_erasure_request(uuid,text,boolean)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration}",
+      "before": "321ef6481195d90f5452e0c81679948c",
+      "after": "c2988e55b00771713739cbf4d5b58baa"
+    },
+    {
+      "signature": "private.freeze_account_deletion_owner(uuid,text)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}",
+      "before": "851f304c5b10e9b8b45949f44746a711",
+      "after": "275e85c99669fa4e983d12ff7eb0c56b"
+    },
+    {
+      "signature": "private.protect_last_super_admin()",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration}",
+      "before": "5a1c7a9175e44aa67242802596caed23",
+      "after": "888949f6677254a5dfadc062a686afea"
+    }
+  ]
+}
