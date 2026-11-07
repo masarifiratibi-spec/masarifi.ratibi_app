@@ -1,8 +1,10 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert, PixelRatio } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
+import { ThemeContext } from '@/state/theme-context';
+import { resolveTheme } from '@/design-system/theme';
 import { AssistantLanding } from './AssistantLanding';
 
 describe('AssistantLanding', () => {
@@ -47,6 +49,27 @@ describe('AssistantLanding', () => {
     fireEvent.press(screen.getByRole('button', {name: translate('appShell.navigation.back')}));
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  it.each(['light', 'dark'] as const)('uses the selected %s theme for the landing page and send states', async mode => {
+    const theme = resolveTheme(mode);
+    const ask = jest.fn();
+    renderWithProviders(
+      <ThemeContext.Provider value={{ theme }}>
+        <AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()} error="Network error" />
+      </ThemeContext.Provider>
+    );
+    expect(screen.getByTestId('assistant-landing')).toHaveStyle({ backgroundColor: theme.colors.surfaces.page });
+    for (const id of ['assistant-ask-card', 'assistant-consent-card', 'suggestion-card-spending']) {
+      expect(screen.getByTestId(id)).toHaveStyle({ backgroundColor: theme.colors.surfaces.card });
+    }
+    expect(screen.getByRole('alert')).toHaveStyle({ color: theme.colors.iconBadges.danger.foreground });
+    const send = screen.getByTestId('assistant-ask-submit-button');
+    expect(send).toBeDisabled();
+    expect(send).toHaveStyle({ backgroundColor: theme.colors.borders.disabled });
+    fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'How much did I spend?');
+    await waitFor(() => expect(screen.getByTestId('assistant-ask-submit-button')).toBeEnabled());
+    expect(send).toHaveStyle({ backgroundColor: theme.colors.interactions.primary });
   });
 
   it('renders header, compact identity, ask card, consent card, 4 suggestions, and privacy footer', () => {

@@ -66,8 +66,9 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
     return rule.language === languageFilter;
   });
 
+  const addDisabled = disabled || !draftKeyword.trim();
   const handleAddSubmit = () => {
-    if (!draftKeyword.trim()) return;
+    if (addDisabled) return;
     const result = addKeywordRule(rules, {
       group: 'financial',
       language: draftLang,
@@ -95,6 +96,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
   };
 
   const submitKeywordEdit = (rule: KeywordRule) => {
+    if (disabled) return;
     const keywordChange = editKeywordRule(rules, rule.id, editKeyword);
     if (keywordChange.error) {
       setAddError(
@@ -291,10 +293,12 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
             <Pressable
               testID="tracking-submit-add-keyword"
               onPress={handleAddSubmit}
-              disabled={!draftKeyword.trim()}
+              accessibilityLabel={translate('appShell.tracking.keywords.add')}
+              accessibilityState={{ disabled: addDisabled }}
+              disabled={addDisabled}
               style={[
                 styles.submitAddButton,
-                !draftKeyword.trim() && styles.submitAddButtonDisabled
+                addDisabled && styles.submitAddButtonDisabled
               ]}
               accessibilityRole="button"
             >
@@ -309,6 +313,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
           </View>
           {addError ? (
             <StyledText
+              accessibilityRole="alert"
               style={[
                 styles.addErrorText,
                 {
@@ -608,7 +613,7 @@ const createStyles = (colors: ThemeColors) =>
       opacity: 0.4
     },
     addErrorText: {
-      color: colors.status.danger,
+      color: colors.iconBadges.danger.foreground,
       fontSize: 11
     },
     chipsContainer: {

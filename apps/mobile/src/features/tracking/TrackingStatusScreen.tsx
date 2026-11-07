@@ -1260,14 +1260,14 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 20
     },
     errorBanner: {
-      backgroundColor: colors.financial.expenseSurface,
-      borderColor: colors.status.danger,
+      backgroundColor: colors.iconBadges.danger.background,
+      borderColor: colors.iconBadges.danger.border,
       borderRadius: radius.control,
       borderWidth: 1,
       padding: spacing.md
     },
     errorText: {
-      color: colors.status.danger,
+      color: colors.iconBadges.danger.foreground,
       fontSize: 13,
       textAlign: 'center'
     }
