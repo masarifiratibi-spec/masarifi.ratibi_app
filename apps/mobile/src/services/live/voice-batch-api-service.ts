@@ -1,3 +1,4 @@
+import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { sha256 } from '@noble/hashes/sha256';
@@ -230,6 +231,7 @@ export function createVoiceBatchApi(options: {
     audio?: ArrayBuffer
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
+    const binding = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
     const requestId = randomUUID();
     const started = performance.now();
     const sessionId = path.match(/\/voice\/sessions\/([0-9a-f-]{36})\//i)?.[1];
@@ -261,6 +263,7 @@ export function createVoiceBatchApi(options: {
           method,
           signal,
           headers: {
+            ...generationHeaders(binding),
             authorization: 'Bearer ' + token,
             ...(method === 'GET' &&
             (path.endsWith('/batch') ||

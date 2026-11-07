@@ -1,4 +1,6 @@
+import { registerFinancialProjectionReset } from '@/storage/runtime-user-data-reset';
 import { benchmarkFetch } from '../platform/benchmark-observability';
+import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { requestRecentAuthentication } from './http-client';
 import { captureLiveClerkOwner } from './auth-service';
@@ -99,6 +101,7 @@ export function createLiveReportsService(
   };
   registerRuntimeIdentityReset(reset);
   registerRuntimeUserDataReset(reset);
+  registerFinancialProjectionReset(reset);
 
   const sendRequest = async (
     method: string,
@@ -112,6 +115,7 @@ export function createLiveReportsService(
     }
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
+    const binding = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
     const { body, key, signal } = requestContext;
     if (!baseUrl) throw new ReportsApiError('reports_unavailable');
     let response: Response;
@@ -137,6 +141,7 @@ export function createLiveReportsService(
           method,
           signal,
           headers: {
+            ...generationHeaders(binding),
             Authorization: `Bearer ${sessionToken}`,
             ...(body === undefined
               ? {}

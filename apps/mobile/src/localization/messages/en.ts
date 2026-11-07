@@ -8,6 +8,27 @@
  */
 
 const en = {
+  'financialReset.authExpired': 'Verification expired. Verify your identity again to retry the same request.',
+  'financialReset.reviewChanged': 'Financial data was reset on another device. Review the current data before starting another reset.',
+  'financialReset.stale': 'The previous request cannot be applied to your current data. Review your data again to start a new request.',
+  'financialReset.reviewAgain': 'Return to review',
+  'financialReset.title': 'Reset financial data',
+  'financialReset.subtitle': 'Review what will be erased and what you’ll keep.',
+  'financialReset.removedHeading': 'What will be erased',
+  'financialReset.removed': 'All transactions and opening balances will be cleared. This also removes budgets, salaries, goals, obligations, recurring items, custom categories, old tracking and import records, pending reviews and drafts, financial assistant history, and reports and export files stored in the app.',
+  'financialReset.external': 'Copies you downloaded or shared outside the app will remain.',
+  'financialReset.keptHeading': 'What you’ll keep',
+  'financialReset.kept': 'Your sign-in, profile, security and app settings will stay in place. Your financial accounts will keep their names and currencies and start with zero balances. Tracking rules and permissions will stay in place.',
+  'financialReset.warning': 'This permanently erases this account’s financial history across devices. Connect to the internet and verify your identity to continue.',
+  'financialReset.phrase': 'Type RESET to confirm',
+  'financialReset.submit': 'Verify identity and reset',
+  'financialReset.checking': 'Checking reset status…',
+  'financialReset.processing': 'Your reset is being processed. You can return here to check its status.',
+  'financialReset.complete': 'Financial data reset complete. Your financial accounts now start at zero.',
+  'financialReset.done': 'Done',
+  'financialReset.error': 'Couldn’t confirm the reset status. Check your connection and try again.',
+  'financialReset.retryNotice': 'The server has no receipt for your previous attempt. Confirm again to retry that same request.',
+  'financialReset.checkStatus': 'Check reset status',
   'tracking.unverified.title':
     'Tracking is unavailable until your account is verified',
   'tracking.unverified.message':
@@ -2899,6 +2920,10 @@ const en = {
   'frontendQuality.selector.routeLinks': 'Seeded route links',
   'frontendQuality.selector.unavailable':
     'Scenario selector is only available in development builds.',
+  'recentAuth.signInAgain': 'If you use Google to sign in, sign out and sign back in to the same account, then return here.',
+  'recentAuth.unsupported': 'Your account has no verification method available in this app. Sign out, sign in again with the same account, then return to the action.',
+  'recentAuth.useSignIn': 'Use my recent sign-in',
+  'recentAuth.passkey': 'Use your passkey to verify this session.',
   'recentAuth.title': 'Verify your identity',
   'recentAuth.code':
     'Enter the verification code sent to your registered phone or email.',

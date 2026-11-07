@@ -1,4 +1,5 @@
 import { captureTrackingAdmission } from '@/state/tracking-admission';
+import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { AppState, Platform } from 'react-native';
 import { useAppShellStore } from '@/state/app-shell';
@@ -224,6 +225,7 @@ export function createLiveAutomaticTrackingService({
   ): Promise<unknown> => {
     const assertTrackingCurrent = captureTrackingAdmission(expectedOwnerId);
     assertBenchmarkRead(method);
+    const binding = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
     await assertIntent?.();
     const identity =
       preparedIdentity ??
@@ -245,6 +247,7 @@ export function createLiveAutomaticTrackingService({
       method,
       ...(signal ? { signal } : {}),
       headers: {
+        ...generationHeaders(binding),
         Authorization: `Bearer ${accessToken}`,
         ...(method === 'GET'
           ? {}

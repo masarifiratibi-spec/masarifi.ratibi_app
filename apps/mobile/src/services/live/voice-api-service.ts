@@ -1,3 +1,4 @@
+import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
 import { voiceRecorderService } from '@/services/platform/voice-recorder-service';
@@ -287,6 +288,7 @@ export function createLiveVoiceApiService(
     audio?: ArrayBuffer
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
+    const resetGeneration = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
     if (!baseUrl) throw new VoiceCaptureError('analysis_unavailable');
     const controller = new AbortController();
     controllers.add(controller);
@@ -316,6 +318,7 @@ export function createLiveVoiceApiService(
             method,
             signal: controller.signal,
             headers: {
+              ...generationHeaders(resetGeneration),
               Authorization: 'Bearer ' + authToken,
               'X-Voice-Contract': '2',
               ...(body === undefined && !audio

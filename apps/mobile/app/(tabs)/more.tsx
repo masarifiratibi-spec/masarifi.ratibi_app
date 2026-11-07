@@ -30,6 +30,7 @@ import { prefetchPlanningDestinations } from '@/features/financial-planning/fina
 import { prefetchCategories } from '@/features/core-finance/core-finance-queries';
 import { prefetchTrackingKeywords } from '@/features/tracking/useAutomaticTracking';
 import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
+import { FinancialResetCard } from '@/features/settings/FinancialResetCard';
 import { SocialMediaFooter } from '@/features/settings/SocialMediaLinks';
 
 const SHOW_SECURITY_SETTINGS = true;
@@ -217,6 +218,8 @@ export default function MoreRoute() {
           />
         </View>
       </View>
+
+      {ownerId ? <FinancialResetCard ownerId={ownerId} key={ownerId} /> : null}
 
       {/* Section 2: Finance and Planning */}
       <View style={styles.section}>

@@ -202,6 +202,27 @@ export class SmsImportQueue {
     });
   }
 
+  async resetFinancialHistory(ownerId: string, cutoff: number): Promise<void> {
+    const db = await openDatabase(ownerId);
+    const reset = (state: SmsImportQueueState): SmsImportQueueState => ({
+      ...state, pending: [], fingerprints: [], diagnostics: [],
+      cursor: Math.max(state.cursor ?? 0, cutoff),
+      cursorId: (state.cursor ?? 0) > cutoff ? state.cursorId : '0'
+    });
+    const legacyRaw = await this.storage.getItem(storageKey);
+    const legacy = parseLegacyState(legacyRaw, ownerId);
+    await runExclusiveDatabaseTransaction(db, async tx => {
+      for (const table of ['sms_import_queue','sms_import_queue_v3']) {
+        const row = await tx.getFirstAsync<{payload:string}>('SELECT payload FROM '+table+' WHERE id=?','singleton');
+        const current = row ? parseState(row.payload,ownerId) : legacy;
+        if (!current) continue;
+        await tx.runAsync('INSERT OR REPLACE INTO '+table+'(id,payload) VALUES (?,?)','singleton',JSON.stringify(reset(current)));
+      }
+    });
+    if (legacy && await this.storage.getItem(storageKey) === legacyRaw)
+      await this.storage.removeItem(storageKey);
+  }
+
   async clear(ownerId?: string): Promise<void> {
     if (useTrackingAdmission.getState().nativeLease) {
       const admittedOwner = useTrackingAdmission.getState().admittedOwnerId;

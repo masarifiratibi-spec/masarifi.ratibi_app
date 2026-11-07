@@ -1,3 +1,4 @@
+import { captureWriteGeneration, financialMutation } from '../financial-generation-gate';
 import { benchmarkFetch } from '../platform/benchmark-observability';
 import { markRemoteSnapshot } from '@/services/read-snapshot';
 import type { z } from 'zod';
@@ -38,6 +39,7 @@ export class HttpError extends Error {
 
 type TokenProvider = () => Promise<string | null>;
 type RequestOptions<T> = Omit<RequestInit, 'body'> & {
+  generationBinding?: Awaited<ReturnType<typeof captureWriteGeneration>>;
   baseUrl?: string;
   body?: unknown;
   emptyValue?: T;
@@ -73,6 +75,11 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   PROFILE_INACTIVE: 'forbidden',
   NOT_FOUND: 'not_found',
   FX_UNAVAILABLE: 'not_found',
+  FINANCIAL_RESET_ACTIVE_HOLD: 'conflict',
+  FINANCIAL_RESET_WORK_BUSY: 'conflict',
+  FINANCIAL_RESET_CLEANUP_PENDING: 'conflict',
+  FINANCIAL_GENERATION_STALE: 'conflict',
+  FINANCIAL_CAPTURE_BEFORE_RESET: 'conflict',
   VERSION_CONFLICT: 'conflict',
   CATEGORY_USAGE_CHANGED: 'conflict',
   CATEGORY_INVALID: 'conflict',
@@ -105,16 +112,17 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
 const PRIVATE_KEYS =
   /token|secret|password|authorization|cookie|path|payload|error/i;
 let tokenProvider: TokenProvider | null = null;
-let recentAuthHandler: (() => Promise<string | null>) | undefined;
+export type RecentAuthOptions = { allowRecentSignIn?: boolean };
+let recentAuthHandler: ((options?: RecentAuthOptions) => Promise<string | null>) | undefined;
 
 export function configureRecentAuthHandler(
-  handler?: () => Promise<string | null>
+  handler?: (options?: RecentAuthOptions) => Promise<string | null>
 ): void {
   recentAuthHandler = handler;
 }
 
-export async function requestRecentAuthentication(): Promise<string | null> {
-  return (await recentAuthHandler?.()) ?? null;
+export async function requestRecentAuthentication(options?: RecentAuthOptions): Promise<string | null> {
+  return (await recentAuthHandler?.(options)) ?? null;
 }
 
 export function configureMobileApiTokenProvider(provider: TokenProvider): void {
@@ -139,6 +147,10 @@ export async function requestJson<T>(
   options: RequestOptions<T> = {}
 ): Promise<T> {
   assertBenchmarkRead(options.method);
+  if (financialMutation(path, options.method)) {
+    const generationBinding = await captureWriteGeneration();
+    options = { ...options, generationBinding };
+  }
   try {
     return await performRequestJson(path, schema, options);
   } catch (error) {
@@ -199,6 +211,10 @@ async function performRequestJson<T>(
         throw new HttpError('provider_unavailable', 503);
       if (!token) throw new HttpError('session_expired', 401);
       const headers = headerRecord(options.headers);
+      if (options.generationBinding) {
+        if (!options.generationBinding.current()) throw new HttpError('session_expired',401);
+        setHeader(headers,'X-Financial-Generation',options.generationBinding.value);
+      }
       if (!Object.keys(headers).some((name) => name.toLowerCase() === 'accept'))
         setHeader(headers, 'accept', 'application/json');
       if (options.body !== undefined)

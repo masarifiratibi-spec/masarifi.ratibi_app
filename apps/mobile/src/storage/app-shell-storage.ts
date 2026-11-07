@@ -284,6 +284,14 @@ export async function discardAssistantDraft(ownerId: string, scope: string, expe
   });
 }
 
+export async function clearFinancialAssistantDrafts(ownerId: string): Promise<void> {
+  const owner = assistantDraftOwner(ownerId);
+  await serializeLocalOwner(async () => {
+    owner.assertCurrent();
+    await removeSensitive(owner.key);
+  });
+}
+
 export async function clearAppShellUserData(): Promise<void> {
   const asyncKeys = asyncUserDataKeys.map(ownerKey);
   const secureKeys = sensitiveUserDataKeys.map(ownerKey);

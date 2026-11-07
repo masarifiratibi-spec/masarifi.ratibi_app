@@ -1,3 +1,4 @@
+import { onFinancialReset } from '@/services/financial-generation';
 import { isBenchmarkReadOnly } from '@/config/client-runtime';
 import { useVoiceBatches } from './useVoiceBatches';
 import { randomUUID } from 'expo-crypto';
@@ -778,6 +779,19 @@ function useOwnedVoiceCapture() {
       if (audio && audio !== handoffAudio) await cleanupCaptureAudio(audio);
     };
     const unregisterCleanup = registerVoiceCaptureCleanup(clearOwnedWork);
+    const stopReset = onFinancialReset(async (owner) => {
+      if (useAppShellStore.getState().session?.userId !== owner) return;
+      const audio = ownedAudio.current;
+      const journalOwned = batchHandoff.current?.uri;
+      await clearOwnedWork();
+      if (audio && audio !== journalOwned && discardedCaptureAudio.has(audio)) {
+        if (!(await cleanupCaptureAudio(audio))) {
+          ownedAudio.current = audio;
+          throw new Error('voice_audio_cleanup_pending');
+        }
+      }
+      useVoiceCaptureStore.getState().reset();
+    });
     const unsubscribe = useAppShellStore.subscribe((next, previous) => {
       if (
         next.session?.userId !== previous.session?.userId ||
@@ -799,6 +813,7 @@ function useOwnedVoiceCapture() {
       mounted.current = false;
       void clearOwnedWork();
       unregisterCleanup();
+      stopReset();
       unsubscribe();
     };
   }, [clearTimer, cancelRecording]);
