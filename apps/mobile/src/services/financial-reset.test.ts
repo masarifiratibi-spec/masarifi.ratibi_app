@@ -57,7 +57,7 @@ it('persists the operation before dispatch, restores it after a lost response, a
       if (path.endsWith('/state')) return schema.parse(state);
       if (options?.method === 'POST') {
         expect(options).toMatchObject({
-          token: 'verified-token',
+          token: 'owner-token',
           body: { operationId: id },
           recentAuth: 'manual'
         });
@@ -78,20 +78,20 @@ it('persists the operation before dispatch, restores it after a lost response, a
   setOwner(owner);
   await expect(submitFinancialReset(owner, 0, open)).resolves.toEqual(receipt);
   expect(post).toHaveBeenCalledTimes(2);
+  expect(http.requestRecentAuthentication).not.toHaveBeenCalled();
   expect(ExpoCrypto.randomUUID).toHaveBeenCalledTimes(1);
   await acknowledgeFinancialReset(owner, id);
   await expect(loadFinancialResetOperation(owner)).resolves.toBeNull();
 });
 
-it.each(['cancel', 'switch', 'unmount'])(
-  'does not submit after %s during verification',
+it.each(['switch', 'unmount'])(
+  'does not submit after %s during the final state check',
   async (reason) => {
-    const request = jest.spyOn(http, 'requestJson').mockResolvedValue(state);
-    jest
-      .spyOn(http, 'requestRecentAuthentication')
-      .mockImplementation(async () => {
+    const request = jest
+      .spyOn(http, 'requestJson')
+      .mockImplementation(async (_path, schema) => {
         if (reason === 'switch') setOwner('user_b');
-        return reason === 'cancel' ? null : 'verified-token';
+        return schema.parse(state);
       });
     const submission = submitFinancialReset(
       owner,
@@ -106,12 +106,13 @@ it.each(['cancel', 'switch', 'unmount'])(
     expect(
       request.mock.calls.every(([, , options]) => options?.method !== 'POST')
     ).toBe(true);
+    expect(http.requestRecentAuthentication).not.toHaveBeenCalled();
     setOwner(owner);
     await expect(loadFinancialResetOperation(owner)).resolves.toBeNull();
   }
 );
 
-it('rejects offline submission before prompting or preparing an operation', async () => {
+it('rejects offline submission before preparing an operation', async () => {
   const previous = readRecoveryNetwork.available;
   readRecoveryNetwork.available = true;
   jest.spyOn(readRecoveryNetwork, 'isOnline').mockResolvedValue(false);

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { MenuLink } from '@/components/MenuLink';
 import { translate } from '@/localization/i18n';
 import {
@@ -9,9 +9,11 @@ import {
 } from '@/services/financial-reset';
 import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
+import { FinancialResetDialog } from './FinancialResetDialog';
 
 export function FinancialResetCard({ ownerId }: { ownerId: string }) {
   const [available, setAvailable] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   useFocusEffect(
@@ -51,8 +53,14 @@ export function FinancialResetCard({ ownerId }: { ownerId: string }) {
         iconColor={theme.colors.status.danger}
         showChevron
         hideBorder
-        onPress={() => router.push('/financial-reset')}
+        onPress={() => setConfirming(true)}
       />
+      {confirming ? (
+        <FinancialResetDialog
+          ownerId={ownerId}
+          onClose={() => setConfirming(false)}
+        />
+      ) : null}
     </View>
   );
 }

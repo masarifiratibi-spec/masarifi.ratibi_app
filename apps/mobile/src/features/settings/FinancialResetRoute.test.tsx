@@ -1,4 +1,5 @@
 import React from 'react';
+import { TextInput } from 'react-native';
 import {
   act,
   fireEvent,
@@ -6,7 +7,7 @@ import {
   screen,
   waitFor
 } from '@testing-library/react-native';
-import FinancialResetRoute from '@app/financial-reset';
+import { FinancialResetDialog } from './FinancialResetDialog';
 import { changeLocale, translate } from '@/localization/i18n';
 import { resolveTheme } from '@/design-system/theme';
 import { ThemeContext } from '@/state/theme-context';
@@ -17,6 +18,7 @@ import { reconcileFinancialReset } from '@/services/financial-generation';
 
 jest.mock('@/services/financial-reset');
 jest.mock('@/services/financial-generation');
+const close = jest.fn();
 const id = '00000000-0000-4000-8000-000000000001';
 beforeEach(() => {
   jest.resetAllMocks();
@@ -34,11 +36,13 @@ beforeEach(() => {
 });
 
 it.each([
-  ['ar', 'dark', 'تصفير'],
-  ['en', 'light', 'RESET']
+  ['ar', 'dark'],
+  ['ar', 'light'],
+  ['en', 'light'],
+  ['en', 'dark']
 ] as const)(
-  'requires the exact %s phrase and waits for verified local reconciliation',
-  async (locale, theme, phrase) => {
+  'confirms directly in %s/%s and waits for server and local reconciliation',
+  async (locale, theme) => {
     changeLocale(locale);
     usePreferenceStore.setState({
       locale,
@@ -56,28 +60,41 @@ it.each([
       .mockResolvedValue({ id, generation: 1, status: 'completed' });
     render(
       <ThemeContext.Provider value={{ theme: resolveTheme(theme) }}>
-        <FinancialResetRoute />
+        <FinancialResetDialog ownerId="owner" onClose={close} />
       </ThemeContext.Provider>
     );
-    const field = await screen.findByLabelText(
-      translate('financialReset.phrase')
-    );
+    await screen.findByText(translate('financialReset.confirmMessage'));
+    expect(screen.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
     const button = screen.getByRole('button', {
       name: translate('financialReset.submit')
     });
-    expect(button).toBeDisabled();
-    fireEvent.changeText(field, phrase + ' ');
-    expect(button).toBeDisabled();
-    fireEvent.changeText(field, phrase);
+    expect(button).toBeEnabled();
+    expect(reset.submitFinancialReset).not.toHaveBeenCalled();
+    fireEvent.press(button);
     fireEvent.press(button);
     await waitFor(() =>
       expect(reconcileFinancialReset).toHaveBeenCalledWith('owner')
     );
+    expect(reset.submitFinancialReset).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(translate('financialReset.complete'))).toBeNull();
     await act(async () => release());
     expect(screen.getByText(translate('financialReset.complete'))).toBeTruthy();
+    fireEvent.press(
+      screen.getByRole('button', { name: translate('financialReset.done') })
+    );
+    await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
   }
 );
+
+it('closes cancellation without submitting financial changes', async () => {
+  render(<FinancialResetDialog ownerId="owner" onClose={close} />);
+  await screen.findByText(translate('financialReset.confirmMessage'));
+  fireEvent.press(
+    screen.getByRole('button', { name: translate('coreFinance.cancel') })
+  );
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(reset.submitFinancialReset).not.toHaveBeenCalled();
+});
 
 it('resumes a known server receipt after reopening without submitting a new reset', async () => {
   jest
@@ -89,7 +106,7 @@ it('resumes a known server receipt after reopening without submitting a new rese
   jest
     .mocked(reconcileFinancialReset)
     .mockResolvedValue({ generation: 1, cutoff: 0, changed: false });
-  render(<FinancialResetRoute />);
+  render(<FinancialResetDialog ownerId="owner" onClose={close} />);
   await screen.findByText(translate('financialReset.complete'));
   expect(reset.readFinancialReset).toHaveBeenCalledWith('owner', id);
   expect(reset.submitFinancialReset).not.toHaveBeenCalled();
@@ -99,7 +116,7 @@ it('keeps confirmation unavailable when the state contract cannot be confirmed',
   jest
     .mocked(reset.fetchFinancialResetState)
     .mockRejectedValue(new Error('missing capability'));
-  render(<FinancialResetRoute />);
+  render(<FinancialResetDialog ownerId="owner" onClose={close} />);
   await screen.findByText(translate('financialReset.error'));
   expect(
     screen.queryByLabelText(translate('financialReset.submit'))

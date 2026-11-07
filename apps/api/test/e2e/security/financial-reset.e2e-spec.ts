@@ -13,7 +13,6 @@ import {
   type ClerkPrincipal,
   type ClerkPrincipalRequest,
 } from '../../../src/identity/clerk-auth.guard';
-import { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
 import { FinancialResetController } from '../../../src/security/financial-reset.controller';
 import { FinancialResetService } from '../../../src/security/financial-reset.service';
 import { SecurityRepository } from '../../../src/security/security.repository';
@@ -36,7 +35,6 @@ describe('owner financial reset routes', () => {
       providers: [
         FinancialResetService,
         { provide: SecurityRepository, useValue: { withPrincipalTransaction: transaction } },
-        { provide: PlatformConfigService, useValue: { getRequired: () => 300 } },
       ],
     })
       .overrideGuard(ClerkAuthGuard)
@@ -63,15 +61,9 @@ describe('owner financial reset routes', () => {
     await app.close();
   });
 
-  it('rejects unsigned requests, stale authentication, forged ownership and malformed operation ids before SQL', async () => {
+  it('rejects unsigned requests, forged ownership and malformed operation ids before SQL', async () => {
     const http = request(app.getHttpServer() as Server);
     await http.post(path).send({ operationId: id }).expect(401);
-    await http
-      .post(path)
-      .set('authorization', 'owner')
-      .set('stale', '1')
-      .send({ operationId: id })
-      .expect(403);
     await http
       .post(path)
       .set('authorization', 'owner')
@@ -85,12 +77,13 @@ describe('owner financial reset routes', () => {
     expect(transaction).not.toHaveBeenCalled();
   });
 
-  it('submits the same session owner and operation id on retries', async () => {
+  it('accepts the current session without step-up and preserves owner and operation on retries', async () => {
     query.mockResolvedValue({ rows: [{ generation: '3', request_id: id, cleanup_pending: true }] });
     for (let retry = 0; retry < 2; retry++) {
       await request(app.getHttpServer() as Server)
         .post(path)
         .set('authorization', 'owner')
+        .set('stale', '1')
         .send({ operationId: id })
         .expect(200, { id, status: 'processing', generation: 3 });
     }
