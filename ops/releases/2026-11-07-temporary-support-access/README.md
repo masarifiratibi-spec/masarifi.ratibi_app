@@ -49,6 +49,8 @@ Keep the forward-compatible CHECK after any application rollback. Reinstalling t
 
 ## Required activation sequence after complete review
 
+[Operator acceptance worksheet](operator-trial.md) lists the existing actors, the shortest natural expiry case and the restoration decision before the trial deadline.
+
 1. Replace every blocked/null pin with an immutable successful exact-source CI artifact, image ID, routing/context receipt and reviewed executor/watchdog hashes. Verify the source ancestry/tree relationship and scan all new history. Ask the human to approve that complete specific packet only then.
 2. Following that approval, readmit protected services, database target/constraint/ledger, Nginx links/bytes/context, existing API/auth bindings, resource headroom and free loopback ports. Drift requires reconciliation before a mutation.
 3. Transfer only the pinned public packet/runtime archives through the authorized operator channel. Verify bytes again on the host. Preserve existing secrets in memory by cloning the admitted Config/HostConfig; never put them in shell arguments, logs, source files or temporary environment files.
@@ -87,4 +89,4 @@ For the existing operator-owned qualification case, store private browser eviden
 python -B -m unittest discover -s ops/releases/2026-11-07-temporary-support-access -p 'test_*.py' -v
 ```
 
-The archive, routing and release controls pass 58 local tests. Routing fixtures include all 25 observed specialized heads, TLS/redirect selection, scoped proxy semantics, inherited headers, input/link drift and private-output checks. The independent Linux workflow tests the restart-policy transition on two new disposable Docker IDs and additionally tests the live Nginx response during a file trial, rollback, private namespace loss and accepted persistence on its disposable runner. A local pass does not establish a deployed routing hash, hosted authentication or successful deployment.
+The archive, routing and release controls pass 59 local tests. Routing fixtures include all 25 observed specialized heads, TLS/redirect selection, scoped proxy semantics, inherited headers, input/link drift and private-output checks. The independent Linux workflow tests the restart-policy transition on two new disposable Docker IDs and additionally tests the live Nginx response during a file trial, rollback, private namespace loss and accepted persistence on its disposable runner. A local pass does not establish a deployed routing hash, hosted authentication or successful deployment.

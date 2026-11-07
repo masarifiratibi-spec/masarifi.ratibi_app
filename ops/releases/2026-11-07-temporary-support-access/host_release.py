@@ -120,7 +120,12 @@ def check_restore_inventory(m,t):
                 if k not in ("masterPid","masterStartTicks")),"PROTECTED_RESTORE_INVENTORY_DRIFT")
 
 
-PROBE_SUFFIXES=("", "/00000000-0000-4000-8000-000000000001?probe=1")
+def support_get_probes():
+    # The owner API exposes a list and POST decision, but no GET detail.
+    suffix="/00000000-0000-4000-8000-000000000001?probe=1"
+    for port,family,detail in ((3033,ng.API_PATHS[0],401),(3001,ng.API_PATHS[1],404)):
+        yield port,family.decode(),401
+        yield port,family.decode()+suffix,detail
 
 
 def prove_original(t):
@@ -130,10 +135,9 @@ def prove_original(t):
     status,_,body=public(ADMIN,OLD_ASSET)
     cfg.require(status==200 and wd.sha(body)==OLD_DIGEST,"OLD_ADMIN_NOT_SERVED")
     cfg.require(public(ADMIN,m["admin"]["staticProbe"]["path"])[0]==404,"OLD_ADMIN_ALSO_SERVES_NEW_BUILD")
-    for family in ng.API_PATHS:
-        for suffix in PROBE_SUFFIXES:
-            status,cache,_=public(API,family.decode()+suffix)
-            cfg.require(status==401 and cache==[],"OLD_SUPPORT_ROUTE_NOT_SERVED")
+    for _,path,expected in support_get_probes():
+        status,cache,_=public(API,path)
+        cfg.require(status==expected and cache==[],"OLD_SUPPORT_ROUTE_NOT_SERVED")
 
 
 def candidate_public(m):
@@ -141,10 +145,10 @@ def candidate_public(m):
     item=m["admin"]["staticProbe"]
     status,_,body=public(ADMIN,item["path"])
     cfg.require(status==200 and wd.sha(body)==item["sha256"],"NEW_STATIC_NOT_SERVED")
-    for family in ng.API_PATHS:
-        for suffix in PROBE_SUFFIXES:
-            status,cache,_=public(API,family.decode()+suffix)
-            cfg.require(status==401 and cache==[b"no-store"],"SUPPORT_ROUTE_OR_POLICY_DRIFT")
+    for _,path,expected in support_get_probes():
+        status,cache,_=public(API,path)
+        cfg.require(status==expected and cache==[b"no-store"] and local(3042,path,API)[0]==expected,
+                    "SUPPORT_ROUTE_OR_POLICY_DRIFT")
 
 
 def probe_member(m,role):
@@ -455,8 +459,8 @@ def rollback_admission(m,t):
     wd.verify_paths(t)
     cfg.require(wd.sha(wd.exact_file(wd.TARGET)) in (t["originalSha256"],t["candidateSha256"]),"REFUSE_FOREIGN_ROUTING")
     status,_,asset=local(3041,OLD_ASSET,ADMIN)
-    cfg.require(status==200 and wd.sha(asset)==OLD_DIGEST and all(local(port,family.decode()+suffix,API)[0]==401
-                for port,family in zip((3033,3001),ng.API_PATHS) for suffix in PROBE_SUFFIXES),
+    cfg.require(status==200 and wd.sha(asset)==OLD_DIGEST and all(local(port,path,API)[0]==expected
+                for port,path,expected in support_get_probes()),
                 "ORIGINAL_UPSTREAMS_NOT_READY")
     return ident
 

@@ -24,7 +24,7 @@
   "api": {
     "archiveSha256": null,
     "imageId": null,
-    "reason": "Run 42391737577: fresh pgTAP and 1,066 real integration tests passed; two stale security assertions blocked subsequent gates and image. Replacement qualification required."
+    "reason": "Run 42394141341: all Android, application, browser and cross-feature security gates passed; ledger benchmark failure prevented the image job. Repair requalification pending."
   },
   "routing": {
     "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
@@ -52,7 +52,22 @@
       "configAndHostConfigSha256": "e31693d056d817323364939999fec54b4947339e96a19543285811360dc91f2d",
       "databaseProject": "qcffvfbpzvpwcwxwjyro"
     },
-    "primaryPublicVersion": "97e66588b2b516ae8c67e285f8439be591439dd6"
+    "primaryPublicVersion": "97e66588b2b516ae8c67e285f8439be591439dd6",
+    "originalSupportGet": {
+      "order": "admin list, admin detail, owner list, owner detail",
+      "directAndPublic": [
+        401,
+        401,
+        401,
+        404
+      ],
+      "publicCacheControlHeaders": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
   },
   "migration": {
     "version": "20261107140100",
@@ -83,36 +98,36 @@
     }
   },
   "qualification": {
-    "foundationRun": 42391737577,
+    "foundationRun": 42394141341,
     "foundation": "database-failed",
     "remainingFailures": [
-      "workflow-pins.spec.ts still expected inline compiled package/old English label",
-      "ledger/ownership-boundary.spec.ts still prohibited legitimate own-account reads and replay after Admin promotion"
+      "Ledger k6: 20,840 failed write/reconciliation operations against missing benchmark owner epochs; corrected and requalification pending."
     ],
     "apiApplication": "success",
     "mobile": "success",
     "secrets": "success",
     "upgradedDatabaseIntegration": "151 suites/1066 tests passed",
     "stagingRuns": [
-      42391737604,
-      42391730633
+      42394141299,
+      42394134376
     ],
     "staging": "success",
-    "journalRun": 42391737559,
+    "journalRun": 42394141307,
     "journal": "success",
-    "sourceCommit": "7e6f3995c687937813c6f9341d782e2d8c2d1777",
+    "sourceCommit": "6b39fd369a8cfdf182494c53cd5a865e6c225e14",
     "priorCompletedFoundation": {
-      "run": 42389327179,
+      "run": 42391737577,
       "outcome": "failure",
-      "passed": "Android, five viewports, Admin, Mobile, application, scans and all 59 plpgsql plans",
-      "failure": "Two stale 53-entry decision points in pgTAP; canonical 54th schedule verified in staging."
+      "passed": "fresh pgTAP, upgraded and fresh integration suites",
+      "failure": "Two obsolete cross-feature assertions, subsequently repaired."
     },
     "packetLinux": {
-      "run": 42393134548,
-      "sourceCommit": "5418a3e48e67dfdd336a3e747eee0017f3c645f3",
+      "run": 42396956430,
+      "sourceCommit": "4698fc18316968fd3d090907e1f3309c782384eb",
       "result": "success",
-      "tests": 51,
-      "liveNginxTrial": "verified on disposable runner"
+      "tests": 58,
+      "liveNginxTrial": "verified on disposable runner",
+      "dockerRestart": "real provisional and accepted policies verified"
     },
     "hostReadmission": {
       "sourceCommit": "5418a3e48e67dfdd336a3e747eee0017f3c645f3",
@@ -123,7 +138,8 @@
         "portsFree": true
       },
       "activated": false
-    }
+    },
+    "crossFeatureSecurity": "169 tests passed"
   },
   "limits": [
     "No qualified API runtime archive yet",
@@ -139,10 +155,10 @@
     "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
   },
   "offlinePacketTests": {
-    "passed": 58,
+    "passed": 59,
     "failed": 0,
     "skipped": 0,
-    "boundary": "58 local controls; the independent Linux run qualifies Docker restart and Nginx separately."
+    "boundary": "59 local controls; the preceding 58 also passed Linux with real Nginx trial and real Docker restart policy checks."
   },
   "hashEncoding": "SHA256 of canonical LF UTF-8 packet bytes; container config fingerprints retain their separately stated exact Docker output algorithm",
   "repairCommits": [
@@ -156,7 +172,7 @@
     "replacementCi": "Real extension passed in 42389327179: errors=0, explainedDynamicVariants=59; two stale pgTAP counts blocked database/image."
   },
   "executorSha256": {
-    "host_release.py": "e54a3a0c8331c4c5d77631ad6f3788fe8730f8cd0862886f10a3f4dbc2264c7f",
+    "host_release.py": "ad51fdff47c761427d27f03a2f1f2849dc1d5d6a07affe29bb3e7d7a1edf63ed",
     "host_inventory.py": "32d3a0f9e9fe1a41cbaabd307bc7fee8e3ddd866c4096347a42aeaba793463be",
     "candidate_config.py": "c4a0b642879c8766a24d665e644f5f602b20156b56288d85c0fc146cfcaa1bec",
     "watchdog.py": "f66a7fddc4c842e405632297debfabebd3d1a24bc3cf03d91f60254da7a40b5c",

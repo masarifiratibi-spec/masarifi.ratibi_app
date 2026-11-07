@@ -45,6 +45,21 @@ class Controls(unittest.TestCase):
                 host.quiesce(self.m,{"api":"fixture"})
             cmd.assert_called_once_with(["docker","stop","--time","15","fixture"],timeout=25)
 
+    def test_owner_missing_get_detail_proves_location_only_with_expected_cache_policy(self):
+        item=self.m["admin"]["staticProbe"]
+        def response(path):
+            return 404 if "/me/" in path and "?probe" in path else 401
+        def served(_,path):
+            if path==item["path"]:return 200,[],b"static"
+            return response(path),[b"no-store"],b""
+        with patch.object(host,"unchanged_public"),patch.object(wd,"sha",return_value=item["sha256"]),\
+             patch.object(host,"local",side_effect=lambda port,path,domain:(response(path),{},b"")),\
+             patch.object(host,"public",side_effect=served) as public:
+            host.candidate_public(self.m)
+            self.assertEqual(public.call_count,5)
+            public.side_effect=lambda domain,path: (404,[],b"") if response(path)==404 else served(domain,path)
+            with self.assertRaisesRegex(ValueError,"SUPPORT_ROUTE_OR_POLICY_DRIFT"):host.candidate_public(self.m)
+
     def original(self,role):
         base=self.b["actualApi" if role=="api" else "admin"]
         rt=base["runtime"]

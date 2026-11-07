@@ -48,10 +48,19 @@ def main():
                 assert after["HostConfig"]["RestartPolicy"]=={"Name":"unless-stopped","MaximumRetryCount":0}
                 assert after["State"]["StartedAt"]==starts[role] and after["RestartCount"]==0
                 assert receipt["configs"][role]==cfg.fingerprint({k:after[k] for k in ("Config","HostConfig","Mounts")})
+            # Exercise both states encountered during an operator rollback. The
+            # only simulated input is the baseline of protected predecessor IDs.
+            image=inv.inspect(ids["api"])["Image"]
+            manifest["api"]={"imageId":image}
+            predecessor={"actualApi":{"id":"not-the-trial-api"},"admin":{"id":"not-the-trial-admin","image":image[7:]}}
+            run("docker","stop","--time","1",ids["admin"])
+            with patch.object(host,"baseline",return_value=predecessor):
+                host.quiesce(manifest,ids)
+                host.prove_quiesced(manifest,ids)
         finally:
             for identity in ids.values():run("docker","rm","-f",identity)
             run("docker","image","rm",tag)
-    print("PASS both trial containers used no automatic restart; accepted IDs changed only restart policy and retained start times")
+    print("PASS both accepted IDs kept their start times; rollback left both stopped with automatic restart disabled")
 
 
 if __name__=="__main__":main()
