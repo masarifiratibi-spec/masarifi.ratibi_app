@@ -1,4 +1,8 @@
-# Current checkpoint: Assistant127/API activated; physical direct-total reply by2.2s; APK cleanup complete
+# Current checkpoint: Android 129 verified on Redmi
+
+Primary Android user 0 has signed code 129, built from `2a26016f`. The installed bytes match `E:/Masarifi-task30-build-artifacts-20261106/task40-customer-129-native.apk` (SHA256 `3f72e5041f152f4ced70950410c615211e0bb38a5215fe5021ae1c105f43cee1`). The separately named Final.apk on E: matched historical build 127. See the [biometric report and physical screenshots](../releases/2026-11-07-redmi-biometric-resume.md) and [execution receipt](../../ops/releases/2026-11-07-biometric-retry/execution-result.json). Successful foreground unlock, intentional cancellation and fresh retry were verified. Original settings restored, same current session, device on Home. The earlier [personal finance migration](../releases/2026-11-07-personal-finance-access.md) already ran in production. Neither biometric update changed hosted services.
+
+# Historical checkpoint: Assistant127/API activated; physical direct-total reply by2.2s; APK cleanup complete
 
 User explicitly approved the exact Task37 API and signed127 package via call_aded452e627b401798cf993e5bf138e6 after publication of review commit33ca5a604912d4a8525bb2043f7ff3df260628b8. Reviewed manifest f42faeef1e9a05176e65e364291936be8472dd92a7ce206a0457d4a4a7acaa34 is unchanged. API image1de049b360a2618af5e019997d35bafafe4bb50d1c1bfbfb96fb2668d65fdd96 ACTUALLY serves in container0df1ab6aa3476c3e80b46e5c470f9e27de6f450a72a5be4b008dbdc3601d185f, started2026-11-06T22:43:55.234573626Z. Image-only Compose activation preserved all other30containers, environment, hosted input files and runtime. Live/ready/publicTLS and unauthenticated Assistant GET/POST401 passed. Workerce8/e581 unchanged; no model, environment, schema, DNS or TLS change. Do not replay activation.
 
