@@ -1,9 +1,9 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`5418a3e48e67dfdd336a3e747eee0017f3c645f3` on
+`6b39fd369a8cfdf182494c53cd5a865e6c225e14` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`8ee031840e6129015d0d68a776e5c92174a5cb6c`. It includes the initial CI update
+`b65b8cd747c8f4204390b4bb28d78fe228109810`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
 `0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
@@ -49,6 +49,9 @@ The workflow-pin fixture now requires all four Android ABIs and the published
 compiled-badging verifier, including its test-before-verification ordering. The
 ownership fixture retains the accepted personal-ledger behavior after Admin
 promotion while checking that another customer's ledger and replay remain hidden.
+The final refinement also gives the fixture a real database support role, reuses
+the exact recorded mutation commands and forbids conditional/continue-on-error
+execution of the compiled Android identity check.
 The SQL job assertion additionally pins its empty configuration. These changes
 update tests only; no production API, mobile code or SQL policy changed.
 
@@ -60,9 +63,33 @@ does not match its source-branch trigger. Release-tool files were synchronized
 without invoking their deployment, database, Docker or privileged entry points.
 
 Read-only GitHub verification confirmed that [Linux packet run 42393134548](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42393134548)
-completed successfully at `5418a3e4`. The replacement [Foundation run 42393139690](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42393139690)
-was still in progress at verification. The ownership live-database test and
+completed successfully at `5418a3e4`. The replacement [Foundation run 42394141341](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42394141341)
+at `6b39fd36` was still in progress at verification. The ownership live-database test and
 privileged Linux trial were not executed on this Windows workspace.
+
+## Exact packet-finding provenance
+
+The final gate initially blocked publication with 24 raw observations: 20 reviewed
+and four unreviewed. Two originated in `a7cc6e0e`: a manifest SHA256 equal to the
+Git contents of `api_archive.py`, and the literal baseline field name
+`protectedLegacyApi3000`. The source owner reviewed the immutable blobs, lines,
+columns, values and redacted spans, then published two narrowly bound classifiers
+and the two original records in `029eac5f`. Historical Python is parsed as data;
+it is never executed, and the manifest digest is checked against its Git sibling.
+
+The other two observations belong only to iOS merge `8ee03184`. Their blobs match
+the direct parent `5418a3e4`, which contains the original source commit. The
+inventory blob is identical to the origin. The manifest blob and line changed,
+so its new immutable context was reviewed independently and its SHA256 was again
+proved equal to the source file at that merge. Commit `0905bc6b` adds exactly
+these two records. All 14 published Android records and the eight earlier iOS
+records remain unchanged. No generic merge, path, value or rule exception was added.
+
+All 24 actual observations and the two incoming strict-scan observations were
+accepted by the published classifier plus the exact catalog. The 22 new negative
+controls reject copied commits/files, moved lines, changed rules, columns, spans,
+redacted matches and altered catalog blob/line/value digests. The initial red
+reports are retained alongside the final pinned-candidate verification.
 
 ## Reviewed iOS identity compatibility
 
@@ -89,7 +116,7 @@ branch was changed by this task.
 | Check | Result |
 | --- | --- |
 | Identity regression before the fix | 2 expected failures / 21 passing controls |
-| Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 70 passed, zero failed/skipped; natural exit 0 |
+| Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 71 passed, zero failed/skipped; natural exit 0 |
 | Complete published packet against offline fixtures | 51 passed; natural exit 0 |
 | Updated workflow-pin security fixture | 8 passed / 1 suite; zero skipped; natural exit 0 |
 | Disposable Linux packet workflow on GitHub | Passed at `5418a3e4` |
@@ -100,9 +127,9 @@ branch was changed by this task.
 | Actual iOS profile/native-plugin configuration tests | 6 passed, zero skipped |
 | Updated security route and generated OpenAPI contracts | 3 passed / 2 suites; natural exit 0 |
 | Formatting of the two changed guard files | Passed |
-| Incoming/own new history raw strict secret scan | Zero findings |
-| Full candidate-history secret gate | 20 raw observations, 20 exact reviewed noncredentials, zero unreviewed findings; exit 0 |
-| iOS merge-catalog negative controls | All 32 altered commit/location/rule/match cases rejected |
+| Incoming/own new history raw strict secret scan | 2 raw exact reviewed noncredentials; zero unreviewed findings |
+| Full candidate-history secret gate | 24 raw observations, 24 exact reviewed noncredentials, zero unreviewed findings; exit 0 |
+| iOS merge-catalog negative controls | 32 earlier controls and 22 new altered-context/catalog controls rejected |
 
 The first temporary Git-fixture run on the E filesystem failed to recognize its
 new disposable repositories. The unchanged stock tests passed when their
@@ -124,21 +151,22 @@ ancestry contains the original reviewed commit. The CI owner reviewed and
 accepted these eight immutable contexts and independently rejected 32 mutations;
 the same negative controls were repeated locally.
 
-Exactly eight fingerprints were added to this branch's catalog in `f4cca3fb`.
-The original twelve entries remain unchanged. Classifier code, rules and
-path/value/family exceptions were unchanged. The Android catalog remains
-unchanged: these are observations specific to iOS merge history. Both the
-original red scan and subsequent passing complete-history scans are retained.
+The initial eight iOS fingerprints were added in `f4cca3fb` without changing
+classifier code or path/value/family exceptions. The original twelve records
+remain unchanged. The later shared `029eac5f` adds two original packet records;
+the iOS-only `0905bc6b` adds their two independently verified merge observations.
+The Android catalog therefore has 14 records and this branch has 24. Original red
+scans and subsequent passing complete-history scans are retained.
 
 Compared with the final shared checkpoint, the only intended differences under
 `apps/`, `packages/` and `scripts/integration/` are the iOS profile, its regression
-test and these eight history-catalog entries. All shared CI executable code and
-tests are identical. The final 70-case run supersedes the earlier 68- and 39-case runs;
+test and ten iOS history-catalog entries. All shared CI executable code and
+tests are identical. The final 71-case run supersedes the earlier 70-, 68- and 39-case runs;
 their counts are not added together.
 
-The 51-case packet run supersedes the earlier 19-case helper run; those counts
-are not added together. The 70 Node-suite inputs are unchanged by the latest
-packet/security-test follow-up. The six iOS profile checks and three API contract
+The final 51-case packet and eight-case workflow runs were repeated after the
+latest source merge. The 51-case run supersedes the earlier 19-case helper run;
+those counts are not added together. The six iOS profile checks and three API contract
 cases also retain their unchanged tested mobile/API inputs. These local results
 were not rerun or relabelled as execution of the SQL or live-ownership fixtures.
 
