@@ -65,6 +65,7 @@ const supportedTypes = jest.mocked(
 );
 
 beforeEach(() => {
+  AppState.currentState = 'active';
   jest.clearAllMocks();
   jest.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(3);
   mockRequestAccountDeletion.mockReset();

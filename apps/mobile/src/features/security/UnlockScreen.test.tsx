@@ -1,5 +1,6 @@
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { AppState, type AppStateStatus } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { translate } from '@/localization/i18n';
 import type { BiometricResult, BiometricService } from '@/services/contracts/app-shell-service';
 import { renderWithProviders } from '@/test-utils/render';
@@ -9,6 +10,37 @@ const serviceWith = (authenticate: BiometricService['authenticate']): BiometricS
   getAvailability: async () => ({ status: 'supported', kinds: ['fingerprint'], deviceCredential: true }),
   authenticate,
   cancel: async () => undefined
+});
+
+beforeEach(() => { AppState.currentState = 'active'; });
+
+test('a lock mounted in the background prompts once when the app returns to the foreground', async () => {
+  const originalState = AppState.currentState;
+  let changeState: ((state: AppStateStatus) => void) | undefined;
+  const originalListener = AppState.addEventListener;
+  AppState.addEventListener = (event, callback) => {
+    if (event === 'change') changeState = callback;
+    return { remove: jest.fn() };
+  };
+  const authenticate = jest.fn().mockResolvedValue({ status: 'cancelled' });
+  const unlock = jest.fn();
+  try {
+    AppState.currentState = 'background';
+    const view = render(<UnlockScreen biometricService={serviceWith(authenticate)} onUnlock={unlock} />);
+    expect(authenticate).not.toHaveBeenCalled();
+    await act(async () => changeState?.('inactive'));
+    expect(authenticate).not.toHaveBeenCalled();
+    AppState.currentState = 'active';
+    await act(async () => changeState?.('active'));
+    expect(authenticate).toHaveBeenCalledTimes(1);
+    await act(async () => changeState?.('active'));
+    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect(unlock).not.toHaveBeenCalled();
+    view.unmount();
+  } finally {
+    AppState.addEventListener = originalListener;
+    AppState.currentState = originalState;
+  }
 });
 
 test('completes exactly once after native authentication succeeds', async () => {

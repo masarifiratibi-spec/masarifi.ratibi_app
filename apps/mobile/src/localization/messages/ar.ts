@@ -595,8 +595,7 @@ const ar: MessageCatalog = {
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
-  'appShell.security.biometricUnlock':
-    '\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0628\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632',
+  'appShell.security.biometricUnlock': 'إعادة المحاولة',
   'appShell.security.biometricUnavailable':
     '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629',
   'appShell.security.biometricCancelled':
@@ -606,7 +605,8 @@ const ar: MessageCatalog = {
   'appShell.security.biometricLocked':
     '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u0642\u0641\u0644\u0629 \u0645\u0624\u0642\u062A\u064B\u0627 \u0645\u0646 \u0646\u0638\u0627\u0645 \u0627\u0644\u062C\u0647\u0627\u0632.',
   'appShell.security.protectedContent': 'المحتوى محمي',
-  'appShell.security.nativeUnlock': 'افتح مصاريفي باستخدام مصادقة الجهاز',
+  'appShell.security.nativeUnlock': 'فتح مصاريفي',
+  'appShell.security.unlockHint': 'استخدم البصمة أو طريقة فتح جهازك للمتابعة.',
   'appShell.security.nativeLock': 'استخدام مصادقة الجهاز',
   'appShell.security.nativeLockSubtitle':
     'بصمة الإصبع أو الوجه أو رمز الجهاز أو كلمة المرور أو النمط. يديرها نظام الجهاز.',

@@ -638,7 +638,7 @@ const en = {
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.biometricUnlock': 'Try device authentication again',
+  'appShell.security.biometricUnlock': 'Try again',
   'appShell.security.biometricUnavailable': 'Device authentication unavailable',
   'appShell.security.biometricCancelled':
     'Device authentication was cancelled. You can try again.',
@@ -647,8 +647,8 @@ const en = {
   'appShell.security.biometricLocked':
     'Device authentication is temporarily locked by your device.',
   'appShell.security.protectedContent': 'Content protected',
-  'appShell.security.nativeUnlock':
-    'Unlock Masarifi with your device authentication',
+  'appShell.security.nativeUnlock': 'Unlock Masarifi',
+  'appShell.security.unlockHint': 'Use biometrics or your device passcode to continue.',
   'appShell.security.nativeLock': 'Use device authentication',
   'appShell.security.nativeLockSubtitle':
     'Fingerprint, face or your device PIN, password or pattern. Managed by your device.',
