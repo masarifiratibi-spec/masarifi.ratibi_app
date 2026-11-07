@@ -1,5 +1,49 @@
 import { expect, test } from "@playwright/test";
 
+test("queue cards fit supported long job labels in both directions and themes", async ({ page }, testInfo) => {
+  await page.goto("/admin/jobs/queues");
+  const cards = page.locator("[data-queue-card]");
+  const viewportWidth = page.viewportSize()!.width;
+  await expect(cards.first()).toBeVisible();
+  // A synthetic public registry label at the supported 128-character boundary.
+  // Keep the real QueueCard markup, metrics and status badge for the reflow check.
+  const longLabel = "assistant.reconcile_" + "x".repeat(108);
+  const heading = cards.first().locator("h2");
+  await heading.evaluate((element, label) => { element.textContent = label; }, longLabel);
+  for (const locale of ["ar", "en"] as const) {
+    if (await page.locator("html").getAttribute("lang") !== locale) {
+      await page.getByRole("button", { name: "تغيير اللغة", exact: true }).click();
+    }
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+    for (const theme of ["light", "dark"] as const) {
+      if (await page.locator("html").getAttribute("data-theme") !== theme) {
+        await page.getByRole("button", { name: locale === "ar" ? "تبديل المظهر" : "Toggle theme", exact: true }).click();
+      }
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await expect(heading).toHaveText(longLabel);
+      expect(await heading.evaluate(element => {
+        const range = document.createRange(); range.selectNodeContents(element);
+        const box = element.getBoundingClientRect();
+        return Array.from(range.getClientRects()).every(line => line.left >= box.left - 1 && line.right <= box.right + 1);
+      })).toBe(true);
+      expect(await page.evaluate(width => document.documentElement.scrollWidth <= width + 1, viewportWidth)).toBe(true);
+      expect(await cards.evaluateAll((elements, width) => elements.every(element => {
+        const box = element.getBoundingClientRect();
+        return box.left >= -1 && box.right <= width + 1;
+      }), viewportWidth)).toBe(true);
+      expect(await cards.locator(".card-heading").evaluateAll(elements => elements.every(element => {
+        const card = element.closest("article")!.getBoundingClientRect();
+        return Array.from(element.children).every(child => {
+          const box = child.getBoundingClientRect();
+          return box.left >= card.left && box.right <= card.right;
+        });
+      }))).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`queue-reflow-${locale}-${theme}.png`) });
+    }
+  }
+});
+
 test("overview chart ticks remain inside their SVG viewport", async ({ page }) => {
   await page.goto("/admin");
   for (const title of ["نمو المستخدمين", "حجم الاستيراد"]) {
