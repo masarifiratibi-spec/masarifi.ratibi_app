@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-07",
+  "timezone": "Asia/Riyadh",
+  "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+  "node": "24.16.0",
+  "npm": "11.17.0",
+  "receipts": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=2",
+      "exitCode": 0,
+      "privateLog": "unit-delivery.log",
+      "logSha256": "4d893debea19cc5bec834dc6ec2d6150d11ef1b980fc35f16e890c682bd313af",
+      "files": 108,
+      "passed": 1029
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run src/features/system-health",
+      "exitCode": 0,
+      "privateLog": "operations-final.log",
+      "logSha256": "ea2a78fe875906db7523ff7c50f516d87799c65bb3d7a240a17e7a5b3d8b8302",
+      "files": 4,
+      "passed": 49
+    },
+    {
+      "command": "playwright test tests/e2e/production-ui.spec.ts (all five projects)",
+      "exitCode": 0,
+      "privateLog": "final-ui2.log",
+      "logSha256": "2c6cd6d8011b601ff7b4a149482f907f59a5c1e7665e6badb131264f5d225fb5",
+      "passed": 15
+    },
+    {
+      "command": "playwright test tests/e2e/system-health-jobs.spec.ts --project=desktop-1440 --project=mobile-390",
+      "exitCode": 0,
+      "privateLog": "operations-browser.log",
+      "logSha256": "22305785635ddde85a3021fac61acc812363624e080161bdfb5bdb710b73fc57",
+      "passed": 12
+    },
+    {
+      "command": "isolated rerun: shell language/theme, failure states, Spec005 direct denial",
+      "exitCode": 0,
+      "privateLog": "recheck2.log",
+      "logSha256": "4d908eb7a3878377c82a144194b7c9706f980ae08c101fddad8d1dcb4c820600",
+      "passed": 3
+    },
+    {
+      "command": "next build (live; mocks disabled; validation-only server secret)",
+      "exitCode": 0,
+      "privateLog": "build-delivery.log",
+      "logSha256": "f12ae5fb833841ee4a19f60225c3dc9d92696b6dcab4c543f627b6682cb4052f",
+      "staticPages": 86
+    },
+    {
+      "command": "tsc --noEmit",
+      "exitCode": 0,
+      "privateLog": "typecheck-delivery.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "eslint .",
+      "exitCode": 0,
+      "privateLog": "lint-delivery.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "routePatterns": 106,
+  "localRouteResults": 106,
+  "liveModeBuildIsHostedAcceptance": false,
+  "review": "fresh read-only source review; all reported important findings resolved and regression tested"
+}
