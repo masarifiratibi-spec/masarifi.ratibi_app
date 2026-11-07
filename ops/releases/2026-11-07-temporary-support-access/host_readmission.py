@@ -1,7 +1,7 @@
 """Observe the admitted host in memory. No Docker writes, proxy writes, SQL or reloads."""
 import json
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import candidate_config as cfg
 import host_inventory as inv
@@ -11,7 +11,12 @@ import read_nginx_context as context
 def same_target(container, project):
     env=dict(v.split("=",1) for v in container["Config"]["Env"])
     u=urlsplit(env["DATABASE_URL"])
-    return u.scheme in ("postgres","postgresql") and u.path=="/postgres" and (
+    params=parse_qsl(u.query,strict_parsing=True,keep_blank_values=True)
+    if len(dict(params))!=len(params) or any(k not in ("sslmode","sslrootcert","connect_timeout","channel_binding") for k,_ in params):
+        return False
+    if any(k in env for k in ("PGHOST","PGHOSTADDR","PGSERVICE","PGSERVICEFILE","PGOPTIONS","PGDATABASE","PGUSER","PGPORT")):
+        return False
+    return u.scheme in ("postgres","postgresql") and not u.fragment and u.port in (None,5432,6543) and u.path=="/postgres" and (
         u.hostname=="db."+project+".supabase.co" or (u.hostname or "").endswith(".pooler.supabase.com")
         and (unquote(u.username or "")).endswith("."+project))
 

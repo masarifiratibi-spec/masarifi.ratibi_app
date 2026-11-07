@@ -175,15 +175,20 @@ describeLiveDatabase('ledger ownership boundary', () => {
     }
   });
 
-  it('removes customer ledger visibility when that customer becomes an Admin', async () => {
-    await expect(reads.getTransaction(promotedAdmin, promotedTransactionId)).rejects.toMatchObject({
+  it('retains personal ownership after promotion without exposing another customer’s ledger', async () => {
+    await expect(reads.getTransaction(promotedAdmin, promotedTransactionId)).resolves.toMatchObject(
+      {
+        transaction: { id: promotedTransactionId },
+      },
+    );
+    await expect(reads.getTransaction(promotedAdmin, transactionId)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
-    await expect(
+    const replay = (principal: Principal) =>
       reads.replayCompleted({
         operation: 'createTransaction',
         scope: 'ledger.transaction.create',
-        principal: promotedAdmin,
+        principal,
         command: {
           kind: 'expense',
           amountMinor: 100,
@@ -201,7 +206,10 @@ describeLiveDatabase('ledger ownership boundary', () => {
         idempotencyKey: 'ledger-promoted-read-key',
         requestId: 'ledger-promoted-replay',
         status: 201,
-      }),
-    ).rejects.toMatchObject({ response: { code: 'FORBIDDEN' } });
+      });
+    await expect(replay(promotedAdmin)).resolves.toMatchObject({
+      transaction: { transaction: { id: promotedTransactionId } },
+    });
+    await expect(replay(nonowner)).resolves.toBeUndefined();
   });
 });

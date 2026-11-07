@@ -38,7 +38,8 @@ select is((select count(distinct job_key)::integer from private.scheduled_jobs),
 select is((select count(*)::integer from private.scheduled_jobs where job_key='privacy.financial-reset-cleanup'
   and owner_spec=4 and job_type=job_key and enabled and retry_safe and not cancel_safe
   and schedule='{"kind":"interval","everySeconds":15,"timezone":"UTC"}'::jsonb
-  and timeout_seconds=60 and max_attempts=5),1,'Spec 004 owns exactly one governed financial reset cleanup job');
+  and timeout_seconds=60 and max_attempts=5 and configuration='{}'::jsonb),1,
+  'Spec 004 owns exactly one governed financial reset cleanup job');
 select is((select count(*)::integer from private.scheduled_jobs where owner_spec=13),9,'Phase 13 owns exactly nine jobs');
 select is((select count(*)::integer from private.scheduled_jobs where owner_spec=12),0,'deferred Spec 012 owns no job');
 select is((select count(*)::integer from private.scheduled_jobs where job_key ~* 'billing|stripe|subscription|entitlement|checkout|promotion'),0,'Free-only inventory excludes paid work');

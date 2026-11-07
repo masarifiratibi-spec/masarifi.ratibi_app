@@ -1,6 +1,5 @@
 """Stage, switch or accept only a separately approved, fingerprinted release packet."""
 import argparse
-from contextlib import contextmanager
 import http.client
 import json
 import os
@@ -18,12 +17,15 @@ import nginx_delta as ng
 import read_nginx_context as context
 import stage_archives
 import watchdog as wd
+import acceptance_receipt
+import host_readmission
 
 ROOT=Path(cfg.ROOT)
 INPUT=Path("/opt/masarifi/support-access-inputs-20261107")
 UNIT="masarifi-support-access-watchdog-20261107"
 SCRIPTS=("host_release.py","host_inventory.py","candidate_config.py","watchdog.py","stage_archives.py",
-         "api_archive.py","candidate_verifier.py","migration_packet.py","nginx_delta.py","read_nginx_context.py")
+         "api_archive.py","candidate_verifier.py","migration_packet.py","nginx_delta.py","read_nginx_context.py",
+         "acceptance_receipt.py","host_readmission.py")
 
 
 def admitted(pin=None):
@@ -113,10 +115,14 @@ def unchanged_public(m):
 
 def prove_original(t):
     m=admitted()
-    check_inventory(m,t["candidates"].values())
+    current=inv.inventory(baseline(),t["candidates"].values())
+    expected=m["routing"]["hostInventory"]
+    cfg.require(wd.compatible_master(expected,current) and all(current[k]==v for k,v in expected.items()
+                if k not in ("masterPid","masterStartTicks")),"PROTECTED_RESTORE_INVENTORY_DRIFT")
     unchanged_public(m)
     status,_,body=public(ADMIN,OLD_ASSET)
     cfg.require(status==200 and wd.sha(body)==OLD_DIGEST,"OLD_ADMIN_NOT_SERVED")
+    cfg.require(public(ADMIN,m["admin"]["staticProbe"]["path"])[0]==404,"OLD_ADMIN_ALSO_SERVES_NEW_BUILD")
     for family in ng.API_PATHS:
         status,cache,_=public(API,family.decode())
         cfg.require(status==401 and cache==[],"OLD_SUPPORT_ROUTE_NOT_SERVED")
@@ -200,9 +206,11 @@ def attest_schema(pin):
 
 
 def stage(m,pin):
-    check_inventory(m)
-    read_route(m)
-    room=inv.headroom()
+    observed=host_readmission.collect(m,baseline())
+    for key in ("hostInventory","contextSha256","candidateSha256","recovery"):
+        cfg.require(observed[key]==m["routing"][key],"FRESH_HOST_READMISSION_DRIFT")
+    cfg.require(observed["plannedPayloadSha256"]==m["candidate"]["plannedPayloadSha256"],"PAYLOAD_READMISSION_DRIFT")
+    room=observed["headroom"]
     cfg.require(room["portsFree"] and room["freeDiskBytes"]>=5*1024**3 and
                 room["availableMemoryBytes"]>=2*1024**3,"HEADROOM_OR_PORT_DRIFT")
     payloads=plans(m)
@@ -245,7 +253,7 @@ def stage_sidecars(m,pin,payloads,ids):
     t=dict(ticket=secrets.token_hex(24),candidates=ids,started=starts,configs=configs,packetSha256=pin,
            originalSha256=m["routing"]["originalSha256"],candidateSha256=m["routing"]["candidateSha256"],
            protectedPrimarySha256=baseline()["routing"]["primarySha256"],bootId=Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
-           deadline=time.monotonic()+900,master=inv.master_identity(),originalMetadata=wd.metadata(wd.TARGET),
+           deadline=time.monotonic()+900,createdUnix=time.time(),master=inv.master_identity(),originalMetadata=wd.metadata(wd.TARGET),
            contextSha256=m["routing"]["contextSha256"])
     deadline=time.monotonic()+60
     while True:
@@ -270,14 +278,6 @@ def quiesce(m,ids):
         if row["State"]["Running"]: run(["docker","stop","--time","15",identity],timeout=25)
 
 
-@contextmanager
-def cutover_lock():
-    import fcntl
-    with (wd.PRIVATE/"switch.lock").open("a+b") as f:
-        fcntl.flock(f,fcntl.LOCK_EX)
-        yield
-
-
 def live_watch(m,t):
     data=json.loads(wd.exact_file(wd.PRIVATE/"armed.json"))
     pid=int(run(["systemctl","show","--property=MainPID","--value",UNIT+".service"]))
@@ -291,26 +291,53 @@ def switch(m):
     t=ticket(m)
     cfg.require(not (wd.PRIVATE/"armed.json").exists(),"SWITCH_ALREADY_DISPATCHED")
     canaries(m,t);read_route(m);prove_original(t)
-    run(["systemd-run","--unit="+UNIT,"--service-type=exec","--property=Restart=on-failure",
-         "--property=RestartSec=2s","--property=StartLimitIntervalSec=0",
+    run(["systemd-run","--no-block","--unit="+UNIT,"--service-type=notify","--property=Restart=on-failure",
+         "--property=RestartForceExitStatus=SIGTERM SIGHUP SIGINT SIGPIPE","--property=WatchdogSec=120s",
+         "--property=PrivateMounts=no","--property=RestartSec=2s","--property=StartLimitIntervalSec=0",
          "/usr/bin/python3","-B",str(wd.PACKET/"watchdog.py")])
     for _ in range(60):
         if (wd.PRIVATE/"armed.json").is_file(): break
         time.sleep(0.25)
-    with cutover_lock():
-        live_watch(m,t);read_route(m);canaries(m,t)
-        original=wd.exact_file(wd.PRIVATE/"original")
-        raw=proposed_bytes(m)
-        wd.links(t)
-        live_watch(m,t)
-        try:
-            wd.atomic(wd.TARGET,raw,t["originalSha256"])
-            wd.nginx_reload()
-            candidate_public(m)
-        except BaseException:
-            wd.emit(wd.PRIVATE/"abort.json",{"abort":True})
-            wd.restore(t,lambda:prove_original(t))
-            raise
+    ident=live_watch(m,t)
+    wd.emit(wd.PRIVATE/"switch.json",ident)
+    for _ in range(60):
+        if (wd.PRIVATE/"switched.json").exists() and json.loads(wd.exact_file(wd.PRIVATE/"switched.json"))==ident:
+            return
+        if (wd.PRIVATE/"abort.json").exists(): break
+        time.sleep(1)
+    raise RuntimeError("SWITCH_NOT_ACKNOWLEDGED_READ_STATE")
+
+
+def install_trial(m,t):
+    # The watchdog alone writes routing. An operator stopped or disconnected at
+    # any point cannot hold a switch lock or prevent rollback.
+    cfg.require(os.readlink("/proc/self/ns/mnt")==os.readlink("/proc/1/ns/mnt")==
+                os.readlink("/proc/"+str(t["master"]["masterPid"])+"/ns/mnt"),"NOT_MASTER_MOUNT_NAMESPACE")
+    wd.links(t);read_route(m);canaries(m,t);prove_original(t)
+    wd.prepare_trial(proposed_bytes(m),t)
+    wd.bind_trial(wd.TARGET,wd.PRIVATE/"trial")
+    wd.nginx_reload()
+
+
+def verify_evidence(t,digest):
+    switched=json.loads(wd.exact_file(wd.PRIVATE/"switch-observation.json"))
+    identity=wd.binding(t,switched["watchdogPid"])
+    cfg.require(switched==dict(identity,switchedUnix=switched["switchedUnix"])
+                and json.loads(wd.exact_file(wd.PRIVATE/"armed.json"))==identity,"SWITCH_OBSERVATION_DRIFT")
+    return acceptance_receipt.verify(INPUT/"evidence",dict(t,switchedUnix=switched["switchedUnix"]),digest)
+
+
+def finalize(m,t):
+    marker=json.loads(wd.exact_file(wd.PRIVATE/"external-evidence.json"))
+    verify_evidence(t,marker["privateReceiptSha256"])
+    canaries(m,t);candidate_public(m)
+    cfg.require(time.monotonic()<t["deadline"]-20,"ACCEPTANCE_WINDOW_CLOSED")
+    # The durable decision precedes durable routing. A reboot before rename
+    # exposes the original; after rename the exact candidate already has a
+    # committed private acceptance decision. ack.json is completion, not authority.
+    wd.emit(wd.PRIVATE/"commit.json",dict(wd.binding(t,os.getpid()),privateReceiptSha256=marker["privateReceiptSha256"],
+                                           decision="accepted",observedUnix=time.time()))
+    wd.finalize_trial(t)
 
 
 def proposed_bytes(m):
@@ -326,12 +353,12 @@ def accept(m,evidence):
     t=ticket(m)
     cfg.require(evidence and len(evidence)==64 and all(c in "0123456789abcdef" for c in evidence),
                 "PRIVATE_ACCEPTANCE_RECEIPT_REQUIRED")
-    with cutover_lock():
-        data=live_watch(m,t)
-        canaries(m,t);candidate_public(m)
-        cfg.require(wd.sha(wd.exact_file(wd.TARGET))==t["candidateSha256"],"CANDIDATE_NOT_INSTALLED")
-        wd.emit(wd.PRIVATE/"external-evidence.json",{"privateReceiptSha256":evidence})
-        wd.emit(wd.PRIVATE/"accept.json",dict(data,accepted=True))
+    data=live_watch(m,t)
+    verify_evidence(t,evidence)
+    canaries(m,t);candidate_public(m)
+    cfg.require(wd.mounted_file(wd.TARGET,wd.PRIVATE/"trial") and wd.sha(wd.exact_file(wd.TARGET))==t["candidateSha256"],"CANDIDATE_NOT_INSTALLED")
+    wd.emit(wd.PRIVATE/"external-evidence.json",{"privateReceiptSha256":evidence})
+    wd.emit(wd.PRIVATE/"accept.json",dict(data,accepted=True))
     for _ in range(30):
         if (wd.PRIVATE/"ack.json").exists() and json.loads(wd.exact_file(wd.PRIVATE/"ack.json"))==dict(data,accepted=True):
             return

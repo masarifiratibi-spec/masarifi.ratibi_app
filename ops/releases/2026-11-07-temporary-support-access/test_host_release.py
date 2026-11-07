@@ -1,5 +1,4 @@
 """No Docker daemon, privileged socket, hosted credentials, or real filesystem under /etc."""
-from contextlib import nullcontext
 from copy import deepcopy
 import json
 import os
@@ -89,7 +88,12 @@ class Rollback(unittest.TestCase):
             ctx=patch.object(wd,name,value);ctx.start();self.addCleanup(ctx.stop)
         self.t=dict(ticket="t",packetSha256="f"*64,candidateSha256=wd.sha(b"new"),
             originalSha256=wd.sha(b"original"),candidates={"admin":"1"*64,"api":"2"*64},
-            protectedPrimarySha256="3"*64,deadline=21,bootId="boot",contextSha256="x")
+            protectedPrimarySha256="3"*64,deadline=90,bootId="boot",contextSha256="x")
+        mount=patch.object(wd,"mounted_file",return_value=False)
+        mount.start();self.addCleanup(mount.stop)
+        for obj,attr in ((wd,"verify_paths"),(wd,"compatible_master"),(inv,"master_identity")):
+            mock=patch.object(obj,attr,return_value=True);mock.start();self.addCleanup(mock.stop)
+        self.t["master"]={}
         r=patch.object(wd.context,"receipt",return_value={"contextSha256":"x","candidateSha256":self.t["candidateSha256"]})
         r.start();self.addCleanup(r.stop)
         self.n=0
@@ -115,7 +119,8 @@ class Rollback(unittest.TestCase):
             after_arm()
         with patch.object(Path,"read_text",read),patch.object(wd,"links"),patch.object(wd,"nginx_reload"),patch.object(wd,"atomic",
              side_effect=lambda p,b,_:p.write_bytes(b)):
-            wd.watch(self.t,healthy,lambda:None,lambda:None,nullcontext,now=now,sleep=sleep)
+            wd.watch(self.t,healthy,lambda:None,lambda:None,lambda:self.target.write_bytes(b"new"),
+                     lambda:None,now=now,sleep=sleep)
 
     def test_expiry_reverts_both_candidates_route_and_stale_acceptance_fails(self):
         def change():
@@ -130,9 +135,11 @@ class Rollback(unittest.TestCase):
     def test_two_candidate_acceptance_needs_exact_ticket_and_live_pid(self):
         def change():
             if self.n==3:
-                self.target.write_bytes(b"new")
+                wd.emit(self.root/"switch.json",wd.binding(self.t,os.getpid()))
+            if self.n==6:
                 wd.emit(self.root/"accept.json",dict(wd.binding(self.t,os.getpid()),accepted=True))
         self.drive(change)
+        self.assertTrue((self.root/"switched.json").is_file())
         self.assertEqual(json.loads((self.root/"ack.json").read_bytes())["candidates"],self.t["candidates"])
         self.assertFalse((self.root/"restored.json").exists())
 
@@ -165,6 +172,30 @@ class Rollback(unittest.TestCase):
             wd.restore(self.t,proof)
             proof.assert_called_once()
             self.assertEqual(reload.call_count,2)
+
+    def test_trial_is_detached_before_replacement_master_is_checked(self):
+        events=[]
+        self.target.write_bytes(b"new")
+        def remove(*_):
+            self.target.write_bytes(b"original");events.append("detach")
+        def master():
+            events.append("checked");return {"pid":"new"}
+        with patch.object(wd,"mounted_file",return_value=True),patch.object(wd,"detach",side_effect=remove),\
+             patch.object(inv,"master_identity",side_effect=master),patch.object(wd,"nginx_reload"):
+            wd.restore(self.t,lambda:events.append("proved"))
+        self.assertEqual(events,["detach","checked","proved"])
+
+    def test_durable_acceptance_precedes_any_persistent_candidate(self):
+        wd.emit(self.root/"external-evidence.json",{"privateReceiptSha256":"3"*64})
+        with patch.object(host,"verify_evidence"),patch.object(host,"canaries"),patch.object(host,"candidate_public"),\
+             patch.object(host.time,"monotonic",return_value=0),patch.object(wd,"finalize_trial",
+             side_effect=OSError("interrupted before persistent rename")):
+            with self.assertRaises(OSError):host.finalize({},self.t)
+        decision=json.loads((self.root/"commit.json").read_bytes())
+        self.assertEqual(decision["ticket"],self.t["ticket"])
+        self.assertEqual(decision["privateReceiptSha256"],"3"*64)
+        self.assertEqual(self.target.read_bytes(),b"original")
+        self.assertFalse((self.root/"ack.json").exists())
 
     def test_readback_is_bound_to_one_approved_packet_and_target(self):
         with patch.object(host,"INPUT",self.root):

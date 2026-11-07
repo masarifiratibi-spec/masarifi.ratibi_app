@@ -16,26 +16,42 @@
     "manifestSha256": "d6b4e163f3460a1b72532b86f21120ee2c6946bec1902f60e451f624a55497b7",
     "buildId": "mT4teHZyRNxcKzft789xW",
     "staticProbe": {
-      "path": "/_next/static/chunks/1m9hg5q6q0-6j.css",
-      "sha256": "fbe7f718954d848cb789f50ab86db249395a025a12f1f5fcc521c0fa15d33be0"
+      "path": "/_next/static/mT4teHZyRNxcKzft789xW/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
+      "bytes": 219
     }
   },
   "api": {
     "archiveSha256": null,
     "imageId": null,
-    "reason": "No archive: 1440 db:lint failed; ea087521 real lint passed, then 2/2002 pgTAP checks failed. Image requires a successful database job."
+    "reason": "Run 42391737577: fresh pgTAP and 1,066 real integration tests passed; two stale security assertions blocked subsequent gates and image. Replacement qualification required."
   },
   "routing": {
     "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
-    "candidateSha256": null,
-    "contextSha256": null,
-    "reason": "Host inspected; original driver correctly stopped at pinned recovery location include. Fresh receipt with reviewed revised tool required.",
+    "candidateSha256": "7ec03407697c4634b650f3218dc7cf30bd28ad435dc23d37042c4a814a1b2d86",
+    "contextSha256": "34fada4cfe81e3a3e8e27d2e8d33bce3328429238af54fb51c21276d77ae0444",
+    "reason": "Actual read-only Web console: both exact pins independently recomputed with ea087521 and compared as literals. No candidate file installed.",
     "currentEffectiveUpstreams": {
       "adminSupportAccess": "127.0.0.1:3033",
       "meSupportAccess": "127.0.0.1:3001"
     },
     "recoveryIncludeSha256": "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba",
-    "hostInventory": null,
+    "hostInventory": {
+      "protectedSha256": "290c7cf95590b4e392e98b58ddc41970ab5490c3bf4e8325167439c9ca2c9388",
+      "originalIdsSha256": "b6b80feb724114ead0c50afc74b0f11dff2f6f8410cf93a46263b5b045488d24",
+      "masterPid": 1744065,
+      "masterStartTicks": "20475255",
+      "masterExeSha256": "f2e466b8fff91f4251684cfa4b0017a2963701fb66585c8e7fcaef7cc7fb307f",
+      "mainConfigSha256": "d7be180d12cb332090cf4a0e8de780bd30e7f59fd0ffa4ad42be0e70e6bc6348",
+      "bootId": "07b0ddde-b2b9-4cbf-a02b-6730798398bd"
+    },
+    "recovery": {
+      "containerId": "a30543c1cafa8278777e3e95069db0306178f821d9254e257425f06c7ebedaad",
+      "image": "sha256:274f4e7dca0add015e834c9b0af9a8371fac4b78bfabf18833d2467500c424f1",
+      "startedAt": "2026-11-01T22:01:42.63860914Z",
+      "configAndHostConfigSha256": "e31693d056d817323364939999fec54b4947339e96a19543285811360dc91f2d",
+      "databaseProject": "qcffvfbpzvpwcwxwjyro"
+    },
     "primaryPublicVersion": "97e66588b2b516ae8c67e285f8439be591439dd6"
   },
   "migration": {
@@ -59,49 +75,49 @@
     "plannedPayloadSha256": null
   },
   "qualification": {
-    "foundationRun": 42387010902,
-    "foundation": "failure",
+    "foundationRun": 42391737577,
+    "foundation": "database-failed",
     "remainingFailures": [
-      "CI postgres lacked definer privileges for the 59 standalone EXPLAIN plans"
+      "workflow-pins.spec.ts still expected inline compiled package/old English label",
+      "ledger/ownership-boundary.spec.ts still prohibited legitimate own-account reads and replay after Admin promotion"
     ],
-    "all5AdminBrowserViewports": "success",
     "apiApplication": "success",
     "mobile": "success",
     "secrets": "success",
     "upgradedDatabaseIntegration": "151 suites/1066 tests passed",
     "stagingRuns": [
-      42387010938,
-      42387004235
+      42391737604,
+      42391730633
     ],
     "staging": "success",
-    "journalRun": 42387010921,
+    "journalRun": 42391737559,
     "journal": "success",
-    "sourceCommit": "1440f3260ebaa1185527dd7d61c8fe1b7fc9e1e3",
-    "mergeCommit": "6ee5f47b78b6d094a9e9486f8af5e5e7b7385d30",
-    "mergeAndHeadTree": "83aab465f066cde2427aaef92ae025282cdaf99a",
-    "androidBuild": "success",
-    "androidDiagnosticArtifact": 13580402640
+    "sourceCommit": "7e6f3995c687937813c6f9341d782e2d8c2d1777",
+    "priorCompletedFoundation": {
+      "run": 42389327179,
+      "outcome": "failure",
+      "passed": "Android, five viewports, Admin, Mobile, application, scans and all 59 plpgsql plans",
+      "failure": "Two stale 53-entry decision points in pgTAP; canonical 54th schedule verified in staging."
+    }
   },
   "limits": [
     "No qualified API runtime archive yet",
-    "Actual routing context/candidate pin not computed",
+    "Actual routing and protected inventory verified; image-dependent create payload pins and fresh preflight still required",
     "No new sidecar/migration/routing operation authorized or performed",
-    "Successful hosted consent plus separate reviewer grant/workspace/end remains pending genuine actors and recent authentication",
-    "Correction to pgTAP job registry requires fresh CI; private canary/executor/watchdog not executed on host.",
-    "Candidate create payload and protected host inventory must be re-admitted before requesting activation."
+    "Successful hosted consent plus separate reviewer grant/workspace/end remains pending genuine actors and recent authentication"
   ],
   "hostBaselineSha256": "76dac9f09ebfb0a640af67cca2e964d3bfa73198afd9b035abbac6b4b124cacd",
   "readOnlyToolsSha256": {
     "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
     "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5",
     "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
-    "host_readmission.py": "b64984c7bba2607791104f8045b18bdbef868d680d1893d2e00aeb458fccb044"
+    "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
   },
   "offlinePacketTests": {
-    "passed": 42,
+    "passed": 51,
     "failed": 0,
     "skipped": 0,
-    "boundary": "local synthetic/archive admission only"
+    "boundary": "local synthetic, temporary files and archive admission; no hosted execution"
   },
   "hashEncoding": "SHA256 of canonical LF UTF-8 packet bytes; container config fingerprints retain their separately stated exact Docker output algorithm",
   "repairCommits": [
@@ -115,15 +131,17 @@
     "replacementCi": "Real extension passed in 42389327179: errors=0, explainedDynamicVariants=59; two stale pgTAP counts blocked database/image."
   },
   "executorSha256": {
-    "host_release.py": "88f775a74b05346db0aed8996d65220a467e7468d5ba26dbba436232a4c2a73b",
+    "host_release.py": "550846545a4b7928f4f52a8462bd9fcd9cfc7f0193d4295c9f349a78d3b3a6e9",
     "host_inventory.py": "32d3a0f9e9fe1a41cbaabd307bc7fee8e3ddd866c4096347a42aeaba793463be",
     "candidate_config.py": "6b1cebce0fb1d5a8b936c926a8ff12f09923a889b37019f7fb73625e1cf8200f",
-    "watchdog.py": "88396c3a6a87cca99ddcabf481ad9c19f0254f45c3650c2b8e4186899796c25a",
+    "watchdog.py": "f66a7fddc4c842e405632297debfabebd3d1a24bc3cf03d91f60254da7a40b5c",
     "stage_archives.py": "560fedaee3f2ed97ebf87d9715d86c7c25a2616ea63cfa8fdf4219a87e9d3001",
     "api_archive.py": "c33f1d46c86f05a8c3be28a5da3227166b345c3885e02868107a0eb425873c7f",
     "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
     "migration_packet.py": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
     "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
-    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5"
+    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5",
+    "acceptance_receipt.py": "59cdd7b16af8be400295a034b4efb9fc42054f6c97b2ae88b2936385a9db7cfa",
+    "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
   }
 }
