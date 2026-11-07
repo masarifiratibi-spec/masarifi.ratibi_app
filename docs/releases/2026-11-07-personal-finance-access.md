@@ -25,3 +25,5 @@ On the mobile side, 79 tests passed for selection controls, tracking settings, n
 Read-only production inspection confirmed the registered finance migration, tracking consent table and voice analysis configured for authenticated owners with automatic processing enabled. The operating voice epoch had no recorded expiry or closure. These checks did not initiate a production recording, financial operation or account deletion.
 
 Two product limits matter when interpreting access for every owner. The mobile runtime disables paid purchases. The production account erasure guard still rejects deletion if the owner has a dashboard profile. The customer's handset was unavailable, so a retry of Assistant activation, the switches and the Android biometric prompt on that handset remains outstanding. APK127 remains compatible with the database correction.
+
+The earlier dashboard self-deletion restriction was subsequently lifted by the [approved production migration](../../ops/releases/2026-11-07-dashboard-owner-deletion/execution-result.json). Dashboard access is revoked when the confirmed owner is frozen for erasure.
