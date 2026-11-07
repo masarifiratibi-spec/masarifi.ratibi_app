@@ -1,12 +1,13 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`889cd8d5245d888deb51f4ac9135c43d12c90a21` on
+`5f16177b9ae9fccc804b7a1dfbe72be759b1e269` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`013c9b4675c94d55c5fcd5438616f11c3de1dd8d`. It includes the initial CI update
+`2177b070ad69c2dcc7251fe9af8e230aa2ea7170`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
-`0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
-iOS build configuration were unchanged. The API package's database-lint command
+`0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents.
+The latest update covers the Admin detail routes and the ledger test fixture.
+The API package's database-lint command
 now invokes the published checker and its tests.
 
 ## Published checker follow-up
@@ -65,19 +66,27 @@ without invoking their deployment, database, Docker or privileged entry points.
 Read-only verification of [Linux packet run 42397709401](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42397709401)
 confirmed success at `889cd8d5`, including the private-namespace Nginx trial and
 real Docker rollback proof for both running and already-stopped trial containers.
-The latest [Foundation run 42397715656](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42397715656)
-at `889cd8d5` was still in progress at verification. The ownership live-database test and
+The earlier [Foundation run 42397715656](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42397715656)
+at `889cd8d5` later reached the ledger fixture permission failure described below.
+The ownership live-database test and
 privileged Linux trial were not executed on this Windows workspace.
 
 ## Benchmark and rollback follow-up
 
 Published commits `0b7679f9` and `4698fc18` synchronize the synthetic ledger
-benchmark seed and packet rollback controls. The fixture enables the existing
-profile initialization triggers for its synthetic owners, then restores its
-replica-mode bulk loading inside the same transaction. No application code,
-production migration or policy changes accompany it. The SQL seed and k6 write
-gate were not executed in this Windows workspace; canonical benchmark execution
-remains with the source owner's Foundation run.
+benchmark seed and packet rollback controls. The original fixture attempted to
+change `session_replication_role` while running as `masarifi_migration`, which
+lacks permission for that setting. Checkpoint `5f16177b` uses the existing
+financial reset epoch backfill for synthetic benchmark owners under the same
+role. The source owner reported successful post, transfer and reconciliation
+checks against a reduced disposable fixture. The full benchmark is part of
+[Foundation run 42401562579](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42401562579).
+
+The same checkpoint allows canonical UUIDs on Admin audit, deletion, export and
+incident detail pages. Each route still accepts its matching demo prefix and
+rejects foreign prefixes and unsafe path parameters.
+The Admin job at `5f16177b` passed its type check, lint and test suite on GitHub.
+The ledger performance step was pending when the run was inspected.
 
 The packet now keeps unaccepted trial containers from restarting automatically,
 verifies exact accepted container identities before enabling restart, and adds
