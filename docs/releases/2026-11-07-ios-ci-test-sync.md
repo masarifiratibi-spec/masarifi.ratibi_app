@@ -1,12 +1,31 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`1440f3260ebaa1185527dd7d61c8fe1b7fc9e1e3`, merged into `iOS` as
-`60462a99818144adc86285d172ca7d75392069fd`. It includes the initial CI update
+`ea087521e72174c6fb6f630e96a4dffdcf6d10f7` on
+`ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
+`196c6d0324d339242d2faf60354961e7298d5edc`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
-`0247ed5e`, and their handoff documents. Application runtime, dependencies and
+`0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
 now invokes the published checker and its tests.
+
+## Published checker follow-up
+
+Foundation on `1440f326` reached the concrete EXPLAIN checks but failed because
+the standalone planner used the CI caller's permissions instead of the reviewed
+SECURITY DEFINER function's identity. The source owner published `dd132809` and
+`25746a98`, then confirmed the remote checkpoint above. Both commits are included.
+The checker now verifies the exact function owner, definer flag and empty search
+path before selecting that role for its 59 nonexecuting plans. Temporary grants,
+local role/search-path changes and extension setup remain inside an unconditional
+rollback. Query-string/fragment connection overrides are rejected.
+
+The same published checkpoint includes reviewed release-helper scripts, their
+fixture tests and documentation. Those files were synchronized; the migration
+qualifier, SQL packet and Nginx tools were not executed here. No product migration
+SQL, runtime, dependency or mobile configuration changed in this follow-up.
+The new remote Foundation qualification remains the source owner's responsibility;
+local unit results below do not establish its success.
 
 ## Reviewed iOS identity compatibility
 
@@ -33,7 +52,9 @@ branch was changed by this task.
 | Check | Result |
 | --- | --- |
 | Identity regression before the fix | 2 expected failures / 21 passing controls |
-| Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 68 passed, zero failed/skipped; natural exit 0 |
+| Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 70 passed, zero failed/skipped; natural exit 0 |
+| Changed routing/context helpers against offline fixtures | 19 passed; natural exit 0 |
+| Changed Python helper syntax and published JSON | Passed without executing release helpers |
 | Actual iOS identity command | Passed |
 | Actual Android source snapshot through the same guard | Passed with the legacy profile and no runtime marker |
 | Actual iOS profile/native-plugin configuration tests | 6 passed, zero skipped |
@@ -72,8 +93,11 @@ original red scan and subsequent passing complete-history scans are retained.
 Compared with the final shared checkpoint, the only intended differences under
 `apps/`, `packages/` and `scripts/integration/` are the iOS profile, its regression
 test and these eight history-catalog entries. All shared CI executable code and
-tests are identical. The final 68-case run supersedes the earlier 39-case run;
+tests are identical. The final 70-case run supersedes the earlier 68- and 39-case runs;
 their counts are not added together.
+
+The six iOS profile checks and three API contract cases were run before this
+follow-up; their tested mobile/API runtime and configuration inputs are unchanged.
 
 API contract tests used live-database tests disabled and inert loopback service
 URLs. The changed planning-worker live-database test is synchronized but was not
