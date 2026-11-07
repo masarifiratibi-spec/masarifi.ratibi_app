@@ -17,6 +17,10 @@ export const securityIdSchema = z.string()
   .max(48)
   .refine((value) => /^(AUTH|SUS|INC|ASA|PCH|SAC|AUD|EXP|DEL|RET|ADM|CUS|DEV|SES|TKT|SUB|SVC|COR)-[A-Za-z0-9-]{1,43}$/u.test(value) || z.uuid().safeParse(value).success, "invalid security id");
 
+export function securityDetailIdSchema(demoPrefix: "AUD" | "DEL" | "EXP" | "INC") {
+  return z.union([z.uuid(), securityIdSchema.refine((id) => id.startsWith(`${demoPrefix}-`))]);
+}
+
 export const platformScopeSchema = z.enum(["all", "ios", "android", "unknown", "global"]);
 export const riskLevelSchema = z.enum(["informational", "low", "medium", "high", "critical"]);
 export const resultSchema = z.enum(["success", "failure", "blocked"]);
