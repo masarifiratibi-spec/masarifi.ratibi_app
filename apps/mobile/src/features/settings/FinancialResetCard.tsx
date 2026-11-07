@@ -1,41 +1,29 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { MenuLink } from '@/components/MenuLink';
 import { translate } from '@/localization/i18n';
-import {
-  fetchFinancialResetState,
-  financialResetRuntimeAvailable
-} from '@/services/financial-reset';
+import { financialResetRuntimeAvailable } from '@/services/financial-reset';
 import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { FinancialResetDialog } from './FinancialResetDialog';
+import { financialResetStateQuery } from './financial-reset-queries';
 
 export function FinancialResetCard({ ownerId }: { ownerId: string }) {
-  const [available, setAvailable] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const queryClient = useQueryClient();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   useFocusEffect(
     useCallback(() => {
-      let active = true;
       if (financialResetRuntimeAvailable()) {
-        void fetchFinancialResetState(ownerId).then(
-          () => {
-            if (active) setAvailable(true);
-          },
-          () => {
-            if (active) setAvailable(false);
-          }
-        );
+        void queryClient.prefetchQuery(financialResetStateQuery(ownerId));
       }
-      return () => {
-        active = false;
-      };
-    }, [ownerId])
+    }, [ownerId, queryClient])
   );
 
-  if (!available) return null;
+  if (!financialResetRuntimeAvailable()) return null;
   return (
     <View
       style={[

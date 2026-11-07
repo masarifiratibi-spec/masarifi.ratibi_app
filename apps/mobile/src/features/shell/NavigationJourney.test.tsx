@@ -396,24 +396,29 @@ describe('navigation journey', () => {
     assistant.unmount();
   });
 
-  it('offers the reset review directly after tracking only after live capability confirmation', async () => {
+  it('shows the reset entry and standard sheet immediately while owner state loads in the background', async () => {
     useAppShellStore.setState({ session: authenticatedSession });
     jest.spyOn(financialReset, 'financialResetRuntimeAvailable').mockReturnValue(true);
     let confirm!: () => void;
     jest.spyOn(financialReset, 'loadFinancialResetOperation').mockResolvedValue(null);
-    jest.spyOn(financialReset, 'fetchFinancialResetState').mockResolvedValue({ generation: 0, status: 'ready', resetAt: null, requestId: null }).mockImplementationOnce(() => new Promise(resolve => {
+    const read = jest.spyOn(financialReset, 'fetchFinancialResetState').mockImplementation(() => new Promise(resolve => {
       confirm = () => resolve({ generation: 0, status: 'ready', resetAt: null, requestId: null });
     }));
     renderWithProviders(<MoreRoute />);
     const label = translate('financialReset.title');
-    expect(screen.queryByText(label)).toBeNull();
-    await act(async () => confirm());
+    expect(screen.getByText(label)).toBeOnTheScreen();
     const links = screen.getAllByRole('link').map(link => link.props.accessibilityLabel);
     const tracking = links.indexOf(translate('tracking.action.openTracking'));
     expect(tracking).toBeGreaterThanOrEqual(0);
     expect(links[tracking + 1]).toContain(label);
     fireEvent.press(screen.getByLabelText(links[tracking + 1]));
-    await screen.findByText(translate('financialReset.confirmTitle'));
+    expect(screen.getByTestId('app-sheet-menu')).toBeOnTheScreen();
+    expect(screen.getByText(translate('financialReset.confirmMessage'))).toBeOnTheScreen();
+    const submit = screen.getByRole('button', { name: translate('financialReset.submit') });
+    expect(submit).toBeDisabled();
+    await act(async () => confirm());
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(read).toHaveBeenCalledTimes(1);
     expect(router.push).not.toHaveBeenCalledWith('/financial-reset');
   });
 

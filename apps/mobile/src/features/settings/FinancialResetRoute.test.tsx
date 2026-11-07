@@ -1,9 +1,10 @@
 import React from 'react';
 import { TextInput } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   act,
   fireEvent,
-  render,
+  render as renderNative,
   screen,
   waitFor
 } from '@testing-library/react-native';
@@ -18,6 +19,14 @@ import { reconcileFinancialReset } from '@/services/financial-generation';
 
 jest.mock('@/services/financial-reset');
 jest.mock('@/services/financial-generation');
+function render(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } }
+  });
+  return renderNative(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+  );
+}
 const close = jest.fn();
 const id = '00000000-0000-4000-8000-000000000001';
 beforeEach(() => {
@@ -68,10 +77,15 @@ it.each([
     const button = screen.getByRole('button', {
       name: translate('financialReset.submit')
     });
-    expect(button).toBeEnabled();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: translate('financialReset.submit') })
+      ).toBeEnabled()
+    );
     expect(reset.submitFinancialReset).not.toHaveBeenCalled();
     fireEvent.press(button);
     fireEvent.press(button);
+    expect(reset.submitFinancialReset).toHaveBeenCalledTimes(1);
     await waitFor(() =>
       expect(reconcileFinancialReset).toHaveBeenCalledWith('owner')
     );
@@ -119,6 +133,9 @@ it('keeps confirmation unavailable when the state contract cannot be confirmed',
   render(<FinancialResetDialog ownerId="owner" onClose={close} />);
   await screen.findByText(translate('financialReset.error'));
   expect(
-    screen.queryByLabelText(translate('financialReset.submit'))
-  ).toBeNull();
+    screen.getByRole('button', { name: translate('financialReset.submit') })
+  ).toBeDisabled();
+  expect(
+    screen.getByText(translate('financialReset.confirmMessage'))
+  ).toBeOnTheScreen();
 });
