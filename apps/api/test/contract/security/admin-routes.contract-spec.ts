@@ -22,10 +22,15 @@ describe('Phase 03 route authorization contract', () => {
         >
       >;
     };
-    // Customer lifecycle routes now belong to CustomerAdminController; the full
-    // generated OpenAPI drift gate covers both controllers together.
+    // Customer lifecycle and financial reset have their own controllers; the
+    // generated OpenAPI composition gate covers their routes together.
+    const financialResetPaths = new Set([
+      '/api/v1/me/financial-reset',
+      '/api/v1/me/financial-reset/state',
+      '/api/v1/me/financial-reset/{id}',
+    ]);
     const expected = Object.entries(contract.paths)
-      .filter(([path]) => !path.startsWith('/api/v1/admin/users'))
+      .filter(([path]) => !path.startsWith('/api/v1/admin/users') && !financialResetPaths.has(path))
       .flatMap(([path, methods]) =>
         Object.entries(methods)
           .filter(

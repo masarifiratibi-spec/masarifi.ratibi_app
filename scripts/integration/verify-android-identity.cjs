@@ -1,12 +1,17 @@
 "use strict";
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
-const { execFileSync } = require("node:child_process");
+const { execFileSync, spawnSync } = require("node:child_process");
 const { resolve } = require("node:path");
-const { benchmarkProfile } = require('../../apps/mobile/scripts/benchmark-build-policy.cjs');
+const {
+  benchmarkProfile,
+} = require("../../apps/mobile/scripts/benchmark-build-policy.cjs");
 const root = resolve(__dirname, "../..");
-// C0 is the user-verified closure baseline, including the accepted display name.
+// C0 remains the registered identity baseline. The reviewed branding commit
+// changes only its expected display name; no other identity is inherited.
 const baseline = "7e3bbef0cdccc2ee5509dd332f4e32236af01b90";
+const displayNameBaseline = "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d";
+const iosProfileBaseline = "0389dff3936211b968c1128471cc313af3b2aef2";
 const normalize = (bytes) => bytes.toString("utf8").replace(/\r\n/g, "\n");
 function validateIdentity(actual, expected) {
   for (const key of ["name", "slug", "scheme"])
@@ -50,11 +55,18 @@ function validateIdentity(actual, expected) {
   }
   assert.deepEqual(
     Object.keys(actual.eas.build).sort(),
-    [...Object.keys(expected.eas.build), ...(actual.eas.build.benchmark ? ['benchmark'] : [])].sort(),
+    [
+      ...Object.keys(expected.eas.build),
+      ...(actual.eas.build.benchmark ? ["benchmark"] : []),
+    ].sort(),
     "No unreviewed build profiles",
   );
   if (actual.eas.build.benchmark)
-    assert.deepEqual(actual.eas.build.benchmark, benchmarkProfile, 'Only the approved read-only benchmark profile is allowed');
+    assert.deepEqual(
+      actual.eas.build.benchmark,
+      benchmarkProfile,
+      "Only the approved read-only benchmark profile is allowed",
+    );
   const production = actual.eas.build.production;
   assert.equal(production.environment, "production");
   assert.equal(production.node, "24.16.0");
@@ -80,12 +92,38 @@ function load(read) {
     index: read("apps/mobile/index.js"),
   };
 }
+function loadApprovedIdentity(readRevision, isAncestor) {
+  for (const revision of [displayNameBaseline, iosProfileBaseline])
+    assert.equal(
+      isAncestor(revision),
+      true,
+      "Reviewed identity source must be an ancestor of HEAD",
+    );
+  const expected = load((file) => readRevision(baseline, file));
+  expected.app.expo.name = JSON.parse(
+    readRevision(displayNameBaseline, "apps/mobile/app.json"),
+  ).expo.name;
+  // Only this paused, already published iOS profile is inherited. Production
+  // and all registered package/project identities retain the C0 checks.
+  expected.eas.build["ios-ad-hoc"] = JSON.parse(
+    readRevision(iosProfileBaseline, "apps/mobile/eas.json"),
+  ).build["ios-ad-hoc"];
+  return expected;
+}
 if (require.main === module) {
-  const expected = load((file) =>
-    execFileSync("git", ["show", `${baseline}:${file}`], {
+  const readRevision = (revision, file) =>
+    execFileSync("git", ["show", `${revision}:${file}`], {
       cwd: root,
       env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
-    }).toString("utf8"),
+    }).toString("utf8");
+  const expected = loadApprovedIdentity(
+    readRevision,
+    (revision) =>
+      spawnSync("git", ["merge-base", "--is-ancestor", revision, "HEAD"], {
+        cwd: root,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+        stdio: "ignore",
+      }).status === 0,
   );
   const actual = load((file) => readFileSync(resolve(root, file), "utf8"));
   validateIdentity(actual, expected);
@@ -93,4 +131,4 @@ if (require.main === module) {
     "Approved package, display name, slug, EAS and Firebase identities preserved; production policy configured.",
   );
 }
-module.exports = { validateIdentity };
+module.exports = { validateIdentity, loadApprovedIdentity };

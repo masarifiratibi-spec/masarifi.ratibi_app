@@ -150,9 +150,25 @@ describeLiveDatabase('planning worker live recovery', () => {
       const reclaimed = (await repository.claimPlanning(job, 1, 60))[0];
       if (!reclaimed) throw new Error(`PLANNING_RECLAIM_EXPECTED:${job}`);
       expect(reclaimed.attemptCount).toBe(first.attemptCount + 1);
-      await expect(repository.executePlanningClaim(job, first)).rejects.toThrow(
-        /PLANNING_CLAIM_STALE/,
-      );
+      // Generation binding rejects the obsolete lease before planning execution.
+      await expect(repository.executePlanningClaim(job, first)).rejects.toMatchObject({
+        code: '40001',
+        message: 'FINANCIAL_GENERATION_STALE',
+      });
+      expect(
+        (
+          await pool.query(
+            'select lease_token,status,attempt_count from private.planning_job_claims where id=$1',
+            [reclaimed.id],
+          )
+        ).rows,
+      ).toEqual([
+        {
+          lease_token: reclaimed.leaseToken,
+          status: 'running',
+          attempt_count: reclaimed.attemptCount,
+        },
+      ]);
       await expect(
         repository.completePlanningClaim(first.id, first.leaseToken, 'completed', {}),
       ).rejects.toThrow(/PLANNING_CLAIM_STALE/);
