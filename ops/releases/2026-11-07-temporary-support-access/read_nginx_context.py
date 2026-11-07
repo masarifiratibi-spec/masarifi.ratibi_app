@@ -140,7 +140,7 @@ def pinned_links(prefix, staging_hash, primary_hash):
 
 
 def receipt(*, main=MAIN, tls_snippet=TLS_SNIPPET, modules=Path("/usr/share/nginx/modules-available"),
-            staging_hash=ng.BASE_SHA256, primary_hash=ng.PRIMARY_SHA256):
+            staging_hash=ng.BASE_SHA256, primary_hash=ng.PRIMARY_SHA256, candidate_sink=None):
     ng.require(main.is_absolute() and main.resolve(strict=True) == main, "MAIN_CONFIG_PATH_DRIFT")
     staging, bindings = pinned_links(main.parent, staging_hash, primary_hash)
     inputs = Inputs(main, tls_snippet, modules)
@@ -205,6 +205,8 @@ def receipt(*, main=MAIN, tls_snippet=TLS_SNIPPET, modules=Path("/usr/share/ngin
     unchanged, final_bindings = pinned_links(main.parent, staging_hash, primary_hash)
     ng.require(staging == unchanged and final_bindings == bindings, "ROUTING_LINK_CHANGED_DURING_READ")
     inventory = inputs.inventory()
+    if candidate_sink is not None:
+        candidate_sink(proposed)
     return {
         "stagingAvailableSha256": staging_hash, "protectedPrimarySha256": primary_hash, "candidateSha256": result_hash,
         "contextSha256": digest(json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode()),

@@ -23,7 +23,7 @@
   "api": {
     "archiveSha256": null,
     "imageId": null,
-    "reason": "1440 Foundation image correctly skipped after db:lint failed; no qualified archive from that run"
+    "reason": "No archive: 1440 db:lint failed; ea087521 real lint passed, then 2/2002 pgTAP checks failed. Image requires a successful database job."
   },
   "routing": {
     "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
@@ -34,7 +34,9 @@
       "adminSupportAccess": "127.0.0.1:3033",
       "meSupportAccess": "127.0.0.1:3001"
     },
-    "recoveryIncludeSha256": "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba"
+    "recoveryIncludeSha256": "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba",
+    "hostInventory": null,
+    "primaryPublicVersion": "97e66588b2b516ae8c67e285f8439be591439dd6"
   },
   "migration": {
     "version": "20261107140100",
@@ -45,14 +47,16 @@
     "rollback": "retain forward-compatible CHECK; no consent/data rewrite; no historical migration replay",
     "rendererSha256": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
     "clusterFingerprint": "a191e84c52c98e63ce1057e2b7e740450864d7a041ef54e86af2e2b7dbeaaa04",
-    "priorVersionListSha256": "4f88b17abe51db505b83f6eccf44aa645218205f0681580f3460c191c2f18c35"
+    "priorVersionListSha256": "4f88b17abe51db505b83f6eccf44aa645218205f0681580f3460c191c2f18c35",
+    "readbackSha256": "159317303a8466506370e4584e89b72499c61987141ff528d43f8e1da43b32d5"
   },
   "candidate": {
     "apiName": "masarifi-support-access-api-0247ed5e-20261107",
     "apiHostPort": 3042,
     "adminName": "masarifi-admin-access-73b790d0-20261107",
     "adminHostPort": 3043,
-    "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream"
+    "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream",
+    "plannedPayloadSha256": null
   },
   "qualification": {
     "foundationRun": 42387010902,
@@ -79,21 +83,22 @@
     "androidDiagnosticArtifact": 13580402640
   },
   "limits": [
-    "Fresh exact-source CI required after the two focused fixes",
     "No qualified API runtime archive yet",
     "Actual routing context/candidate pin not computed",
     "No new sidecar/migration/routing operation authorized or performed",
     "Successful hosted consent plus separate reviewer grant/workspace/end remains pending genuine actors and recent authentication",
-    "Rollback/watchdog executor must be reviewed and pinned before an execution approval request"
+    "Correction to pgTAP job registry requires fresh CI; private canary/executor/watchdog not executed on host.",
+    "Candidate create payload and protected host inventory must be re-admitted before requesting activation."
   ],
   "hostBaselineSha256": "76dac9f09ebfb0a640af67cca2e964d3bfa73198afd9b035abbac6b4b124cacd",
   "readOnlyToolsSha256": {
     "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
-    "read_nginx_context.py": "ae6d105e0659c87a7b60eb46338c5990587d46e832ef61cf375e356454244876",
-    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147"
+    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5",
+    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
+    "host_readmission.py": "b64984c7bba2607791104f8045b18bdbef868d680d1893d2e00aeb458fccb044"
   },
   "offlinePacketTests": {
-    "passed": 30,
+    "passed": 42,
     "failed": 0,
     "skipped": 0,
     "boundary": "local synthetic/archive admission only"
@@ -107,6 +112,18 @@
     "identityAndBadgingTests": 31,
     "actualBadgingIndependentProbes": 11,
     "boundedDatabaseLintTests": 21,
-    "replacementCi": "1440 Foundation: actual extension recheck reached standalone EXPLAIN; CI postgres lacks definer privileges. Scanned image not admitted."
+    "replacementCi": "Real extension passed in 42389327179: errors=0, explainedDynamicVariants=59; two stale pgTAP counts blocked database/image."
+  },
+  "executorSha256": {
+    "host_release.py": "88f775a74b05346db0aed8996d65220a467e7468d5ba26dbba436232a4c2a73b",
+    "host_inventory.py": "32d3a0f9e9fe1a41cbaabd307bc7fee8e3ddd866c4096347a42aeaba793463be",
+    "candidate_config.py": "6b1cebce0fb1d5a8b936c926a8ff12f09923a889b37019f7fb73625e1cf8200f",
+    "watchdog.py": "88396c3a6a87cca99ddcabf481ad9c19f0254f45c3650c2b8e4186899796c25a",
+    "stage_archives.py": "560fedaee3f2ed97ebf87d9715d86c7c25a2616ea63cfa8fdf4219a87e9d3001",
+    "api_archive.py": "c33f1d46c86f05a8c3be28a5da3227166b345c3885e02868107a0eb425873c7f",
+    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
+    "migration_packet.py": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
+    "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
+    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5"
   }
 }
