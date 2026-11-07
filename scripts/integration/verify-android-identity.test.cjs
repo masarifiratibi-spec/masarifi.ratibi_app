@@ -53,7 +53,12 @@ test("allows release safety configuration while preserving registered identities
   validateIdentity(candidate, baseline);
 });
 
-function reviewedFixture(isAncestor = () => true) {
+function reviewedFixture({
+  withRuntimeMarker = false,
+  isAncestor = (revision) =>
+    withRuntimeMarker ||
+    revision !== "5482885f8cc4fb629b95bb2d7734981eb02985d3",
+} = {}) {
   const { baseline, candidate } = fixture();
   const displayName = "مصاريفي وراتبي";
   const profile = {
@@ -68,6 +73,15 @@ function reviewedFixture(isAncestor = () => true) {
   branding.expo.android.package = "com.unreviewed.branding";
   const laterEas = {
     build: { "ios-ad-hoc": profile, production: { unreviewed: true } },
+  };
+  const runtimeEas = {
+    build: {
+      "ios-ad-hoc": {
+        ...profile,
+        env: { ...profile.env, EXPO_PUBLIC_APP_VARIANT: "production" },
+      },
+      production: { unreviewedRuntime: true },
+    },
   };
   const snapshots = {
     "apps/mobile/app.json": baseline.app,
@@ -89,11 +103,18 @@ function reviewedFixture(isAncestor = () => true) {
       file === "apps/mobile/eas.json"
     )
       value = laterEas;
+    else if (
+      revision === "5482885f8cc4fb629b95bb2d7734981eb02985d3" &&
+      file === "apps/mobile/eas.json"
+    )
+      value = runtimeEas;
     else assert.fail("Unreviewed identity source requested");
     return typeof value === "string" ? value : JSON.stringify(value);
   }, isAncestor);
   candidate.app.expo.name = displayName;
-  candidate.eas.build["ios-ad-hoc"] = structuredClone(profile);
+  candidate.eas.build["ios-ad-hoc"] = structuredClone(
+    withRuntimeMarker ? runtimeEas.build["ios-ad-hoc"] : profile,
+  );
   return { expected, candidate };
 }
 
@@ -103,13 +124,49 @@ test("inherits only the reviewed name and exact iOS profile while retaining C0 i
   validateIdentity(candidate, expected);
 });
 
+test("inherits the exact reviewed iOS production marker only on its approved lineage", () => {
+  const { expected, candidate } = reviewedFixture({ withRuntimeMarker: true });
+  assert.equal(
+    expected.eas.build["ios-ad-hoc"].env.EXPO_PUBLIC_APP_VARIANT,
+    "production",
+  );
+  assert.deepEqual(expected.eas.build.production, {});
+  validateIdentity(candidate, expected);
+});
+
+test("rejects the iOS production marker when its reviewed commit is outside ancestry", () => {
+  const { expected, candidate } = reviewedFixture({
+    withRuntimeMarker: true,
+    isAncestor: (revision) =>
+      revision !== "5482885f8cc4fb629b95bb2d7734981eb02985d3",
+  });
+  assert.throws(() => validateIdentity(candidate, expected));
+});
+
+for (const [name, change] of Object.entries({
+  changed: (x) => {
+    x.eas.build["ios-ad-hoc"].env.EXPO_PUBLIC_APP_VARIANT = "preview";
+  },
+  removed: (x) => {
+    delete x.eas.build["ios-ad-hoc"].env.EXPO_PUBLIC_APP_VARIANT;
+  },
+}))
+  test(`rejects a ${name} marker after the reviewed iOS runtime commit`, () => {
+    const { expected, candidate } = reviewedFixture({
+      withRuntimeMarker: true,
+    });
+    change(candidate);
+    assert.throws(() => validateIdentity(candidate, expected));
+  });
+
 for (const [name, reviewed] of [
   ["branding", "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d"],
   ["paused iOS profile", "0389dff3936211b968c1128471cc313af3b2aef2"],
 ])
   test(`refuses ${name} outside the candidate ancestry`, () => {
     assert.throws(
-      () => reviewedFixture((revision) => revision !== reviewed),
+      () =>
+        reviewedFixture({ isAncestor: (revision) => revision !== reviewed }),
       /ancestor/,
     );
   });
