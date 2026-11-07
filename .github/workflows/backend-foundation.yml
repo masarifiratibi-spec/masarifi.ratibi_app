@@ -215,8 +215,8 @@ jobs:
           resources=android/app/build/intermediates/linked_resources_proto_format/release/processReleaseResources/linked-resources-proto-format-release.ap_
           "$aapt2" convert --output-format binary -o android-diagnostic-resources.ap_ "$resources"
           "$aapt2" dump badging android-diagnostic-resources.ap_ > android-diagnostic-badging.txt
-          grep -F "package: name='com.masarifi.mobile'" android-diagnostic-badging.txt
-          grep -F "application-label:'Masarifi Ratibi'" android-diagnostic-badging.txt
+          node --test ../../scripts/integration/verify-android-badging.test.cjs
+          node ../../scripts/integration/verify-android-badging.cjs android-diagnostic-badging.txt
           native=android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib
           for abi in arm64-v8a armeabi-v7a x86 x86_64; do
             test -s "$native/$abi/libappmodules.so"
