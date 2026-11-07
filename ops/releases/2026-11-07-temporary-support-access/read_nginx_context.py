@@ -185,7 +185,8 @@ def receipt(*, main=MAIN, tls_snippet=TLS_SNIPPET, modules=Path("/usr/share/ngin
         if node.words[0] == b"add_header" and node.words[1].lower() == b"cache-control":
             continue
         check_header_context(node)
-    kwargs = dict(expected_sha=staging_hash, includes=server_includes, http_add_headers=http_headers)
+    kwargs = dict(expected_sha=staging_hash, includes=server_includes, http_add_headers=http_headers,
+                  http_timeout_nodes=[node for node, _ in http_nodes if node.words[0] in ng.TIMEOUTS])
     proposed = ng.candidate(staging, **kwargs)
     result_hash = ng.verify_candidate(staging, proposed, **kwargs)
     patched = ng.parse(proposed)

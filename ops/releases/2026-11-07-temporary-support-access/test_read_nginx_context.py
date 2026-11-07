@@ -84,6 +84,19 @@ class Context(unittest.TestCase):
         self.assertEqual(result["candidateSha256"], driver.digest(expected))
 
     def test_http_include_with_upstream_header_policy_is_not_admitted(self):
+        # An HTTP-level proxy timeout changes the bytes whenever the selected
+        # location inherits it; a closer server or location setting takes precedence.
+        initial = self.read()["candidateSha256"]
+        limits = self.root / "headers/limits.conf"
+        limits.write_bytes(b"proxy_send_timeout 2s;")
+        changed = self.read()["candidateSha256"]
+        self.assertNotEqual(initial, changed)
+        self.tls.write_bytes(self.tls.read_bytes() + b"\nproxy_send_timeout 3s;")
+        closer = self.read()["candidateSha256"]
+        self.assertNotEqual(changed, closer)
+        limits.write_bytes(b"proxy_send_timeout 1s;")
+        self.assertEqual(closer, self.read()["candidateSha256"])
+        limits.unlink()
         for directive in (b"proxy_hide_header X-Internal-Trace;", b"proxy_pass_header Date;"):
             with self.subTest(directive=directive):
                 (self.root / "headers/c.conf").write_bytes(directive)

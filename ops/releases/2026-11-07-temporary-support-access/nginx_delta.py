@@ -15,6 +15,10 @@ API_OLD = b"http://127.0.0.1:3001"
 API_NEW = b"http://127.0.0.1:3042"
 ADMIN_OLD = b"http://127.0.0.1:3041"
 ADMIN_NEW = b"http://127.0.0.1:3043"
+RECOVERY_INCLUDE = b"/etc/nginx/snippets/masarifi-admin-recovery-7e3bbef0.conf"
+RECOVERY_SHA256 = "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba"
+RECOVERY_UPSTREAM = b"http://127.0.0.1:3033"
+ADMIN_PARENT = (b"location", b"^~", b"/api/v1/admin/")
 
 
 class RoutingDrift(ValueError):
@@ -118,7 +122,16 @@ def expand_server(nodes, original, includes):
         key = node.words[1]
         items = parse(includes[key])
         # Never accept a proxy/location hidden in a snippet or use its offsets as edits.
-        require(all(item.body is None and item.words[0] not in (b"include", b"proxy_pass", b"server_name") for item in items), "UNSUPPORTED_SERVER_INCLUDE")
+        if key == RECOVERY_INCLUDE:
+            require(sha256(includes[key]).hexdigest() == RECOVERY_SHA256, "RECOVERY_INCLUDE_DRIFT")
+            require([item.words for item in items] == [ADMIN_PARENT, (b"location", b"^~", b"/api/v1/support/"),
+                    (b"location", b"=", b"/api/v1/me/mobile-activity")], "RECOVERY_LOCATION_DRIFT")
+            for item in items:
+                require(item.body is not None and all(n.body is None for n in item.children), "RECOVERY_SCOPE_DRIFT")
+                proxy = one(named(item.children, b"proxy_pass"), "RECOVERY_PROXY_COUNT")
+                require(proxy.words == (b"proxy_pass", RECOVERY_UPSTREAM), "RECOVERY_UPSTREAM_DRIFT")
+        else:
+            require(all(item.body is None and item.words[0] not in (b"include", b"proxy_pass", b"server_name") for item in items), "UNSUPPORTED_SERVER_INCLUDE")
         expanded.extend((item, includes[key]) for item in items)
     return expanded
 
@@ -191,22 +204,33 @@ def proxy_change(data, proxy, old, new):
     return proxy.start + hit.start(), proxy.start + hit.end(), new
 
 
-def new_locations(original, location, proxy, inherited_headers):
+TIMEOUTS = (b"proxy_connect_timeout", b"proxy_read_timeout", b"proxy_send_timeout")
+
+
+def effective_timeouts(nodes, inherited):
+    values = dict(inherited)
+    for name in TIMEOUTS:
+        entries = named(nodes, name)
+        if not entries:
+            continue
+        n = one(entries, "AMBIGUOUS_PROXY_TIMEOUT")
+        require(len(n.words) == 2, "AMBIGUOUS_PROXY_TIMEOUT")
+        duration = re.fullmatch(rb"(\d+)(ms|s|m|h)?", n.words[1])
+        require(duration is not None, "UNSUPPORTED_PROXY_TIMEOUT")
+        factor = {None: 1000, b"ms": 1, b"s": 1000, b"m": 60000, b"h": 3600000}[duration[2]]
+        values[name] = min(60_000, int(duration[1]) * factor or 60_000)
+    return values
+
+
+def new_locations(original, location, proxy, inherited_headers, target, old_upstream, inherited_timeouts):
     # Clone the actual default body (including request/auth headers and access
     # control). Override only the upstream, cache policy and proxy timeouts.
     cache_names = {b"expires", b"proxy_cache", b"proxy_connect_timeout", b"proxy_read_timeout", b"proxy_send_timeout"}
-    timeouts = {name: 60_000 for name in cache_names if name.endswith(b"_timeout")}
-    edits = [proxy_change(original, proxy, API_OLD, API_NEW)]
+    timeouts = effective_timeouts(location.children, inherited_timeouts)
+    edits = [proxy_change(original, proxy, old_upstream, API_NEW)]
     for n in location.children:
         key = n.words[0]
         cache_header = len(n.words) >= 2 and n.words[1].lower() == b"cache-control"
-        if key in timeouts:
-            require(len(n.words) == 2, "AMBIGUOUS_PROXY_TIMEOUT")
-            duration = re.fullmatch(rb"(\d+)(ms|s|m|h)?", n.words[1])
-            require(duration is not None, "UNSUPPORTED_PROXY_TIMEOUT")
-            factor = {None: 1000, b"ms": 1, b"s": 1000, b"m": 60000, b"h": 3600000}[duration[2]]
-            milliseconds = int(duration[1]) * factor
-            timeouts[key] = min(60_000, milliseconds or 60_000)
         if key in cache_names or (cache_header and key in (b"add_header", b"proxy_pass_header", b"proxy_hide_header")):
             edits.append((n.start, n.end, b""))
     local_headers = named(location.children, b"add_header")
@@ -220,7 +244,7 @@ def new_locations(original, location, proxy, inherited_headers):
     additions.extend(key + b" " + str(value).encode() + b"ms;" for key, value in sorted(timeouts.items()))
     additions.extend((b"proxy_cache off;", b"expires off;", b"proxy_hide_header Cache-Control;", b'add_header Cache-Control "no-store" always;'))
     body += b"\n        " + b"\n        ".join(additions) + b"\n    "
-    return b"".join(b"location " + prefix + b" { " + body + b"}\n    " for target in API_PATHS
+    return b"".join(b"location " + prefix + b" { " + body + b"}\n    "
                     for prefix in (b"= " + target, b"^~ " + target + b"/"))
 
 
@@ -230,7 +254,7 @@ def check_inherited_upstream_header(node):
     require(node.words[0] not in (b"proxy_hide_header", b"proxy_pass_header"), "INHERITED_UPSTREAM_HEADER_POLICY")
 
 
-def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_headers=None):
+def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_headers=None, http_timeout_nodes=()):
     """http_add_headers is the observed HTTP-level fallback (an empty tuple means none)."""
     require(sha256(original).hexdigest() == expected_sha, "STAGING_PREIMAGE_DRIFT")
     nodes = parse(original)
@@ -244,7 +268,10 @@ def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_hea
     require(not any(n.words[0] == b"proxy_pass_header" and n.words[1].lower() == b"cache-control" for n, _ in api_nodes), "CONFLICTING_UPSTREAM_CACHE_HEADER")
     for node, _ in api_nodes:
         check_inherited_upstream_header(node)
-    verify_neighbors([n for n, _ in api_nodes])
+    recovery = [(n, source) for n, source in api_nodes if n.words == ADMIN_PARENT
+                and RECOVERY_INCLUDE in sources and source is sources[RECOVERY_INCLUDE]]
+    require(len(recovery) <= 1 and (expected_sha != BASE_SHA256 or len(recovery) == 1), "RECOVERY_PARENT_COUNT")
+    verify_neighbors([n for n, _ in api_nodes if not recovery or n is not recovery[0][0]])
     api_root, api_proxy = root_location(api, API_OLD)
     _, admin_proxy = root_location(admin, ADMIN_OLD)
     proxies = named(walk(nodes), b"proxy_pass")
@@ -259,9 +286,20 @@ def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_hea
             n = one(parse(line), "HTTP_ADD_HEADER_SOURCE_INVALID")
             require(n.words[0] == b"add_header" and len(n.words) in (3, 4) and n.body is None, "HTTP_ADD_HEADER_SOURCE_INVALID")
             headers.append(line[n.start:n.end])
+    added = []
+    inherited_timeouts = effective_timeouts([n for n, _ in api_nodes],
+        effective_timeouts(http_timeout_nodes, dict.fromkeys(TIMEOUTS, 60_000)))
+    for target in API_PATHS:
+        if recovery and target.startswith(ADMIN_PARENT[2]):
+            parent, source = recovery[0]
+            proxy = one(named(parent.children, b"proxy_pass"), "RECOVERY_PROXY_COUNT")
+            upstream = RECOVERY_UPSTREAM
+        else:
+            parent, source, proxy, upstream = api_root, original, api_proxy, API_OLD
+        added.append(new_locations(source, parent, proxy, headers if headers or http_add_headers is not None else None,
+                                   target, upstream, inherited_timeouts))
     return replace_spans(original, [
-        (api_root.start, api_root.start, new_locations(original, api_root, api_proxy,
-                                                      headers if headers or http_add_headers is not None else None)),
+        (api_root.start, api_root.start, b"".join(added)),
         proxy_change(original, admin_proxy, ADMIN_OLD, ADMIN_NEW),
     ])
 

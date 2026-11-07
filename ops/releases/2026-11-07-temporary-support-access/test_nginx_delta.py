@@ -4,6 +4,7 @@ from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 import nginx_delta as ng
 
@@ -49,6 +50,38 @@ def build(data=ORIGINAL, **options):
 
 
 class Delta(unittest.TestCase):
+    def test_admin_clones_its_recovery_parent_while_me_clones_the_default(self):
+        data = ORIGINAL.replace(SPECIAL, b"include " + ng.RECOVERY_INCLUDE + b";\n    " + SPECIAL)
+        snippet = b"\n".join(b"location " + head + b" { proxy_pass http://127.0.0.1:3033; proxy_set_header X-Recovery yes; proxy_connect_timeout 2s; }"
+                             for head in (b"^~ /api/v1/admin/", b"^~ /api/v1/support/", b"= /api/v1/me/mobile-activity"))
+        sources = {ng.RECOVERY_INCLUDE: snippet}
+        with self.assertRaisesRegex(ng.RoutingDrift, "RECOVERY_INCLUDE_DRIFT"):
+            build(data, includes=sources)
+        with patch.object(ng, "RECOVERY_SHA256", sha256(snippet).hexdigest()):
+            proposed = build(data, includes=sources)
+            api = ng.server_for(ng.parse(proposed), ng.API_HOST)
+            added = [node for node in ng.named(api.children, b"location")
+                     if node.words[-1].rstrip(b"/") in ng.API_PATHS]
+            self.assertEqual(len(added), 4)
+            for node in added:
+                is_admin = node.words[-1].startswith(ng.ADMIN_PARENT[2])
+                body = [n.words for n in node.children]
+                self.assertEqual((b"proxy_set_header", b"X-Recovery", b"yes") in body, is_admin)
+                self.assertEqual((b"auth_request", b"/internal-check") in body, not is_admin)
+                self.assertIn((b"proxy_connect_timeout", b"2000ms" if is_admin else b"10000ms"), body)
+                self.assertIn((b"proxy_pass", ng.API_NEW), body)
+            self.assertEqual(proposed.count(ng.RECOVERY_INCLUDE), 1)
+            for extra in (b"location ^~ /api/v1/admin/ { return 404; }", b"location ^~ /api/v1/admin/support-access/ { return 403; }"):
+                with self.assertRaisesRegex(ng.RoutingDrift, "OVERLAPPING"):
+                    build(data.replace(SPECIAL, extra), includes=sources)
+            with self.assertRaisesRegex(ng.RoutingDrift, "RECOVERY_PARENT_COUNT"):
+                build(data.replace(SPECIAL, b"include " + ng.RECOVERY_INCLUDE + b";"), includes=sources)
+
+    def test_recovery_parent_is_mandatory_for_the_real_stage(self):
+        with patch.object(ng, "BASE_SHA256", sha256(ORIGINAL).hexdigest()):
+            with self.assertRaisesRegex(ng.RoutingDrift, "RECOVERY_PARENT_COUNT"):
+                build()
+
     def test_only_four_locations_and_one_literal_change(self):
         proposed = build()
         # Remove the inserted bytes + undo the one Admin change; byte equality

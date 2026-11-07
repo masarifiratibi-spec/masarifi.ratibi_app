@@ -46,7 +46,24 @@ function fixture(options = {}) {
               : [],
         };
       if (text.startsWith("select oid::text AS oid,prosrc"))
-        return { rows: [{ oid: "101", prosrc: options.source ?? source }] };
+        return {
+          rows: [
+            {
+              oid: "101",
+              prosrc: options.source ?? source,
+              owner: "masarifi_migration",
+              prosecdef: true,
+              proconfig: ['search_path=""'],
+              ...options.functionMetadata,
+            },
+          ],
+        };
+      if (text.startsWith("select pg_has_role"))
+        return {
+          rows: [
+            options.membership ?? { allowed: false, existing_grant: false },
+          ],
+        };
       if (text.includes("constant_tracing:=false"))
         return { rows: options.recheckRows ?? [] };
       if (text.startsWith("EXPLAIN")) {
@@ -58,6 +75,9 @@ function fixture(options = {}) {
           "begin",
           "rollback",
           "CREATE EXTENSION IF NOT EXISTS plpgsql_check",
+          "grant masarifi_migration to current_user with set true, inherit false granted by current_user",
+          "set local role masarifi_migration",
+          "set local search_path = ''",
         ].includes(text),
       );
       return { rows: [] };
@@ -82,6 +102,55 @@ test("rechecks the reviewed inference diagnostic and plans all35 inserts and24 d
     'EXPLAIN (COSTS OFF) delete from "public"."savings_goals" where user_id=$1',
   );
   assert.equal(calls.at(-1).text, "rollback");
+  const sql = calls.map((call) => call.text);
+  const grant = sql.findIndex((text) => text.startsWith("grant "));
+  assert.ok(
+    grant > sql.findIndex((text) => text.includes("constant_tracing:=false")),
+  );
+  assert.deepEqual(sql.slice(grant + 1, grant + 3), [
+    "set local role masarifi_migration",
+    "set local search_path = ''",
+  ]);
+  assert.equal(sql[grant + 3], plans[0].text);
+});
+test("does not alter existing SET membership or widen a partial self-grant", async () => {
+  const active = fixture({
+    membership: { allowed: true, existing_grant: true },
+  });
+  assert.equal(
+    (await lintDatabase(active.client)).explainedDynamicVariants,
+    59,
+  );
+  assert.equal(
+    active.calls.some((c) => c.text.startsWith("grant ")),
+    false,
+  );
+  const partial = fixture({
+    membership: { allowed: false, existing_grant: true },
+  });
+  await assert.rejects(lintDatabase(partial.client), /UNREVIEWED_MEMBERSHIP/);
+  assert.equal(partial.calls.at(-1).text, "rollback");
+  assert.equal(
+    partial.calls.some((c) => c.text.startsWith("grant ")),
+    false,
+  );
+});
+test("rejects a changed definer before role selection or planning", async () => {
+  for (const functionMetadata of [
+    { owner: "postgres" },
+    { prosecdef: false },
+    { proconfig: null },
+    { proconfig: ["search_path=public"] },
+    { proconfig: ['search_path=""', "row_security=off"] },
+  ]) {
+    const { client, calls } = fixture({ functionMetadata });
+    await assert.rejects(lintDatabase(client), /UNREVIEWED_DEFINER/);
+    assert.equal(
+      calls.some((c) => c.text.startsWith("set local role")),
+      false,
+    );
+    assert.equal(calls.at(-1).text, "rollback");
+  }
 });
 test("keeps a default-clean schema clean without invoking the exception path", async () => {
   const { client, calls } = fixture({ defaultRows: [] });
@@ -231,6 +300,8 @@ test("refuses hosted and unapproved local databases before opening a connection"
     "postgresql://postgres@hosted.invalid:54322/postgres",
     "postgresql://postgres@127.0.0.1:55442/postgres",
     "postgresql://postgres@127.0.0.1:54322/other",
+    "postgresql://postgres@127.0.0.1:54322/postgres?host=outside.invalid",
+    "postgresql://postgres@127.0.0.1:54322/postgres?options=-crole%3Dother",
   ])
     assert.throws(
       () =>
