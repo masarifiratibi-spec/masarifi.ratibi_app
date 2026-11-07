@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import stat
 import subprocess
 import tarfile
 import tempfile
@@ -87,6 +88,10 @@ def clone_payload(old, runtime, old_root=OLD_ROOT):
         assert setting["Source"] == observed["Source"] and setting.get("ReadOnly", False) is not observed["RW"], "CONFIGURED_MOUNT_DRIFT"
         setting["Source"] = str(runtime) + setting["Source"][len(str(old_root)):]
     host["PortBindings"]["3040/tcp"][0]["HostPort"] = "3041"
+    # Docker materializes the unset default as false on create. Keep OOM killing
+    # enabled explicitly; compare every returned HostConfig field without filtering.
+    assert host["OomKillDisable"] is None or host["OomKillDisable"] is False, "OOM_PROTECTION_DRIFT"
+    host["OomKillDisable"] = False
     config["Hostname"] = ""
     config["Image"] = old["Image"]
     return {**config, "HostConfig": host}
@@ -127,6 +132,50 @@ def verify_created(old, candidate, payload):
     assert candidate["Image"] == MANIFEST["runtimeCandidate"]["targetRuntimeImage"], "CANDIDATE_IMAGE_PIN_MISMATCH"
     assert before == after and canonical(candidate["Config"]["Env"]) == MANIFEST["observedHosted"]["environmentPin"], "CANDIDATE_CONFIG_DRIFT"
     assert candidate["HostConfig"] == payload["HostConfig"], "CANDIDATE_HOST_CONFIG_DRIFT"
+
+
+def verify_staged_tree(archive, runtime):
+    """Compare all runnable bytes/links to the pinned tar, except its writable cache."""
+    cache = "apps/admin-web/.next/cache"
+    assert runtime.is_dir() and not runtime.is_symlink(), "STAGED_RUNTIME_ROOT_DRIFT"
+    with tarfile.open(archive, "r:gz") as bundle:
+        members = bundle.getmembers()
+        archive_guard.validate_runtime_members(members)
+        expected = {cache}
+        parents = {parent.as_posix() for parent in Path(cache).parents if parent.as_posix() != "."}
+        for member in members:
+            path = Path(member.name)
+            expected.add(member.name)
+            parents.update(parent.as_posix() for parent in path.parents if parent.as_posix() != ".")
+        expected.update(parents)
+        # Walk without following any link; reject replaced parent directories and extras.
+        for directory, dirs, files in os.walk(runtime, followlinks=False):
+            for name in dirs + files:
+                path = Path(directory) / name
+                relative = path.relative_to(runtime).as_posix()
+                assert relative in expected, "STAGED_UNEXPECTED_ENTRY: " + relative
+                if relative == cache:
+                    assert stat.S_ISDIR(path.lstat().st_mode), "STAGED_CACHE_NOT_DIRECTORY"
+                    dirs.remove(name)
+                elif relative in parents:
+                    assert stat.S_ISDIR(path.lstat().st_mode), "STAGED_PARENT_NOT_DIRECTORY: " + relative
+        assert stat.S_ISDIR((runtime / cache).lstat().st_mode), "STAGED_CACHE_NOT_DIRECTORY"
+        for member in members:
+            if member.name == cache or member.name.startswith(cache + "/"):
+                continue
+            path = runtime / member.name
+            mode = path.lstat().st_mode
+            if member.isdir():
+                assert stat.S_ISDIR(mode), "STAGED_DIRECTORY_DRIFT: " + member.name
+            elif member.issym():
+                assert stat.S_ISLNK(mode) and os.readlink(path) == member.linkname, "STAGED_SYMLINK_DRIFT: " + member.name
+            else:
+                assert stat.S_ISREG(mode) and stat.S_IMODE(mode) & 0o111 == member.mode & 0o111, "STAGED_EXECUTABLE_DRIFT: " + member.name
+                expected_hash = hashlib.sha256()
+                with bundle.extractfile(member) as stream:
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        expected_hash.update(block)
+                assert archive_guard.file_digest(path) == expected_hash.hexdigest(), "STAGED_RUNTIME_BYTES_DRIFT: " + member.name
 
 
 def probe(port, item):
@@ -248,6 +297,34 @@ def stage():
     print(json.dumps({"phase": "canary qualified", "containerId": identity, "buildId": MANIFEST["runtimeCandidate"]["buildId"], "environmentPreserved": True, "originalContainersPreserved": True}))
 
 
+def resume_created():
+    """Resume only the observed, never-started creation receipt; never create again."""
+    continuation = json.loads((PACKET / "continuation.json").read_text())
+    old = admission()
+    assert digest(TARGET.read_bytes()) == watchdog.ORIGINAL_SHA, "PROXY_PREIMAGE_DRIFT"
+    state = json.loads((ROOT / "state.json").read_text())
+    assert state == {"phase": "container created", "sourceCommit": MANIFEST["sourceCommit"], "containerId": continuation["containerId"]}, "RESUME_RECEIPT_MISMATCH"
+    identity = state["containerId"]
+    current = inspect_container(identity)
+    assert current["Name"] == "/" + MANIFEST["candidate"]["name"] and current["State"]["Status"] == "created" and not current["State"]["Running"] and not current["State"].get("OOMKilled") and current["RestartCount"] == 0, "RESUME_REQUIRES_NEVER_STARTED_CANDIDATE"
+    assert not subprocess.check_output(["ss", "-H", "-ltn", "sport = :3041"], text=True).strip(), "PORT_3041_IN_USE"
+    assert shutil.disk_usage(ROOT).free >= 2 * 1024**3, "DISK_ADMISSION_FAILED"
+    available = next(int(s.split()[1]) for s in Path("/proc/meminfo").read_text().splitlines() if s.startswith("MemAvailable:"))
+    assert available >= 1536 * 1024, "MEMORY_ADMISSION_FAILED"
+    assert archive_guard.file_digest(ROOT / "artifact.zip") == MANIFEST["runtimeCandidate"]["artifactZipSha256"], "CI_ZIP_PIN_MISMATCH"
+    runtime_name = "masarifi-admin-" + MANIFEST["sourceCommit"] + ".tar.gz"
+    assert archive_guard.file_digest(ROOT / runtime_name) == MANIFEST["runtimeCandidate"]["sha256"], "RUNTIME_ARCHIVE_PIN_MISMATCH"
+    for item in MANIFEST["sourceFiles"]:
+        assert archive_guard.file_digest(RUNTIME / item["path"]) == item["candidateSha256"], "STAGED_SOURCE_PIN_MISMATCH"
+    assert (RUNTIME / "apps/admin-web/.next/BUILD_ID").read_text().strip() == MANIFEST["runtimeCandidate"]["buildId"], "STAGED_BUILD_PIN_MISMATCH"
+    assert digest((ROOT / "rollback/masarifi-staging.original").read_bytes()) == watchdog.ORIGINAL_SHA, "ROLLBACK_COPY_DRIFT"
+    verify_staged_tree(ROOT / runtime_name, RUNTIME)
+    verify_created(old, current, clone_payload(old, RUNTIME))
+    current = start_and_qualify(identity)
+    write_state({"phase": "canary qualified", "sourceCommit": MANIFEST["sourceCommit"], "containerId": identity, "startedAt": current["State"]["StartedAt"], "candidateConfigSha256": canonical({"Config": current["Config"], "HostConfig": current["HostConfig"], "Mounts": current["Mounts"]})})
+    print(json.dumps({"phase": "canary qualified", "resumedCreatedContainer": identity, "buildId": MANIFEST["runtimeCandidate"]["buildId"], "environmentPreserved": True, "originalContainersPreserved": True}))
+
+
 def switch():
     admission()
     state = canary()
@@ -317,7 +394,7 @@ def accept():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["inspect", "stage", "switch", "accept"], nargs="?", default="inspect")
+    parser.add_argument("action", choices=["inspect", "stage", "resume-created", "switch", "accept"], nargs="?", default="inspect")
     parser.add_argument("--execute-approved", action="store_true")
     args = parser.parse_args()
     for key in ["brandAssets", "routingCandidateSha256", "anonymousChallenge"]:
@@ -327,4 +404,4 @@ if __name__ == "__main__":
         print(json.dumps({"admitted": True, "oldContainerId": old["Id"], "originalContainerDigest": canonical(original_rows())}))
     else:
         assert args.execute_approved and MANIFEST["hostedActivationApproved"] is True and os.geteuid() == 0, "EXACT_APPROVAL_AND_ROOT_REQUIRED"
-        {"stage": stage, "switch": switch, "accept": accept}[args.action]()
+        {"stage": stage, "resume-created": resume_created, "switch": switch, "accept": accept}[args.action]()
