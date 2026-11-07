@@ -70,5 +70,41 @@
     }
   ],
   "ownership": "Dashboard source changes do not modify these shared API/mobile/migration/history files. Responsible concurrent chat informed; no broad retry or guard change requested.",
-  "readinessLimit": "Scoped Admin qualification is not whole-repository CI success or whole-product production readiness."
+  "readinessLimit": "Scoped Admin qualification is not whole-repository CI success or whole-product production readiness.",
+  "packetPublicationSecretGate": {
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42349455279",
+    "headCommit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+    "jobId": 128334269811,
+    "conclusion": "failure",
+    "totalFindings": 7,
+    "inheritedFindings": 4,
+    "newMetadataFindings": [
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/host-baseline.json",
+        "StartLine": 118,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/host-baseline.json:generic-api-key:118",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      },
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/manifest.json",
+        "StartLine": 168,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/manifest.json:generic-api-key:168",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      },
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json",
+        "StartLine": 16,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json:generic-api-key:16",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      }
+    ],
+    "guardChanges": "none; no ignore entry, bypass, history rewrite or scanner change",
+    "scope": "Only completed secret job inspected for the documentation/tooling publication. The unchanged Admin application is already qualified by prior accepted suites and the exact Linux artifact; no new whole-repository CI success claimed."
+  }
 }

@@ -59,4 +59,6 @@ No new live customer/provider writes were performed. Local HTTP/SQL recovery evi
 
 Artifact verification caught the workstation Git archive CRLF conversion. The source bundle was regenerated with `core.autocrlf=false`; all15 archived file hashes now equal the committed canonical Git blobs. The manifest pins the corrected archive; no source behavior changed.
 
+Post-publication secret gate42349455279 at2c1fe4cd reported the four inherited matches plus three metadata hashes under `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. The three values exactly equal the independently recomputed SHA256 of the existing public Clerk publishable key. The [gate review](ci-gate-review.json) retains paths/commits/classification; the actual failed status is preserved. No ignore entry, bypass, history rewrite or scanner rule was introduced. This does not represent a credential leak finding or all-CI success.
+
 Synthetic visual evidence: [before Arabic/light1440](synthetic-before-ar-light-1440.png), [before Arabic/dark1440](synthetic-before-ar-dark-1440.png), [after English/dark1440](synthetic-after-en-dark-1440.png), [after Arabic/light390](synthetic-after-ar-light-390.png).
