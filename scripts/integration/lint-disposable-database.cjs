@@ -14,7 +14,10 @@ const SIGNATURE = "private.reset_financial_data(text,uuid)";
 const SOURCE_HASH =
   "51cb0845b650f24b4d31559db602bb933e9f296a92cc3fb6f197bd0bdd70b228";
 const SOURCE_QUERY =
-  "select oid::text AS oid,prosrc from pg_catalog.pg_proc where oid=to_regprocedure($1)";
+  "select oid::text AS oid,prosrc,prosecdef,proowner::regrole::text as owner from pg_catalog.pg_proc where oid=to_regprocedure($1)";
+const PLAN_MEMBERSHIP = `select pg_has_role(current_user,'masarifi_migration','SET') as allowed,
+  exists(select from pg_catalog.pg_auth_members where roleid='masarifi_migration'::regrole
+    and member=current_user::regrole and grantor=current_user::regrole) as existing_grant`;
 // Documented per-call inference option; checking itself stays enabled.
 // https://github.com/okbob/plpgsql_check#arguments
 const RECHECK = `select plpgsql_check_function($1::regprocedure,
@@ -148,6 +151,8 @@ async function lintDatabase(client) {
     const reviewed = (await client.query(SOURCE_QUERY, [SIGNATURE])).rows[0];
     if (!reviewed || errors[0].functionOid !== reviewed.oid)
       throw new Error("DATABASE_LINT_UNREVIEWED_FUNCTION_OVERLOAD");
+    if (!reviewed.prosecdef || reviewed.owner !== "masarifi_migration")
+      throw new Error("DATABASE_LINT_UNREVIEWED_DEFINER");
     const commands = reviewedDynamicStatements(reviewed.prosrc);
     const remaining = errorIssues(
       (await client.query(RECHECK, [SIGNATURE])).rows.map((row) => ({
@@ -163,6 +168,19 @@ async function lintDatabase(client) {
       );
     // Plain EXPLAIN never executes these writes. Validate every actual target,
     // identifier, parameter type and column while constant inference is disabled.
+    // The standalone plans do not inherit the SECURITY DEFINER function's
+    // owner. Reproduce its role and empty search path only for these plans.
+    // The disposable session ALWAYS rolls back, including any bootstrap grant.
+    const membership = (await client.query(PLAN_MEMBERSHIP)).rows[0];
+    if (membership?.allowed !== true) {
+      if (membership?.allowed !== false || membership.existing_grant !== false)
+        throw new Error("DATABASE_LINT_UNREVIEWED_MEMBERSHIP");
+      await client.query(
+        "grant masarifi_migration to current_user with set true, inherit false granted by current_user",
+      );
+    }
+    await client.query("set local role masarifi_migration");
+    await client.query("set local search_path = ''");
     for (const command of commands)
       await client.query(command.text, command.values);
     return { errors: 0, explainedDynamicVariants: commands.length };
@@ -179,6 +197,8 @@ function disposableConnection(environment) {
     target.protocol !== "postgresql:" ||
     !["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) ||
     target.port !== "54322" ||
+    target.search !== "" ||
+    target.hash !== "" ||
     target.pathname !== "/postgres"
   )
     throw new Error("DISPOSABLE_DATABASE_ONLY");
