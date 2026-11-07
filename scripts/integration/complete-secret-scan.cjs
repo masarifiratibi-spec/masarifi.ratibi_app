@@ -1,6 +1,158 @@
 "use strict";
 const { execFileSync, spawnSync } = require("node:child_process");
-const { readFileSync } = require("node:fs");
+const { readFileSync, writeFileSync, rmSync } = require("node:fs");
+const { createHash } = require("node:crypto");
+const reviewed = require("./reviewed-secret-findings.json");
+
+const digest = (algorithm, value) =>
+  createHash(algorithm).update(value).digest("hex");
+
+function classifyScanReport(
+  reportText,
+  scannerStatus,
+  { cwd = process.cwd() } = {},
+) {
+  if (![0, 2].includes(scannerStatus))
+    throw new Error("Unexpected scanner status; candidate scan failed");
+  let findings;
+  try {
+    findings = JSON.parse(reportText);
+  } catch {
+    throw new Error("Missing or malformed redacted findings report");
+  }
+  if (
+    !Array.isArray(findings) ||
+    (scannerStatus === 0 && findings.length !== 0) ||
+    (scannerStatus === 2 && findings.length === 0)
+  )
+    throw new Error("Findings report is inconsistent with scanner status");
+  for (const f of findings) {
+    if (
+      !f ||
+      typeof f !== "object" ||
+      typeof f.RuleID !== "string" ||
+      !/^[a-z0-9-]+$/.test(f.RuleID) ||
+      typeof f.Commit !== "string" ||
+      !/^[a-f0-9]{40}$/.test(f.Commit) ||
+      typeof f.File !== "string" ||
+      !f.File ||
+      /[\r\n\0]/.test(f.File) ||
+      ![f.StartLine, f.EndLine, f.StartColumn, f.EndColumn].every(
+        (n) => Number.isSafeInteger(n) && n > 0,
+      ) ||
+      f.EndLine < f.StartLine ||
+      (f.EndLine === f.StartLine && f.EndColumn < f.StartColumn) ||
+      f.Secret !== "REDACTED" ||
+      typeof f.Match !== "string" ||
+      !f.Match.includes("REDACTED") ||
+      f.Fingerprint !== `${f.Commit}:${f.File}:${f.RuleID}:${f.StartLine}`
+    )
+      throw new Error("Invalid or unredacted findings report entry");
+  }
+  if (reviewed.version !== 1 || !Array.isArray(reviewed.findings))
+    throw new Error("Invalid reviewed findings catalog");
+  const catalog = new Map(
+    reviewed.findings.map((entry) => [entry.fingerprint, entry]),
+  );
+  if (catalog.size !== reviewed.findings.length)
+    throw new Error("Duplicate reviewed findings catalog entry");
+  const git = (...args) =>
+    execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  const verified = new Map();
+  function originalValue(entry) {
+    if (verified.has(entry.fingerprint)) return verified.get(entry.fingerprint);
+    const [commit, file] = entry.fingerprint.split(":");
+    let blob, source;
+    try {
+      blob = git("rev-parse", `${commit}:${file}`).trim();
+      if (blob !== entry.blob) throw new Error("blob mismatch");
+      source = git("cat-file", "blob", blob);
+    } catch {
+      throw new Error(
+        "Reviewed finding original Git blob could not be verified",
+      );
+    }
+    const line = source.split(/\r?\n/)[entry.line - 1];
+    let value;
+    try {
+      value = JSON.parse(source);
+      for (const part of entry.pointer) value = value[part];
+    } catch {
+      throw new Error("Reviewed finding JSON context could not be verified");
+    }
+    const field = entry.pointer.at(-1);
+    if (
+      typeof line !== "string" ||
+      digest("sha512", line) !== entry.lineDigest ||
+      typeof value !== "string" ||
+      digest("sha512", value) !== entry.valueDigest ||
+      !line.includes(`${JSON.stringify(field)}: ${JSON.stringify(value)}`)
+    )
+      throw new Error(
+        "Reviewed finding original value or line context changed",
+      );
+    verified.set(entry.fingerprint, value);
+    return value;
+  }
+  function publicValue() {
+    const entry = catalog.get(reviewed.publicReference);
+    if (!entry || entry.classification !== "clerk-publishable")
+      throw new Error("Missing reviewed Clerk public reference");
+    const value = originalValue(entry);
+    if (
+      !/^pk_live_[A-Za-z0-9+/=]+$/.test(value) ||
+      !/^[a-z0-9.-]+\$$/.test(
+        Buffer.from(value.slice(8), "base64").toString("utf8"),
+      )
+    )
+      throw new Error("Reviewed reference is not a Clerk publishable key");
+    return value;
+  }
+  const classified = findings.map((f) => {
+    const entry = catalog.get(f.Fingerprint);
+    let classification = "unreviewed";
+    if (
+      entry &&
+      f.RuleID === "generic-api-key" &&
+      f.StartLine === entry.line &&
+      f.EndLine === entry.line &&
+      f.StartColumn === entry.startColumn &&
+      f.EndColumn === entry.endColumn &&
+      f.Match === `${entry.pointer.at(-1)}\": \"REDACTED\"`
+    ) {
+      const value = originalValue(entry);
+      if (
+        entry.classification === "clerk-publishable" &&
+        value === publicValue()
+      )
+        classification = entry.classification;
+      else if (
+        entry.classification === "public-clerk-sha256" &&
+        value === digest("sha256", publicValue()) &&
+        entry.pointer.at(-2) === "publicConfigurationSha256" &&
+        entry.pointer.at(-1) === "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+      )
+        classification = entry.classification;
+      else if (
+        entry.classification === "release-env-sha256" &&
+        entry.pointer.length === 1 &&
+        entry.pointer[0] === "unchangedApiEnvSha256" &&
+        /^[a-f0-9]{64}$/.test(value)
+      )
+        classification = entry.classification;
+    }
+    return { fingerprint: f.Fingerprint, classification };
+  });
+  return {
+    exitCode: classified.some((f) => f.classification === "unreviewed") ? 2 : 0,
+    scannerStatus,
+    findings: classified,
+  };
+}
 
 function scanCandidate({
   eventName,
@@ -64,6 +216,9 @@ function scanCandidate({
     throw new Error("Gitleaks 8.24.3 is required");
   }
   console.log(`Complete candidate secret scan: ${range} (${count} commits)`);
+  // An old successful report must never satisfy a failed/current scan.
+  for (const path of [reportPath, `${reportPath}.classification.json`])
+    rmSync(path, { force: true });
   // -m also scans changes introduced by merges; traversal includes every parent.
   const scan = spawnSync(
     binary,
@@ -84,7 +239,30 @@ function scanCandidate({
   if (scan.error || scan.signal || scan.status === null) {
     throw new Error("Gitleaks could not complete the candidate scan");
   }
-  return scan.status;
+  if (![0, 2].includes(scan.status)) return scan.status;
+  let report;
+  try {
+    report = readFileSync(reportPath, "utf8");
+  } catch {
+    throw new Error("Missing redacted candidate findings report");
+  }
+  const classification = classifyScanReport(report, scan.status, { cwd });
+  writeFileSync(
+    `${reportPath}.classification.json`,
+    JSON.stringify(
+      {
+        range,
+        commitCount: Number(count),
+        ...classification,
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  console.log(
+    `Reviewed noncredential findings: ${classification.findings.filter((f) => f.classification !== "unreviewed").length}; unreviewed: ${classification.findings.filter((f) => f.classification === "unreviewed").length}`,
+  );
+  return classification.exitCode;
 }
 
 if (require.main === module) {
@@ -104,4 +282,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { scanCandidate };
+module.exports = { scanCandidate, classifyScanReport };

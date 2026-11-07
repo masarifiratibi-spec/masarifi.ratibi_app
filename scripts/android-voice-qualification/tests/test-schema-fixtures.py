@@ -18,17 +18,21 @@ class SchemaFixtureProvenanceTest(unittest.TestCase):
     def test_reviewed_migration_history_and_marker_templates_remain_exact(self):
         source = schemas.pinned_source()
         templates = [
-            (r"const migrations = parseMigrations\(`(.*?)`\);", 1, "9c4937ba6c3c2524f977739415b3f659bfdd44d5c38340139ae6d122679d1583"),
+            (r"const migrations = parseMigrations\(`(.*?)`\);", 1, "d9c4a4ca9a35a0f95b7b27cca58d9ca343bbef8b29f9d1d43bcd6bdfedce7a64"),
             (r"CREATE TABLE IF NOT EXISTS schema_migrations \(.*?\);", 0, "fee924110e4ed5f82e984b893a246fd83c5605048568174a5932973ac2fb1602"),
             (r"CREATE TABLE IF NOT EXISTS \$\{LEGACY_MIGRATION_TABLE\} \(.*?\);", 0, "f6c4b1d94505fc815182e3bd2d9e40f30d1182f92f791cd976c94d92e5436144"),
         ]
         for pattern, group, expected in templates:
             self.assertEqual(hashlib.sha256(re.search(pattern, source, re.S).group(group).encode()).hexdigest(), expected)
+        migrations = schemas.migration_sql(source)
+        historical = "\0".join(migrations[version] for version in range(1, 17))
+        self.assertEqual(hashlib.sha256(historical.encode()).hexdigest(),
+                         "ab5bd3752fe5d6c2b5023b41286f9081e5b08180e73dcc11111857ac4a440648")
 
-    def test_current_source_preserves_legacy_schema_and_adds_only_the_read_cache(self):
+    def test_supported_prefix16_preserves_legacy_schema_and_adds_only_the_read_cache(self):
         source = schemas.pinned_source()
         migrations = schemas.migration_sql(source)
-        self.assertEqual(set(migrations), set(range(1, 17)))
+        self.assertEqual(set(migrations), set(range(1, 18)))
         history, _ = schemas.schema_parts(source)
         with sqlite3.connect(":memory:") as database:
             database.executescript(history)
@@ -53,7 +57,7 @@ class SchemaFixtureProvenanceTest(unittest.TestCase):
 
     def test_a_future_migration_is_not_silently_admitted(self):
         source = schemas.pinned_source()
-        changed = source.replace("-- migration:16", "-- migration:17")
+        changed = source.replace("-- migration:17", "-- migration:18")
         with self.assertRaisesRegex(AssertionError, "MIGRATION_PREFIX_CHANGED"):
             schemas.migration_sql(changed)
 

@@ -92,7 +92,9 @@ export class PoolService implements OnModuleDestroy {
     try {
       const generation = financialGeneration.getStore() ?? '';
       if ((this.clientGenerations.get(client) ?? '') !== generation) {
-        await client.query("select set_config('masarifi.financial_generation',$1,false)", [generation]);
+        await client.query("select set_config('masarifi.financial_generation',$1,false)", [
+          generation,
+        ]);
         this.clientGenerations.set(client, generation);
       }
       if (this.initializedClients.has(client)) return client;

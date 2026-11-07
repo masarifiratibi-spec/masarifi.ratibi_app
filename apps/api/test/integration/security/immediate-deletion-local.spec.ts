@@ -132,7 +132,10 @@ describeLocal('immediate deletion committed receipts on the owned local database
       await pool.query(`create trigger ${name} before delete on private.outbox_events
         for each row when (old.aggregate_id = '${marker}'::uuid) execute function private.${name}()`);
       await expect(service.execute(operation())).resolves.toMatchObject({ status: 'completed' });
-      expect((await pool.query('select id from private.outbox_events where aggregate_id=$1', [marker])).rowCount).toBe(0);
+      expect(
+        (await pool.query('select id from private.outbox_events where aggregate_id=$1', [marker]))
+          .rowCount,
+      ).toBe(0);
     } finally {
       await pool.query(`drop trigger if exists ${name} on private.outbox_events`);
       await pool.query(`drop function private.${name}()`);

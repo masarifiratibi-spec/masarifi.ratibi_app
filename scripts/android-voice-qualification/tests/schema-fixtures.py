@@ -9,9 +9,9 @@ import sqlite3
 import struct
 import subprocess
 
-# Prefixes1–15 remain exact; schema16 adds the reviewed read-cache table/index.
-# Reviewed a33137ea owner-release preservation change; migration/schema templates unchanged.
-SOURCE_SHA = "c95fd840499ea6292f4332bf8d81643474bc64dc8fec8cd6a5fd191201c74872"
+# Reviewed 67813aa4: prefixes1–16 and marker templates remain exact.
+# Source17 adds sms_import_queue_v3; the reader still supports only prefixes1–16.
+SOURCE_SHA = "c6bd1dc4bfd3803d66cad6819c9e1c031663a4f4d612af6f31783d42df50a5b2"
 SOURCE_PATH = "apps/mobile/src/storage/database.ts"
 
 def pinned_source():
@@ -25,7 +25,7 @@ def migration_sql(source):
     if not match: raise AssertionError("MIGRATION_TEMPLATE_MISSING")
     parts = re.split(r"-- migration:(\d+)",match.group(1))
     migrations = {int(parts[index]):parts[index+1].strip() for index in range(1,len(parts),2)}
-    if set(migrations) != set(range(1,17)): raise AssertionError("MIGRATION_PREFIX_CHANGED")
+    if set(migrations) != set(range(1,18)): raise AssertionError("MIGRATION_PREFIX_CHANGED")
     return migrations
 
 def signature(rows):

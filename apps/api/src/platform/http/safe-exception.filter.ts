@@ -49,12 +49,27 @@ const domainErrors: Record<string, { status: number; message: string }> = {
     status: 503,
     message: 'Profile synchronization is unavailable',
   },
-  FINANCIAL_CLIENT_UPDATE_REQUIRED: {status:426,message:'Update your app to write after a financial reset'},
-  FINANCIAL_GENERATION_STALE: { status: 409, message: 'Refresh financial data or update the app before writing' },
-  FINANCIAL_CAPTURE_BEFORE_RESET: { status: 409, message: 'This capture predates the financial reset' },
-  FINANCIAL_RESET_ACTIVE_HOLD: {status:409,message:'Financial data is subject to a retention hold'},
-  FINANCIAL_RESET_WORK_BUSY: {status:409,message:'Financial work is still completing'},
-  FINANCIAL_RESET_CLEANUP_PENDING: {status:409,message:'Previous reset cleanup is still in progress'},
+  FINANCIAL_CLIENT_UPDATE_REQUIRED: {
+    status: 426,
+    message: 'Update your app to write after a financial reset',
+  },
+  FINANCIAL_GENERATION_STALE: {
+    status: 409,
+    message: 'Refresh financial data or update the app before writing',
+  },
+  FINANCIAL_CAPTURE_BEFORE_RESET: {
+    status: 409,
+    message: 'This capture predates the financial reset',
+  },
+  FINANCIAL_RESET_ACTIVE_HOLD: {
+    status: 409,
+    message: 'Financial data is subject to a retention hold',
+  },
+  FINANCIAL_RESET_WORK_BUSY: { status: 409, message: 'Financial work is still completing' },
+  FINANCIAL_RESET_CLEANUP_PENDING: {
+    status: 409,
+    message: 'Previous reset cleanup is still in progress',
+  },
   VERSION_CONFLICT: { status: 409, message: 'Resource version conflict' },
   INVALID_CURSOR: { status: 400, message: 'Cursor is invalid' },
   RECENT_AUTH_REQUIRED: { status: 403, message: 'Recent authentication is required' },
@@ -184,21 +199,41 @@ function sanitizeFieldError(error: FieldError): FieldError {
 }
 
 function staleFinancialGeneration(exception: unknown): boolean {
-  return exception instanceof Error && exception.message === 'FINANCIAL_GENERATION_STALE' &&
-    'code' in exception && exception.code === '40001';
+  return (
+    exception instanceof Error &&
+    exception.message === 'FINANCIAL_GENERATION_STALE' &&
+    'code' in exception &&
+    exception.code === '40001'
+  );
 }
 
 function resetConflict(exception: unknown): string | undefined {
-  if (!(exception instanceof Error) || !('code' in exception) || exception.code !== '55000') return undefined;
-  return ['FINANCIAL_RESET_ACTIVE_HOLD','FINANCIAL_RESET_WORK_BUSY','FINANCIAL_RESET_CLEANUP_PENDING'].includes(exception.message) ? exception.message : undefined;
+  if (!(exception instanceof Error) || !('code' in exception) || exception.code !== '55000')
+    return undefined;
+  return [
+    'FINANCIAL_RESET_ACTIVE_HOLD',
+    'FINANCIAL_RESET_WORK_BUSY',
+    'FINANCIAL_RESET_CLEANUP_PENDING',
+  ].includes(exception.message)
+    ? exception.message
+    : undefined;
 }
 
 function clientUpdateRequired(exception: unknown): boolean {
   if (exception instanceof HttpException) {
     const response = exception.getResponse();
-    return typeof response === 'object' && 'code' in response && response.code === 'FINANCIAL_CLIENT_UPDATE_REQUIRED';
+    return (
+      typeof response === 'object' &&
+      'code' in response &&
+      response.code === 'FINANCIAL_CLIENT_UPDATE_REQUIRED'
+    );
   }
-  return exception instanceof Error && exception.message === 'FINANCIAL_CLIENT_UPDATE_REQUIRED' && 'code' in exception && exception.code === '40001';
+  return (
+    exception instanceof Error &&
+    exception.message === 'FINANCIAL_CLIENT_UPDATE_REQUIRED' &&
+    'code' in exception &&
+    exception.code === '40001'
+  );
 }
 
 function exceptionStatus(exception: unknown): number {

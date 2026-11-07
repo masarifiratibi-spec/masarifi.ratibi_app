@@ -128,15 +128,25 @@ describeLiveDatabase('support recovery', () => {
   });
   afterAll(async () => pool.onModuleDestroy());
 
-  it.each([['ordinary', customer], ['dashboard', actor]])(
+  it.each([
+    ['ordinary', customer],
+    ['dashboard', actor],
+  ])(
     'submits an Arabic technical ticket through the customer API for a %s owner',
     async (_kind, owner) => {
       const categories = await call<{ items: Array<{ id: string; key: string }> }>(
-        owner, 'listSupportCategories', undefined, undefined, { limit: '100' },
+        owner,
+        'listSupportCategories',
+        undefined,
+        undefined,
+        { limit: '100' },
       );
-      const technical = categories.items.find(item => item.key === 'technical')!;
+      const technical = categories.items.find((item) => item.key === 'technical');
+      if (!technical) throw new Error('TECHNICAL_SUPPORT_CATEGORY_MISSING');
       const result = await call(owner, 'createSupportTicket', {
-        categoryId: technical.id, subject: 'الاضافة لا تعمل', message: 'الاضافة لا تعمل.',
+        categoryId: technical.id,
+        subject: 'الاضافة لا تعمل',
+        message: 'الاضافة لا تعمل.',
       });
       expect(result.messages[0]?.body).toBe('الاضافة لا تعمل.');
     },

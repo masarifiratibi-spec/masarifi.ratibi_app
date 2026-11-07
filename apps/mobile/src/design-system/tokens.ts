@@ -287,6 +287,7 @@ export const colorTokens = {
     FFFFFF: '#FFFFFF'
   },
   effects: {
+    shadow: '#000',
     horizonGlow: 'rgba(49, 179, 151, 0.34)',
     horizonGlowDark: 'rgba(29, 116, 100, 0.24)',
     glass: 'rgba(255, 255, 255, 0.08)',
@@ -370,6 +371,9 @@ const darkCategoryIconPalette: readonly IconBadgeColors[] = [
 ];
 
 export interface ThemeColors {
+  effects: {
+    shadow: string;
+  };
   primary: string;
   primaryPressed: string;
   accent: string;
@@ -484,6 +488,7 @@ export interface ThemeColors {
 }
 
 export const lightThemeColors: ThemeColors = {
+  effects: { shadow: colorTokens.effects.shadow },
   primary: colorTokens.teal['900'],
   primaryPressed: colorTokens.teal['950'],
   accent: colorTokens.bronze['700'],
@@ -590,6 +595,7 @@ export const lightThemeColors: ThemeColors = {
 };
 
 export const darkThemeColors: ThemeColors = {
+  effects: { shadow: colorTokens.effects.shadow },
   primary: colorTokens.teal['100'],
   primaryPressed: colorTokens.teal['50'],
   accent: colorTokens.bronze['300'],

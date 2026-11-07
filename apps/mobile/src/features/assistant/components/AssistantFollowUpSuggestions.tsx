@@ -92,7 +92,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    shadowColor: '#000',
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 3,

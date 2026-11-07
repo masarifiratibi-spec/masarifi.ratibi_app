@@ -3,6 +3,9 @@ import { describe, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CurrentPermissionsProvider } from "@/core/permissions/current-permissions";
 import { AccessRequestCards, AccessRequestRows, AccessRequestView } from "./AccessRequestView";
+import { configureApiActorProvider } from "@/core/api/client";
+import { LocaleProvider } from "@/core/localization/provider";
+import { accessQueryKeys } from "./hooks";
 import { createAccessFixtures } from "@/mocks/fixtures/access";
 
 describe("access request view", () => {
@@ -38,4 +41,19 @@ describe("access request view", () => {
     expect(html).toContain(request?.startsAt ?? "");
     expect(html).toContain(request?.expiresAt ?? "");
   });
+  test("shows exact actions and outstanding consent in English, enabling independent denial only", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_MOCKS", "false"); configureApiActorProvider(() => "user_independent_reviewer");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const request = { ...createAccessFixtures()[0], customerApprovalRequired: true, customerApprovalState: "pending" as const,
+      requestedScope: ["device-diagnostics" as const], requestedScopeActions: [{ resource: "device-diagnostics" as const, actions: ["read-status" as const] }],
+      requestedBy: "user_requester", expiresAt: new Date(Date.now() + 60_000).toISOString() };
+    client.setQueryData(accessQueryKeys.detail(request.id, "super-admin"), request);
+    try {
+      const html = renderToStaticMarkup(<QueryClientProvider client={client}><LocaleProvider locale="en" setLocale={() => undefined}><CurrentPermissionsProvider permissions={new Set(["support.access.approve"])}><AccessRequestView requestId={request.id} /></CurrentPermissionsProvider></LocaleProvider></QueryClientProvider>);
+      expect(html).toContain("Awaiting customer consent"); expect(html).toContain("device-diagnostics (read-status)");
+      expect(html).toMatch(/<button[^>]*disabled[^>]*>Approve limited access<\/button>/);
+      expect(html).toContain('>Reject</button>'); expect(html).not.toContain("اعتماد مخفض");
+    } finally { client.clear(); vi.unstubAllEnvs(); }
+  });
+
 });

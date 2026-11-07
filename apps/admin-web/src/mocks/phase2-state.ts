@@ -323,6 +323,7 @@ export function decidePhase2AccessRequest(
   const request = accessRequest(requestId);
   if (request.status !== "pending") stateError("conflict", 409);
   if (request.requestedBy === actor) stateError("forbidden", 403);
+  if (request.requestedDurationMinutes === null) stateError("conflict", 409);
   const decision = accessDecisionRequestSchema({
     requestedScope: request.requestedScope,
     requestedDurationMinutes: request.requestedDurationMinutes,

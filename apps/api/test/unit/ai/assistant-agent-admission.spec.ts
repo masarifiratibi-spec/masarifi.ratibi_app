@@ -298,29 +298,51 @@ it('preserves an explicitly restricted data scope for the agent', async () => {
   expect(writes[0]?.contextScope).toEqual(['budgets']);
 });
 
-
 it.each([
   { content: 'كم صرفت؟', development: false },
   { content: 'كم صرفت هالشهر؟', development: false },
   { content: 'كم صرفت اليوم؟', development: false },
   { content: 'How much have I spent this month?', development: false },
   { content: 'كم صرفت؟', development: true },
-])('answers the unambiguous spending total from authoritative tools without model admission: $content (DEV=$development)', async ({ content, development }) => {
-  const { instance, writes, notices, checks, resolve } = service(true, true);
-  const actor = development ? owner : { ...owner, userId: 'ordinary-owner' };
-  const truth = {
-    answer: 'Authoritative spending total with the requested period.',
-    context: { assistantMetadata: { responseType: 'fact' } },
-    evidence: [{ kind: 'ledger', version: 27 }],
-  };
-  resolve.mockResolvedValue(truth);
-  const result = await send(instance, actor, conversation, { content, responseMode: 'async' }, 'direct-spending-test-key-001', development);
-  expect(result.status).toBe('completed');
-  expect(writes).toEqual([]);
-  expect(checks).toEqual([]);
-  expect(resolve).toHaveBeenCalledWith(actor, 'spending_summary', content, 'direct-spending-test-key-001', ['recent_transactions']);
-  expect(notices).toEqual([expect.objectContaining({ content, answer: truth.answer, context: truth.context, evidence: [expect.objectContaining({ kind: 'ledger', version: 27 })] })]);
-});
+])(
+  'answers the unambiguous spending total from authoritative tools without model admission: $content (DEV=$development)',
+  async ({ content, development }) => {
+    const { instance, writes, notices, checks, resolve } = service(true, true);
+    const actor = development ? owner : { ...owner, userId: 'ordinary-owner' };
+    const truth = {
+      answer: 'Authoritative spending total with the requested period.',
+      context: { assistantMetadata: { responseType: 'fact' } },
+      evidence: [{ kind: 'ledger', version: 27 }],
+    };
+    resolve.mockResolvedValue(truth);
+    const result = await send(
+      instance,
+      actor,
+      conversation,
+      { content, responseMode: 'async' },
+      'direct-spending-test-key-001',
+      development,
+    );
+    expect(result.status).toBe('completed');
+    expect(writes).toEqual([]);
+    expect(checks).toEqual([]);
+    expect(resolve).toHaveBeenCalledWith(
+      actor,
+      'spending_summary',
+      content,
+      'direct-spending-test-key-001',
+      ['recent_transactions'],
+    );
+    expect(notices).toEqual([
+      expect.objectContaining({
+        content,
+        answer: truth.answer,
+        context: truth.context,
+        evidence: [expect.objectContaining({ kind: 'ledger', version: 27 })],
+      }),
+    ]);
+  },
+);
 
 it.each([
   'كم صرفت في مطعم النخيل؟',
@@ -331,20 +353,41 @@ it.each([
   'How much have I spent this month and why?',
   'What about yesterday?',
   'طيب وأمس؟',
-])('keeps filtered, compound and contextual financial reads on semantic interpretation: %s', async (content) => {
-  const { instance, writes, notices, resolve } = service(false, true);
-  await instance.createMessage(owner, conversation, { content, responseMode: 'async' }, 'semantic-spending-test-key-001');
-  expect(writes).toHaveLength(1);
-  expect(notices).toEqual([]);
-  expect(resolve).not.toHaveBeenCalled();
-});
+])(
+  'keeps filtered, compound and contextual financial reads on semantic interpretation: %s',
+  async (content) => {
+    const { instance, writes, notices, resolve } = service(false, true);
+    await instance.createMessage(
+      owner,
+      conversation,
+      { content, responseMode: 'async' },
+      'semantic-spending-test-key-001',
+    );
+    expect(writes).toHaveLength(1);
+    expect(notices).toEqual([]);
+    expect(resolve).not.toHaveBeenCalled();
+  },
+);
 
 it('retains the caller narrowed context and propagates an authoritative owner denial on a direct total', async () => {
   const { instance, writes, notices, resolve } = service(false, true);
   const refusal = new Error('owner_forbidden');
   resolve.mockRejectedValueOnce(refusal);
-  await expect(instance.createMessage(owner, conversation, { content: 'كم صرفت؟', contextScope: [], responseMode: 'async' }, 'direct-scope-test-key-001')).rejects.toBe(refusal);
-  expect(resolve).toHaveBeenCalledWith(owner, 'spending_summary', 'كم صرفت؟', 'direct-scope-test-key-001', []);
+  await expect(
+    instance.createMessage(
+      owner,
+      conversation,
+      { content: 'كم صرفت؟', contextScope: [], responseMode: 'async' },
+      'direct-scope-test-key-001',
+    ),
+  ).rejects.toBe(refusal);
+  expect(resolve).toHaveBeenCalledWith(
+    owner,
+    'spending_summary',
+    'كم صرفت؟',
+    'direct-scope-test-key-001',
+    [],
+  );
   expect(writes).toEqual([]);
   expect(notices).toEqual([]);
 });

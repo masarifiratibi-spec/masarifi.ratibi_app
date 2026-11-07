@@ -1029,7 +1029,7 @@ function TrackingSourceToggleRow({
           importantForAccessibility="no-hide-descendants"
           accessibilityElementsHidden
         >
-          <Toggle accessibilityLabel="" disabled={disabled} value={value} />
+          <Toggle accessibilityLabel={label} disabled={disabled} value={value} />
         </View>
       </View>
     </Pressable>

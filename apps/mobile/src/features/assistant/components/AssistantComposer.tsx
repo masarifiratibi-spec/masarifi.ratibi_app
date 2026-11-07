@@ -132,7 +132,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    shadowColor: '#000',
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,

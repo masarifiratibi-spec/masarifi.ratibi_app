@@ -515,7 +515,9 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
         pool.withClient((client) => {
           const transport = Object.create(client) as typeof client;
           transport.query = (async (sql: string, values?: unknown[]) => {
-            if (sql.includes('execute_operating_voice_event') && !frozen) {
+            // Freeze after the finalization claim, before generation binding
+            // holds the owner's shared profile lock through execution commit.
+            if (sql.includes('bind_financial_worker_generation') && !frozen) {
               frozen = true;
               await query("update public.profiles set status='deletion_pending' where id=$1", [
                 user,

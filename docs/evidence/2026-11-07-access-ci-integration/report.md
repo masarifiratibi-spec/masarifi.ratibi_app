@@ -1,0 +1,49 @@
+# Temporary support access and CI repair
+
+Date: 7 November 2026. Evidence is separated by execution boundary. Hosted activation is not approved for this candidate. The user's earlier dashboard/logo approval does not authorize this API/schema candidate.
+
+## Implemented behavior
+
+The Admin access module now uses the existing canonical `/api/v1/admin/support-access/requests` API in live mode. Fixture routes remain confined to mock mode. Real UUIDs, canonical ticket references, cursor pagination, request versions and exact resource/action pairs are preserved. Unknown totals, historical review metadata and unsupported projections remain unknown; no customer identity, audit receipt, timeline, date or successful provider result is synthesized.
+
+Creation maps the existing form to purpose, read-only resource scopes and duration. Review carries the operator's displayed version; it never silently substitutes a refreshed version after a conflict. Automatic idempotency survives an uncertain response. Approvals display the exact actions, require independent review and wait for customer consent when required. Denial remains available to an independent authorized reviewer.
+
+The API adds actual request review metadata without replacing old response fields or immutable stored idempotency receipts. The workspace endpoint adds only the context needed to use/end its exact authorized grant. The client does not require the broader request-read permission. The server rechecks the existing authorized workspace RPC and selected grant under request/grant locks; active-owner, consent, assignee, window and revocation guards remain enforced. Strict browser parsing rejects unexpected/raw fields and projections outside the approved actions. Expiry and authorization/contract loss clear protected query data and local inputs.
+
+Review uncovered two existing authorization defects now repaired: `/me/support-access/requests` explicitly filters the authenticated owner, including dual-role customers; `/end` checks the locked request's assignee while administrative revoke retains its separate permission. A narrow new migration permits a genuine denial before customer consent. It does not manufacture consent or permit an approved consent-required request without it. No historical migration, role assignment or permission grant was changed.
+
+## Capability matrix
+
+| Page/action | Authority | Client / API | Source/result | Evidence / limit |
+| --- | --- | --- | --- | --- |
+| List/detail | `support.access.read` | live access adapter → canonical GET | RLS request rows, actual latest visible grant, cursor | Client contract tests; local SQL; hosted GET/list of the created test request |
+| Create | `support.access.request` | canonical POST | Persisted pending request, immutable operation receipt, notification enqueue | Real candidate adapter in the authenticated browser created one self-owned status-only request; provider delivery is not claimed |
+| Customer consent | Current customer + recent authentication | `/me/.../decision` | Owner/version fence, actual consent | Local SQL success; hosted existing session returned `403 RECENT_AUTH_REQUIRED` |
+| Approve/deny | `support.access.approve`, recent authentication, separate reviewer | canonical decision POST | Version, exact narrowed scope, consent and timed grant | Local real SQL; adapter replay/version tests. A successful hosted multi-actor grant is still pending |
+| Workspace | `support.access.use`, assigned active grant | workspace GET only | Existing protected projection RPC + minimal same-grant context | Use-only local SQL; strict client projection tests; hosted pending request correctly returned 403 |
+| End | `support.access.use`, actual assignee | `/end` + displayed version | Grant revocation and actual request receipt | Wrong-assignee SQL leaves state, grant and receipt count unchanged; assigned end succeeds locally |
+| Administrative revoke | `support.access.revoke`, recent authentication | `/revoke` + displayed version | Existing independent revoke semantics | Local real SQL and adapter tests; no hosted grant was created/revoked |
+
+## Hosted evidence
+
+Target: `https://staging.masarifiratibi.com/admin`; API: `https://api.staging.masarifiratibi.com`. Existing authentication was preserved. The candidate adapter was bundled from the working source and executed in browser memory against the actual API, with mocks disabled. This did not replace the hosted dashboard or API.
+
+One request targeted the current operator's own customer profile, using only `account-status/read-status`, five minutes, and required customer consent. Its creation succeeded; independent detail/list reads confirmed persisted pending state and version 1. The synthetic ticket reference was a qualification marker, not a claim of an existing support case. The record was retained; no manual deletion or uncertain write retry was performed. No financial data was read and no grant was created. A pending notification is not evidence of provider delivery.
+
+The existing API omits the new review metadata. The client preserved these fields as null. The pending workspace was denied with 403. The client rejected requester self-review. Direct customer-consent and reviewer probes both returned `403 RECENT_AUTH_REQUIRED`; that guard was retained. Hosted success through a separate reviewer and fresh private authentication remains an acceptance gate after an approved compatible rollout.
+
+Public staging API `/health/live` returned 200 with version `a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7`, started `2026-11-01T22:02:15.674Z`. `/health/ready` is not a valid route on that service (404). The concurrent primary API release 134 receipt is a different service baseline and must not be substituted. Private browser screenshots and raw test/CI receipts remain in ignored evidence directories.
+
+## CI repair rationale
+
+- Migration provenance: register three previously published missing migration hashes; preserve all 183 earlier hashes and historical SQL. Refresh exact reviewed database inventory. The new consent-denial migration is a separate fourth addition, with no new tables/functions.
+- Voice fixtures: return the real financial-generation binding in test doubles; preserve rejection of missing/malformed generation. Inject the profile-freeze race before generation binding acquires the profile lock, avoiding a test-created deadlock without weakening production fences.
+- Private reader: pin reviewed application schema 17 and prove versions 1–16 unchanged. Reader support remains 16; actual schema 17, future 18 and unknown sources remain indeterminate/rejected. The corpus remains 69 cases, including 27 indeterminate cases.
+- Secret history scan: classify only independently verified exact immutable historical public values/checksums. Retain raw redacted Gitleaks findings and a separate classification sidecar. Unknown/changed/copied findings fail closed. No broad rule/path exclusion or history rewrite was added.
+- Mobile/API quality: preserve exact shadow colors through a semantic token; reuse translated accessibility copy; narrow the optional-native-facade boundary exception to its exact re-export; retain executable negative controls. Other API changes in this group are formatting or an explicit missing-fixture guard.
+
+## Verification boundaries
+
+Focused local receipts include 249 Voice SQL cases, 47 Security unit cases, 26 real Security SQL cases, schema/provenance/portable-reader checks, and the mobile quality chain. The consent-denial CHECK was tested incrementally against the owned disposable database; clean replay of all 187 migrations must be confirmed by CI. Docker and all owned database services were stopped with volumes preserved.
+
+Final complete Admin checks, browser screenshots, exact-source Linux artifacts and CI run results are recorded in the release packet once available. A passing fixture or local SQL result does not establish deployed multi-actor authentication, worker/provider delivery, physical mobile acceptance or overall production readiness.

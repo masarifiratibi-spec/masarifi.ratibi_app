@@ -164,8 +164,12 @@ describe("Admin live identity boundary", () => {
     await expect(accessRepository.listRequests(
       { scenario: "forbidden" },
       "super-admin",
-    )).rejects.toMatchObject({ code: "provider_unavailable" });
-    expect(request).not.toHaveBeenCalled();
+    )).rejects.toMatchObject({ code: "contract_mismatch" });
+    expect(request).toHaveBeenCalledTimes(1);
+    const accessUrl = new URL(String(request.mock.calls[0][0]), "https://admin.example.test");
+    expect(accessUrl.pathname).toBe("/api/v1/admin/support-access/requests");
+    expect([...accessUrl.searchParams.keys()]).toEqual(["limit"]);
+    request.mockClear();
     request.mockResolvedValue(response(200, { items: [], nextCursor: null }));
     await expect(
       securityRepository.listAuditEvents({ page: 1, pageSize: 25 }),
