@@ -86,7 +86,7 @@
     "supabase:start": "supabase start --workdir ../..",
     "supabase:stop": "supabase stop --workdir ../..",
     "db:reset": "supabase db reset --workdir ../..",
-    "db:lint": "supabase db lint --workdir ../.. --schema public,private,audit --level error --fail-on error",
+    "db:lint": "node --test ../../scripts/integration/lint-disposable-database.test.cjs && node ../../scripts/integration/lint-disposable-database.cjs",
     "test:db": "supabase test db --workdir ../..",
     "migration:checksums": "ts-node src/platform/database/migration-checksums.ts",
     "migration:checksums:update": "ts-node src/platform/database/migration-checksums.ts --write",
