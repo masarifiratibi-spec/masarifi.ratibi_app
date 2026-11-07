@@ -203,7 +203,7 @@ describe('isolated consolidation candidate verification policy', () => {
     }
   });
 
-  it('blocks the candidate image on compiled arm64 Android identity evidence', () => {
+  it('blocks the candidate image on compiled Android identity and all four native ABIs', () => {
     const workflow = policy();
     expect(requireJob(workflow.jobs, 'image').needs).toContain('android-build');
     const android = requireJob(workflow.jobs, 'android-build');
@@ -214,9 +214,20 @@ describe('isolated consolidation candidate verification policy', () => {
     expect(commands).toContain(':app:minifyReleaseWithR8');
     expect(commands).toContain(':app:mergeReleaseNativeLibs');
     expect(commands).toContain('convert --output-format binary');
-    expect(commands).toContain('-PreactNativeArchitectures=arm64-v8a');
-    expect(commands).toContain("package: name='com.masarifi.mobile'");
-    expect(commands).toContain("application-label:'Masarifi Ratibi'");
+    expect(commands).toContain('-PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64');
+    const dump = commands.indexOf(
+      '"$aapt2" dump badging android-diagnostic-resources.ap_ > android-diagnostic-badging.txt',
+    );
+    const verifierTest = commands.indexOf(
+      'node --test ../../scripts/integration/verify-android-badging.test.cjs',
+    );
+    const verifier = commands.indexOf(
+      'node ../../scripts/integration/verify-android-badging.cjs android-diagnostic-badging.txt',
+    );
+    expect(dump).toBeGreaterThan(-1);
+    expect(verifierTest).toBeGreaterThan(dump);
+    expect(verifier).toBeGreaterThan(verifierTest);
+    expect(commands).toContain('for abi in arm64-v8a armeabi-v7a x86 x86_64');
     expect(commands).toContain('sha256sum android-diagnostic-resources.ap_');
     expect(commands).toContain('test -s "$native/$abi/libappmodules.so"');
     expect(commands).toContain('"$GITHUB_SHA"');
