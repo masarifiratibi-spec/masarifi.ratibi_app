@@ -1,9 +1,9 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`ea087521e72174c6fb6f630e96a4dffdcf6d10f7` on
+`7e6f3995c687937813c6f9341d782e2d8c2d1777` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`196c6d0324d339242d2faf60354961e7298d5edc`. It includes the initial CI update
+`4b55a6a433b2d74b3d7342d317ccf56d87a04f2b`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
 `0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
@@ -24,8 +24,24 @@ The same published checkpoint includes reviewed release-helper scripts, their
 fixture tests and documentation. Those files were synchronized; the migration
 qualifier, SQL packet and Nginx tools were not executed here. No product migration
 SQL, runtime, dependency or mobile configuration changed in this follow-up.
-The new remote Foundation qualification remains the source owner's responsibility;
+Full remote Foundation qualification remains the source owner's responsibility;
 local unit results below do not establish its success.
+
+## Published pgTAP inventory follow-up
+
+Checkpoint `7e6f3995` changes only
+`supabase/tests/054_phase13_operations_schema.sql`: two obsolete 53-job
+expectations now require 54 jobs, and an additional assertion verifies the exact
+Spec 004 financial-reset job, type, schedule, timeout, retry and cancellation
+policy. Those values match the already-published migration registration. The
+migration and all application/runtime/CI scripts remain unchanged from `ea087521`.
+
+Read-only GitHub verification of [Foundation run 42391737577](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42391737577)
+at this exact checkpoint confirmed successful `db:lint` and `test:db` steps.
+The database job later failed at the fresh-database cross-feature security gate;
+dependent downstream checks were skipped. The source owner is correcting two
+test expectations separately. Those unpublished changes were not copied here,
+and this report does not claim that the full Foundation workflow passed.
 
 ## Reviewed iOS identity compatibility
 
@@ -56,6 +72,7 @@ branch was changed by this task.
 | Changed routing/context helpers against offline fixtures | 19 passed; natural exit 0 |
 | Changed Python helper syntax and published JSON | Passed without executing release helpers |
 | Actual iOS identity command | Passed |
+| Published pgTAP fixture and database lint in canonical GitHub CI | Both steps passed on `7e6f3995`; later security gate failed |
 | Actual Android source snapshot through the same guard | Passed with the legacy profile and no runtime marker |
 | Actual iOS profile/native-plugin configuration tests | 6 passed, zero skipped |
 | Updated security route and generated OpenAPI contracts | 3 passed / 2 suites; natural exit 0 |
@@ -96,8 +113,10 @@ test and these eight history-catalog entries. All shared CI executable code and
 tests are identical. The final 70-case run supersedes the earlier 68- and 39-case runs;
 their counts are not added together.
 
-The six iOS profile checks and three API contract cases were run before this
-follow-up; their tested mobile/API runtime and configuration inputs are unchanged.
+The 70 Node cases and 19 offline helper checks were run before the pgTAP-only
+follow-up; their inputs are unchanged. The six iOS profile checks and three API
+contract cases also retain their unchanged tested mobile/API inputs. These local
+results were not rerun or relabelled as execution of the SQL fixture.
 
 API contract tests used live-database tests disabled and inert loopback service
 URLs. The changed planning-worker live-database test is synchronized but was not
