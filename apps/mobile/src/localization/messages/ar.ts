@@ -578,6 +578,8 @@ const ar: MessageCatalog = {
   'appShell.onboarding.complete.openHome': 'فتح الرئيسية',
   'appShell.permission.enable': 'تفعيل التتبع',
   'appShell.permission.retry': 'إعادة طلب الإذن',
+  'appShell.permission.settingsHelp': 'إذن الرسائل غير مفعّل. من إعدادات جهازك، افتح التطبيقات ← مصاريفي ← الأذونات ← الرسائل النصية، واختر السماح، ثم ارجع للتطبيق. تقدر تطلب الإذن مرة ثانية من هنا.',
+  'appShell.permission.requestAgain': 'طلب الإذن مرة ثانية',
   'appShell.permission.openSettings': 'فتح الإعدادات',
   'appShell.permission.manualFallback': 'المتابعة بالإدخال اليدوي',
   'appShell.permission.status.notRequested': 'لم يطلب الإذن بعد',

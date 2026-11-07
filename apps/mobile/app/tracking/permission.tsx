@@ -16,6 +16,7 @@ import { AppState } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
+import { ActionButton } from '@/design-system/components/ActionButton';
 import type { PermissionState } from '@/domain/app-shell';
 import type {
   TrackingMode,
@@ -37,6 +38,7 @@ export default function TrackingPermissionRoute() {
   const service = useMemo(createTrackingPermissionService, []);
   const [permission, setPermission] = useState<PermissionState | null>(null);
   const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
   const requiresSettings = permission?.recoveryAction === 'open_settings';
 
   const owner = useAppShellStore((state) => state.session?.userId ?? null);
@@ -122,12 +124,25 @@ export default function TrackingPermissionRoute() {
     };
   }, [service, owner, activate]);
 
-  async function enable() {
+  async function performAction(action: (check: () => void) => Promise<void>) {
     if (inFlight.current || waitingForSettings.current) return;
     inFlight.current = true;
+    setBusy(true);
     setFailed(false);
     try {
       const check = captureIntent();
+      await action(check);
+    } catch {
+      waitingForSettings.current = null;
+      if (mounted.current) setFailed(true);
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  const enable = () =>
+    performAction(async (check) => {
       const result = await service.getState();
       check();
       if (result.recoveryAction === 'open_settings') {
@@ -142,34 +157,48 @@ export default function TrackingPermissionRoute() {
       check();
       setPermission(permission);
       if (permission.status === 'granted') await activate(check);
-    } catch {
-      waitingForSettings.current = null;
-      if (mounted.current) setFailed(true);
-    } finally {
-      inFlight.current = false;
-    }
-  }
+    });
+
+  const retryPermission = () =>
+    performAction(async (check) => {
+      const permission = await service.requestAfterEducation();
+      check();
+      setPermission(permission);
+      if (permission.status === 'granted') await activate(check);
+    });
 
   return (
-    <>
-      <PermissionEducation
-        onEnable={enable}
-        onSkip={() => {
-          mounted.current = false;
-          waitingForSettings.current = null;
-          router.dismissTo('/tracking');
-        }}
-        primaryLabel={
-          requiresSettings
-            ? translate('appShell.permission.openSettings')
-            : permission?.status === 'granted'
-              ? translate('appShell.onboarding.continue')
-              : permission?.status === 'denied'
-                ? translate('appShell.permission.retry')
-                : undefined
-        }
-      />
-      {permission ? (
+    <PermissionEducation
+      onEnable={() => void enable()}
+      primaryLoading={busy}
+      onSkip={() => {
+        mounted.current = false;
+        waitingForSettings.current = null;
+        router.dismissTo('/tracking');
+      }}
+      primaryLabel={
+        requiresSettings
+          ? translate('appShell.permission.openSettings')
+          : permission?.status === 'granted'
+            ? translate('appShell.onboarding.continue')
+            : permission?.status === 'denied'
+              ? translate('appShell.permission.retry')
+              : undefined
+      }
+    >
+      {requiresSettings ? (
+        <>
+          <StyledText accessibilityRole="alert">
+            appShell.permission.settingsHelp
+          </StyledText>
+          <ActionButton
+            label="appShell.permission.requestAgain"
+            variant="secondary"
+            loading={busy}
+            onPress={() => void retryPermission()}
+          />
+        </>
+      ) : permission ? (
         <StyledText accessibilityRole="alert">
           {translate(
             `appShell.permission.status.${statusKey(permission.status)}` as never
@@ -181,7 +210,7 @@ export default function TrackingPermissionRoute() {
           {translate('appShell.error.unknown')}
         </StyledText>
       ) : null}
-    </>
+    </PermissionEducation>
   );
 }
 

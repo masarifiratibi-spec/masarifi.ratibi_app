@@ -619,6 +619,8 @@ const en = {
   'appShell.onboarding.complete.openHome': 'Open Home',
   'appShell.permission.enable': 'Enable tracking',
   'appShell.permission.retry': 'Try permission again',
+  'appShell.permission.settingsHelp': 'SMS access is off. In your device settings, open Apps → Masarifi → Permissions → SMS, choose Allow, then return to the app. You can also request permission again here.',
+  'appShell.permission.requestAgain': 'Request permission again',
   'appShell.permission.openSettings': 'Open settings',
   'appShell.permission.manualFallback': 'Continue with manual entry',
   'appShell.permission.status.notRequested': 'Permission not requested',
