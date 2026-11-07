@@ -164,7 +164,7 @@ describeLiveDatabase('authenticated default Cash onboarding', () => {
     expect(await identity.getPreferences(owner)).toMatchObject({ currencySelectionRequired: true });
   });
 
-  it('keeps hidden admin profiles readable without automatically creating Cash', async () => {
+  it('creates personal Cash for a dashboard user while keeping admin profile data hidden', async () => {
     const owner = await customer();
     await pool.query('insert into public.admin_profiles(user_id) values($1)', [owner.userId]);
     const visible = await identity.withCustomerTransaction(owner, (client) =>
@@ -173,7 +173,12 @@ describeLiveDatabase('authenticated default Cash onboarding', () => {
     expect(visible.rows).toEqual([]);
     await selectCurrency(owner);
     expect(await identity.getProfile(owner)).toMatchObject({ status: 'active' });
-    expect(await accounts(owner.userId)).toEqual([]);
+    const own = await accounts(owner.userId);
+    expect(own).toMatchObject([{ user_id: owner.userId, is_default: true }]);
+    const other = await customer();
+    await selectCurrency(other);
+    const [foreignAccount] = await accounts(other.userId);
+    if (!foreignAccount) throw new Error('Foreign cash fixture missing');
     await expect(
       identity.withCustomerTransaction(owner, (client) =>
         client.query('select private.post_transaction($1,$2::jsonb)', [
@@ -182,17 +187,18 @@ describeLiveDatabase('authenticated default Cash onboarding', () => {
             kind: 'expense',
             amountMinor: 100,
             currency: 'SAR',
-            accountId: randomUUID(),
-            title: 'Admin denied',
+            accountId: foreignAccount.id,
+            categoryId: '04000000-0000-4000-8000-000000000016',
+            title: 'Foreign account denied',
             occurredAt: new Date().toISOString(),
             source: 'manual',
           }),
         ]),
       ),
-    ).rejects.toThrow('FINANCIAL_ACCESS_DENIED');
+    ).rejects.toThrow('ACCOUNT_INVALID');
   });
 
-  it('does not change the default of a sole account belonging to a hidden admin', async () => {
+  it('selects the existing sole account as default for a dashboard user', async () => {
     const owner = await customer();
     await pool.query('insert into public.admin_profiles(user_id) values($1)', [owner.userId]);
     await pool.query(
@@ -200,8 +206,10 @@ describeLiveDatabase('authenticated default Cash onboarding', () => {
       [owner.userId],
     );
     const before = await accounts(owner.userId);
+    const accountId = before[0]?.id;
+    expect(accountId).toBeDefined();
     await identity.getProfile(owner);
-    expect(await accounts(owner.userId)).toEqual(before);
+    expect(await accounts(owner.userId)).toMatchObject([{ id: accountId, is_default: true }]);
   });
 
   it('retries across concurrent sessions without additional accounts or financial effects', async () => {

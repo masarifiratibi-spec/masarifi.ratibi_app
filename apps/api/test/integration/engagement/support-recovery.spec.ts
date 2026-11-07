@@ -287,7 +287,7 @@ describeLiveDatabase('support recovery', () => {
     expect(signDownload).not.toHaveBeenCalled();
   });
 
-  it('replays engagement receipts without granting financial or internal function access to Admins', async () => {
+  it('replays engagement receipts and separates personal financial claims from internal privileges', async () => {
     const body = {
       categoryId: category,
       subject: 'Replay one ticket',
@@ -320,12 +320,11 @@ describeLiveDatabase('support recovery', () => {
             )
           ).rows[0]?.allowed,
         ).toBe(false);
-        await expect(
-          client.query(
-            "select * from private.claim_idempotency_key($1,'ledger.test',$2,$3,interval '2 minutes')",
-            [actor, 'sha256:' + 'a'.repeat(64), 'sha256:' + 'b'.repeat(64)],
-          ),
-        ).rejects.toThrow('FINANCIAL_ACCESS_DENIED');
+        const claim = await client.query<{ outcome: string }>(
+          "select * from private.claim_idempotency_key($1,'ledger.test',$2,$3,interval '2 minutes')",
+          [actor, 'sha256:' + 'a'.repeat(64), 'sha256:' + 'b'.repeat(64)],
+        );
+        expect(claim.rows[0]?.outcome).toBe('new');
       } finally {
         await client.query('rollback');
       }
