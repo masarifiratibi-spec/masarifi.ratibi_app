@@ -1,9 +1,9 @@
 # iOS CI/test synchronization — 2026-11-07
 
 The final published shared checkpoint is
-`6b39fd369a8cfdf182494c53cd5a865e6c225e14` on
+`4698fc18316968fd3d090907e1f3309c782384eb` on
 `ratibi/codex/voice-promoted-operating-2026-10-13`, merged into `iOS` as
-`b65b8cd747c8f4204390b4bb28d78fe228109810`. It includes the initial CI update
+`c9917a720fbe9d2f21f8b5375bc8865242d45087`. It includes the initial CI update
 `0ffccbd6`, shared identity/badging fix `26d49117`, disposable-database checker
 `0247ed5e`, the earlier shared checkpoint `1440f326`, and their handoff documents. Application runtime, dependencies and
 iOS build configuration were unchanged. The API package's database-lint command
@@ -62,10 +62,27 @@ namespace. It has no iOS/EAS build or hosted activation step, and pushing `iOS`
 does not match its source-branch trigger. Release-tool files were synchronized
 without invoking their deployment, database, Docker or privileged entry points.
 
-Read-only GitHub verification confirmed that [Linux packet run 42393134548](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42393134548)
-completed successfully at `5418a3e4`. The replacement [Foundation run 42394141341](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42394141341)
-at `6b39fd36` was still in progress at verification. The ownership live-database test and
+Read-only GitHub verification confirmed that [Linux packet run 42396956430](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42396956430)
+completed successfully at `4698fc18`, including the private-namespace Nginx trial
+and the new disposable Docker restart-policy check. The replacement [Foundation run 42396963159](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42396963159)
+at `4698fc18` was still in progress at verification. The ownership live-database test and
 privileged Linux trial were not executed on this Windows workspace.
+
+## Benchmark and rollback follow-up
+
+Published commits `0b7679f9` and `4698fc18` synchronize the synthetic ledger
+benchmark seed and packet rollback controls. The fixture enables the existing
+profile initialization triggers for its synthetic owners, then restores its
+replica-mode bulk loading inside the same transaction. No application code,
+production migration or policy changes accompany it. The SQL seed and k6 write
+gate were not executed in this Windows workspace; canonical benchmark execution
+remains with the source owner's Foundation run.
+
+The packet now keeps unaccepted trial containers from restarting automatically,
+verifies exact accepted container identities before enabling restart, and adds
+abort/post-accept rollback proofs. Its 58 offline tests passed locally. The new
+real Docker restart-policy qualification passed only on the disposable GitHub
+runner; no Docker or hosted release entry point was invoked here.
 
 ## Exact packet-finding provenance
 
@@ -117,9 +134,9 @@ branch was changed by this task.
 | --- | --- |
 | Identity regression before the fix | 2 expected failures / 21 passing controls |
 | Final shared identity, compiled-badging, secret-scan and database-checker Node suites | 71 passed, zero failed/skipped; natural exit 0 |
-| Complete published packet against offline fixtures | 51 passed; natural exit 0 |
+| Complete published packet against offline fixtures | 58 passed; natural exit 0 |
 | Updated workflow-pin security fixture | 8 passed / 1 suite; zero skipped; natural exit 0 |
-| Disposable Linux packet workflow on GitHub | Passed at `5418a3e4` |
+| Disposable Linux packet workflow on GitHub | Passed at `4698fc18`, including Docker restart-policy qualification |
 | Changed Python helper syntax and published JSON | Passed without executing release helpers |
 | Actual iOS identity command | Passed |
 | Published pgTAP fixture and database lint in canonical GitHub CI | Both steps passed on `7e6f3995`; later security gate failed |
@@ -164,9 +181,11 @@ test and ten iOS history-catalog entries. All shared CI executable code and
 tests are identical. The final 71-case run supersedes the earlier 70-, 68- and 39-case runs;
 their counts are not added together.
 
-The final 51-case packet and eight-case workflow runs were repeated after the
-latest source merge. The 51-case run supersedes the earlier 19-case helper run;
-those counts are not added together. The six iOS profile checks and three API contract
+The final 58-case packet run was repeated after the latest source merge and
+supersedes the earlier 51- and 19-case runs. The previously verified 71-case Node
+and eight-case workflow suite inputs are unchanged by this follow-up and were
+not rerun unnecessarily. These counts are not added across successive runs.
+The six iOS profile checks and three API contract
 cases also retain their unchanged tested mobile/API inputs. These local results
 were not rerun or relabelled as execution of the SQL or live-ownership fixtures.
 
