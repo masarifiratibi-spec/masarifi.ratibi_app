@@ -979,7 +979,7 @@ it('identifies a missing transfer destination before freezing or sending an oper
 it('keeps local validation feedback next to Save and focuses the invalid amount', async () => {
   jest
     .mocked(coreFinanceService.loadDraft)
-    .mockResolvedValue(requiredDraft('25,50', 'food'));
+    .mockResolvedValue(requiredDraft('25,5,0', 'food'));
   renderWithQueryData(<TransactionForm />, [
     [coreFinanceKeys.accounts(false), fixtureAccounts],
     [coreFinanceKeys.categories(false), fixtureCategories]
@@ -994,7 +994,7 @@ it('keeps local validation feedback next to Save and focuses the invalid amount'
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
-it.each(['50', '٢٥٫٥٠', '۲۵.۵۰'])(
+it.each(['50', '٢٥٫٥٠', '۲۵.۵۰', '150,30', '١٥٠,٣٠'])(
   'saves required-only input %s with a category title',
   async (amountText) => {
     jest
@@ -1017,12 +1017,12 @@ it.each(['50', '٢٥٫٥٠', '۲۵.۵۰'])(
     ).toMatchObject({
       title: 'Food',
       notes: null,
-      amountMinor: amountText === '50' ? 5000 : 2550
+      amountMinor: amountText.includes(',') ? 15030 : amountText === '50' ? 5000 : 2550
     });
   }
 );
 
-it.each(['25,50', '1,2,3'])(
+it.each(['25,5000', '1,2,3'])(
   'rejects ambiguous or malformed grouping %s without a write',
   async (amountText) => {
     jest

@@ -1,24 +1,11 @@
-import { getCurrencyMinorUnitScale } from '@/domain/currencies';
-import { normalizeLocalizedNumber } from '@/domain/localized-number';
+import { parseUserAmountToMinor } from '@/domain/user-amount';
 
-// Manual entry accepts localized digits, but never guesses decimal/grouping intent.
 export function parseManualAmount(
   text: string,
   currencyCode: string
 ): number | null {
-  const normalized = normalizeLocalizedNumber(text);
-  if (
-    !/^(?:[0-9]+|[1-9][0-9]{0,2}(?:,[0-9]{3})+)(?:\.[0-9]+)?$/u.test(normalized)
-  )
-    return null;
-  const [whole, fraction = ''] = normalized.replace(/,/gu, '').split('.');
-  const scale = getCurrencyMinorUnitScale(currencyCode);
-  if (fraction.length > scale) return null;
-  const digits =
-    `${whole}${fraction.padEnd(scale, '0')}`.replace(/^0+/u, '') || '0';
-  if (digits.length > 16) return null;
-  const minor = Number(digits);
-  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
+  const minor = parseUserAmountToMinor(text, currencyCode);
+  return minor !== null && minor > 0 ? minor : null;
 }
 
 // eslint-disable-next-line no-control-regex -- reject controls and directional overrides in financial input

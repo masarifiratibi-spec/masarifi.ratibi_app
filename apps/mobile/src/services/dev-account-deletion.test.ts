@@ -333,6 +333,26 @@ test('never signs out a newly active owner while the old owner signout is awaiti
   expect(deletionNative.files.has(otherFile)).toBe(true);
 });
 
+test('can manually continue the same confirmed operation after a lost POST and missing receipt', async () => {
+  const file = seedDeletedOwner(OWNER);
+  http.mockRejectedValueOnce(new TypeError('connection lost'));
+  await submitDevAccountDeletion(OWNER);
+  const journal = await loadDeletionCompletion(OWNER);
+  http.mockResolvedValueOnce(response({code:'NOT_FOUND'},404));
+  await reconcileDevAccountDeletions({force:true});
+  expect(snapshot()?.phase).toBe('verification_required');
+  await reconcileDevAccountDeletions({force:true});
+  expect(http).toHaveBeenCalledTimes(2);
+  expect(deletionNative.files.has(file)).toBe(true);
+  http.mockResolvedValueOnce(response(fullRequest,202));
+  await submitDevAccountDeletion(OWNER);
+  const [, retry] = http.mock.calls[2];
+  expect(retry.method).toBe('POST');
+  expect(retry.headers['Idempotency-Key']).toBe(journal?.operationId);
+  expect(JSON.parse(retry.body).completionToken).toBe(journal?.completionToken);
+  expect(snapshot()?.phase).toBe('completed');
+});
+
 test('resumes explicit recent-auth rejection with the same operation and token after fresh verification', async () => {
   http.mockResolvedValueOnce(response({ code: 'RECENT_AUTH_REQUIRED' }, 403));
   await submitDevAccountDeletion(OWNER);

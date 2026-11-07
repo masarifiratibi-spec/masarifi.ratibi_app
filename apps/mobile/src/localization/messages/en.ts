@@ -2572,6 +2572,7 @@ const en = {
   'settings.profile.title': 'Profile',
   'settings.profile.name': 'Name',
   'settings.profile.email': 'Email',
+  'settings.profile.saved': 'Profile saved.',
   'settings.profile.save': 'Save profile',
   'settings.profile.validation.email': 'Enter a valid email address.',
   'settings.profile.phone': 'Phone Number',
@@ -2724,6 +2725,8 @@ const en = {
   'support.form.failure.offline': 'Saved locally. Submit when you are online.',
   'support.form.failure.representative_failure':
     'Unable to save draft temporarily.',
+  'support.form.sessionFailure': 'Check your account session and try sending again.',
+  'support.form.rateLimited': 'Too many requests. Wait a moment and try again.',
   'support.form.submitFailure':
     'Unable to submit. Your text is kept for retry.',
   'support.report.assistant': 'Report assistant response to support',

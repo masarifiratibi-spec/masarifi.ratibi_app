@@ -821,7 +821,10 @@ test('contains an exhausted cleanup failure in a dismissible popup without inlin
     expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.automaticRetries).toBe(false);
     fireEvent.press(ownerUi.getByRole('button', { name: t('common.close') }));
     expect(ownerUi.queryByTestId('account-deletion-error-dialog')).toBeNull();
-    expect(await loadDeletionCompletion(owner)).toMatchObject({ phase: 'server_completed', attempts: 6 });
+    fireEvent.press(ownerUi.getByRole('button', { name: t('settings.deletion.retry') }));
+    await waitFor(async () =>
+      expect(await loadDeletionCompletion(owner)).toMatchObject({ phase: 'server_completed', attempts: 7 })
+    );
     expect(fetchBoundary).not.toHaveBeenCalled();
     expect(deletionNative.files.has(otherFile)).toBe(true);
   } finally {

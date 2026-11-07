@@ -372,7 +372,19 @@ async function recordFailure(
     publishRejected(journal.ownerId);
     return;
   }
-  if (transport?.failure.domainCode === 'RECENT_AUTH_REQUIRED') {
+  // A lost initial POST may never reach the server. Only an explicit owner
+  // continuation may replay the original key and token after a missing receipt.
+  const missingInitialReceipt =
+    transport?.method === 'GET' &&
+    transport.failure.status === 404 &&
+    transport.failure.domainCode === 'NOT_FOUND' &&
+    transport.retryAfterMs === 0 &&
+    journal.phase === 'submitted' &&
+    journal.requestId === null;
+  if (
+    missingInitialReceipt ||
+    transport?.failure.domainCode === 'RECENT_AUTH_REQUIRED'
+  ) {
     await saveDeletionCompletion({
       ...journal,
       phase: 'verification_required',

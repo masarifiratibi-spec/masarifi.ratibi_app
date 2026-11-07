@@ -1,4 +1,7 @@
-import { assertBenchmarkRead, isBenchmarkReadOnly } from '@/config/client-runtime';
+import {
+  assertBenchmarkRead,
+  isBenchmarkReadOnly
+} from '@/config/client-runtime';
 import {
   createNotificationPreferences,
   notificationCategorySchema,
@@ -76,6 +79,7 @@ export class EngagementApiError extends Error {
       | 'not_found'
       | 'conflict'
       | 'expired'
+      | 'rate_limited'
       | 'unavailable'
   ) {
     super(code);
@@ -146,7 +150,9 @@ export function createEngagementApi({
               ? 'conflict'
               : response.status === 410
                 ? 'expired'
-                : 'unavailable'
+                : response.status === 429
+                  ? 'rate_limited'
+                  : 'unavailable'
       );
     }
     return record(payload);
@@ -1114,7 +1120,9 @@ export function createLiveSupportService(
     async submitDraft(id, operationId) {
       const draft = await drafts.loadDraft(id);
       if (!draft) throw new EngagementApiError('not_found');
-      supportSubmissionContentSchema.parse(draft);
+      const content = supportSubmissionContentSchema.parse(draft);
+      const subject = content.subject.trim();
+      const message = content.description.trim().replace(/\r\n?/g, '\n');
       operationId = draft.submissionOperationId ?? operationId;
       let ticketId: string | null = null;
       let kind: SupportOperation['kind'] = 'submit_ticket';
@@ -1124,7 +1132,7 @@ export function createLiveSupportService(
       ) {
         kind = 'feedback';
         await api.createFeedback(
-          { type: 'other', subject: draft.subject, body: draft.description },
+          { type: 'other', subject, body: message },
           operationId
         );
       } else if (
@@ -1142,7 +1150,7 @@ export function createLiveSupportService(
                 ? 'other'
                 : 'assistant_response',
             resourceId: draft.context?.itemId,
-            reason: draft.description
+            reason: message
           },
           operationId
         );
@@ -1150,16 +1158,18 @@ export function createLiveSupportService(
         const categories = supportCategoryPageApiSchema.parse(
           await api.listSupportCategories()
         );
-        const category = categories.items.find(
-          (item) => item.key === draft.category
-        );
+        const category =
+          categories.items.find((item) => item.key === draft.category) ??
+          (draft.category === 'privacy'
+            ? categories.items.find((item) => item.key === 'other')
+            : undefined);
         if (!category) throw new EngagementApiError('unavailable');
         const created = ticketDetailApiSchema.parse(
           await api.createTicket(
             {
               categoryId: category.id,
-              subject: draft.subject,
-              message: draft.description
+              subject,
+              message
             },
             operationId
           )

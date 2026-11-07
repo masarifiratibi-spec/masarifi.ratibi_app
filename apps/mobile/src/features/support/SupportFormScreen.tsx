@@ -54,7 +54,7 @@ export function SupportFormScreen({
 
   const submitting = useRef(false);
   const operation = useRef<string | null>(null);
-  const [submitFailure, setSubmitFailure] = useState(false);
+  const [submitFailure, setSubmitFailure] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const categories = ['technical', 'privacy', 'account', 'feedback'] as const;
@@ -76,7 +76,7 @@ export function SupportFormScreen({
       return;
     }
     submitting.current = true;
-    setSubmitFailure(false);
+    setSubmitFailure(null);
     operation.current ??= draft.values.submissionOperationId ?? randomUUID();
     const values = {
       ...draft.values,
@@ -95,8 +95,20 @@ export function SupportFormScreen({
       });
       draft.markSubmitted();
       setSubmitted(true);
-    } catch {
-      setSubmitFailure(true);
+    } catch (error) {
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? error.code
+          : null;
+      setSubmitFailure(
+        code === 'offline'
+          ? 'support.form.failure.offline'
+          : code === 'forbidden' || code === 'session_expired'
+            ? 'support.form.sessionFailure'
+            : code === 'rate_limited'
+              ? 'support.form.rateLimited'
+              : 'support.form.submitFailure'
+      );
     } finally {
       submitting.current = false;
     }
@@ -508,7 +520,7 @@ export function SupportFormScreen({
               accessibilityRole="alert"
               style={{ color: theme.colors.status.danger }}
             >
-              support.form.submitFailure
+              {translateDynamic(submitFailure)}
             </StyledText>
           ) : null}
           <ActionButton

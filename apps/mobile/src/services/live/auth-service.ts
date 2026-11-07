@@ -827,7 +827,7 @@ export function createLiveIdentityService({
         method: 'PATCH',
         headers: { 'Idempotency-Key': operationId },
         body: {
-          displayName: input.name,
+          displayName: input.name?.trim() || null,
           timezone: resolveEffectiveTimeZone(input.timeZone),
           expectedVersion
         }
@@ -1251,7 +1251,9 @@ function mergeProfile(
   return {
     ...(local ?? emptyProfile()),
     name: remote.displayName,
-    phone: remote.phoneMasked,
+    // A user-entered contact number is stored in this owner's encrypted profile.
+    // Masked provider numbers are refreshed from the authenticated identity.
+    phone: local?.phone && /^\+[1-9]\d{1,14}$/.test(local.phone) ? local.phone : remote.phoneMasked,
     googleAccount: remote.primaryEmailMasked,
     email: local?.email ?? null,
     currency,

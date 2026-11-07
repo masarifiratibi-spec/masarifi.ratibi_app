@@ -14,7 +14,7 @@ import { EngagementService } from '../../../src/engagement/engagement.service';
 import { validateEngagementCommand } from '../../../src/engagement/engagement.dto';
 import { ENGAGEMENT_ADMIN_ROUTES } from '../../../src/engagement/engagement.routes';
 import type { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
-import type { SecurityRepository } from '../../../src/security/security.repository';
+import { SecurityRepository } from '../../../src/security/security.repository';
 import type { SupportStorage } from '../../../src/engagement/support.storage';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
@@ -90,7 +90,7 @@ describeLiveDatabase('support recovery', () => {
   const service = new EngagementService(
     repository,
     { signDownload } as unknown as SupportStorage,
-    { consumeRateLimit: () => Promise.resolve(true) } as unknown as SecurityRepository,
+    new SecurityRepository(pool),
   );
   async function call<T = TestTicket>(
     userId: string,
@@ -127,6 +127,20 @@ describeLiveDatabase('support recovery', () => {
     ]);
   });
   afterAll(async () => pool.onModuleDestroy());
+
+  it.each([['ordinary', customer], ['dashboard', actor]])(
+    'submits an Arabic technical ticket through the customer API for a %s owner',
+    async (_kind, owner) => {
+      const categories = await call<{ items: Array<{ id: string; key: string }> }>(
+        owner, 'listSupportCategories', undefined, undefined, { limit: '100' },
+      );
+      const technical = categories.items.find(item => item.key === 'technical')!;
+      const result = await call(owner, 'createSupportTicket', {
+        categoryId: technical.id, subject: 'الاضافة لا تعمل', message: 'الاضافة لا تعمل.',
+      });
+      expect(result.messages[0]?.body).toBe('الاضافة لا تعمل.');
+    },
+  );
 
   it('runs the customer/admin conversation, assignments, private notes and lifecycle with conflicts', async () => {
     const created = await call(customer, 'createSupportTicket', {

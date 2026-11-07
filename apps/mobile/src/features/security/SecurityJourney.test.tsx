@@ -79,12 +79,12 @@ describe('security journey', () => {
     expect(router.push).toHaveBeenCalledWith('/profile/privacy');
     expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
   });
-  it('opens Security Events from settings outside fixture mode', () => {
+  it('hides Security Events and Active Sessions in live settings', () => {
     const fixtureMode = jest.spyOn(demoMode, 'isFixtureModeEnabled').mockReturnValue(false);
     try {
       renderWithProviders(<SecuritySettingsRoute />);
-      fireEvent.press(screen.getByText(translate('appShell.security.events')));
-      expect(router.push).toHaveBeenCalledWith('/security/events');
+      expect(screen.queryByText(translate('appShell.security.events'))).toBeNull();
+      expect(screen.queryByText(translate('appShell.security.sessions'))).toBeNull();
     } finally {
       fixtureMode.mockRestore();
     }
@@ -195,9 +195,8 @@ describe('security journey', () => {
       screen.getByText(translate('appShell.security.hideBalances'))
     ).toBeTruthy();
 
-    fireEvent.press(screen.getByText(translate('appShell.security.sessions')));
-
-    expect(router.push).toHaveBeenCalledWith('/security/sessions');
+    expect(screen.queryByText(translate('appShell.security.sessions'))).toBeNull();
+    expect(screen.queryByText(translate('appShell.security.events'))).toBeNull();
     expect(alert).not.toHaveBeenCalled();
     expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalledWith('/profile/privacy');

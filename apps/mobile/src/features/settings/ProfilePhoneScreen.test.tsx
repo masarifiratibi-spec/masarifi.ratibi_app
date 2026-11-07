@@ -68,3 +68,17 @@ test('ProfilePhoneScreen displays current phone and saves updated phone number',
     expect.any(Object)
   );
 });
+
+test('selects Egypt by its calling code and saves Arabic local digits without its trunk prefix', () => {
+  const save = jest.fn();
+  mockQueries.useSaveSettingsProfile.mockReturnValue({ mutate: save, isPending: false });
+  renderWithProviders(<ProfilePhoneScreen />);
+  fireEvent.press(screen.getByRole('button', { name: t('appShell.auth.phone.countryCode') }));
+  fireEvent.changeText(screen.getByLabelText(t('common.search')), '+٢٠');
+  fireEvent.press(screen.getByText(/Egypt/));
+  fireEvent.changeText(screen.getByLabelText(t('appShell.auth.phone.number')), '٠١٠٠١٢٣٤٥٦٧');
+  fireEvent.press(screen.getByText(t('settings.profile.phone.save')));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({
+    input: expect.objectContaining({ phone: '+201001234567' })
+  }), expect.any(Object));
+});

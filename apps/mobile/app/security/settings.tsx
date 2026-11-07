@@ -162,17 +162,6 @@ export default function SecuritySettingsRoute() {
         </View>
       </GroupedList>
 
-      <GroupedList label={translate('appShell.security.sections.activity')}>
-        <NavigationRow
-          label={translate('appShell.security.sessions')}
-          onPress={() => router.push('/security/sessions')}
-        />
-        <NavigationRow
-          label={translate('appShell.security.events')}
-          onPress={() => router.push('/security/events')}
-        />
-      </GroupedList>
-
     </ScrollView>
   );
 }
