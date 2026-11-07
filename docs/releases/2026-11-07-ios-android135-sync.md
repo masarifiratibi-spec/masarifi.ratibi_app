@@ -1,9 +1,9 @@
 # iOS source synchronization — 2026-11-07
 
 The `iOS` branch incorporates the published Android/shared source through
-`ccc7e401dd73d1aa1827af98a4064a8469a17a29` from
+`33811656ee61cd76688252f1476d39af1cdf0dbe` from
 `codex/voice-promoted-operating-2026-10-13`. The verified merge source is
-`d7c1b385d541527fefb13952040df0bfbe9949b2`.
+`e755b3fdeca7e5c785c2db368009c22baf2f2a0a`.
 
 The user requested coordination with the **أصلح مشاكل الأرقام والحساب** chat
 (`01a1b560-6c1f-79a1-a3d3-23bd78ed9fa2`). Its published Android 135 completion
@@ -16,6 +16,8 @@ foreground/retry behavior, theme and support fixes, deletion recovery, and the
 owner-scoped financial reset flow. Android 135's immediate reset entry and shared
 AppSheet change (`4aba25ee`, receipt `b3734f09`) are included, along with the
 integration branch's published API, Admin, schema and CI source changes.
+The subsequent dark theme refinement `33811656` is also included. It changes
+three theme/token files; API and shared package trees are unchanged by it.
 
 ## Source preservation
 
@@ -41,28 +43,36 @@ integration branch's published API, Admin, schema and CI source changes.
 
 | Check | Result |
 | --- | --- |
-| Incoming mobile changes | 526 passing cases / 31 suites, natural exit 0 |
+| Initial Android 135 incoming mobile changes | 526 passing cases / 31 suites, natural exit 0 |
 | Additional runtime, HTTP, shell and deletion smoke coverage | 159 passing cases / 5 suites, natural exit 0 |
 | Combined mobile inventory | 685 cases / 36 disjoint suites; zero failures or skipped cases across the two runs |
+| Subsequent dark theme and affected UI checks | 90 passing cases / 7 suites, natural exit 0; overlaps earlier suites |
 | Actual iOS profile/native plugin and platform boundaries | 9 passing Node cases, zero skipped |
-| Mobile and API TypeScript | Both passed |
+| Mobile and API TypeScript | Both passed initially; final mobile check also passed after the theme change, with API source unchanged |
 | Scoped mobile lint | 103 files, zero errors, 5 existing upstream test warnings |
+| Follow-up theme lint | 3 files, zero errors or warnings |
 | Current EAS iOS Ad Hoc configuration | Resolved successfully |
-| Production iOS JS/assets export | Passed; 2,213 source-map entries, 13 production providers, zero forbidden sources or explicit Android tracking entry points |
+| Initial production iOS JS/assets export | Passed; 2,213 source-map entries, 13 production providers, zero forbidden sources or explicit Android tracking entry points |
+| Final production iOS JS/assets export after the theme update | Passed again on `e755b3fd`; the same 2,213 entries / 13 providers, zero forbidden or explicit Android tracking entry points |
 
 The two Jest runs took 148.638 s and 96.857 s respectively. Their JSON inventories
-were checked for overlap. Expo/React warnings remain in the logs; no test skips,
+were checked for overlap. The later theme/UI run took 113.471 s; its counts must
+not be added to 685 as unique cases. Expo/React warnings remain in the logs; no test skips,
 timeouts, forced exits, production mocks, or lint suppression were introduced.
 
-The export is bound to merge source `d7c1b385` and a freshly resolved iOS profile.
+The initial export is bound to source `d7c1b385` and a freshly resolved iOS profile.
+The final export is independently bound to source `e755b3fd` and the same profile;
+the profile/configuration files did not change in the theme follow-up.
 Evidence is under `E:\Masarifi-ios-artifacts\sync-android135-20261107` and
-`E:\Masarifi-ios-artifacts\source-d7c1b385`.
+`E:\Masarifi-ios-artifacts\source-d7c1b385` and
+`E:\Masarifi-ios-artifacts\source-e755b3fd`.
 
 The fixed-policy scanner found 7 matches in the newly incorporated history.
 All seven were independently verified against published reviewed fingerprints,
 Git blobs, exact line digests and value digests: they are SHA256 digests of public
 Clerk configuration. There were zero unexpected findings. Raw findings were
 retained and no scanner policy was changed.
+The subsequent theme source history scan had zero findings.
 
 ## Delivery boundary
 
