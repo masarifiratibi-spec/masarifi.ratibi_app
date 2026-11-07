@@ -31,9 +31,24 @@ begin
      (select encode(sha256(convert_to(system_identifier::text,'UTF8')),'hex') from pg_control_system())
        is distinct from '{CLUSTER}' then raise exception 'WRONG_DATABASE'; end if;
   if not pg_try_advisory_xact_lock(5574319470126001::bigint) then raise exception 'MIGRATION_BUSY'; end if;
+  perform set_config('masarifi.packet_executor', current_setting('role'), true);
 end $admit$;
 lock table supabase_migrations.schema_migrations in share row exclusive mode;
+do $owner$
+begin
+  if pg_has_role(current_user,'masarifi_migration','SET') then
+    perform set_config('masarifi.packet_grant','existing',true);
+  else
+    if exists(select from pg_auth_members where roleid='masarifi_migration'::regrole
+              and member=current_user::regrole and grantor=current_user::regrole)
+      then raise exception 'UNREVIEWED_EXISTING_GRANT'; end if;
+    execute format('grant masarifi_migration to %I with set true, inherit false granted by %I',current_user,current_user);
+    perform set_config('masarifi.packet_grant','temporary',true);
+  end if;
+end $owner$;
+set local role masarifi_migration;
 lock table private.support_access_requests in access exclusive mode;
+select set_config('role',current_setting('masarifi.packet_executor'),true);
 do $before$
 begin
   if (select count(*)<>177 or max(version)<>'20261107140000' or
@@ -43,10 +58,17 @@ begin
      then raise exception 'MIGRATION_PREIMAGE_MISMATCH'; end if;
 end $before$;
 {sql}
+select set_config('role',current_setting('masarifi.packet_executor'),true);
 do $after$
 begin
   if {constraint} is distinct from $check${NEW}$check$ then raise exception 'MIGRATION_POSTIMAGE_MISMATCH'; end if;
 end $after$;
+do $release$
+begin
+  if current_setting('masarifi.packet_grant')='temporary' then
+    execute format('revoke masarifi_migration from %I granted by %I',current_user,current_user);
+  end if;
+end $release$;
 insert into supabase_migrations.schema_migrations(version,name,statements)
 values ('{VERSION}','{NAME}',array[$source${sql}$source$]);
 commit;

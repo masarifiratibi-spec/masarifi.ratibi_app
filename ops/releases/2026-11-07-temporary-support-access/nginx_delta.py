@@ -204,22 +204,33 @@ def proxy_change(data, proxy, old, new):
     return proxy.start + hit.start(), proxy.start + hit.end(), new
 
 
-def new_locations(original, location, proxy, inherited_headers, target, old_upstream):
+TIMEOUTS = (b"proxy_connect_timeout", b"proxy_read_timeout", b"proxy_send_timeout")
+
+
+def effective_timeouts(nodes, inherited):
+    values = dict(inherited)
+    for name in TIMEOUTS:
+        entries = named(nodes, name)
+        if not entries:
+            continue
+        n = one(entries, "AMBIGUOUS_PROXY_TIMEOUT")
+        require(len(n.words) == 2, "AMBIGUOUS_PROXY_TIMEOUT")
+        duration = re.fullmatch(rb"(\d+)(ms|s|m|h)?", n.words[1])
+        require(duration is not None, "UNSUPPORTED_PROXY_TIMEOUT")
+        factor = {None: 1000, b"ms": 1, b"s": 1000, b"m": 60000, b"h": 3600000}[duration[2]]
+        values[name] = min(60_000, int(duration[1]) * factor or 60_000)
+    return values
+
+
+def new_locations(original, location, proxy, inherited_headers, target, old_upstream, inherited_timeouts):
     # Clone the actual default body (including request/auth headers and access
     # control). Override only the upstream, cache policy and proxy timeouts.
     cache_names = {b"expires", b"proxy_cache", b"proxy_connect_timeout", b"proxy_read_timeout", b"proxy_send_timeout"}
-    timeouts = {name: 60_000 for name in cache_names if name.endswith(b"_timeout")}
+    timeouts = effective_timeouts(location.children, inherited_timeouts)
     edits = [proxy_change(original, proxy, old_upstream, API_NEW)]
     for n in location.children:
         key = n.words[0]
         cache_header = len(n.words) >= 2 and n.words[1].lower() == b"cache-control"
-        if key in timeouts:
-            require(len(n.words) == 2, "AMBIGUOUS_PROXY_TIMEOUT")
-            duration = re.fullmatch(rb"(\d+)(ms|s|m|h)?", n.words[1])
-            require(duration is not None, "UNSUPPORTED_PROXY_TIMEOUT")
-            factor = {None: 1000, b"ms": 1, b"s": 1000, b"m": 60000, b"h": 3600000}[duration[2]]
-            milliseconds = int(duration[1]) * factor
-            timeouts[key] = min(60_000, milliseconds or 60_000)
         if key in cache_names or (cache_header and key in (b"add_header", b"proxy_pass_header", b"proxy_hide_header")):
             edits.append((n.start, n.end, b""))
     local_headers = named(location.children, b"add_header")
@@ -243,7 +254,7 @@ def check_inherited_upstream_header(node):
     require(node.words[0] not in (b"proxy_hide_header", b"proxy_pass_header"), "INHERITED_UPSTREAM_HEADER_POLICY")
 
 
-def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_headers=None):
+def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_headers=None, http_timeout_nodes=()):
     """http_add_headers is the observed HTTP-level fallback (an empty tuple means none)."""
     require(sha256(original).hexdigest() == expected_sha, "STAGING_PREIMAGE_DRIFT")
     nodes = parse(original)
@@ -276,6 +287,8 @@ def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_hea
             require(n.words[0] == b"add_header" and len(n.words) in (3, 4) and n.body is None, "HTTP_ADD_HEADER_SOURCE_INVALID")
             headers.append(line[n.start:n.end])
     added = []
+    inherited_timeouts = effective_timeouts([n for n, _ in api_nodes],
+        effective_timeouts(http_timeout_nodes, dict.fromkeys(TIMEOUTS, 60_000)))
     for target in API_PATHS:
         if recovery and target.startswith(ADMIN_PARENT[2]):
             parent, source = recovery[0]
@@ -284,7 +297,7 @@ def candidate(original, expected_sha=BASE_SHA256, *, includes=None, http_add_hea
         else:
             parent, source, proxy, upstream = api_root, original, api_proxy, API_OLD
         added.append(new_locations(source, parent, proxy, headers if headers or http_add_headers is not None else None,
-                                   target, upstream))
+                                   target, upstream, inherited_timeouts))
     return replace_spans(original, [
         (api_root.start, api_root.start, b"".join(added)),
         proxy_change(original, admin_proxy, ADMIN_OLD, ADMIN_NEW),

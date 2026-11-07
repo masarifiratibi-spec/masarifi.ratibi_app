@@ -31,8 +31,8 @@ def qualify(bin_dir, evidence):
     run("pg_ctl", [*server, "-l", str(root / "server.log"), "-o",
         f"-h 127.0.0.1 -p {port} -c shared_buffers=16MB -c max_connections=10", "start"], check=True)
     try:
-        def sql(stmt, error=None):
-            p = run("psql", ["-X", "-h", "127.0.0.1", "-p", str(port), "-U", "packet_fixture",
+        def sql(stmt, error=None, user="packet_fixture"):
+            p = run("psql", ["-X", "-h", "127.0.0.1", "-p", str(port), "-U", user,
                 "-d", "postgres", "-qAt", "-v", "ON_ERROR_STOP=1"], input=stmt.encode("utf8"))
             message = p.stderr.decode(errors="replace")
             if (error is None and p.returncode) or (error and (not p.returncode or error not in message)):
@@ -50,18 +50,27 @@ def qualify(bin_dir, evidence):
           create table private.support_access_requests(customer_approval_required boolean not null,
             status text not null,customer_approved_at timestamptz, constraint support_access_requests_customer_check
             check(not customer_approval_required or status='pending' or customer_approved_at is not null));
-          alter table private.support_access_requests owner to masarifi_migration;""")
+          alter table private.support_access_requests owner to masarifi_migration;
+          create role packet_executor login noinherit;
+          grant masarifi_migration to packet_executor with admin true, set false, inherit false;
+          grant usage on schema supabase_migrations,private to packet_executor;
+          grant select,insert,update on supabase_migrations.schema_migrations to packet_executor;
+          grant execute on function pg_catalog.pg_control_system() to packet_executor;""")
         raw = (Path(__file__).resolve().parents[3] / "supabase/migrations" / packet.FILE).read_bytes().replace(b"\r\n", b"\n")
-        sql(packet.render(raw), "WRONG_DATABASE")
+        def attempt(error=None):
+            return sql(packet.render(raw), error, user="packet_executor")
+        attempt("WRONG_DATABASE")
         cluster = sql("select encode(sha256(convert_to(system_identifier::text,'UTF8')),'hex') from pg_control_system();")
         versions = sql("select encode(sha256(convert_to(string_agg(version,',' order by version),'UTF8')),'hex') from supabase_migrations.schema_migrations;")
         with patch.object(packet, "CLUSTER", cluster):
-            sql(packet.render(raw), "MIGRATION_PREIMAGE_MISMATCH")
+            attempt("MIGRATION_PREIMAGE_MISMATCH")
             with patch.object(packet, "HISTORY", versions):
                 with patch.object(packet, "NEW", "wrong target"):
-                    sql(packet.render(raw), "MIGRATION_POSTIMAGE_MISMATCH")
-                sql(packet.render(raw))
-                sql(packet.render(raw), "MIGRATION_PREIMAGE_MISMATCH")
+                    attempt("MIGRATION_POSTIMAGE_MISMATCH")
+                attempt()
+                attempt("MIGRATION_PREIMAGE_MISMATCH")
+        if sql("select pg_has_role(current_user,'masarifi_migration','SET');",user="packet_executor") != "f":
+            raise RuntimeError("TEMPORARY_MEMBERSHIP_NOT_REMOVED")
         record = sql("select name||':'||cardinality(statements)||':'||encode(sha256(convert_to(statements[1],'UTF8')),'hex') "
                      "from supabase_migrations.schema_migrations where version='20261107140100';")
         if record != f"{packet.NAME}:1:{packet.SHA}":

@@ -23,7 +23,7 @@
   "api": {
     "archiveSha256": null,
     "imageId": null,
-    "reason": "0ff Foundation image was correctly skipped after two CI gate failures; no qualified API artifact yet"
+    "reason": "1440 Foundation image correctly skipped after db:lint failed; no qualified archive from that run"
   },
   "routing": {
     "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
@@ -43,7 +43,7 @@
     "sha256": "4a826dda49786f3469f96b6c29dddebc8c652fcae0482e995869193d8fe5051c",
     "targetProject": "qcffvfbpzvpwcwxwjyro",
     "rollback": "retain forward-compatible CHECK; no consent/data rewrite; no historical migration replay",
-    "rendererSha256": "2573bb06a98f0360180c8c79bbee058ab00477be41c1d4b907b5a863f5beb694",
+    "rendererSha256": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
     "clusterFingerprint": "a191e84c52c98e63ce1057e2b7e740450864d7a041ef54e86af2e2b7dbeaaa04",
     "priorVersionListSha256": "4f88b17abe51db505b83f6eccf44aa645218205f0681580f3460c191c2f18c35"
   },
@@ -55,11 +55,10 @@
     "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream"
   },
   "qualification": {
-    "foundationRun": 42382098669,
+    "foundationRun": 42387010902,
     "foundation": "failure",
     "remainingFailures": [
-      "fresh database static lint of reset regclass loop",
-      "compiled Android label expected outdated English name"
+      "CI postgres lacked definer privileges for the 59 standalone EXPLAIN plans"
     ],
     "all5AdminBrowserViewports": "success",
     "apiApplication": "success",
@@ -67,13 +66,17 @@
     "secrets": "success",
     "upgradedDatabaseIntegration": "151 suites/1066 tests passed",
     "stagingRuns": [
-      42382098635,
-      42382094089
+      42387010938,
+      42387004235
     ],
     "staging": "success",
-    "journalRun": 42382098637,
+    "journalRun": 42387010921,
     "journal": "success",
-    "sourceCommit": "0ffccbd6918b3e6c4878a96e431ef94a376935f0"
+    "sourceCommit": "1440f3260ebaa1185527dd7d61c8fe1b7fc9e1e3",
+    "mergeCommit": "6ee5f47b78b6d094a9e9486f8af5e5e7b7385d30",
+    "mergeAndHeadTree": "83aab465f066cde2427aaef92ae025282cdaf99a",
+    "androidBuild": "success",
+    "androidDiagnosticArtifact": 13580402640
   },
   "limits": [
     "Fresh exact-source CI required after the two focused fixes",
@@ -85,8 +88,8 @@
   ],
   "hostBaselineSha256": "76dac9f09ebfb0a640af67cca2e964d3bfa73198afd9b035abbac6b4b124cacd",
   "readOnlyToolsSha256": {
-    "nginx_delta.py": "581ab3ecbba02534dd4d1bf99940f5736b7d1a46fd102b9f7daebf85ae183830",
-    "read_nginx_context.py": "483a27d43b3a92b0e41739b0bf380c080761326c224943eb9bf28bb737aa4665",
+    "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
+    "read_nginx_context.py": "ae6d105e0659c87a7b60eb46338c5990587d46e832ef61cf375e356454244876",
     "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147"
   },
   "offlinePacketTests": {
