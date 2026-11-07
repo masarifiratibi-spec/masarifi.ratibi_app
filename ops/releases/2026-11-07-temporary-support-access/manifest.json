@@ -29,7 +29,12 @@
     "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
     "candidateSha256": null,
     "contextSha256": null,
-    "reason": "Actual pinned host context receipt pending renewed root console"
+    "reason": "Host inspected; original driver correctly stopped at pinned recovery location include. Fresh receipt with reviewed revised tool required.",
+    "currentEffectiveUpstreams": {
+      "adminSupportAccess": "127.0.0.1:3033",
+      "meSupportAccess": "127.0.0.1:3001"
+    },
+    "recoveryIncludeSha256": "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba"
   },
   "migration": {
     "version": "20261107140100",
@@ -37,7 +42,10 @@
     "path": "supabase/migrations/20261107140100_support_access_denial_without_consent.sql",
     "sha256": "4a826dda49786f3469f96b6c29dddebc8c652fcae0482e995869193d8fe5051c",
     "targetProject": "qcffvfbpzvpwcwxwjyro",
-    "rollback": "retain forward-compatible CHECK; no consent/data rewrite; no historical migration replay"
+    "rollback": "retain forward-compatible CHECK; no consent/data rewrite; no historical migration replay",
+    "rendererSha256": "2573bb06a98f0360180c8c79bbee058ab00477be41c1d4b907b5a863f5beb694",
+    "clusterFingerprint": "a191e84c52c98e63ce1057e2b7e740450864d7a041ef54e86af2e2b7dbeaaa04",
+    "priorVersionListSha256": "4f88b17abe51db505b83f6eccf44aa645218205f0681580f3460c191c2f18c35"
   },
   "candidate": {
     "apiName": "masarifi-support-access-api-0247ed5e-20261107",
@@ -77,12 +85,12 @@
   ],
   "hostBaselineSha256": "76dac9f09ebfb0a640af67cca2e964d3bfa73198afd9b035abbac6b4b124cacd",
   "readOnlyToolsSha256": {
-    "nginx_delta.py": "335ee74720200fbaff0de135e7843adf8c98f671c2dda458963aaf7f4acde306",
+    "nginx_delta.py": "581ab3ecbba02534dd4d1bf99940f5736b7d1a46fd102b9f7daebf85ae183830",
     "read_nginx_context.py": "483a27d43b3a92b0e41739b0bf380c080761326c224943eb9bf28bb737aa4665",
     "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147"
   },
   "offlinePacketTests": {
-    "passed": 28,
+    "passed": 30,
     "failed": 0,
     "skipped": 0,
     "boundary": "local synthetic/archive admission only"
@@ -96,6 +104,6 @@
     "identityAndBadgingTests": 31,
     "actualBadgingIndependentProbes": 11,
     "boundedDatabaseLintTests": 21,
-    "replacementCi": "pending publication and exact-source run"
+    "replacementCi": "1440 Foundation: actual extension recheck reached standalone EXPLAIN; CI postgres lacks definer privileges. Scanned image not admitted."
   }
 }

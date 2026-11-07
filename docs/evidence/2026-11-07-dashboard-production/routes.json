@@ -25,7 +25,7 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
       "/api/v1/admin/overview?${params}",
       "/api/v1/admin/overview/platform-analytics?${params}",
@@ -46,22 +46,19 @@
     "permission": "support.access.read",
     "navigation": "live navigation",
     "adapters": [
-      "apps/admin-web/src/features/access/repository.ts"
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
     ],
     "endpoints": [
-      "/api/v1/admin/access-requests",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/decision",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/revoke",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/workspace",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/end"
+      "/api/v1/admin/support-access/requests"
     ],
     "source": "apps/admin-web/src/app/admin/access-requests/page.tsx",
     "localBrowser": {
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
   },
   {
     "route": "/admin/access-requests/[requestId]",
@@ -69,22 +66,21 @@
     "permission": "support.access.read",
     "navigation": "deep link / secondary navigation",
     "adapters": [
-      "apps/admin-web/src/features/access/repository.ts"
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
     ],
     "endpoints": [
-      "/api/v1/admin/access-requests",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/decision",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/revoke",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/workspace",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/end"
+      "/api/v1/admin/support-access/requests/{requestId}",
+      "/api/v1/admin/support-access/requests/{requestId}/decision",
+      "/api/v1/admin/support-access/requests/{requestId}/revoke"
     ],
     "source": "apps/admin-web/src/app/admin/access-requests/[requestId]/page.tsx",
     "localBrowser": {
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
   },
   {
     "route": "/admin/access-requests/[requestId]/workspace",
@@ -92,22 +88,20 @@
     "permission": "support.access.use",
     "navigation": "deep link / secondary navigation",
     "adapters": [
-      "apps/admin-web/src/features/access/repository.ts"
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
     ],
     "endpoints": [
-      "/api/v1/admin/access-requests",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/decision",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/revoke",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/workspace",
-      "/api/v1/admin/access-requests/${encodeURIComponent(id)}/end"
+      "/api/v1/admin/support-access/requests/{requestId}/workspace",
+      "/api/v1/admin/support-access/requests/{requestId}/end"
     ],
     "source": "apps/admin-web/src/app/admin/access-requests/[requestId]/workspace/page.tsx",
     "localBrowser": {
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
   },
   {
     "route": "/admin/admin-team",
@@ -2091,9 +2085,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2144,9 +2138,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2197,9 +2191,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2264,9 +2258,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2317,9 +2311,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2370,9 +2364,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2423,9 +2417,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}",
       "/api/v1/admin/admin-users?${params(input)}",
       "/api/v1/admin/access/admins",
@@ -2475,7 +2469,7 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
       "/api/v1/admin/settings/mobile.social_links"
     ],
@@ -2735,9 +2729,9 @@
     ],
     "endpoints": [
       "/api/v1/admin/access/me",
-      "/api/v1/admin/navigation${roleQuery ? ",
+      "/api/v1/admin/navigation",
       "/api/v1/admin/platform-options",
-      "/api/v1/admin/ai/usage-limits${userId ? ",
+      "/api/v1/admin/ai/usage-limits",
       "/api/v1/admin/settings/${encodeURIComponent(key)}"
     ],
     "source": "apps/admin-web/src/app/admin/system-health/ai-usage-limits/page.tsx",
