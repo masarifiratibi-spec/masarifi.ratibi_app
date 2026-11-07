@@ -13,3 +13,15 @@ The rendered forward transaction and rollback were both committed successfully o
 After explicit user approval, the reviewed forward transaction was submitted once to the production project. A separate read-only check at 10:19 Riyadh time verified the eight functions, sixteen policies and the registered migration's SHA256. The history count advanced from 174 to 175 and the operator's original role membership was restored. The public API returned HTTP 200 with liveness status `ok`. [Execution receipt](../../ops/releases/2026-11-07-personal-finance/execution-result.json)
 
 The customer can use APK127 and their existing session. The user reported that the customer's handset was unavailable for the Assistant retry. Device acceptance, including native biometric authentication, remains pending. [Release package](../../ops/releases/2026-11-07-personal-finance/README.md)
+
+## Extended customer capability checks
+
+Two isolated databases ran the same eight API integration suites with synthetic owners. One used ordinary profiles. In the other, a fixture inserted active dashboard membership when each matching synthetic owner profile was created. Membership was confirmed in all eight fixture groups. All 67 cases passed for each role across budgets, salary cycles, obligations, savings, report summaries, sync deltas, the native Assistant API contract and Android tracking installation consent. These cases include rejection and retry paths as well as successful operations.
+
+In the first staff run all assertions passed, but the sync suite's teardown tried to delete a synthetic profile while its injected staff membership still referenced it. A cleanup trigger restricted to synthetic sync owners in the local staff database removed that test membership on teardown. The three sync cases and their teardown then passed in isolation. Neither the fixture triggers nor their data were deployed.
+
+On the mobile side, 79 tests passed for selection controls, tracking settings, notification preferences and preference persistence. Another 16 passed for the biometric service with simulated native responses. The UI tests emitted React test synchronization and runner shutdown warnings. These tests do not measure a physical prompt or a customer's tap latency.
+
+Read-only production inspection confirmed the registered finance migration, tracking consent table and voice analysis configured for authenticated owners with automatic processing enabled. The operating voice epoch had no recorded expiry or closure. These checks did not initiate a production recording, financial operation or account deletion.
+
+Two product limits matter when interpreting access for every owner. The mobile runtime disables paid purchases. The production account erasure guard still rejects deletion if the owner has a dashboard profile. The customer's handset was unavailable, so a retry of Assistant activation, the switches and the Android biometric prompt on that handset remains outstanding. APK127 remains compatible with the database correction.
