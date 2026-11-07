@@ -117,7 +117,9 @@ describe('TrackingStatusScreen', () => {
       const { colors } = resolveTheme(mode);
       expect(await screen.findByTestId('tracking-status-screen')).toHaveStyle({ backgroundColor: colors.surfaces.page });
       expect(await screen.findByTestId('tracking-keywords-card')).toHaveStyle({ backgroundColor: colors.surfaces.card });
-      expect(screen.getByText(translate('tracking.source.smsTracking'))).toHaveStyle({ color: colors.textPrimary });
+      for (const key of ['tracking.source.smsTracking', 'tracking.source.notificationTracking'] as const) {
+        expect(screen.getByText(translate(key))).toHaveStyle({ color: colors.content.primary });
+      }
     } finally {
       view.unmount();
       usePreferenceStore.setState({ theme: prior });

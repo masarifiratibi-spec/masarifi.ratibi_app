@@ -1184,6 +1184,7 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.xs
     },
     sourceTitle: {
+      color: colors.content.primary,
       fontSize: 18,
       fontWeight: '700'
     },
