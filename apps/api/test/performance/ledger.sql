@@ -18,11 +18,15 @@ delete from public.transactions where user_id like 'ledger_performance_%';
 delete from public.accounts where user_id like 'ledger_performance_%';
 delete from public.profiles where id like 'ledger_performance_%';
 
+-- Let profile creation initialize each synthetic owner's financial reset epoch,
+-- just as it does before a real owner's first ledger write.
+set local session_replication_role = origin;
 insert into public.profiles (id, status)
 values ('ledger_performance_hot', 'active');
 insert into public.profiles (id, status)
 select 'ledger_performance_user_' || lpad(sample::text, 3, '0'), 'active'
 from generate_series(1, 100) sample;
+set local session_replication_role = replica;
 
 insert into public.accounts (id, user_id, name, type, currency_code, is_default, sort_order)
 select md5(profile.id || ':source')::uuid, profile.id, 'Performance source', 'cash', 'SAR', true, 0

@@ -19,6 +19,32 @@ class Controls(unittest.TestCase):
         self.m=json.loads(Path(__file__).with_name("manifest.json").read_bytes())
         self.m["api"].update(imageId="sha256:"+"a"*64,sourceCommit="c"*40)
 
+    def test_recovery_disables_restart_even_if_candidate_was_already_stopped(self):
+        for running in (False,True):
+            row={"Id":"fixture","Name":"/"+self.m["candidate"]["apiName"],"Image":self.m["api"]["imageId"],
+                 "State":{"Running":running},"HostConfig":{"RestartPolicy":{"Name":"unless-stopped"}}}
+            calls=[]
+            def engine(cmd,**kw):
+                calls.append(cmd)
+                if cmd[1]=="update":row["HostConfig"]["RestartPolicy"]["Name"]="no"
+                elif cmd[1]=="stop":row["State"]["Running"]=False
+            with patch.object(inv,"inspect",return_value=row),patch.object(host,"run",side_effect=engine):
+                host.quiesce(self.m,{"api":"fixture"})
+            self.assertEqual(calls,[["docker","update","--restart","no","fixture"]]+
+                             ([["docker","stop","--time","15","fixture"]] if running else []))
+
+    def test_recovery_refuses_foreign_candidates_and_unconfirmed_stops(self):
+        row={"Id":"fixture","Name":"/foreign","Image":self.m["api"]["imageId"],
+             "State":{"Running":True},"HostConfig":{"RestartPolicy":{"Name":"no"}}}
+        with patch.object(inv,"inspect",return_value=row),patch.object(host,"run") as cmd:
+            with self.assertRaisesRegex(ValueError,"REFUSE_FOREIGN"):
+                host.quiesce(self.m,{"api":"fixture"})
+            cmd.assert_not_called()
+            row["Name"]="/"+self.m["candidate"]["apiName"]
+            with self.assertRaisesRegex(ValueError,"CANDIDATE_NOT_QUIESCED"):
+                host.quiesce(self.m,{"api":"fixture"})
+            cmd.assert_called_once_with(["docker","stop","--time","15","fixture"],timeout=25)
+
     def original(self,role):
         base=self.b["actualApi" if role=="api" else "admin"]
         rt=base["runtime"]
@@ -231,6 +257,31 @@ class Rollback(unittest.TestCase):
             row["statement_count"]=2;wd.emit(self.root/"database-attestation.json",obj)
             with self.assertRaisesRegex(ValueError,"DATABASE_LEDGER"):host.attest_schema("f"*64)
             with self.assertRaisesRegex(ValueError,"ATTESTATION_STALE"):host.attest_schema("e"*64)
+
+    def test_postaccept_rollback_refuses_active_or_unknown_cutover_writer(self):
+        from subprocess import CompletedProcess
+        for props in (b"ActiveState=active\nLoadState=loaded\nMainPID=12\n",b"",b"ActiveState=inactive\nLoadState=loaded\n"):
+            with patch.object(host.subprocess,"run",return_value=CompletedProcess([],0,stdout=props)),\
+                 self.assertRaisesRegex(ValueError,"CUTOVER_WATCHDOG_STATE_UNRESOLVED"):
+                host.rollback_admission({},self.t)
+
+    def test_manual_rollback_ack_follows_original_proof_and_candidate_stop(self):
+        ident=wd.binding(self.t,123)
+        order=[]
+        def restore(t,prove):order.append("restored");prove()
+        with patch.object(host,"ticket",return_value=self.t),patch.object(host,"rollback_admission",return_value=ident),\
+             patch.object(host,"run",return_value=str(os.getpid()).encode()),patch.object(wd,"restore",side_effect=restore),\
+             patch.object(host,"prove_original",side_effect=lambda _:order.append("proved")),\
+             patch.object(host,"quiesce",side_effect=lambda *_:order.append("stopped")):
+            host.rollback_accepted({},"f"*64,worker=True)
+        self.assertEqual(order,["restored","proved","stopped"])
+        self.assertEqual(json.loads((self.root/"rolled-back.json").read_bytes()),dict(ident,restored=True))
+
+    def test_manual_abort_cannot_overwrite_an_acceptance_decision(self):
+        wd.emit(self.root/"commit.json",{"decision":"accepted"})
+        with patch.object(host,"ticket",return_value=self.t),self.assertRaisesRegex(ValueError,"ALREADY_ACCEPTED"):
+            host.abort_trial({})
+        self.assertFalse((self.root/"abort.json").exists())
 
 
 if __name__=="__main__":
