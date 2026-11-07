@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import PermissionRoute from '../../../app/tracking/permission';
@@ -20,7 +21,7 @@ jest.mock('@/services/platform/tracking-permission-service', () => ({
   createTrackingPermissionService: () => mockPermissionService
 }));
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn() },
+  router: { back: jest.fn(), dismissTo: jest.fn() },
   useLocalSearchParams: () => mockUseLocalSearchParams()
 }));
 
@@ -57,7 +58,7 @@ describe('tracking permission route', () => {
       );
       expect(saveSource).toHaveBeenCalledWith('sms', true);
       expect(setMode).toHaveBeenCalledWith('review_all');
-      expect(router.replace).toHaveBeenCalledWith('/tracking');
+      expect(router.dismissTo).toHaveBeenCalledWith('/tracking');
     });
   });
 
@@ -81,6 +82,75 @@ describe('tracking permission route', () => {
     expect(setMode).not.toHaveBeenCalled();
   });
 
+  it('lets a previously denied installation request SMS permission again explicitly', async () => {
+    mockPermissionService.getState.mockResolvedValue(permissionState('permanently_denied'));
+    const mode = jest.spyOn(automaticTrackingService, 'setMode').mockResolvedValue({} as never);
+    const source = jest.spyOn(trackingSourcePreferences, 'set')
+      .mockResolvedValue({ smsEnabled: true, notificationEnabled: false });
+    renderWithProviders(<PermissionRoute />);
+    await screen.findByText(translate('appShell.permission.settingsHelp'));
+    expect(mockPermissionService.requestAfterEducation).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole('button', { name: translate('appShell.permission.requestAgain') }));
+    await waitFor(() => expect(source).toHaveBeenCalledWith('sms', true));
+    expect(mockPermissionService.requestAfterEducation).toHaveBeenCalledTimes(1);
+    expect(mockPermissionService.openSettings).not.toHaveBeenCalled();
+    expect(mode).toHaveBeenCalledWith('review_all');
+  });
+
+  it('keeps tracking off when Android still refuses a new request', async () => {
+    mockPermissionService.getState.mockResolvedValue(permissionState('permanently_denied'));
+    mockPermissionService.requestAfterEducation.mockResolvedValue(permissionState('permanently_denied'));
+    const source = jest.spyOn(trackingSourcePreferences, 'set');
+    const mode = jest.spyOn(automaticTrackingService, 'setMode');
+    renderWithProviders(<PermissionRoute />);
+    fireEvent.press(await screen.findByRole('button', { name: translate('appShell.permission.requestAgain') }));
+    await waitFor(() => expect(mockPermissionService.requestAfterEducation).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(translate('appShell.permission.settingsHelp'))).toBeOnTheScreen();
+    expect(source).not.toHaveBeenCalled();
+    expect(mode).not.toHaveBeenCalled();
+  });
+
+  it('finishes SMS activation after the owner grants access in Android settings', async () => {
+    const listeners = new Set<() => void>();
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_event, listener) => {
+        const resume = () => listener('active');
+        if (_event === 'change') listeners.add(resume);
+        return {
+          remove: () => {
+            listeners.delete(resume);
+          }
+        };
+      });
+    mockPermissionService.getState.mockResolvedValue(
+      permissionState('permanently_denied')
+    );
+    const mode = jest
+      .spyOn(automaticTrackingService, 'setMode')
+      .mockResolvedValue({} as never);
+    const source = jest
+      .spyOn(trackingSourcePreferences, 'set')
+      .mockResolvedValue({ smsEnabled: true, notificationEnabled: false });
+    renderWithProviders(<PermissionRoute />);
+    fireEvent.press(
+      await screen.findByLabelText(
+        translate('appShell.permission.openSettings')
+      )
+    );
+    await waitFor(() =>
+      expect(mockPermissionService.openSettings).toHaveBeenCalledTimes(1)
+    );
+    expect(mode).not.toHaveBeenCalled();
+    mockPermissionService.getState.mockResolvedValue(
+      permissionState('granted')
+    );
+    act(() => listeners.forEach((resume) => resume()));
+    await waitFor(() => expect(source).toHaveBeenCalledWith('sms', true));
+    expect(mode).toHaveBeenCalledTimes(1);
+    expect(router.dismissTo).toHaveBeenCalledWith('/tracking');
+  });
+
   it('sets the requested server mode before asking for source consent', async () => {
     let enabled = false;
     jest
@@ -100,7 +170,7 @@ describe('tracking permission route', () => {
       await screen.findByLabelText(translate('appShell.permission.enable'))
     );
     await waitFor(() =>
-      expect(router.replace).toHaveBeenCalledWith('/tracking')
+      expect(router.dismissTo).toHaveBeenCalledWith('/tracking')
     );
   });
 });

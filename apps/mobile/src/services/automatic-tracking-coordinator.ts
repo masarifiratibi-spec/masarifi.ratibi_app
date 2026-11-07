@@ -75,6 +75,7 @@ export interface AutomaticTrackingSyncState {
 }
 
 interface CoordinatorDependencies {
+  resetCutoff?(owner: string): Promise<number>;
   isLive(): boolean;
   session(): { status: string; userId: string | null } | null;
   offlineMode(): TrackingMode | null;
@@ -160,6 +161,8 @@ export function createAutomaticTrackingCoordinator(
       const epoch = trackingConsentEpoch();
       let queue = await dependencies.queue.load(ownerId);
       let online = await dependencies.inbox.isNetworkAvailable();
+      const cutoff = online && dependencies.resetCutoff ? await dependencies.resetCutoff(ownerId) : 0;
+      if (cutoff > 0) queue = await dependencies.queue.load(ownerId);
       let serviceFailed = false;
       if (requireFreshConfiguration && !online)
         throw new Error('tracking_configuration_refresh_failed');
@@ -402,7 +405,7 @@ export function createAutomaticTrackingCoordinator(
         mode ?? undefined,
         epoch
       );
-      let cursor = Math.max(queue.cursor ?? 0, activation.smsActivatedAt);
+      let cursor = Math.max(queue.cursor ?? 0, activation.smsActivatedAt, cutoff);
       let cursorId =
         queue.cursor !== null && queue.cursor >= activation.smsActivatedAt
           ? queue.cursor === activation.smsActivatedAt
@@ -533,8 +536,13 @@ export function createAutomaticTrackingCoordinator(
       };
       if (sources.notificationEnabled && notificationAccess === 'granted') {
         phase = 'read_notifications';
-        const records =
-          await dependencies.bankNotifications.readRecent(capturePageSize);
+        const observed = await dependencies.bankNotifications.readRecent(capturePageSize);
+        const obsolete = observed.filter(item => item.postedAt <= cutoff);
+        if (obsolete.length) {
+          stillOwner();
+          await dependencies.bankNotifications.acknowledge(obsolete.map(item => item.key));
+        }
+        const records = observed.filter(item => item.postedAt > cutoff);
         if (config.accountingPolicy) {
           const historical = records.filter(
             (item) =>
@@ -1012,6 +1020,7 @@ async function findReview(
 }
 
 const coordinator = createAutomaticTrackingCoordinator({
+  resetCutoff: async owner => (await (await import('./financial-generation')).reconcileFinancialReset(owner)).cutoff,
   isLive: () => resolveClientMode() === 'live',
   session: () => useAppShellStore.getState().session,
   offlineMode: () =>

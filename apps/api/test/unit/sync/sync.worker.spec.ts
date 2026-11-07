@@ -1,9 +1,11 @@
+import { financialGeneration } from '../../../src/platform/http/financial-generation';
 import type { SyncHandlers } from '../../../src/sync/sync.handlers';
 import { HttpException } from '@nestjs/common';
 
 import { SyncWorker } from '../../../src/sync/sync.worker';
 
 const claimed = {
+  generation: '2',
   id: '74000000-0000-4000-8000-000000000001',
   userId: 'owner',
   deviceId: 'device',
@@ -104,7 +106,11 @@ describe('SyncWorker', () => {
     const handlers = {
       dispatch: jest
         .fn<ReturnType<SyncHandlers['dispatch']>, Parameters<SyncHandlers['dispatch']>>()
-        .mockResolvedValue({ resourceId: 'server-one' }),
+        .mockImplementation(() => {
+          // Dispatch changes to the API role, but still carries the generation of the durable claim.
+          expect(financialGeneration.getStore()).toBe('2');
+          return Promise.resolve({ resourceId: 'server-one' });
+        }),
     };
     const worker = new SyncWorker(repository as never, handlers as never, config);
     await expect(worker.runJob('sync-mutations.retry')).resolves.toBe(1);

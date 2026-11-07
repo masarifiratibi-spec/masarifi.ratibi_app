@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient, type PoolConfig, type QueryResult, type QueryResultRow } from 'pg';
 
 import { PlatformConfigService } from '../config/platform-config.service';
+import { financialGeneration } from '../http/financial-generation';
 
 export function buildPoolOptions(connectionString: string, max: number): PoolConfig {
   if (!Number.isInteger(max) || max < 1 || max > 50) {
@@ -22,6 +23,7 @@ export class PoolService implements OnModuleDestroy {
   private readonly pool: Pool;
   private readonly runtimeRole?: 'masarifi_api' | 'masarifi_worker';
   private readonly initializedClients = new WeakSet<PoolClient>();
+  private readonly clientGenerations = new WeakMap<PoolClient, string>();
 
   constructor(config: PlatformConfigService) {
     this.pool = new Pool(
@@ -87,8 +89,15 @@ export class PoolService implements OnModuleDestroy {
 
   private async connect(): Promise<PoolClient> {
     const client = await this.pool.connect();
-    if (this.initializedClients.has(client)) return client;
     try {
+      const generation = financialGeneration.getStore() ?? '';
+      if ((this.clientGenerations.get(client) ?? '') !== generation) {
+        await client.query("select set_config('masarifi.financial_generation',$1,false)", [
+          generation,
+        ]);
+        this.clientGenerations.set(client, generation);
+      }
+      if (this.initializedClients.has(client)) return client;
       // A client deadline does not cancel work behind the session pooler.
       // Keep stricter server budgets; PostgreSQL stores this setting in ms.
       const deadline =

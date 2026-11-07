@@ -1,3 +1,5 @@
+import { captureWriteGeneration } from '@/services/financial-generation-gate';
+import { registerFinancialProjectionReset } from '@/storage/runtime-user-data-reset';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { AppState } from 'react-native';
@@ -309,6 +311,13 @@ export function createLiveLedgerService({
   const sharedReads = new SharedReadPool();
   registerRuntimeIdentityReset(() => sharedReads.clear());
   registerRuntimeUserDataReset(() => sharedReads.clear());
+  registerFinancialProjectionReset(owner => {
+    sharedReads.clear();
+    pending.clear();
+    inFlight.clear();
+    const local = ownerRepositories.get(owner);
+    if(local) { local.repository.reset(); local.ready = null; }
+  });
   const send = async <T>(
     method: string,
     path: string,
@@ -1159,6 +1168,9 @@ export function createLiveCoreFinanceSync({
       assertBenchmarkRead('POST');
       const owner = await (identity ?? captureLiveReadClerkIdentity)();
       await owner.assertCurrent();
+      const generation = await captureWriteGeneration();
+      await owner.assertCurrent();
+      if (generation && generation.owner !== owner.userId) throw new HttpError('session_expired',401);
       let writeOwner:
         | Promise<Awaited<ReturnType<typeof captureLiveClerkIdentity>>>
         | undefined;
@@ -1201,6 +1213,12 @@ export function createLiveCoreFinanceSync({
               String(input).endsWith('/api/v1/sync/mutations')
             )
               assertSyncReceiptActive(receiptFollowup.signal);
+            if (generation) {
+              if (!generation.current()) throw new HttpError('session_expired',401);
+              const headers = new Headers(init?.headers);
+              headers.set('X-Financial-Generation',generation.value);
+              return request(input,{ ...init, headers });
+            }
             return request(input, init);
           }
         );

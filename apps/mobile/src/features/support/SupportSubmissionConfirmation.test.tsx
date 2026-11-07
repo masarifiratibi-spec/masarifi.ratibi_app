@@ -47,7 +47,7 @@ beforeEach(() => {
   changeLocale('en');
 });
 
-test.each(['technical', 'feedback'] as const)(
+test.each(['technical', 'privacy', 'feedback'] as const)(
   'confirms %s delivery once, clears the saved draft, and returns without history',
   async (category) => {
     let accept!: (response: Response) => void;
@@ -60,7 +60,7 @@ test.each(['technical', 'feedback'] as const)(
           items: [
             {
               id: id(21),
-              key: 'technical',
+              key: category === 'privacy' ? 'other' : 'technical',
               name: 'Technical',
               sortOrder: 0,
               active: true,
@@ -76,15 +76,15 @@ test.each(['technical', 'feedback'] as const)(
       id: 'support-draft-ticket',
       mode: 'ticket',
       category,
-      subject: 'Help with the app',
-      description: 'The screen does not open.',
+      subject: 'Help with the app ',
+      description: ' The screen does not open. ',
       ticketId: null,
       context: null,
       status: 'draft',
       updatedAt: 1
     });
     renderWithProviders(<SupportHomeScreen />);
-    await screen.findByDisplayValue('Help with the app');
+    await screen.findByDisplayValue('Help with the app ');
     const send = screen.getByRole('button', {
       name: translate('support.form.submit')
     });

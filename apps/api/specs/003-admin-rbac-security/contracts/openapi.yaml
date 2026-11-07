@@ -1016,6 +1016,66 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/me/financial-reset:
+    post:
+      operationId: resetMyFinancialData
+      tags: [Privacy]
+      security: [{ ClerkBearer: [] }]
+      description: Reset the current owner's financial data after recent authentication. Repeating an operation ID returns its receipt.
+      parameters:
+        - name: X-Financial-Generation
+          in: header
+          description: Current owner generation. Required after the first reset for a new operation.
+          schema: { type: integer, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/FinancialResetCommand' } }
+      responses:
+        '200':
+          description: Financial reset receipt. Outstanding Storage deletions keep the operation in processing.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/FinancialResetReceipt' } } }
+        '400':
+          description: Invalid command.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '426':
+          description: This client must support financial generations.
+          content: { application/json: { schema: { $ref: '#/components/schemas/SafeError' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/v1/me/financial-reset/state:
+    get:
+      operationId: getMyFinancialResetState
+      tags: [Privacy]
+      security: [{ ClerkBearer: [] }]
+      responses:
+        '200':
+          description: Current owner generation, reset cutoff and outstanding cleanup.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/FinancialResetState' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/v1/me/financial-reset/{id}:
+    get:
+      operationId: getMyFinancialResetReceipt
+      tags: [Privacy]
+      security: [{ ClerkBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current owner's receipt for this operation.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/FinancialResetReceipt' } } }
+        '400':
+          description: Invalid operation ID.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/v1/privacy/deletion-completions/{operationId}:
     get:
       operationId: getDeletionCompletion
@@ -1770,6 +1830,29 @@ components:
           pattern: '^[a-f0-9]{64}$'
           writeOnly: true
           description: Required with a UUID Idempotency-Key when the server deletion policy has zero cooling hours. Generated and saved before submission.
+    FinancialResetCommand:
+      type: object
+      additionalProperties: false
+      required: [operationId]
+      properties:
+        operationId: { type: string, format: uuid }
+    FinancialResetReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, generation, status]
+      properties:
+        id: { type: string, format: uuid }
+        generation: { type: integer, minimum: 1 }
+        status: { type: string, enum: [processing, completed] }
+    FinancialResetState:
+      type: object
+      additionalProperties: false
+      required: [generation, resetAt, requestId, status]
+      properties:
+        generation: { type: integer, minimum: 0 }
+        resetAt: { type: [string, 'null'], format: date-time }
+        requestId: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [ready, processing] }
     DeletionCompletion:
       type: object
       additionalProperties: false

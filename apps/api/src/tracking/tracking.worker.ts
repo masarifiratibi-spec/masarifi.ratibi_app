@@ -1,3 +1,4 @@
+import { withClaimGeneration } from '../platform/database/financial-worker-generation';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
@@ -85,7 +86,8 @@ export class TrackingWorker implements OnModuleDestroy {
     }
     if (job === 'import.parse') {
       const claims = await this.repository.claimImports(this.workerId);
-      for (const claim of claims) await this.process(claim);
+      for (const claim of claims)
+        await withClaimGeneration(claim.generation, () => this.process(claim));
       recordTrackingJob(job, claims.length ? 'success' : 'empty', claims.length);
       return claims.length;
     }

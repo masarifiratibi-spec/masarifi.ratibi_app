@@ -1,3 +1,4 @@
+import { withClaimGeneration } from '../platform/database/financial-worker-generation';
 import { randomUUID } from 'node:crypto';
 
 import { Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
@@ -62,7 +63,9 @@ export class SyncWorker implements OnModuleDestroy {
         this.config.getRequired('MASARIFI_SYNC_BATCH_SIZE'),
         this.config.getRequired('MASARIFI_SYNC_LEASE_SECONDS'),
       );
-      for (const mutation of claimed) await this.executor.process(mutation);
+      for (const mutation of claimed) {
+        await withClaimGeneration(mutation.generation, () => this.executor.process(mutation));
+      }
       return claimed.length;
     }
     return this.repository.runMaintenance(

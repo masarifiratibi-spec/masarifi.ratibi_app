@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import parsePhoneNumber, {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode
+} from 'libphonenumber-js/min';
+import { PhoneCountryPicker } from './PhoneCountryPicker';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { router } from 'expo-router';
 
 import { useAppShellStore } from '@/state/app-shell';
@@ -31,14 +38,14 @@ function ProfilePhoneContent() {
   const save = useSaveSettingsProfile();
 
   const [edits, setEdits] = useState<{
-    countryCode?: string;
+    country?: CountryCode;
     phoneNumber?: string;
   }>({});
-  const saved = splitPhone(profile.data?.phone);
-  const countryCode = edits.countryCode ?? saved.countryCode;
+  const saved = splitPhone(profile.data?.phone, profile.data?.country);
+  const country = edits.country ?? saved.country;
   const phoneNumber = edits.phoneNumber ?? saved.phoneNumber;
-  const setCountryCode = (value: string) =>
-    setEdits((current) => ({ ...saved, ...current, countryCode: value }));
+  const setCountry = (value: CountryCode) =>
+    setEdits((current) => ({ ...saved, ...current, country: value }));
   const setPhoneNumber = (value: string) =>
     setEdits((current) => ({ ...saved, ...current, phoneNumber: value }));
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -64,13 +71,22 @@ function ProfilePhoneContent() {
 
   const handleSave = () => {
     if (saveBlocked) return;
-    const rawDigits = phoneNumber.replace(/\D/g, '');
-    if (rawDigits.length < 7) {
-      setErrorText('appShell.error.unknown');
+    const digits = normalizeLocalizedNumber(phoneNumber).replace(
+      /[\s()\-\u200e\u200f]/g,
+      ''
+    );
+    const parsed = /^\d+$/.test(digits)
+      ? parsePhoneNumber(digits, country)
+      : undefined;
+    if (
+      !parsed?.isPossible() ||
+      parsed.countryCallingCode !== getCountryCallingCode(country) ||
+      !/^\+[1-9]\d{1,14}$/.test(parsed.number)
+    ) {
+      setErrorText('appShell.auth.phone.invalid');
       return;
     }
-
-    const fullPhone = `${countryCode.trim()}${rawDigits}`;
+    const fullPhone = parsed.number;
     setErrorText(null);
 
     save.mutate(
@@ -82,13 +98,15 @@ function ProfilePhoneContent() {
       {
         onSuccess: () => {
           router.back();
-        }
+        },
+        onError: () => setErrorText('profileSetup.saveError')
       }
     );
   };
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.stack,
         { backgroundColor: theme.colors.surfaces.page }
@@ -111,7 +129,10 @@ function ProfilePhoneContent() {
             decorative
           />
         </View>
-        <StyledText style={styles.heroTitle} variant="subtitle">
+        <StyledText
+          style={[styles.heroTitle, { color: theme.colors.textPrimary }]}
+          variant="subtitle"
+        >
           {translateDynamic('settings.profile.phone.title')}
         </StyledText>
         <StyledText style={styles.heroSubtitle}>
@@ -133,7 +154,12 @@ function ProfilePhoneContent() {
         <StyledText style={styles.cardLabel} variant="caption">
           {translateDynamic('settings.profile.phone.current')}
         </StyledText>
-        <StyledText style={styles.currentPhoneValue}>
+        <StyledText
+          style={[
+            styles.currentPhoneValue,
+            { color: theme.colors.textPrimary }
+          ]}
+        >
           {profile.data.phone ??
             translateDynamic('settings.profile.phone.notSet')}
         </StyledText>
@@ -149,12 +175,7 @@ function ProfilePhoneContent() {
           }
         ]}
       >
-        <FormField
-          label={translateDynamic('appShell.auth.phone.countryCode')}
-          value={countryCode}
-          onChangeText={setCountryCode}
-          variant="phone"
-        />
+        <PhoneCountryPicker country={country} onSelect={setCountry} />
         <FormField
           label={translateDynamic('appShell.auth.phone.number')}
           value={phoneNumber}
@@ -173,32 +194,26 @@ function ProfilePhoneContent() {
   );
 }
 
-function splitPhone(existing?: string | null) {
-  const fallback = { countryCode: '+966', phoneNumber: existing ?? '' };
-  if (!existing?.startsWith('+')) return fallback;
-  const knownCodes = [
-    '+966',
-    '+971',
-    '+965',
-    '+974',
-    '+973',
-    '+968',
-    '+962',
-    '+961',
-    '+20',
-    '+1',
-    '+44'
-  ];
-  const matched = knownCodes.find((code) => existing.startsWith(code));
-  if (matched)
-    return {
-      countryCode: matched,
-      phoneNumber: existing.slice(matched.length).trim()
-    };
-  const generic = existing.match(/^(\+\d{1,3})(.*)$/);
-  return generic
-    ? { countryCode: generic[1], phoneNumber: generic[2].trim() }
-    : fallback;
+function splitPhone(existing?: string | null, profileCountry?: string) {
+  const fallback =
+    getCountries().find((code) => code === profileCountry) ?? 'SA';
+  const parsed =
+    existing && !existing.includes('*')
+      ? parsePhoneNumber(existing, fallback)
+      : undefined;
+  return {
+    country:
+      parsed?.country ??
+      (parsed && parsed.countryCallingCode !== getCountryCallingCode(fallback)
+        ? getCountries().find(
+            (code) => getCountryCallingCode(code) === parsed.countryCallingCode
+          )
+        : undefined) ??
+      fallback,
+    phoneNumber:
+      parsed?.nationalNumber ??
+      (existing?.includes('*') ? '' : (existing ?? ''))
+  };
 }
 
 const styles = StyleSheet.create({
@@ -223,8 +238,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colorTokens.raw['10231F']
+    fontWeight: '700'
   },
   heroSubtitle: {
     fontSize: 13,
@@ -244,7 +258,6 @@ const styles = StyleSheet.create({
   },
   currentPhoneValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colorTokens.raw['10231F']
+    fontWeight: '600'
   }
 });

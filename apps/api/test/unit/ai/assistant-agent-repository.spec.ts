@@ -26,6 +26,8 @@ function databaseBoundary() {
   const withClient = jest.fn((work: (client: unknown) => Promise<unknown>) =>
     work({
       query: (sql: string, args?: unknown[]) => {
+        if (sql.includes('bind_financial_worker_generation'))
+          return Promise.resolve({ rows: [{ generation: '1' }] });
         if (sql.includes('finish_assistant_agent_job')) submitted = args;
         return Promise.resolve({ rows: [{ result: true }] });
       },

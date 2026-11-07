@@ -8,6 +8,24 @@
  */
 
 const en = {
+  'financialReset.sessionExpired': 'Your session expired. Reopen the app and try again.',
+  'financialReset.reviewChanged': 'Your data was reset on another device. Confirm before starting a new reset.',
+  'financialReset.stale': 'The previous request belongs to older data. Return to confirmation to start a new request.',
+  'financialReset.reviewAgain': 'Back to confirmation',
+  'financialReset.title': 'Reset financial data',
+  'financialReset.subtitle': 'Start again with zero balances.',
+  'financialReset.confirmTitle': 'Ready for a fresh start?',
+  'financialReset.confirmMessage': 'We’ll erase your financial history and plans and set your account balances to zero across all your devices. Your accounts and their names will stay. This can’t be undone.',
+  'financialReset.external': 'Files you downloaded outside the app will stay with you.',
+  'financialReset.submit': 'Reset data',
+  'financialReset.checking': 'Preparing your request…',
+  'financialReset.processing': 'Resetting your data… You can close this dialog and return to check progress.',
+  'financialReset.complete': 'Your financial data has been reset. Your accounts now have zero balances and are ready for a fresh start.',
+  'financialReset.done': 'Done',
+  'financialReset.close': 'Close',
+  'financialReset.error': 'Couldn’t confirm the request status. Check your connection and try again.',
+  'financialReset.retryNotice': 'The previous attempt has no confirmed receipt. Select Reset data to retry the same request.',
+  'financialReset.checkStatus': 'Refresh status',
   'tracking.unverified.title':
     'Tracking is unavailable until your account is verified',
   'tracking.unverified.message':
@@ -157,6 +175,7 @@ const en = {
   'settings.deletion.pending': 'Contacting the account service…',
   'settings.deletion.error':
     'The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.',
+  'settings.deletion.processingRetry': 'Your deletion request is saved. The server will retry. You can close this message or check the status later.',
   'settings.deletion.rateLimited':
     'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
   'settings.deletion.sessionExpired':
@@ -600,6 +619,8 @@ const en = {
   'appShell.onboarding.complete.openHome': 'Open Home',
   'appShell.permission.enable': 'Enable tracking',
   'appShell.permission.retry': 'Try permission again',
+  'appShell.permission.settingsHelp': 'SMS access is off. In your device settings, open Apps → Masarifi → Permissions → SMS, choose Allow, then return to the app. You can also request permission again here.',
+  'appShell.permission.requestAgain': 'Request permission again',
   'appShell.permission.openSettings': 'Open settings',
   'appShell.permission.manualFallback': 'Continue with manual entry',
   'appShell.permission.status.notRequested': 'Permission not requested',
@@ -638,7 +659,7 @@ const en = {
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.biometricUnlock': 'Try device authentication again',
+  'appShell.security.biometricUnlock': 'Try again',
   'appShell.security.biometricUnavailable': 'Device authentication unavailable',
   'appShell.security.biometricCancelled':
     'Device authentication was cancelled. You can try again.',
@@ -647,8 +668,8 @@ const en = {
   'appShell.security.biometricLocked':
     'Device authentication is temporarily locked by your device.',
   'appShell.security.protectedContent': 'Content protected',
-  'appShell.security.nativeUnlock':
-    'Unlock Masarifi with your device authentication',
+  'appShell.security.nativeUnlock': 'Unlock Masarifi',
+  'appShell.security.unlockHint': 'Use biometrics or your device passcode to continue.',
   'appShell.security.nativeLock': 'Use device authentication',
   'appShell.security.nativeLockSubtitle':
     'Fingerprint, face or your device PIN, password or pattern. Managed by your device.',
@@ -2572,6 +2593,7 @@ const en = {
   'settings.profile.title': 'Profile',
   'settings.profile.name': 'Name',
   'settings.profile.email': 'Email',
+  'settings.profile.saved': 'Profile saved.',
   'settings.profile.save': 'Save profile',
   'settings.profile.validation.email': 'Enter a valid email address.',
   'settings.profile.phone': 'Phone Number',
@@ -2724,6 +2746,8 @@ const en = {
   'support.form.failure.offline': 'Saved locally. Submit when you are online.',
   'support.form.failure.representative_failure':
     'Unable to save draft temporarily.',
+  'support.form.sessionFailure': 'Check your account session and try sending again.',
+  'support.form.rateLimited': 'Too many requests. Wait a moment and try again.',
   'support.form.submitFailure':
     'Unable to submit. Your text is kept for retry.',
   'support.report.assistant': 'Report assistant response to support',
@@ -2895,6 +2919,10 @@ const en = {
   'frontendQuality.selector.routeLinks': 'Seeded route links',
   'frontendQuality.selector.unavailable':
     'Scenario selector is only available in development builds.',
+  'recentAuth.signInAgain': 'If you use Google to sign in, sign out and sign back in to the same account, then return here.',
+  'recentAuth.unsupported': 'Your account has no verification method available in this app. Sign out, sign in again with the same account, then return to the action.',
+  'recentAuth.useSignIn': 'Use my recent sign-in',
+  'recentAuth.passkey': 'Use your passkey to verify this session.',
   'recentAuth.title': 'Verify your identity',
   'recentAuth.code':
     'Enter the verification code sent to your registered phone or email.',

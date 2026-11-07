@@ -65,7 +65,8 @@ async function authenticateOnce(): Promise<BiometricResult> {
   const result = await LocalAuthentication.authenticateAsync({
     disableDeviceFallback: false,
     biometricsSecurityLevel: 'strong',
-    promptMessage: translate('appShell.security.nativeUnlock')
+    promptMessage: translate('appShell.security.nativeUnlock'),
+    promptSubtitle: translate('appShell.security.unlockHint')
   });
   if (result.success) return { status: 'authenticated' };
   if (result.error === 'lockout') return { status: 'locked_out' };

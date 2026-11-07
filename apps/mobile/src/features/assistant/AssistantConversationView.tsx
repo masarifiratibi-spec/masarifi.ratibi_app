@@ -29,7 +29,7 @@ import type {
 } from '@/domain/assistant';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
 import type { AssistantAvailability } from './AssistantFunctionalStatus';
 
 export interface AssistantConversationViewProps {
@@ -43,10 +43,6 @@ export interface AssistantConversationViewProps {
     fallback: React.ReactNode
   ) => React.ReactNode;
   onViewReport?: () => void;
-  onFeedback?: (
-    responseId: string,
-    feedback: 'helpful' | 'not_helpful' | 'reported'
-  ) => void;
   userTurns?: readonly AssistantUserTurn[];
   onBack?: () => void;
   functionalStatus?: React.ReactNode;
@@ -67,7 +63,6 @@ export function AssistantConversationView({
   onReviewAction,
   renderAction,
   onViewReport,
-  onFeedback,
   userTurns = EMPTY_USER_TURNS,
   onBack,
   functionalStatus,
@@ -77,6 +72,7 @@ export function AssistantConversationView({
   onEndReached,
   testID = 'assistant-conversation-view'
 }: AssistantConversationViewProps) {
+  const { colors } = useTheme();
   const insets = React.useContext(SafeAreaInsetsContext);
   const [uses24HourClock, setUses24HourClock] = React.useState(
     () => getCalendars()[0]?.uses24hourClock
@@ -190,7 +186,6 @@ export function AssistantConversationView({
           onReviewAction={onReviewAction}
           renderAction={renderAction}
           onViewReport={onViewReport}
-          onFeedback={(feedback) => onFeedback?.(item.response!.id, feedback)}
           timestamp={clock.format(item.response.createdAt)}
         />
       ) : null}
@@ -200,7 +195,7 @@ export function AssistantConversationView({
   return (
     <KeyboardAvoidingView
       testID={testID}
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.surfaces.page }]}
       behavior="padding"
       enabled={keyboardVisible}
       // FoundationProviders already places this screen below the top safe area.
@@ -232,10 +227,10 @@ export function AssistantConversationView({
                   {isSending && !error ? (
                     <ActivityIndicator
                       size="small"
-                      color={colorTokens.raw['0D684A']}
+                      color={colors.content.link}
                     />
                   ) : null}
-                  <StyledText style={styles.thinkingText}>
+                  <StyledText style={[styles.thinkingText, { color: colors.content.link }]}>
                     {error ?? translate('assistant.thinking')}
                   </StyledText>
                 </>
@@ -267,7 +262,6 @@ export function AssistantConversationView({
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: colorTokens.raw['EEF6F4'],
     flex: 1
   },
   listContent: {
@@ -287,7 +281,6 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md
   },
   thinkingText: {
-    color: colorTokens.raw['0D684A'],
     fontSize: 13,
     fontWeight: '600'
   }

@@ -344,7 +344,7 @@ test('conversation renders structured labels, evidence, limitations, feedback, r
   fireEvent.press(
     screen.getAllByText(t('assistant.action.confirmDelete')).at(-1)!
   );
-  fireEvent.press(screen.getByText(t('assistant.feedback.helpful')));
+  expect(screen.queryByText(t('assistant.feedback.helpful'))).toBeNull();
   fireEvent.press(screen.getByText(t('assistant.feedback.report')));
   act(() => rendered.UNSAFE_getByType(FlatList).props.onEndReached());
 

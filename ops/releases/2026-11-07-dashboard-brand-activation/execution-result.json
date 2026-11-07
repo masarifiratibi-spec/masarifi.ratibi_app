@@ -1,0 +1,22 @@
+{
+  "scope": "Approved staging dashboard only; no API/worker/data/mobile changes",
+  "sourceCommit": "abd641d1032654298f0c94a99d8ed73ce3cea712",
+  "initialReviewCommit": "acd3baa84e2a5e577f90746b9314df1dd7b1f208",
+  "continuationReviewCommit": "af182281dd2aea0c08bfada3c425a9693f60cdf5",
+  "runtimeSha256": "31d4347333007fcdb5812118032714ca0a0533146acd79afeeb1e29e1c85660a",
+  "buildId": "tVR-q9gIlaCqW_hSYBwNT",
+  "candidateId": "726c6d6886ae5972aa8c3deebeef28741846d6acbe54af5d82717bc814e41016",
+  "continuation": "Only OomKillDisable null->false default representation differed.19 offline tests passed Windows and Linux; full extracted-runtime comparison passed before starting the same recorded ID.",
+  "candidateStartedAt": "2026-11-07T10:21:11.16945733Z",
+  "nginxSwitchedAt": "2026-11-07T10:21:33Z",
+  "authenticatedReadAt": "2026-11-07T10:21:46.924Z",
+  "authenticatedChecks": {"accessMe": 200, "queues": 200, "registeredRows": 53, "renderedCards": 53, "telemetry": "fresh", "pageErrors": [], "consoleErrors": [], "logoAndFaviconExactBytes": true, "publicBuildManifestExactBytes": true},
+  "acceptance": "rejected: queue cards overflow document at390px (616px document); desktop capture was1920px, not1440px",
+  "rollbackReloadedAt": "2026-11-07T10:22:44Z",
+  "reconciledAt": "2026-11-07T10:23:18.075665+00:00",
+  "originalProxySha256": "be7856f0d5f6183f14fdf01b136e5f4d30eaa15ecefc091aed0cc91c870b7b17",
+  "original31ContainerDigest": "e15ecf76df2b499f9257800594c003be25119e6668d0f85381137c058bb623d1",
+  "candidateRunning": false,
+  "watchdog": "Exact receipt PID2250824 command verified and terminated only after successful pinned restore; no acceptance marker issued",
+  "result": "Old3040 proxy and all31 original services preserved. Rejected candidate/artifact retained. CSS repair and a new exact-source candidate required."
+}

@@ -26,8 +26,8 @@ describe('operations job registry', () => {
   });
 
   it('contains every governed job once and no paid work', () => {
-    expect(GOVERNED_JOB_KEYS).toHaveLength(53);
-    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(53);
+    expect(GOVERNED_JOB_KEYS).toHaveLength(54);
+    expect(new Set(GOVERNED_JOB_KEYS).size).toBe(54);
     expect(JSON.stringify(GOVERNED_JOB_KEYS)).not.toMatch(
       /billing|stripe|subscription|entitlement|checkout|promotion/iu,
     );
@@ -43,6 +43,29 @@ describe('operations job registry', () => {
       outcome: 'succeeded',
       processed: 2,
     });
+  });
+
+  it('dispatches durable financial reset cleanup independently of account deletion', async () => {
+    const cleanup = { run: jest.fn().mockResolvedValue(3) };
+    const registry = new OperationsJobRegistry(
+      { runJob: jest.fn() },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      cleanup as never,
+    );
+    await expect(registry.run('privacy.financial-reset-cleanup')).resolves.toEqual({
+      outcome: 'succeeded',
+      processed: 3,
+    });
+    expect(cleanup.run).toHaveBeenCalledTimes(1);
   });
 
   it.each(expected)('dispatches the owned %s behavior', async (jobKey) => {

@@ -55,9 +55,19 @@ for (const file of files) {
   }
 
   if (!isTest && !isAndroidSmsBoundary) {
+    // This shared facade only exposes an optional lookup (null without the
+    // Android module). Ignore its exact re-export, while still checking any
+    // executable SMS behavior added beside it.
+    const smsSource =
+      normalized === 'src/services/platform/tracking-native-runtime.ts'
+        ? source.replace(
+            /^export\s*\{\s*MasarifiSmsInbox\s+as\s+trackingNativeRuntime\s*\}\s*from\s*(['"])\.\.\/\.\.\/\.\.\/modules\/masarifi-sms-inbox\1;?[ \t]*$/gm,
+            (statement) => statement.replace(/[^\r\n]/g, ' ')
+          )
+        : source;
     reportMatches(
       file,
-      source,
+      smsSource,
       /\b(?:READ_SMS|SmsAndroid|Telephony|SMS permission|inbox)\b/g,
       'SMS behavior outside Android boundary'
     );

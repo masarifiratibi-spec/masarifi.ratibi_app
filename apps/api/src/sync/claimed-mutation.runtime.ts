@@ -1,3 +1,4 @@
+import { withClaimGeneration } from '../platform/database/financial-worker-generation';
 import { LedgerRepository } from '../ledger/ledger.repository';
 import { LedgerService } from '../ledger/ledger.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
@@ -91,7 +92,10 @@ export async function prepareClaimedMutationRuntime(
       normalPool: workerPool,
       apiCommandPool,
       imageSha256: verifiedImageSha256,
-      executeClaim: (row: ClaimedMutationRow) => executor.process(toClaimedMutation(row)),
+      executeClaim: async (row: ClaimedMutationRow) => {
+        const generation = await queueRepository.claimedGeneration(row.id, row.lease_token);
+        return withClaimGeneration(generation, () => executor.process(toClaimedMutation(row)));
+      },
       close,
     };
   } catch (error) {

@@ -108,8 +108,18 @@ export function DevAccountDeletionPanel({
           'failed',
           'unavailable'
         ].includes(phase)));
-  const problemKey = `${phase ?? ''}:${snapshot?.nextAttemptAt ?? 0}:${error ?? ''}`;
+  const problemKey = `${phase ?? ''}:${snapshot?.error ?? ''}:${error ?? ''}`;
   const dismissProblem = () => setDismissedProblem(problemKey);
+  const retryLabel =
+    phase === 'verification_required'
+      ? 'settings.deletion.continue'
+      : 'settings.deletion.retry';
+  const retry = () =>
+    void run(() =>
+      !phase || phase === 'verification_required' || phase === 'rejected'
+        ? submitAccountDeletion(ownerId)
+        : reconcileAccountDeletions({ force: true })
+    );
   if (phase === 'completed') return null;
   const message =
     phase === 'rejected'
@@ -152,22 +162,9 @@ export function DevAccountDeletionPanel({
               settings.deletion.popup.title
             </StyledText>
             <StyledText style={styles.centered}>
-              settings.deletion.popup.body
+              {t(error ?? message ?? 'settings.deletion.popup.body')}
             </StyledText>
-            <ActionButton
-              label={
-                phase === 'verification_required'
-                  ? 'settings.deletion.continue'
-                  : 'settings.deletion.retry'
-              }
-              onPress={() =>
-                void run(() =>
-                  !phase || ['verification_required', 'rejected'].includes(phase)
-                    ? submitAccountDeletion(ownerId)
-                    : reconcileAccountDeletions({ force: true })
-                )
-              }
-            />
+            <ActionButton label={retryLabel} onPress={retry} />
             <ActionButton
               label="common.close"
               variant="quiet"
@@ -221,6 +218,9 @@ export function DevAccountDeletionPanel({
           {!production && error ? (
             <StyledText accessibilityRole="alert">{error}</StyledText>
           ) : null}
+          {production && phase && problem && dismissedProblem === problemKey ? (
+            <ActionButton label={retryLabel} onPress={retry} loading={busy} />
+          ) : null}
           {!phase && !recovery ? (
             <ActionButton
               label="appShell.security.deleteAccount"
@@ -237,9 +237,12 @@ export function DevAccountDeletionPanel({
           ) : null}
           {!production &&
           phase &&
-          !['deleting', 'completed', 'verification_required', 'rejected'].includes(
-            phase
-          ) ? (
+          ![
+            'deleting',
+            'completed',
+            'verification_required',
+            'rejected'
+          ].includes(phase) ? (
             <ActionButton
               label="settings.deletion.refresh"
               variant="secondary"

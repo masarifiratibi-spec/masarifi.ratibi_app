@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { createHash } from 'node:crypto';
 
 import { HttpException, Injectable } from '@nestjs/common';
@@ -21,6 +22,7 @@ interface ClaimRow extends QueryResultRow {
   lease_token: string | null;
 }
 export interface AiWorkClaim extends QueryResultRow {
+  generation?: string;
   kind: 'voice.transcribe_extract' | 'assistant.respond' | 'ai.evaluate_route';
   id: string;
   user_id: string | null;
@@ -310,12 +312,16 @@ export class AiRepository {
         );
         for (const next of events ?? []) {
           try {
-            const receipt = await this.workerJson(
-              continuous
-                ? 'select private.execute_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result'
-                : 'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
-              [claim.batch_id, claim.token, next.eventId],
-            );
+            const receipt = await this.worker(async (client) => {
+              await bindFinancialClaim(client, 'voice-batch', claim.batch_id, claim.token);
+              return this.json(
+                client,
+                continuous
+                  ? 'select private.execute_operating_voice_event($1::uuid,$2::uuid,$3::uuid) result'
+                  : 'select private.execute_voice_event($1::uuid,$2::uuid,$3::uuid) result',
+                [claim.batch_id, claim.token, next.eventId],
+              );
+            });
             if (stopOnFailure && receipt.status !== 'committed') {
               failed = true;
               await stopOnFailure();
@@ -388,7 +394,7 @@ export class AiRepository {
       async (client) =>
         (
           await client.query<AiWorkClaim>(
-            'select * from private.claim_staging_voice_work($1::uuid,$2,$3,$4)',
+            "select w.*,private.bind_financial_worker_generation('voice',w.id,w.claim_token)::text generation from private.claim_staging_voice_work($1::uuid,$2,$3,$4) w",
             [epoch, workerId, limit, lease],
           )
         ).rows,
@@ -1057,14 +1063,14 @@ export class AiRepository {
 
   claimWork(kind: AiWorkClaim['kind'], workerId: string, limit: number, leaseSeconds: number) {
     return this.workerClaims<AiWorkClaim>(
-      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_ai_work($1,$2,$3,$4) work",
+      "select coalesce(jsonb_agg(to_jsonb(work) || jsonb_build_object('generation',case when work.kind='ai.evaluate_route' then null else private.bind_financial_worker_generation(case when work.kind='assistant.respond' then 'assistant' else 'voice' end,work.id,work.claim_token)::text end)),'[]'::jsonb) claims from private.claim_ai_work($1,$2,$3,$4) work",
       [kind, workerId, limit, leaseSeconds],
     );
   }
 
   claimAnalysisWork(workerId: string, limit: number, leaseSeconds: number) {
     return this.workerClaims<AiWorkClaim>(
-      "select coalesce(jsonb_agg(work),'[]'::jsonb) claims from private.claim_voice_analysis_work($1,$2,$3) work",
+      "select coalesce(jsonb_agg(to_jsonb(work) || jsonb_build_object('generation',private.bind_financial_worker_generation('voice',work.id,work.claim_token)::text)),'[]'::jsonb) claims from private.claim_voice_analysis_work($1,$2,$3) work",
       [workerId, limit, leaseSeconds],
     );
   }

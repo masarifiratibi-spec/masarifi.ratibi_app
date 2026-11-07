@@ -330,6 +330,15 @@ export class EngagementRepository {
   ): Promise<boolean> {
     if (!deliveries.some((item) => item.channel === 'in_app')) return false;
     return this.worker(async (client) => {
+      // Source selection and rendering can finish after an owner reset. The profile lock
+      // keeps the cutoff check and the notification/delivery inserts in one generation.
+      if (!source.event_type.startsWith('reminder.app_inactive.')) {
+        const allowed = await client.query<{ allowed: boolean }>(
+          'select private.allow_financial_notification($1,$2::timestamptz) allowed',
+          [source.user_id, source.occurred_at],
+        );
+        if (!allowed.rows[0]?.allowed) return false;
+      }
       const quiet = await client.query<{ quiet: boolean }>(
         "select ($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed','balance.changed') and private.is_tracking_notification_capture($1,$2)) quiet",
         [source.user_id, source.source_id, source.event_type],

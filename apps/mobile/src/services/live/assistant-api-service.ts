@@ -1,3 +1,4 @@
+import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import Constants from 'expo-constants';
 import { z } from 'zod';
@@ -452,6 +453,7 @@ export function createLiveAssistantApiService(
     timeoutMs?: number
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
+    const binding = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
     if (!baseUrl) throw new AssistantApiError('assistant_disabled');
     const actor = await identity();
     if (expectedOwner && actor.userId !== expectedOwner)
@@ -478,6 +480,7 @@ export function createLiveAssistantApiService(
           method,
           signal: controller.signal,
           headers: {
+            ...generationHeaders(binding),
             Authorization: `Bearer ${actor.token}`,
             ...(stagingDevelopment
               ? { 'X-Masarifi-Client-Variant': 'staging-development' }

@@ -64,6 +64,11 @@ class WholeStoreCorpusTest(unittest.TestCase):
             for name in ("older-schema15-queues", "mixed-schema15-schema16"):
                 self.assertEqual(cases[name]["admission"]["admissionSchemaCurrent"], "false")
                 self.assertEqual(cases[name]["launchAdmission"]["admissionLocalStatus"], "BLOCKED")
+            unsupported = root / "future-schema17/input/files/SQLite" / ("masarifi-" + whole.A[:24] + ".db")
+            with contextlib.closing(sqlite3.connect(unsupported)) as connection:
+                self.assertEqual(connection.execute("SELECT max(version) FROM schema_migrations").fetchone()[0], 17)
+                self.assertEqual([column[1] for column in connection.execute("PRAGMA table_info(sms_import_queue_v3)")],
+                                 ["id", "payload"])
             self.assertEqual(cases["older-schema15-queues"]["admission"]["admissionFinancePending"], "1")
             self.assertEqual(cases["older-schema15-queues"]["admission"]["admissionTrackingRows"], "1")
             for name in ("future-schema17", "cache-missing-table", "cache-altered-pk", "cache-extra-index", "cache-spoofed-history15", "cache-extra-trigger", "invalid-sync-state15", "invalid-sync-state16"):

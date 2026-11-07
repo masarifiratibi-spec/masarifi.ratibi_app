@@ -1,3 +1,6 @@
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
+import { useAppShellStore } from '@/state/app-shell';
 import { requireOptionalNativeModule } from 'expo';
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
@@ -10,6 +13,22 @@ export interface SavedReportPdf {
   name: string;
   bytes: number;
 }
+const ownerPrefix = (owner: string) =>
+  'masarifi-report-' + bytesToHex(sha256(utf8ToBytes(owner))) + '-';
+
+export async function clearOwnerReportPdfCache(owner: string) {
+  const directory = FileSystem.cacheDirectory;
+  if (Platform.OS !== 'android' || !directory) return;
+  const prefix = ownerPrefix(owner);
+  for (const file of await FileSystem.readDirectoryAsync(directory)) {
+    if (
+      file.startsWith(prefix) &&
+      /^[a-f0-9-]{36}\.pdf$/i.test(file.slice(prefix.length))
+    )
+      await FileSystem.deleteAsync(directory + file, { idempotent: true });
+  }
+}
+
 const maxBytes = 52_428_800;
 const mimeType = 'application/pdf';
 
@@ -30,7 +49,10 @@ export async function saveReportPdf(
     throw new Error('REPORT_DOWNLOAD_INVALID');
   if (Platform.OS !== 'android' || !FileSystem.cacheDirectory)
     throw new Error('REPORT_SAVE_UNAVAILABLE');
-  const cacheUri = `${FileSystem.cacheDirectory}masarifi-report-${randomUUID()}.pdf`;
+  const owner = useAppShellStore.getState().session;
+  if (owner?.status !== 'authenticated' || !owner.userId)
+    throw new Error('REPORT_CONTEXT_CHANGED');
+  const cacheUri = `${FileSystem.cacheDirectory}${ownerPrefix(owner.userId)}${randomUUID()}.pdf`;
   const name = `Masarifi-report-${attempt.id}.pdf`;
   let created: string | undefined;
   let completed = false;

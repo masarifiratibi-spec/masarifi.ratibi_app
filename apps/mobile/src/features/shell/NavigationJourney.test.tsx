@@ -8,6 +8,7 @@ import TransactionsRoute from '@app/(tabs)/transactions';
 import AddRoute from '@app/(tabs)/add';
 import ReportsRoute from '@app/(tabs)/reports';
 import MoreRoute from '@app/(tabs)/more';
+import * as financialReset from '@/services/financial-reset';
 import AccountsRoute from '@app/accounts';
 import AssistantRoute from '@app/assistant';
 import { createClientDemoSession } from '@/domain/demo-session';
@@ -393,6 +394,32 @@ describe('navigation journey', () => {
       screen.getByText(translateDynamic('assistant.consent.title'))
     ).toBeOnTheScreen();
     assistant.unmount();
+  });
+
+  it('shows the reset entry and standard sheet immediately while owner state loads in the background', async () => {
+    useAppShellStore.setState({ session: authenticatedSession });
+    jest.spyOn(financialReset, 'financialResetRuntimeAvailable').mockReturnValue(true);
+    let confirm!: () => void;
+    jest.spyOn(financialReset, 'loadFinancialResetOperation').mockResolvedValue(null);
+    const read = jest.spyOn(financialReset, 'fetchFinancialResetState').mockImplementation(() => new Promise(resolve => {
+      confirm = () => resolve({ generation: 0, status: 'ready', resetAt: null, requestId: null });
+    }));
+    renderWithProviders(<MoreRoute />);
+    const label = translate('financialReset.title');
+    expect(screen.getByText(label)).toBeOnTheScreen();
+    const links = screen.getAllByRole('link').map(link => link.props.accessibilityLabel);
+    const tracking = links.indexOf(translate('tracking.action.openTracking'));
+    expect(tracking).toBeGreaterThanOrEqual(0);
+    expect(links[tracking + 1]).toContain(label);
+    fireEvent.press(screen.getByLabelText(links[tracking + 1]));
+    expect(screen.getByTestId('app-sheet-menu')).toBeOnTheScreen();
+    expect(screen.getByText(translate('financialReset.confirmMessage'))).toBeOnTheScreen();
+    const submit = screen.getByRole('button', { name: translate('financialReset.submit') });
+    expect(submit).toBeDisabled();
+    await act(async () => confirm());
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalledWith('/financial-reset');
   });
 
   it('makes More the directory for every relocated secondary destination', async () => {

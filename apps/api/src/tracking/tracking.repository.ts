@@ -24,6 +24,7 @@ interface JsonResult extends QueryResultRow {
 }
 
 export interface ImportClaim extends QueryResultRow {
+  generation?: string;
   id: string;
   user_id: string;
   claim_token: string;
@@ -400,29 +401,13 @@ export class TrackingRepository {
     });
   }
 
-  rawPayloadRegistered(principal: ClerkPrincipal, storageRef: string): Promise<boolean> {
-    return this.owner(principal, async (client) => {
-      const row = (
-        await client.query<{ registered: boolean } & QueryResultRow>(
-          'select private.raw_ingestion_payload_registered($1,$2) registered',
-          [principal.userId, storageRef],
-        )
-      ).rows[0];
-      return row?.registered === true;
-    });
-  }
-
-  queueRawCleanup(
+  reserveRawUpload(
     principal: ClerkPrincipal,
-    raw: {
-      storageRef: string;
-      payloadHash: string;
-      contentType: string;
-      sizeBytes: number;
-    },
+    raw: { storageRef: string; payloadHash: string; contentType: string; sizeBytes: number },
   ): Promise<void> {
     return this.owner(principal, async (client) => {
-      await client.query('select private.queue_raw_ingestion_cleanup($1,$2,$3,$4)', [
+      await client.query('select private.reserve_tracking_upload($1,$2,$3,$4,$5)', [
+        principal.userId,
         raw.storageRef,
         raw.payloadHash,
         raw.contentType,
@@ -466,6 +451,20 @@ export class TrackingRepository {
           'import',
           hashIdempotencyKey(request.key),
         ]);
+        if (
+          input.events.length &&
+          (input.sourceType === 'sms' || input.sourceChannel === 'android_notification')
+        ) {
+          const boundary = await client.query<{ stale: boolean }>(
+            'select reset_at >= $2::timestamptz as stale from private.financial_reset_state($1)',
+            [
+              principal.userId,
+              new Date(Math.min(...input.events.map((event) => Date.parse(event.receivedAt)))),
+            ],
+          );
+          if (boundary.rows[0]?.stale)
+            throw new HttpException({ code: 'FINANCIAL_CAPTURE_BEFORE_RESET' }, 409);
+        }
         const requestHash = hashNormalizedCommand(input).replace('sha256:', '');
         const sourceType = input.sourceType;
         const row = await this.queryJson(
@@ -929,9 +928,10 @@ export class TrackingRepository {
     return this.worker(
       async (client) =>
         (
-          await client.query<ImportClaim>('select * from private.claim_import_session($1,100,60)', [
-            workerId,
-          ])
+          await client.query<ImportClaim>(
+            "select w.*, private.bind_financial_worker_generation('import',w.id,w.claim_token)::text generation from private.claim_import_session($1,100,60) w",
+            [workerId],
+          )
         ).rows,
     );
   }

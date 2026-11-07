@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, CheckCircle2, ChevronDown, CirclePause, Mic, RefreshCw } from "lucide-react";
-import { PageHeader } from "@/components/admin/ui";
+import { AccessDeniedState, LoadingState, PageHeader } from "@/components/admin/ui";
 import { useAdminIdentity } from "@/app/providers";
 import { apiActorCacheKey } from "@/core/api/client";
 import { ApiError } from "@/core/api/errors";
@@ -138,8 +138,8 @@ export function AiUsageLimitsSection() {
     const setting = data?.settings.find(item => item.key === key); if (!setting || !data) return null;
     return <SettingEditor key={`${actor}:${data.userId}:${key}:${setting.version}`} settingKey={key} initial={initial ?? setting.value} version={setting.version} label={label} type={type} canSave={canSave} userId={data.userId} copy={copy} onSaved={refresh} onNotice={setNotice} />;
   };
-  if (!identity.loaded || session.isPending) return null;
-  if (!canRead) return null;
+  if (!identity.loaded || session.isPending) return <LoadingState />;
+  if (!canRead) return <AccessDeniedState permission="operations.settings.read" />;
   return <section className={`admin-page ${styles.page}`} aria-label={copy.title}>
     <PageHeader title={copy.title} description={copy.description} actions={<button className="button secondary" type="button" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={16} aria-hidden="true" />{copy.refresh}</button>} />
     <p className={styles.direct}>{copy.direct}</p>

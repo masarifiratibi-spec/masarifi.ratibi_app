@@ -40,6 +40,7 @@ const receiptSchema = z
     ]),
     completedAt: z.string().datetime().nullable(),
     errorCode: z.string().nullable(),
+    coolingOffEndsAt: z.string().datetime().nullable().optional(),
     version: z.number().int().positive()
   })
   .strict()
@@ -62,6 +63,7 @@ export interface DevDeletionSnapshot {
   error:
     | 'settings.deletion.error'
     | 'settings.deletion.rateLimited'
+    | 'settings.deletion.processingRetry'
     | 'settings.deletion.dev.localRetry'
     | 'settings.deletion.dev.notAllowed'
     | null;
@@ -319,6 +321,8 @@ async function acceptReceipt(
     await finishLocalErasure(completed);
     return;
   }
+  const workerNeedsRetry =
+    receipt.status === 'processing' && Boolean(receipt.errorCode);
   // A valid processing receipt is progress, not an exhausted transport retry.
   const attempts = Math.min(journal.attempts + 1, backoff.length - 1);
   const next = {
@@ -328,16 +332,26 @@ async function acceptReceipt(
     retryAfterAt,
     nextAttemptAt: Math.max(
       Date.now() +
-        Math.min(5_000, backoff[Math.min(attempts - 1, backoff.length - 1)]),
+        (workerNeedsRetry
+          ? 30_000
+          : Math.min(
+              5_000,
+              backoff[Math.min(attempts - 1, backoff.length - 1)]
+            )),
       retryAfterAt
     )
   };
   await saveDeletionCompletion(next);
   const failed = receipt.status === 'failed' || receipt.status === 'cancelled';
-  publish(journal.ownerId, failed ? 'failed' : 'pending', {
-    nextAttemptAt: next.nextAttemptAt,
-    automaticRetries: !failed && attempts < backoff.length
-  });
+  publish(
+    journal.ownerId,
+    failed ? 'failed' : workerNeedsRetry ? 'unavailable' : 'pending',
+    {
+      error: workerNeedsRetry ? 'settings.deletion.processingRetry' : null,
+      nextAttemptAt: next.nextAttemptAt,
+      automaticRetries: !failed && attempts < backoff.length
+    }
+  );
 }
 
 async function recordFailure(
@@ -372,7 +386,19 @@ async function recordFailure(
     publishRejected(journal.ownerId);
     return;
   }
-  if (transport?.failure.domainCode === 'RECENT_AUTH_REQUIRED') {
+  // A lost initial POST may never reach the server. Only an explicit owner
+  // continuation may replay the original key and token after a missing receipt.
+  const missingInitialReceipt =
+    transport?.method === 'GET' &&
+    transport.failure.status === 404 &&
+    transport.failure.domainCode === 'NOT_FOUND' &&
+    transport.retryAfterMs === 0 &&
+    journal.phase === 'submitted' &&
+    journal.requestId === null;
+  if (
+    missingInitialReceipt ||
+    transport?.failure.domainCode === 'RECENT_AUTH_REQUIRED'
+  ) {
     await saveDeletionCompletion({
       ...journal,
       phase: 'verification_required',

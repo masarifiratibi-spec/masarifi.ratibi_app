@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Text } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { AssistantBotAvatar } from './AssistantBotAvatar';
 import { useTheme } from '@/state/theme-context';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -23,7 +23,6 @@ export interface AssistantMessageBubbleProps {
   onReviewAction?: (previewId: string) => void;
   renderAction?: (previewId: string, fallback: React.ReactNode) => React.ReactNode;
   onViewReport?: () => void;
-  onFeedback?: (feedback: 'helpful' | 'not_helpful' | 'reported') => void;
   timestamp?: string;
   testID?: string;
 }
@@ -34,7 +33,6 @@ export function AssistantMessageBubble({
   onReviewAction,
   renderAction,
   onViewReport,
-  onFeedback,
   timestamp,
   testID = 'assistant-message-bubble'
 }: AssistantMessageBubbleProps) {
@@ -78,7 +76,6 @@ export function AssistantMessageBubble({
       )}
       <StyledText
         style={[
-          styles.blockText,
           { color: colors.content.primary },
           {
             textAlign: isRtl ? 'right' : 'left',
@@ -170,7 +167,7 @@ export function AssistantMessageBubble({
 
         {/* Limitations Notice */}
         {!inlineActions && (response.limitations ?? []).map((item) => (
-          <StyledText key={item} style={styles.limitationText}>
+          <StyledText key={item} style={[styles.limitationText, { color: colors.content.secondary }]}>
             {item === 'review_required_excluded'
               ? translate('assistant.limitation.reviewExcluded')
               : translateDynamic(`assistant.limitation.${item}`) ===
@@ -180,43 +177,7 @@ export function AssistantMessageBubble({
           </StyledText>
         ))}
 
-        {/* Footer with Timestamp & Feedback */}
-        <View
-          style={[
-            styles.footer,
-            { flexDirection: isRtl ? 'row-reverse' : 'row' }
-          ]}
-        >
-          {timestamp && (
-            <StyledText style={styles.timestamp}>{timestamp}</StyledText>
-          )}
-
-          {onFeedback && !inlineActions && (
-            <View
-              style={[
-                styles.feedbackRow,
-                { flexDirection: isRtl ? 'row-reverse' : 'row' }
-              ]}
-            >
-              <Pressable
-                onPress={() => onFeedback('helpful')}
-                style={styles.feedbackBtn}
-                accessibilityLabel={translate('assistant.feedback.helpful')}
-              >
-                <Text style={styles.feedbackEmoji}>👍</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => onFeedback('not_helpful')}
-                style={styles.feedbackBtn}
-                accessibilityLabel={translateDynamic(
-                  'assistant.feedback.notHelpful'
-                )}
-              >
-                <Text style={styles.feedbackEmoji}>👎</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
+        {timestamp ? <StyledText style={[styles.timestamp, { color: colors.content.secondary }]}>{timestamp}</StyledText> : null}
       </View>
     </View>
   );
@@ -235,8 +196,6 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   bubble: {
-    backgroundColor: colorTokens.raw['FFFFFF'],
-    borderColor: colorTokens.raw['D7E1DC'],
     borderRadius: 22,
     borderWidth: 1,
     flex: 1,
@@ -260,36 +219,14 @@ const styles = StyleSheet.create({
     gap: 2
   },
   blockLabel: {
-    color: colorTokens.raw['0D684A'],
     fontSize: 11,
     fontWeight: '700'
   },
-  blockText: {
-    color: colorTokens.raw['10231F']
-  },
   limitationText: {
-    color: colorTokens.raw['657872'],
     fontSize: 11.5,
     fontStyle: 'italic'
   },
-  footer: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    paddingTop: 4
-  },
   timestamp: {
-    color: colorTokens.raw['7C8B85'],
     fontSize: 11
-  },
-  feedbackRow: {
-    alignItems: 'center',
-    gap: spacing.xs
-  },
-  feedbackBtn: {
-    padding: 2
-  },
-  feedbackEmoji: {
-    fontSize: 13
   }
 });

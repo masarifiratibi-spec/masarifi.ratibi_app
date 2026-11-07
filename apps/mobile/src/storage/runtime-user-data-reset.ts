@@ -1,5 +1,13 @@
 import { captureTrackingAdmission } from '@/state/tracking-admission';
 
+const financialResets = new Set<(owner: string) => void>();
+export function registerFinancialProjectionReset(reset: (owner:string)=>void) {
+  financialResets.add(reset);
+}
+export function resetFinancialProjections(owner:string) {
+  for(const reset of financialResets) reset(owner);
+}
+
 const resets = new Set<() => void | Promise<void>>();
 export type IdentityResetContext =
   { restoringOwnerId: string } | { kind: 'restore-unavailable' | 'signed-out-preserve' };

@@ -81,6 +81,7 @@ const fullRequest = {
   version: 3
 };
 const completedReceipt = {
+  coolingOffEndsAt: fullRequest.coolingOffEndsAt,
   id: fullRequest.id,
   status: 'completed',
   completedAt: fullRequest.completedAt,
@@ -331,6 +332,26 @@ test('never signs out a newly active owner while the old owner signout is awaiti
   expect(useAppShellStore.getState().session?.userId).toBe(OTHER);
   expect(deletionNative.files.has(oldFile)).toBe(false);
   expect(deletionNative.files.has(otherFile)).toBe(true);
+});
+
+test('can manually continue the same confirmed operation after a lost POST and missing receipt', async () => {
+  const file = seedDeletedOwner(OWNER);
+  http.mockRejectedValueOnce(new TypeError('connection lost'));
+  await submitDevAccountDeletion(OWNER);
+  const journal = await loadDeletionCompletion(OWNER);
+  http.mockResolvedValueOnce(response({code:'NOT_FOUND'},404));
+  await reconcileDevAccountDeletions({force:true});
+  expect(snapshot()?.phase).toBe('verification_required');
+  await reconcileDevAccountDeletions({force:true});
+  expect(http).toHaveBeenCalledTimes(2);
+  expect(deletionNative.files.has(file)).toBe(true);
+  http.mockResolvedValueOnce(response(fullRequest,202));
+  await submitDevAccountDeletion(OWNER);
+  const [, retry] = http.mock.calls[2];
+  expect(retry.method).toBe('POST');
+  expect(retry.headers['Idempotency-Key']).toBe(journal?.operationId);
+  expect(JSON.parse(retry.body).completionToken).toBe(journal?.completionToken);
+  expect(snapshot()?.phase).toBe('completed');
 });
 
 test('resumes explicit recent-auth rejection with the same operation and token after fresh verification', async () => {
@@ -674,6 +695,16 @@ test('keeps processing behind one loading message beyond the initial polling win
   } finally {
     jest.useRealTimers();
   }
+});
+
+test('shows a saved processing receipt when the server is retrying erasure', async () => {
+  http.mockResolvedValueOnce(response({ ...fullRequest, status: 'processing', completedAt: null }, 202));
+  await submitDevAccountDeletion(OWNER);
+  http.mockResolvedValueOnce(response({ ...completedReceipt, status: 'processing', completedAt: null,
+    errorCode: 'DELETION_HANDLER_FAILED' }));
+  await reconcileDevAccountDeletions({ force: true });
+  expect(snapshot()).toMatchObject({ phase: 'unavailable', error: 'settings.deletion.processingRetry', automaticRetries: true });
+  expect(http.mock.calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
 });
 
 test('checks valid processing receipts within five seconds and restarts onboarding only after confirmed cleanup', async () => {

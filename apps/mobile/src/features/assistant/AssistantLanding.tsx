@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@/state/theme-context';
 import {
   ScrollView,
   View,
@@ -14,7 +15,7 @@ import { AssistantPrivacyFooter } from './components/AssistantPrivacyFooter';
 import { StyledText } from '@/components/StyledText';
 import { currentLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 import type { AssistantConsent } from '@/domain/assistant';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 import type { AssistantFinancialInsight } from '@/services/contracts/assistant-notifications-service';
@@ -53,6 +54,8 @@ export function AssistantLanding({
   error = null,
   onBack
 }: AssistantLandingProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const scope = initialQuestion ? `report:${bytesToHex(sha256(utf8ToBytes(initialQuestion)))}` : 'landing';
   const draft = useAssistantDraft(scope, initialQuestion);
@@ -122,7 +125,7 @@ export function AssistantLanding({
           {/* Error message if any */}
           {error && (
             <View style={styles.errorContainer}>
-              <StyledText style={styles.errorText}>{error}</StyledText>
+              <StyledText accessibilityRole="alert" style={styles.errorText}>{error}</StyledText>
             </View>
           )}
 
@@ -153,9 +156,9 @@ export function AssistantLanding({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   root: {
-    backgroundColor: colorTokens.sand['100'],
+    backgroundColor: colors.surfaces.page,
     flex: 1
   },
   scrollContent: {
@@ -173,15 +176,15 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   errorContainer: {
-    backgroundColor: colorTokens.financial.expenseSurface,
-    borderColor: colorTokens.status.danger,
+    backgroundColor: colors.iconBadges.danger.background,
+    borderColor: colors.iconBadges.danger.border,
     borderRadius: radius.control,
     borderWidth: 1,
     marginHorizontal: spacing.md,
     padding: spacing.md
   },
   errorText: {
-    color: colorTokens.status.danger,
+    color: colors.iconBadges.danger.foreground,
     fontSize: 13,
     textAlign: 'center'
   },

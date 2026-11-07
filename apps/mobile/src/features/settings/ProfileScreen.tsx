@@ -44,7 +44,11 @@ export function ProfileScreen() {
   const selectedGender =
     edits.gender === undefined ? (profile.data?.gender ?? null) : edits.gender;
   const error = draft.ownerId === ownerId ? draft.error : null;
-  const updateDraft = (fields: ProfileEdits, nextError: string | null = null) =>
+  const updateDraft = (
+    fields: ProfileEdits,
+    nextError: string | null = null
+  ) => {
+    if (save.isSuccess || save.isError) save.reset();
     setDraft((current) => ({
       ownerId,
       edits: {
@@ -53,6 +57,7 @@ export function ProfileScreen() {
       },
       error: nextError
     }));
+  };
 
   if (profile.isLoading && !profile.data) {
     return (
@@ -90,7 +95,9 @@ export function ProfileScreen() {
       ? translateDynamic('settings.profile.avatar.default')
       : profile.data.avatar;
 
-  const handleSave = () => {
+  const saveBlocked = save.isPending || profile.isError || profile.isFetching;
+  const saveFields = (gender = selectedGender) => {
+    if (saveBlocked) return;
     const trimmedEmail = email.trim();
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       updateDraft({}, 'settings.profile.validation.email');
@@ -103,7 +110,7 @@ export function ProfileScreen() {
         ...profile.data,
         name,
         email: trimmedEmail || null,
-        gender: selectedGender
+        gender
       },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-${Date.now()}`
@@ -112,15 +119,12 @@ export function ProfileScreen() {
 
   const handleGenderSelect = (gender: 'male' | 'female') => {
     updateDraft({ gender });
-    save.mutate({
-      input: { ...profile.data, name, email: email.trim() || null, gender },
-      expectedVersion: profile.data.version,
-      operationId: `settings-profile-gender-${Date.now()}`
-    });
+    saveFields(gender);
   };
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.stack,
         { backgroundColor: theme.colors.surfaces.page }
@@ -177,8 +181,21 @@ export function ProfileScreen() {
         <ActionButton
           label={translateDynamic('settings.profile.save')}
           loading={save.isPending}
-          onPress={handleSave}
+          disabled={saveBlocked}
+          onPress={() => saveFields()}
         />
+        {save.isError ? (
+          <StyledText
+            accessibilityRole="alert"
+            style={{ color: theme.colors.status.danger }}
+          >
+            profileSetup.saveError
+          </StyledText>
+        ) : save.isSuccess ? (
+          <StyledText accessibilityLiveRegion="polite">
+            settings.profile.saved
+          </StyledText>
+        ) : null}
       </View>
 
       {/* Grouped Account Details Card */}
@@ -255,7 +272,9 @@ export function ProfileScreen() {
                   decorative
                 />
               </View>
-              <StyledText style={styles.rowLabel}>
+              <StyledText
+                style={[styles.rowLabel, { color: theme.colors.textPrimary }]}
+              >
                 {translateDynamic('settings.profile.gender')}
               </StyledText>
             </View>
@@ -366,7 +385,11 @@ function ProfileRow({
             decorative
           />
         </View>
-        <StyledText style={styles.rowLabel}>{label}</StyledText>
+        <StyledText
+          style={[styles.rowLabel, { color: theme.colors.textPrimary }]}
+        >
+          {label}
+        </StyledText>
       </View>
 
       <View

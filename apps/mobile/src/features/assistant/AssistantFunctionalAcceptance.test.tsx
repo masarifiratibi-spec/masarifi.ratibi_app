@@ -225,14 +225,10 @@ it('masks financial prose and reveals locally without altering global masking', 
   expect(usePreferenceStore.getState().hideBalances).toBe(true);
 });
 
-it('sends ordinary negative feedback without filing a report', () => {
-  const feedback = jest.fn();
-  renderWithProviders(
-    <AssistantMessageBubble response={response} onFeedback={feedback} />
-  );
-  fireEvent.press(screen.getByLabelText(t('assistant.feedback.notHelpful')));
-  expect(feedback).toHaveBeenCalledWith('not_helpful');
-  expect(feedback).not.toHaveBeenCalledWith('reported');
+it('omits voting actions from ordinary answers', () => {
+  renderWithProviders(<AssistantMessageBubble response={response} />);
+  expect(screen.queryByLabelText(t('assistant.feedback.helpful'))).toBeNull();
+  expect(screen.queryByLabelText(t('assistant.feedback.notHelpful'))).toBeNull();
 });
 
 it('masks landing insight amounts when financial values are hidden', () => {

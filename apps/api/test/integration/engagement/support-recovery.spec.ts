@@ -14,7 +14,7 @@ import { EngagementService } from '../../../src/engagement/engagement.service';
 import { validateEngagementCommand } from '../../../src/engagement/engagement.dto';
 import { ENGAGEMENT_ADMIN_ROUTES } from '../../../src/engagement/engagement.routes';
 import type { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
-import type { SecurityRepository } from '../../../src/security/security.repository';
+import { SecurityRepository } from '../../../src/security/security.repository';
 import type { SupportStorage } from '../../../src/engagement/support.storage';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
@@ -90,7 +90,7 @@ describeLiveDatabase('support recovery', () => {
   const service = new EngagementService(
     repository,
     { signDownload } as unknown as SupportStorage,
-    { consumeRateLimit: () => Promise.resolve(true) } as unknown as SecurityRepository,
+    new SecurityRepository(pool),
   );
   async function call<T = TestTicket>(
     userId: string,
@@ -127,6 +127,30 @@ describeLiveDatabase('support recovery', () => {
     ]);
   });
   afterAll(async () => pool.onModuleDestroy());
+
+  it.each([
+    ['ordinary', customer],
+    ['dashboard', actor],
+  ])(
+    'submits an Arabic technical ticket through the customer API for a %s owner',
+    async (_kind, owner) => {
+      const categories = await call<{ items: Array<{ id: string; key: string }> }>(
+        owner,
+        'listSupportCategories',
+        undefined,
+        undefined,
+        { limit: '100' },
+      );
+      const technical = categories.items.find((item) => item.key === 'technical');
+      if (!technical) throw new Error('TECHNICAL_SUPPORT_CATEGORY_MISSING');
+      const result = await call(owner, 'createSupportTicket', {
+        categoryId: technical.id,
+        subject: 'الاضافة لا تعمل',
+        message: 'الاضافة لا تعمل.',
+      });
+      expect(result.messages[0]?.body).toBe('الاضافة لا تعمل.');
+    },
+  );
 
   it('runs the customer/admin conversation, assignments, private notes and lifecycle with conflicts', async () => {
     const created = await call(customer, 'createSupportTicket', {
@@ -287,7 +311,7 @@ describeLiveDatabase('support recovery', () => {
     expect(signDownload).not.toHaveBeenCalled();
   });
 
-  it('replays engagement receipts without granting financial or internal function access to Admins', async () => {
+  it('replays engagement receipts and separates personal financial claims from internal privileges', async () => {
     const body = {
       categoryId: category,
       subject: 'Replay one ticket',
@@ -320,12 +344,11 @@ describeLiveDatabase('support recovery', () => {
             )
           ).rows[0]?.allowed,
         ).toBe(false);
-        await expect(
-          client.query(
-            "select * from private.claim_idempotency_key($1,'ledger.test',$2,$3,interval '2 minutes')",
-            [actor, 'sha256:' + 'a'.repeat(64), 'sha256:' + 'b'.repeat(64)],
-          ),
-        ).rejects.toThrow('FINANCIAL_ACCESS_DENIED');
+        const claim = await client.query<{ outcome: string }>(
+          "select * from private.claim_idempotency_key($1,'ledger.test',$2,$3,interval '2 minutes')",
+          [actor, 'sha256:' + 'a'.repeat(64), 'sha256:' + 'b'.repeat(64)],
+        );
+        expect(claim.rows[0]?.outcome).toBe('new');
       } finally {
         await client.query('rollback');
       }

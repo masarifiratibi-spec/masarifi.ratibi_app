@@ -1,3 +1,4 @@
+import { registerFinancialProjectionReset } from '@/storage/runtime-user-data-reset';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { Platform } from 'react-native';
 import { z } from 'zod';
@@ -1120,6 +1121,7 @@ export function createLiveFinancialPlanningService({
   };
   registerRuntimeIdentityReset(resetRuntime);
   registerRuntimeUserDataReset(resetRuntime);
+  registerFinancialProjectionReset(resetRuntime);
 
   const offlineOwner = async (context?: ReadContext) => {
     assertReadActive(context?.signal);

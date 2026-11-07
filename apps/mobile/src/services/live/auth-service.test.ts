@@ -720,6 +720,26 @@ describe('live owner identity mappings', () => {
     updatedAt: 500
   };
 
+  test('keeps the saved contact number through a fresh owner profile read', async () => {
+    let stored = { ...localProfile };
+    const remote = { id: liveSession.userId, displayName: 'Owner', primaryEmailMasked: null,
+      phoneMasked: '+***55', locale: 'ar', timezone: 'Asia/Riyadh', status: 'active', version: 3 };
+    const service = createLiveIdentityService({
+      getOwnerId: () => liveSession.userId,
+      request: async path => path.endsWith('/preferences') ? {
+        defaultCurrency: 'SAR', language: 'ar', theme: 'system', calendar: 'gregorian',
+        weekStart: 0, privacySettings: {}, version: 1
+      } : remote,
+      loadLocalProfile: async owner => owner === liveSession.userId ? stored : null,
+      saveLocalProfile: async (next, owner) => {
+        expect(owner).toBe(liveSession.userId);
+        stored = next;
+      }
+    });
+    await service.saveProfile({ ...stored, phone: '+201001234567' }, 2, 'save-phone');
+    expect((await service.getProfile()).phone).toBe('+201001234567');
+  });
+
   test('maps profile, onboarding, devices, and revocation without dropping local-only data', async () => {
     const request = jest.fn(async (path: string) => {
       if (path === '/api/v1/me')

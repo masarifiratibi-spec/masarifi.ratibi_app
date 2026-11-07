@@ -1,3 +1,6 @@
+import { AppState } from 'react-native';
+import { bindGenerationGate } from '@/services/financial-generation-gate';
+import { financialWriteGeneration, reconcileFinancialReset, onFinancialReset } from '@/services/financial-generation';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { recordBenchmarkEvent } from '@/services/platform/benchmark-observability';
 /**
@@ -79,6 +82,28 @@ export function FoundationProviders({
   const hydrated = usePreferenceStore((state) => state.hydrated);
   const hydrate = usePreferenceStore((state) => state.hydrate);
   const previousLocale = useRef(locale);
+  useEffect(() => {
+    if (isFixtureModeEnabled()) return;
+    const owner = () => {
+      const session = useAppShellStore.getState().session;
+      return session?.status === 'authenticated' ? session.userId ?? null : null;
+    };
+    const stopGate = bindGenerationGate({ owner, check: financialWriteGeneration });
+    const stopReset = onFinancialReset(async (id) => {
+      if (owner() !== id) return;
+      await client.cancelQueries();
+      client.removeQueries({type:'inactive'});
+      void client.resetQueries({type:'active'}).catch(()=>undefined);
+    });
+    let last: string | null = null;
+    const refresh = () => { const id=owner(); if(id) void reconcileFinancialReset(id).catch(()=>undefined); };
+    const changed = () => { const current=owner(); if(current!==last){last=current;refresh();} };
+    changed();
+    const stopOwner = useAppShellStore.subscribe(changed);
+    const listener = AppState.addEventListener('change',state=>{if(state==='active') refresh()});
+    const timer = setInterval(() => { if(AppState.currentState === 'active') refresh(); },60_000);
+    return () => { clearInterval(timer); stopGate(); stopOwner(); stopReset(); listener.remove(); };
+  },[client]);
   const pathname = usePathname();
   const insets = React.useContext(SafeAreaInsetsContext);
   const [localReadReady, setLocalReadReady] =

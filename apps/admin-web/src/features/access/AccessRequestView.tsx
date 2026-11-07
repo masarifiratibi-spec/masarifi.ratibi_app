@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@/core/api/errors";
 import { useSimulatedRole } from "@/core/auth/use-simulated-role";
@@ -38,15 +38,6 @@ import {
   useDecideAccessRequest,
   useRevokeAccessRequest,
 } from "./hooks";
-
-const STATUS_LABELS: Record<AccessStatus, string> = {
-  pending: "قيد المراجعة",
-  approved: "معتمد",
-  active: "نشط",
-  expired: "منتهي",
-  rejected: "مرفوض",
-  revoked: "ملغى",
-};
 
 const accessCopy = {
   ar: {
@@ -167,6 +158,11 @@ const accessCopy = {
   }
 } as const;
 
+function describeScopes(request: AccessRequestSummary, resources: AccessScope[], approved = false) {
+  const scopes = approved ? request.approvedScopeActions : request.requestedScopeActions;
+  return resources.map(resource => { const actions = scopes?.find(scope => scope.resource === resource)?.actions; return actions ? `${resource} (${actions.join(", ")})` : resource; }).join(" · ");
+}
+
 export function AccessRequestRows({ requests }: { requests: AccessRequestSummary[] }) {
   const { locale } = useLocale();
   const copy = accessCopy[locale];
@@ -176,10 +172,10 @@ export function AccessRequestRows({ requests }: { requests: AccessRequestSummary
       <td className="ltr access-compact-cell"><strong>{request.maskedCustomerLabel}</strong></td>
       <td className="ltr access-compact-cell">{request.supportTicketId}</td>
       <td className="ltr access-actor-cell">{request.requestedBy}</td>
-      <td className="access-scope-cell">{request.requestedScope.join(locale === "ar" ? "، " : ", ")}</td>
-      <td className="access-reason-cell">{request.reasonSummary}</td>
+      <td className="access-scope-cell">{describeScopes(request, request.requestedScope)}</td>
+      <td className="access-reason-cell">{request.reasonSummary ?? "—"}</td>
       <td><span className={`badge access-status access-status-${request.status}`}>{copy.status[request.status]}</span></td>
-      <td className="access-date-cell"><time dateTime={request.createdAt}>{formatDate(request.createdAt, true)}</time></td>
+      <td className="access-date-cell">{request.createdAt ? <time dateTime={request.createdAt}>{formatDate(request.createdAt, true)}</time> : "—"}</td>
       <td className="access-date-cell">{request.startsAt ? <time dateTime={request.startsAt}>{formatDate(request.startsAt, true)}</time> : "—"}</td>
       <td className="access-date-cell">{request.expiresAt ? <time dateTime={request.expiresAt}>{formatDate(request.expiresAt, true)}</time> : "—"}</td>
       <td className="ltr access-actor-cell">{request.approvedBy ?? "—"}</td>
@@ -253,7 +249,7 @@ function CreateAccessForm() {
         scope={pendingConfirmation?.requestedScope.join(locale === "ar" ? "، " : ", ") ?? ""}
         consequence={copy.form.confirmConsequence}
         permission="support.request_access"
-        auditEvent="admin.access.requested"
+        auditEvent={mocksEnabled() ? "admin.access.requested" : "security.create-support-access-request"}
         pending={mutation.isPending}
         outcomes={{ success: copy.form.confirmSuccess, failure: copy.form.confirmFailure, conflict: copy.form.confirmConflict }}
       />
@@ -278,11 +274,11 @@ function AccessList() {
             setPage(1);
           }}>
             <option value="">{copy.allStatuses}</option>
-            {accessStatusSchema.options.map((option) => <option key={option} value={option}>{copy.status[option]}</option>)}
+            {accessStatusSchema.options.filter(option => mocksEnabled() || option !== "active").map((option) => <option key={option} value={option}>{copy.status[option]}</option>)}
           </select>
         </label>
       </div>
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : !query.data?.items.length ? <EmptyState /> : (
+      {query.isPending ? <LoadingState /> : query.isError ? <><ErrorState error={query.error} /><button className="button" onClick={() => void query.refetch()}>{locale === "ar" ? "إعادة المحاولة" : "Retry"}</button></> : !query.data?.items.length ? <EmptyState /> : (
         <div className="table-card access-table-card">
           <div className="desktop-table">
             <table className="data-table access-requests-table">
@@ -293,8 +289,8 @@ function AccessList() {
           <AccessRequestCards requests={query.data.items} />
           <nav aria-label={copy.pagination.aria} className="dialog-actions access-pagination">
             <button className="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>{copy.pagination.previous}</button>
-            <span>{copy.pagination.page} {page} {copy.pagination.of} {query.data.pagination.totalPages || 1}</span>
-            <button className="button" disabled={page >= query.data.pagination.totalPages} onClick={() => setPage((current) => current + 1)}>{copy.pagination.next}</button>
+            <span>{copy.pagination.page} {page}{query.data.pagination.totalPages !== null && <> {copy.pagination.of} {query.data.pagination.totalPages || 1}</>}</span>
+            <button className="button" disabled={query.data.pagination.hasNext === false || (query.data.pagination.totalPages !== null && page >= query.data.pagination.totalPages)} onClick={() => setPage((current) => current + 1)}>{copy.pagination.next}</button>
           </nav>
         </div>
       )}
@@ -321,10 +317,10 @@ export function AccessRequestCards({ requests }: { requests: AccessRequestSummar
             <span className="ltr">{request.supportTicketId}</span>
             <span>{copy.cols.requester}: <bdi>{request.requestedBy}</bdi></span>
           </div>
-          <span className="access-request-card-scope">{copy.cols.scope}: {request.requestedScope.join(locale === "ar" ? "، " : ", ")}</span>
-          <p>{request.reasonSummary}</p>
+          <span className="access-request-card-scope">{copy.cols.scope}: {describeScopes(request, request.requestedScope)}</span>
+          <p>{request.reasonSummary ?? "—"}</p>
           <div className="access-request-card-dates">
-            <span>{copy.cols.created}: <time dateTime={request.createdAt}>{formatDate(request.createdAt, true)}</time></span>
+            <span>{copy.cols.created}: {request.createdAt ? <time dateTime={request.createdAt}>{formatDate(request.createdAt, true)}</time> : "—"}</span>
             <span>{copy.cols.starts}: {request.startsAt ? <time dateTime={request.startsAt}>{formatDate(request.startsAt, true)}</time> : "—"}</span>
             <span>{copy.cols.expires}: {request.expiresAt ? <time dateTime={request.expiresAt}>{formatDate(request.expiresAt, true)}</time> : "—"}</span>
             <span>{copy.cols.approver}: <bdi>{request.approvedBy ?? "—"}</bdi></span>
@@ -339,7 +335,29 @@ function AccessDetail({ requestId }: { requestId: string }) {
   const role = useSimulatedRole();
   const can = useCurrentPermission();
   const actor = mocksEnabled() ? SIMULATED_ACTORS[role] : apiActorCacheKey();
+  const { locale } = useLocale();
+  const copy = accessCopy[locale];
+  const text = locale === "ar" ? {
+    title: "طلب الوصول", description: "تفاصيل مخفية ومسار قرار منفصل الصلاحيات.", assignee: "المكلّف",
+    scope: "النطاق والتمويه", timeline: "الخط الزمني", noTimeline: "لا توجد أحداث معروضة من الخادم.",
+    separation: "لا يمكن لمقدم الطلب اعتماد طلبه حفاظاً على فصل المهام.", approve: "اعتماد مخفض", reject: "رفض", revoke: "إلغاء الوصول", workspace: "فتح مساحة العمل",
+    decision: "بيانات قرار الوصول", reason: "سبب القرار", approvedScope: "النطاق المعتمد", duration: "المدة المعتمدة", starts: "وقت البدء", cancel: "إلغاء", review: "مراجعة القرار",
+    reasonError: "يجب إدخال سبب صالح من 5 إلى 500 حرف.", validation: "تحقق من السبب والنطاق والمدة ووقت البدء.",
+    approveTitle: "اعتماد الطلب", rejectTitle: "رفض الطلب", success: "تم تحديث الطلب", failure: "تعذر تحديث الطلب", conflict: "الحالة لم تعد تقبل الإجراء",
+  } : {
+    title: "Access request", description: "Masked details with separate review authority.", assignee: "Assignee",
+    scope: "Scope and masking", timeline: "Timeline", noTimeline: "No timeline events were provided by the server.",
+    separation: "The requester cannot approve their own request to preserve separation of duties.", approve: "Approve limited access", reject: "Reject", revoke: "Revoke access", workspace: "Open workspace",
+    decision: "Access decision details", reason: "Decision reason", approvedScope: "Approved scope", duration: "Approved duration", starts: "Start time", cancel: "Cancel", review: "Review decision",
+    reasonError: "Enter a valid reason of 5 to 500 characters.", validation: "Check the reason, scope, duration and start time.",
+    approveTitle: "Approve request", rejectTitle: "Reject request", success: "Request updated", failure: "Failed to update request", conflict: "The current state no longer permits this action",
+  };
   const query = useAccessRequest(requestId, role);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const decision = useDecideAccessRequest(requestId, role);
   const revoke = useRevokeAccessRequest(requestId, role);
   const [action, setAction] = useState<"approve" | "reject" | "revoke" | null>(null);
@@ -352,28 +370,35 @@ function AccessDetail({ requestId }: { requestId: string }) {
     { kind: "decision"; payload: AccessDecisionRequest } | { kind: "revoke"; payload: RevokeAccessRequest } | null
   >(null);
   if (query.isPending) return <LoadingState />;
-  if (query.isError || !query.data) return <ErrorState />;
+  if (query.isError || !query.data) return <><ErrorState error={query.error} /><button className="button" onClick={() => void query.refetch()}>{locale === "ar" ? "إعادة المحاولة" : "Retry"}</button></>;
   const request = query.data;
   const actionError = decision.error ?? revoke.error;
-  const canApprove = request.status === "pending"
+  const canDecide = request.status === "pending"
     && request.requestedBy !== actor
+    && request.reason !== null && request.requestedDurationMinutes !== null
+    && (!request.expiresAt || Date.parse(request.expiresAt) > now)
     && can("support.access.approve");
+  const canApprove = canDecide && request.customerApprovalState !== "pending";
   const openAction = (nextAction: "approve" | "reject" | "revoke") => {
     setAction(nextAction);
     setReason("");
     setApprovedScope(nextAction === "approve" ? request.requestedScope.slice(0, 1) : []);
-    setDurationMinutes(Math.min(15, request.requestedDurationMinutes));
+    setDurationMinutes(Math.min(15, request.requestedDurationMinutes ?? 5));
     setStartsAt("");
     setValidationError("");
   };
   const validateAction = () => {
     if (action === "revoke") {
       const parsed = revokeAccessRequestSchema.safeParse({ reason });
-      if (parsed.success) setPendingAction({ kind: "revoke", payload: parsed.data });
-      else setValidationError("يجب إدخال سبب صالح من 5 إلى 500 حرف.");
+      if (parsed.success) setPendingAction({ kind: "revoke", payload: { ...parsed.data, expectedVersion: request.version } });
+      else setValidationError(text.reasonError);
       return;
     }
     if (!action) return;
+    if (request.requestedDurationMinutes === null || request.reason === null) {
+      setValidationError(locale === "ar" ? "الخادم لا يعرض تفاصيل المراجعة المطلوبة لهذا الطلب." : "The server has not provided this request's review details.");
+      return;
+    }
     const parsed = accessDecisionRequestSchema({
       requestedScope: request.requestedScope,
       requestedDurationMinutes: request.requestedDurationMinutes,
@@ -388,43 +413,46 @@ function AccessDetail({ requestId }: { requestId: string }) {
         startsAt: startsAt ? new Date(startsAt).toISOString() : undefined,
       } : {}),
     });
-    if (parsed.success) setPendingAction({ kind: "decision", payload: parsed.data });
-    else setValidationError("تحقق من السبب والنطاق والمدة ووقت البدء.");
+    if (parsed.success) setPendingAction({ kind: "decision", payload: { ...parsed.data, expectedVersion: request.version } });
+    else setValidationError(text.validation);
   };
   return (
     <div className="page">
-      <PageHeader title={`طلب الوصول ${request.id}`} description="تفاصيل مخفية ومسار قرار منفصل الصلاحيات." />
+      <PageHeader title={`${text.title} ${request.id}`} description={text.description} />
       <section className="card access-detail-card">
         <dl className="detail-grid access-detail-grid">
-          <div><dt>التذكرة</dt><dd className="ltr">{request.supportTicketId}</dd></div>
-          <div><dt>العميل</dt><dd>{request.maskedCustomerLabel}</dd></div>
-          <div><dt>الطالب</dt><dd className="ltr">{request.requestedBy}</dd></div>
-          <div><dt>المكلّف</dt><dd className="ltr">{request.assignee}</dd></div>
-          <div><dt>الحالة</dt><dd>{STATUS_LABELS[request.status]}</dd></div>
-          <div><dt>المدة</dt><dd>{request.approvedDurationMinutes ?? request.requestedDurationMinutes} دقيقة</dd></div>
+          <div><dt>{copy.cols.ticket}</dt><dd className="ltr">{request.supportTicketId}</dd></div>
+          <div><dt>{copy.cols.customer}</dt><dd>{request.maskedCustomerLabel}</dd></div>
+          <div><dt>{copy.cols.requester}</dt><dd className="ltr">{request.requestedBy}</dd></div>
+          <div><dt>{text.assignee}</dt><dd className="ltr">{request.assignee}</dd></div>
+          <div><dt>{copy.cols.status}</dt><dd>{copy.status[request.status]}</dd></div>
+          <div><dt>{copy.form.durationMinutes}</dt><dd>{request.approvedDurationMinutes ?? request.requestedDurationMinutes ?? "—"}</dd></div>
         </dl>
+        <p>{copy.form.customerApproval}: {locale === "ar" ? ({ "not-required": "غير مطلوبة", pending: "بانتظار موافقة العميل", received: "تم استلام الموافقة" } as const)[request.customerApprovalState] : ({ "not-required": "Not required", pending: "Awaiting customer consent", received: "Consent received" } as const)[request.customerApprovalState]}</p>
+        <section className="access-detail-section"><h2>{copy.form.reason}</h2><p>{request.reason ?? (locale === "ar" ? "غير متاح من الخادم" : "Unavailable from the server")}</p></section>
+        {(request.reason === null || request.requestedDurationMinutes === null) && <p role="note">{locale === "ar" ? "يلزم تحديث الخادم المتوافق قبل اعتماد هذا الطلب؛ تفاصيل المراجعة غير متاحة." : "A compatible server update is required before deciding this request; review details are unavailable."}</p>}
         <section className="access-detail-section">
-          <h2>النطاق والتمويه</h2>
-          <p className="access-scope-summary ltr">{(request.approvedScope ?? request.requestedScope).join("، ")}</p>
+          <h2>{text.scope}</h2>
+          <p className="access-scope-summary ltr">{describeScopes(request, request.approvedScope ?? request.requestedScope, request.approvedScope !== null)}</p>
           <ul className="access-mask-list">{request.maskingRules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
         </section>
         <section className="access-detail-section">
-          <h2>الخط الزمني</h2>
-          <ol className="timeline access-detail-timeline">{request.timeline.map((entry) => <li className="timeline-item" key={entry.id}>{entry.summary} — <span className="ltr">{entry.actor}</span></li>)}</ol>
+          <h2>{text.timeline}</h2>
+          {request.timeline.length === 0 && <p>{text.noTimeline}</p>}<ol className="timeline access-detail-timeline">{request.timeline.map((entry) => <li className="timeline-item" key={entry.id}>{entry.summary} — <span className="ltr">{entry.actor}</span></li>)}</ol>
         </section>
-        {request.requestedBy === actor && request.status === "pending" && <p className="access-detail-note" role="note">لا يمكن لمقدم الطلب اعتماد طلبه حفاظاً على فصل المهام.</p>}
+        {request.requestedBy === actor && request.status === "pending" && <p className="access-detail-note" role="note">{text.separation}</p>}
         <div className="dialog-actions access-detail-actions">
-          {canApprove && <><button className="button primary" onClick={() => openAction("approve")}>اعتماد مخفض</button><button className="button" onClick={() => openAction("reject")}>رفض</button></>}
-          {["approved", "active"].includes(request.status) && can("support.access.revoke") && <button className="button" onClick={() => openAction("revoke")}>إلغاء الوصول</button>}
-          {request.status === "active" && request.assignee === actor && <Link className="button primary" href={`/admin/access-requests/${request.id}/workspace`}>فتح مساحة العمل</Link>}
+          {canDecide && <><button className="button primary" disabled={!canApprove} onClick={() => openAction("approve")}>{text.approve}</button><button className="button" onClick={() => openAction("reject")}>{text.reject}</button></>}
+          {["approved", "active"].includes(request.status) && can("support.access.revoke") && <button className="button" onClick={() => openAction("revoke")}>{text.revoke}</button>}
+          {request.status === "active" && request.assignee === actor && <Link className="button primary" href={`/admin/access-requests/${request.id}/workspace`}>{text.workspace}</Link>}
         </div>
         {action && (
-          <form className="access-decision-form" onSubmit={(event) => { event.preventDefault(); validateAction(); }} aria-label="بيانات قرار الوصول">
-            <label>سبب القرار<textarea className="input" value={reason} onChange={(event) => setReason(event.target.value)} /></label>
+          <form className="access-decision-form" onSubmit={(event) => { event.preventDefault(); validateAction(); }} aria-label={text.decision}>
+            <label>{text.reason}<textarea className="input" value={reason} onChange={(event) => setReason(event.target.value)} /></label>
             {action === "approve" && (
               <>
                 <fieldset className="access-scope-fieldset access-decision-scope">
-                  <legend>النطاق المعتمد</legend>
+                  <legend>{text.approvedScope}</legend>
                   {request.requestedScope.map((scope) => (
                     <label key={scope}>
                       <input
@@ -433,22 +461,22 @@ function AccessDetail({ requestId }: { requestId: string }) {
                         onChange={(event) => setApprovedScope((current) =>
                           event.target.checked ? [...current, scope] : current.filter((entry) => entry !== scope))}
                       />
-                      {scope}
+                      {describeScopes(request, [scope])}
                     </label>
                   ))}
                 </fieldset>
-                <label>المدة المعتمدة
-                  <input className="input" type="number" min={5} max={request.requestedDurationMinutes} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} />
+                <label>{text.duration}
+                <input className="input" type="number" min={5} max={Math.min(request.requestedDurationMinutes ?? 60, 60)} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} />
                 </label>
-                <label>وقت البدء
+                <label>{text.starts}
                   <input className="input" type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} />
                 </label>
               </>
             )}
             {validationError && <p role="alert">{validationError}</p>}
             <div className="dialog-actions access-decision-actions">
-              <button className="button" type="button" onClick={() => setAction(null)}>إلغاء</button>
-              <button className="button primary" type="submit">مراجعة القرار</button>
+              <button className="button" type="button" onClick={() => setAction(null)}>{text.cancel}</button>
+              <button className="button primary" type="submit">{text.review}</button>
             </div>
           </form>
         )}
@@ -469,22 +497,22 @@ function AccessDetail({ requestId }: { requestId: string }) {
             } });
           }
         }}
-        title={pendingAction?.kind === "decision" && pendingAction.payload.decision === "approve" ? "اعتماد الطلب" : pendingAction?.kind === "decision" ? "رفض الطلب" : "إلغاء الوصول"}
+        title={pendingAction?.kind === "decision" && pendingAction.payload.decision === "approve" ? text.approveTitle : pendingAction?.kind === "decision" ? text.rejectTitle : text.revoke}
         scope={pendingAction?.kind === "decision" && pendingAction.payload.approvedScope
-          ? pendingAction.payload.approvedScope.join("، ")
-          : (request.approvedScope ?? request.requestedScope).join("، ")}
-        consequence="سيتم تحديث الحالة وتسجيل حدث تدقيق تجريبي."
+          ? describeScopes(request, pendingAction.payload.approvedScope)
+          : describeScopes(request, request.approvedScope ?? request.requestedScope, request.approvedScope !== null)}
+        consequence={mocksEnabled() ? "سيتم تحديث الحالة وتسجيل حدث تدقيق تجريبي." : (locale === "ar" ? "سيتم تحديث الحالة وتسجيل حدث تدقيق على الخادم." : "The server will update the state and record an audit event.")}
         permission={pendingAction?.kind === "revoke" ? "support.access.revoke" : "support.access.approve"}
-        auditEvent={`admin.access.${pendingAction?.kind ?? "decision"}`}
+        auditEvent={mocksEnabled() ? `admin.access.${pendingAction?.kind ?? "decision"}` : pendingAction?.kind === "revoke" ? "security.revoke-support-access" : "security.decide-support-access-request"}
         pending={decision.isPending || revoke.isPending}
-        outcomes={{ success: "تم تحديث الطلب", failure: "تعذر تحديث الطلب", conflict: "الحالة لم تعد تقبل الإجراء" }}
+        outcomes={{ success: text.success, failure: text.failure, conflict: text.conflict }}
       />
       {actionError && (
         actionError instanceof ApiError && actionError.code === "forbidden"
           ? <AccessDeniedState permission={revoke.error ? "support.access.revoke" : "support.access.approve"} />
           : actionError instanceof ApiError && actionError.code === "conflict"
             ? <ConflictState />
-            : <ErrorState />
+            : <ErrorState error={actionError} />
       )}
     </div>
   );

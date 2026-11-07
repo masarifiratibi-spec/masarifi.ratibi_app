@@ -232,7 +232,7 @@ export function buildPreferences(
     locale: 'ar',
     direction: 'rtl',
     firstLaunchOnboardingCompleted: false,
-    theme: 'system',
+    theme: 'light',
     hideBalances: false,
     baseCurrencyCode: 'SAR',
     timeZone: 'Asia/Riyadh',

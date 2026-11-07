@@ -196,6 +196,7 @@ function projectRecord(operation: string, value: unknown): Record<string, unknow
     }
     result.requester = safeReference(result.requester, 'admin');
     result.assignee = safeReference(result.assignee, 'admin');
+    if ('approvedBy' in result) result.approvedBy = safeReference(result.approvedBy, 'admin');
   }
   if (operation.includes('SecurityIncident')) result.timeline ??= [];
   if (operation.includes('SecurityEvent')) result.safeMetadata = safeFields(result.safeMetadata);

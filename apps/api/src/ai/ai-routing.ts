@@ -181,8 +181,12 @@ export function isDirectSpendingTotal(content: string): boolean {
     .trim()
     .replace(/\s+/gu, ' ');
   return (
-    /^(?:(?:كم|وش|قد ايش) (?:صرفت|صرفي|مصاريفي)|(?:(?:اجمالي|مجموع) )?(?:مصاريفي|صرفي))(?: (?:اليوم|امس|البارح|البارحة|النهارده|النهاردة|هالشهر|هذا الشهر|الشهر الحالي|الشهر اللي فات|الشهر الماضي))?[؟?!.]*$/u.test(text) ||
-    /^(?:how much (?:did i spend|have i spent)|(?:my |total )?(?:spending|expenses))(?: (?:today|yesterday|this month|last month))?[?!.]*$/iu.test(text)
+    /^(?:(?:كم|وش|قد ايش) (?:صرفت|صرفي|مصاريفي)|(?:(?:اجمالي|مجموع) )?(?:مصاريفي|صرفي))(?: (?:اليوم|امس|البارح|البارحة|النهارده|النهاردة|هالشهر|هذا الشهر|الشهر الحالي|الشهر اللي فات|الشهر الماضي))?[؟?!.]*$/u.test(
+      text,
+    ) ||
+    /^(?:how much (?:did i spend|have i spent)|(?:my |total )?(?:spending|expenses))(?: (?:today|yesterday|this month|last month))?[?!.]*$/iu.test(
+      text,
+    )
   );
 }
 

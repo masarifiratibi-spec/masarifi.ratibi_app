@@ -1,3 +1,4 @@
+import { useTheme } from '@/state/theme-context';
 import React, { useState } from 'react';
 import { View, StyleSheet, AppState } from 'react-native';
 import { router } from 'expo-router';
@@ -16,7 +17,6 @@ import {
 import { translateDynamic } from '@/localization/i18n';
 import { buildAssistantSupportContext } from '@/features/support/support-context';
 import type { AssistantResponse, AssistantUserTurn } from '@/domain/assistant';
-import { colorTokens } from '@/design-system/tokens';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 import { AssistantQuestionRecovery } from './AssistantFunctionalStatus';
 import { useAppShellStore } from '@/state/app-shell';
@@ -38,6 +38,7 @@ function AssistantHomeContent({
   initialConversationId,
   initialQuestion
 }: HomeProps) {
+  const { colors } = useTheme();
   const consent = queries.useAssistantConsent();
   const insights = queries.useAssistantInsights();
   const setConsent = queries.useSetAssistantConsent();
@@ -201,7 +202,7 @@ function AssistantHomeContent({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surfaces.page }]}>
       {/* Header identification for screen reader */}
       <StyledText
         variant="title"
@@ -257,6 +258,7 @@ function AssistantConversationContent({
   initialUserTurn,
   onBack
 }: ConversationProps) {
+  const { colors } = useTheme();
   const queryClient = useQueryClient();
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const latest = queries.useAssistantConversation(conversationId);
@@ -531,16 +533,6 @@ function AssistantConversationContent({
     router.push('/reports');
   };
 
-  const handleFeedback = (
-    responseId: string,
-    type: 'helpful' | 'not_helpful' | 'reported'
-  ) => {
-    feedback.mutate({
-      responseId,
-      feedback: type,
-      operationId: `feedback-${Date.now()}`
-    });
-  };
 
   if (accessDenied)
     return (
@@ -551,7 +543,7 @@ function AssistantConversationContent({
     );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surfaces.page }]}>
       {/* 1. Rich Modern Conversation View (Reference 2) */}
       {page.isError ? <FinancialRefreshStatus query={page} /> : null}
       <AssistantConversationView
@@ -615,7 +607,6 @@ function AssistantConversationContent({
         onReviewAction={handleReviewAction}
         renderAction={(previewId, fallback) => <AssistantActionPreviewScreen conversationId={conversationId ?? ''} previewId={previewId} inline fallback={fallback} onReviewAction={handleReviewAction} />}
         onViewReport={handleViewReport}
-        onFeedback={handleFeedback}
         isSending={
           waitingForInitialHistory ||
           ask.isPending ||
@@ -713,17 +704,7 @@ function AssistantConversationContent({
           </SurfaceCard>
 
           {responses[0] ? (
-            <GroupedList label={translateDynamic('assistant.feedback.helpful')}>
-              <NavigationRow
-                label={translateDynamic('assistant.feedback.helpful')}
-                onPress={() =>
-                  feedback.mutate({
-                    responseId: responses[0].id,
-                    feedback: 'helpful',
-                    operationId: `feedback-${Date.now()}`
-                  })
-                }
-              />
+            <GroupedList label={translateDynamic('assistant.feedback.report')}>
               <NavigationRow
                 label={translateDynamic('assistant.feedback.report')}
                 onPress={() =>
@@ -769,7 +750,6 @@ export function mergeAssistantRows<T extends { id: string; createdAt: number }>(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colorTokens.raw['EEF6F4'],
     flex: 1
   },
   managementSection: {

@@ -10,6 +10,24 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'financialReset.sessionExpired': 'انتهت جلستك. افتح التطبيق من جديد وحاول مرة ثانية.',
+  'financialReset.reviewChanged': 'تم تصفير بياناتك من جهاز ثاني. تأكد قبل ما تبدأ تصفير جديد.',
+  'financialReset.stale': 'الطلب السابق يخص بيانات أقدم. تقدر ترجع للتأكيد وتبدأ طلب جديد.',
+  'financialReset.reviewAgain': 'الرجوع للتأكيد',
+  'financialReset.title': 'تصفير البيانات المالية',
+  'financialReset.subtitle': 'ابدأ من جديد بأرصدة صفر.',
+  'financialReset.confirmTitle': 'تبي تبدأ من جديد؟',
+  'financialReset.confirmMessage': 'بنمسح سجلك وخططك المالية ونصفّر أرصدة حساباتك على كل أجهزتك. حساباتك وأسماؤها بتبقى، وما تقدر تتراجع عن هالخطوة.',
+  'financialReset.external': 'الملفات اللي حمّلتها خارج التطبيق بتبقى عندك.',
+  'financialReset.submit': 'تصفير البيانات',
+  'financialReset.checking': 'لحظة، نجهّز طلبك…',
+  'financialReset.processing': 'جارٍ تصفير بياناتك… تقدر تقفل هالنافذة وترجع تتابع الطلب.',
+  'financialReset.complete': 'تم تصفير بياناتك. أرصدة حساباتك صارت صفر، وتقدر تبدأ من جديد.',
+  'financialReset.done': 'تم',
+  'financialReset.close': 'إغلاق',
+  'financialReset.error': 'ما قدرنا نتأكد من حالة الطلب. تأكد من اتصالك وحاول مرة ثانية.',
+  'financialReset.retryNotice': 'ما وصلنا تأكيد للطلب السابق. اضغط تصفير البيانات عشان نعيد نفس الطلب.',
+  'financialReset.checkStatus': 'تحديث حالة الطلب',
   'tracking.unverified.title': 'التتبع غير متاح حتى التحقق من الحساب',
   'tracking.unverified.message':
     'اتصل بالإنترنت للتحقق من صلاحية الوصول إلى بيانات التتبع المحفوظة. بياناتك تبقى محمية.',
@@ -145,6 +163,7 @@ const ar: MessageCatalog = {
   'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
   'settings.deletion.error':
     'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
+  'settings.deletion.processingRetry': 'طلب حذف حسابك محفوظ. سيعيد الخادم محاولة إكمال الحذف. يمكنك إغلاق هذه الرسالة أو التحقق من الحالة لاحقًا.',
   'settings.deletion.rateLimited':
     'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
   'settings.deletion.sessionExpired':
@@ -559,6 +578,8 @@ const ar: MessageCatalog = {
   'appShell.onboarding.complete.openHome': 'فتح الرئيسية',
   'appShell.permission.enable': 'تفعيل التتبع',
   'appShell.permission.retry': 'إعادة طلب الإذن',
+  'appShell.permission.settingsHelp': 'إذن الرسائل غير مفعّل. من إعدادات جهازك، افتح التطبيقات ← مصاريفي ← الأذونات ← الرسائل النصية، واختر السماح، ثم ارجع للتطبيق. تقدر تطلب الإذن مرة ثانية من هنا.',
+  'appShell.permission.requestAgain': 'طلب الإذن مرة ثانية',
   'appShell.permission.openSettings': 'فتح الإعدادات',
   'appShell.permission.manualFallback': 'المتابعة بالإدخال اليدوي',
   'appShell.permission.status.notRequested': 'لم يطلب الإذن بعد',
@@ -595,8 +616,7 @@ const ar: MessageCatalog = {
   'appShell.more.planBasic': 'أساسي',
   'appShell.more.planPro': 'مميز',
   'appShell.shell.noMockFinancialData': 'هذا القسم غير متاح في النسخة الحالية.',
-  'appShell.security.biometricUnlock':
-    '\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0628\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632',
+  'appShell.security.biometricUnlock': 'إعادة المحاولة',
   'appShell.security.biometricUnavailable':
     '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629',
   'appShell.security.biometricCancelled':
@@ -606,7 +626,8 @@ const ar: MessageCatalog = {
   'appShell.security.biometricLocked':
     '\u0645\u0635\u0627\u062F\u0642\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u0642\u0641\u0644\u0629 \u0645\u0624\u0642\u062A\u064B\u0627 \u0645\u0646 \u0646\u0638\u0627\u0645 \u0627\u0644\u062C\u0647\u0627\u0632.',
   'appShell.security.protectedContent': 'المحتوى محمي',
-  'appShell.security.nativeUnlock': 'افتح مصاريفي باستخدام مصادقة الجهاز',
+  'appShell.security.nativeUnlock': 'فتح مصاريفي',
+  'appShell.security.unlockHint': 'استخدم البصمة أو طريقة فتح جهازك للمتابعة.',
   'appShell.security.nativeLock': 'استخدام مصادقة الجهاز',
   'appShell.security.nativeLockSubtitle':
     'بصمة الإصبع أو الوجه أو رمز الجهاز أو كلمة المرور أو النمط. يديرها نظام الجهاز.',
@@ -2421,6 +2442,7 @@ const ar: MessageCatalog = {
   'settings.profile.title': 'الملف الشخصي',
   'settings.profile.name': 'الاسم',
   'settings.profile.email': 'البريد الإلكتروني',
+  'settings.profile.saved': 'تم حفظ الملف الشخصي.',
   'settings.profile.save': 'حفظ الملف الشخصي',
   'settings.profile.validation.email': 'أدخل بريدًا إلكترونيًا صالحًا.',
   'settings.profile.phone': 'رقم الهاتف',
@@ -2560,6 +2582,8 @@ const ar: MessageCatalog = {
   'support.form.context.assistant': 'تم إرفاق سياق رد المساعد',
   'support.form.failure.offline': 'تم الحفظ محليًا. أرسل الطلب عند الاتصال.',
   'support.form.failure.representative_failure': 'تعذر حفظ المسودة مؤقتًا.',
+  'support.form.sessionFailure': 'تحقّق من جلسة الحساب ثم أعد إرسال الطلب.',
+  'support.form.rateLimited': 'تم إرسال طلبات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
   'support.form.submitFailure': 'تعذر إرسال الطلب. النص باقٍ لإعادة المحاولة.',
   'support.report.assistant': 'إبلاغ الدعم عن رد المساعد',
   'support.form.title': 'التواصل مع الدعم',
@@ -2784,6 +2808,10 @@ const ar: MessageCatalog = {
   'notifications.validation.edit': 'عرض إشعار تعديل',
   'notifications.validation.undo': 'عرض إشعار تراجع',
   'notifications.validation.expired': 'عرض إشعار تراجع منتهي',
+  'recentAuth.signInAgain': 'إذا كنت تستخدم Google للدخول، سجّل الخروج ثم ادخل بالحساب نفسه وارجع إلى هذه الصفحة.',
+  'recentAuth.unsupported': 'لا تتوفر طريقة تحقق لحسابك داخل التطبيق. سجّل الخروج وادخل مجددًا بالحساب نفسه، ثم ارجع إلى الإجراء.',
+  'recentAuth.useSignIn': 'استخدام تسجيل دخولي الأخير',
+  'recentAuth.passkey': 'استخدم مفتاح المرور للتحقق من هذه الجلسة.',
   'recentAuth.title': 'تأكيد هويتك',
   'recentAuth.code': 'أدخل رمز التحقق المرسل إلى جوالك أو بريدك المسجّل.',
   'recentAuth.password': 'أدخل كلمة مرور حسابك.',

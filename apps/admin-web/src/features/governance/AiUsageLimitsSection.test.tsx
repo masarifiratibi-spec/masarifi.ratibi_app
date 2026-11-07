@@ -30,6 +30,14 @@ async function render(permissions = ["operations.settings.read", "operations.set
 }
 afterEach(async () => { if (root) await act(async () => root.unmount()); });
 
+test("shows an explicit permission state instead of a blank page", async () => {
+  const host = await render([]);
+  await expect.poll(async () => {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+    return host.querySelector('[role="alert"]')?.textContent ?? "";
+  }).toContain("operations.settings.read");
+});
+
 test('loads editable limits when historical maintenance audit rows have a system actor and JSON values', async () => {
   // Staging 2026-10-22: these real audit shapes blocked the entire budget form.
   const data = response();

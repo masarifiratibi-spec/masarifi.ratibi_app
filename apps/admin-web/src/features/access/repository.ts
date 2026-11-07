@@ -1,4 +1,5 @@
-import { apiClient, mocksEnabled, unavailableClientOperation } from "@/core/api/client";
+import { apiClient, mocksEnabled } from "@/core/api/client";
+import { liveAccessRepository } from "./live-repository";
 import type { AdminRole } from "@/core/permissions/permissions";
 import {
   accessDecisionInputSchema,
@@ -36,7 +37,7 @@ function withQuery(path: string, query: string): string {
 
 export const accessRepository = {
   listRequests(input: Partial<AccessRequestsQuery>, role: AdminRole): Promise<AccessRequestsPage> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.listRequests(input);
     const query = accessRequestsQuerySchema.parse(input);
     const params = new URLSearchParams();
     if (mocksEnabled()) params.set("role", role);
@@ -48,7 +49,7 @@ export const accessRepository = {
   },
 
   getRequest(requestId: string, role: AdminRole, scenario?: string): Promise<AccessRequestDetail> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.getRequest(requestId);
     const id = accessRequestIdSchema.parse(requestId);
     return apiClient.get(
       withQuery(`/api/v1/admin/access-requests/${encodeURIComponent(id)}`, roleQuery(role, scenario)),
@@ -57,7 +58,7 @@ export const accessRepository = {
   },
 
   createRequest(input: CreateAccessRequest, role: AdminRole): Promise<AccessRequestDetail> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.createRequest(input);
     return apiClient.post(
       withQuery("/api/v1/admin/access-requests", roleQuery(role)),
       createAccessRequestSchema.parse(input),
@@ -70,7 +71,7 @@ export const accessRepository = {
     input: AccessDecisionRequest,
     role: AdminRole,
   ): Promise<AccessRequestDetail> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.decideRequest(requestId, input);
     const id = accessRequestIdSchema.parse(requestId);
     return apiClient.post(
       withQuery(`/api/v1/admin/access-requests/${encodeURIComponent(id)}/decision`, roleQuery(role)),
@@ -80,7 +81,7 @@ export const accessRepository = {
   },
 
   revokeRequest(requestId: string, input: RevokeAccessRequest, role: AdminRole): Promise<AccessRequestDetail> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.revokeRequest(requestId, input);
     const id = accessRequestIdSchema.parse(requestId);
     return apiClient.post(
       withQuery(`/api/v1/admin/access-requests/${encodeURIComponent(id)}/revoke`, roleQuery(role)),
@@ -90,7 +91,7 @@ export const accessRepository = {
   },
 
   getWorkspace(requestId: string, role: AdminRole, scenario?: string): Promise<TemporaryWorkspace> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.getWorkspace(requestId);
     const id = accessRequestIdSchema.parse(requestId);
     return apiClient.get(
       withQuery(`/api/v1/admin/access-requests/${encodeURIComponent(id)}/workspace`, roleQuery(role, scenario)),
@@ -103,7 +104,7 @@ export const accessRepository = {
     input: EndTemporaryAccessRequest,
     role: AdminRole,
   ): Promise<EndTemporaryAccessResult> {
-    if (!mocksEnabled()) return unavailableClientOperation();
+    if (!mocksEnabled()) return liveAccessRepository.endAccess(requestId, input);
     const id = accessRequestIdSchema.parse(requestId);
     return apiClient.post(
       withQuery(`/api/v1/admin/access-requests/${encodeURIComponent(id)}/end`, roleQuery(role)),

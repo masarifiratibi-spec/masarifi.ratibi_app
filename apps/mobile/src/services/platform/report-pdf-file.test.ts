@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { useAppShellStore } from '@/state/app-shell';
 import { Platform } from 'react-native';
-import { saveReportPdf } from './report-pdf-file';
+import { saveReportPdf, clearOwnerReportPdfCache } from './report-pdf-file';
 
 const pdf = new Uint8Array(
   Array.from('%PDF-1.7\nSynthetic test boundary\n%%EOF', (c) => c.charCodeAt(0))
@@ -37,6 +38,7 @@ jest.mock('expo-crypto', () => ({
 }));
 jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
+  readDirectoryAsync: jest.fn(),
   createDownloadResumable: jest.fn(),
   deleteAsync: jest.fn(async () => undefined),
   StorageAccessFramework: {
@@ -51,17 +53,18 @@ const attempt = {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  useAppShellStore.setState({
+    session: { userId: 'report-owner', status: 'authenticated' } as never
+  });
   jest.replaceProperty(Platform, 'OS', 'android');
   mockFileBytes = pdf;
-  jest
-    .mocked(FileSystem.createDownloadResumable)
-    .mockReturnValue({
-      downloadAsync: async () => ({
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' }
-      }),
-      pauseAsync: jest.fn(async () => ({}))
-    } as never);
+  jest.mocked(FileSystem.createDownloadResumable).mockReturnValue({
+    downloadAsync: async () => ({
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' }
+    }),
+    pauseAsync: jest.fn(async () => ({}))
+  } as never);
   jest
     .mocked(FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync)
     .mockResolvedValue({
@@ -146,4 +149,24 @@ test('rechecks ownership after transfer and never opens the folder picker for a 
   expect(
     FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync
   ).not.toHaveBeenCalled();
+});
+
+it('clears only the current owner’s in-app PDFs, leaving downloaded files and another owner’s cache alone', async () => {
+  const first = await saveReportPdf(attempt, () => undefined);
+  useAppShellStore.setState({
+    session: { userId: 'other-owner', status: 'authenticated' } as never
+  });
+  const second = await saveReportPdf(attempt, () => undefined);
+  jest
+    .mocked(FileSystem.readDirectoryAsync)
+    .mockResolvedValue([
+      first.cacheUri.split('/').at(-1)!,
+      second.cacheUri.split('/').at(-1)!,
+      'masarifi-report-anonymous-legacy.pdf'
+    ]);
+  await clearOwnerReportPdfCache('report-owner');
+  expect(FileSystem.deleteAsync).toHaveBeenCalledTimes(1);
+  expect(FileSystem.deleteAsync).toHaveBeenCalledWith(first.cacheUri, {
+    idempotent: true
+  });
 });

@@ -704,14 +704,15 @@ export class LedgerRepository {
         "select pg_advisory_xact_lock(hashtextextended('ledger-reconcile:'||$1,0))",
         [event.accountId],
       );
-      const exists = (
-        await client.query<{ exists: boolean }>(
-          `select exists(select 1 from private.outbox_events where event_type='ledger.reconciliation_failed'
-          and aggregate_id=$1 and payload->>'ledgerVersion'=$2 and payload->>'mismatchKind'=$3)`,
-          [event.accountId, String(event.ledgerVersion), event.mismatchKind],
+      const eligible = (
+        await client.query<{ eligible: boolean }>(
+          `select private.allow_balance_reconciliation($1::uuid,$2::bigint,$4::timestamptz)
+           and not exists(select 1 from private.outbox_events where event_type='ledger.reconciliation_failed'
+           and aggregate_id=$1 and payload->>'ledgerVersion'=$2::bigint::text and payload->>'mismatchKind'=$3) eligible`,
+          [event.accountId, event.ledgerVersion, event.mismatchKind, event.observedAt],
         )
-      ).rows[0]?.exists;
-      if (!exists)
+      ).rows[0]?.eligible;
+      if (eligible)
         await client.query('select private.enqueue_outbox_event($1,$2,$3,$4)', [
           'ledger.reconciliation_failed',
           'account_balance',

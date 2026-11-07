@@ -1,0 +1,20 @@
+{
+  "status": "applied",
+  "reviewedSourceCommit": "1f709f59d50f84b2228b717e114cfa109644cf39",
+  "version": "20261107065248",
+  "name": "personal_finance_for_authenticated_owners",
+  "manifestSha256": "442c63202081e39f53cc68e2a93d85560df02a1dfacb1e24b9ee98cbeb021a19",
+  "approvedTransactionSha256": "3a9ede12fc4a7db879974b6453e3b97aec4a6a8e6112ce511bfbc2eb174f6e72",
+  "registeredMigrationSha256": "e5884441ed17df9e8fcf477e932f804c9ebd2fa66d7f85fb76fa4d07faa1e452",
+  "verifiedAtUtc": "2026-11-07T07:19:40.516341Z",
+  "productionHistoryCountBefore": 174,
+  "productionHistoryCountAfter": 175,
+  "verifiedFunctions": 8,
+  "verifiedOwnerReadPolicies": 16,
+  "temporarySelfGrantsRemaining": 0,
+  "operatorCanSetMigrationRoleAfter": false,
+  "publicApiLivenessHttpStatus": 200,
+  "publicApiLiveness": "ok",
+  "customerDeviceAcceptance": "Pending. The user reported that the customer's handset was unavailable.",
+  "biometricDeviceAcceptance": "Pending a physical device test."
+}

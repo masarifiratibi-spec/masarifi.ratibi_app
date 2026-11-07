@@ -8,13 +8,26 @@ import { useTheme } from '@/state/theme-context';
 import { configureRecentAuthHandler } from '@/services/live/http-client';
 
 type Session = NonNullable<ReturnType<typeof getClerkInstance>['session']>;
-type Strategy = 'email_code' | 'phone_code' | 'password';
+type Strategy = 'email_code' | 'phone_code' | 'password' | 'passkey';
 interface Verification {
   session: Session;
   ownerId: string;
   strategy?: Strategy;
+  allowRecentSignIn: boolean;
   promise: Promise<string | null>;
   resolve: (token: string | null) => void;
+}
+
+function recentlySignedIn(session: Session) {
+  const age = Date.now() - (session.createdAt?.getTime() ?? 0);
+  const minutes = session.factorVerificationAge?.[0];
+  return (
+    age >= 0 &&
+    age < 600_000 &&
+    minutes !== undefined &&
+    minutes >= 0 &&
+    minutes < 10
+  );
 }
 
 export function RecentAuthDialog({
@@ -31,6 +44,7 @@ export function RecentAuthDialog({
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [unsupported, setUnsupported] = useState(false);
 
   const valid = (flight: Verification) =>
     current.current === flight &&
@@ -47,6 +61,7 @@ export function RecentAuthDialog({
   const prepare = async (flight: Verification) => {
     setBusy(true);
     setFailed(false);
+    setUnsupported(false);
     try {
       const verification = await flight.session.startVerification({
         level: 'first_factor'
@@ -58,9 +73,14 @@ export function RecentAuthDialog({
         return;
       }
       const factor = verification.supportedFirstFactors?.find((item) =>
-        ['email_code', 'phone_code', 'password'].includes(item.strategy)
+        ['email_code', 'phone_code', 'password', 'passkey'].includes(
+          item.strategy
+        )
       );
-      if (!factor) throw new Error('supported verification unavailable');
+      if (!factor) {
+        setUnsupported(true);
+        return;
+      }
       if (factor.strategy === 'email_code')
         await flight.session.prepareFirstFactorVerification({
           strategy: 'email_code',
@@ -83,7 +103,7 @@ export function RecentAuthDialog({
 
   useEffect(() => {
     if (!enabled || !sessionId) return;
-    configureRecentAuthHandler(async () => {
+    configureRecentAuthHandler(async (options) => {
       if (current.current) return current.current.promise;
       const clerk = getClerkInstance();
       if (!clerk.session || !clerk.user || clerk.session.id !== sessionId)
@@ -95,6 +115,7 @@ export function RecentAuthDialog({
       const flight: Verification = {
         session: clerk.session,
         ownerId: clerk.user.id,
+        allowRecentSignIn: options?.allowRecentSignIn === true,
         promise,
         resolve
       };
@@ -118,15 +139,24 @@ export function RecentAuthDialog({
 
   const verify = async () => {
     const flight = current.current;
-    if (!flight?.strategy || busy || !input || !valid(flight)) return;
+    if (
+      !flight?.strategy ||
+      busy ||
+      (flight.strategy !== 'passkey' && !input) ||
+      !valid(flight)
+    )
+      return;
     setBusy(true);
     setFailed(false);
     try {
-      const verification = await flight.session.attemptFirstFactorVerification(
-        flight.strategy === 'password'
-          ? { strategy: 'password', password: input }
-          : { strategy: flight.strategy, code: input.trim() }
-      );
+      const verification =
+        flight.strategy === 'passkey'
+          ? await flight.session.verifyWithPasskey()
+          : await flight.session.attemptFirstFactorVerification(
+              flight.strategy === 'password'
+                ? { strategy: 'password', password: input }
+                : { strategy: flight.strategy, code: input.trim() }
+            );
       if (!valid(flight)) return;
       if (verification.status !== 'complete')
         throw new Error('verification incomplete');
@@ -138,6 +168,29 @@ export function RecentAuthDialog({
       if (valid(flight)) setBusy(false);
     }
   };
+
+  const acceptRecentSignIn = async () => {
+    const flight = current.current;
+    if (
+      !flight?.allowRecentSignIn ||
+      !valid(flight) ||
+      !recentlySignedIn(flight.session)
+    )
+      return;
+    setBusy(true);
+    try {
+      const token = await flight.session.getToken({ skipCache: true });
+      if (valid(flight)) finish(token);
+    } catch {
+      if (valid(flight)) setFailed(true);
+    } finally {
+      if (valid(flight)) setBusy(false);
+    }
+  };
+  const canUseFreshSignIn =
+    (unsupported || (failed && !strategy)) &&
+    current.current?.allowRecentSignIn &&
+    recentlySignedIn(current.current.session);
 
   return (
     <Modal visible={visible} transparent onRequestClose={() => finish(null)}>
@@ -160,14 +213,18 @@ export function RecentAuthDialog({
           <StyledText variant="title">
             {translate('recentAuth.title')}
           </StyledText>
-          <StyledText>
-            {translate(
-              strategy === 'password'
-                ? 'recentAuth.password'
-                : 'recentAuth.code'
-            )}
-          </StyledText>
           {strategy ? (
+            <StyledText accessible={strategy === 'passkey'}>
+              {translate(
+                strategy === 'password'
+                  ? 'recentAuth.password'
+                  : strategy === 'passkey'
+                    ? 'recentAuth.passkey'
+                    : 'recentAuth.code'
+              )}
+            </StyledText>
+          ) : null}
+          {strategy && strategy !== 'passkey' ? (
             <TextInput
               testID="recent-auth-input"
               accessibilityLabel={translate(
@@ -191,6 +248,24 @@ export function RecentAuthDialog({
               }}
             />
           ) : null}
+          {unsupported && !canUseFreshSignIn ? (
+            <StyledText accessibilityRole="alert">
+              recentAuth.unsupported
+            </StyledText>
+          ) : null}
+          {canUseFreshSignIn ? (
+            <ActionButton
+              label="recentAuth.useSignIn"
+              loading={busy}
+              onPress={() => void acceptRecentSignIn()}
+            />
+          ) : null}
+          {failed &&
+          !strategy &&
+          current.current?.allowRecentSignIn &&
+          !canUseFreshSignIn ? (
+            <StyledText>recentAuth.signInAgain</StyledText>
+          ) : null}
           {failed ? (
             <StyledText accessibilityRole="alert">
               {translate('recentAuth.failed')}
@@ -201,10 +276,10 @@ export function RecentAuthDialog({
               testID="recent-auth-confirm"
               label={translate('recentAuth.confirm')}
               loading={busy}
-              disabled={!input}
+              disabled={strategy !== 'passkey' && !input}
               onPress={() => void verify()}
             />
-          ) : (
+          ) : !unsupported ? (
             <ActionButton
               label={translate('recentAuth.retry')}
               loading={busy}
@@ -212,7 +287,7 @@ export function RecentAuthDialog({
                 if (current.current) void prepare(current.current);
               }}
             />
-          )}
+          ) : null}
           <ActionButton
             testID="recent-auth-cancel"
             variant="secondary"

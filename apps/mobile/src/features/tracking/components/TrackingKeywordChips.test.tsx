@@ -89,6 +89,23 @@ it('new wording is a neutral financial signal', () => {
   ]);
 });
 
+it('preserves typed keywords while another change is saving', () => {
+  const changed = jest.fn();
+  const form = (disabled: boolean) => <TrackingKeywordChips rules={[]} onChange={changed} onRestore={() => undefined} disabled={disabled} />;
+  const view = render(form(false));
+  fireEvent.press(screen.getByTestId('tracking-add-keyword-toggle'));
+  const input = screen.getByTestId('tracking-new-keyword-input');
+  fireEvent.changeText(input, 'MyBank alert');
+  view.rerender(form(true));
+  expect(screen.getByTestId('tracking-submit-add-keyword')).toBeDisabled();
+  fireEvent(input, 'submitEditing');
+  expect(changed).not.toHaveBeenCalled();
+  expect(screen.getByDisplayValue('MyBank alert')).toBeOnTheScreen();
+  view.rerender(form(false));
+  fireEvent.press(screen.getByTestId('tracking-submit-add-keyword'));
+  expect(changed).toHaveBeenCalledTimes(1);
+});
+
 it('bounds native view work for 113 keywords while keeping every keyword actionable', () => {
   const rules: KeywordRule[] = Array.from({ length: 113 }, (_, index) => ({
     id: `keyword-${index}`,

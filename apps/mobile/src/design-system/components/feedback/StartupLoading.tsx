@@ -18,7 +18,7 @@ import { currentLocale, translate } from '@/localization/i18n';
 /** Provider-independent: FontGate renders this before FoundationProviders. */
 export function StartupLoading({
   locale = currentLocale(),
-  themePreference = 'system',
+  themePreference = 'light',
   reducedMotion = false,
   testID = 'startup-loading'
 }: {

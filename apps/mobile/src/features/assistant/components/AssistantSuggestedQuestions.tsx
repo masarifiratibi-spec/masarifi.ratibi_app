@@ -1,10 +1,11 @@
 import React from 'react';
+import { useTheme } from '@/state/theme-context';
 import { PixelRatio, View, Pressable, StyleSheet, Text } from 'react-native';
 import { BarChartIcon, PieChartIcon, CalendarIcon, WalletIcon } from './AssistantIcons';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 
 export interface AssistantSuggestedQuestionsProps {
@@ -16,6 +17,8 @@ export function AssistantSuggestedQuestions({
   onSelectQuestion,
   disabled = false
 }: AssistantSuggestedQuestionsProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const largeText = PixelRatio.getFontScale() >= 1.5;
@@ -25,33 +28,25 @@ export function AssistantSuggestedQuestions({
       id: 'spending',
       intent: 'spending_summary' as const,
       label: translate('assistant.suggestions.spending'),
-      renderIcon: () => <BarChartIcon size={18} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <BarChartIcon size={18} color={colors.content.link} />
     },
     {
       id: 'highest',
       intent: 'category_breakdown' as const,
       label: translate('assistant.suggestions.highest'),
-      renderIcon: () => <PieChartIcon size={18} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <PieChartIcon size={18} color={colors.content.link} />
     },
     {
       id: 'weekly',
       intent: 'recent_transactions' as const,
       label: translate('assistant.suggestions.weekly'),
-      renderIcon: () => <CalendarIcon size={17} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <CalendarIcon size={17} color={colors.content.link} />
     },
     {
       id: 'budget',
       intent: 'budget_status' as const,
       label: translate('assistant.suggestions.budget'),
-      renderIcon: () => <WalletIcon size={17} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <WalletIcon size={17} color={colors.content.link} />
     }
   ];
 
@@ -79,23 +74,13 @@ export function AssistantSuggestedQuestions({
           >
             {item.label}
           </StyledText>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: item.badgeBg, borderColor: item.badgeBorder }
-            ]}
-          >
+          <View style={styles.iconCircle}>
             {item.renderIcon()}
           </View>
         </>
       ) : (
         <>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: item.badgeBg, borderColor: item.badgeBorder }
-            ]}
-          >
+          <View style={styles.iconCircle}>
             {item.renderIcon()}
           </View>
           <StyledText
@@ -173,7 +158,7 @@ export function AssistantSuggestedQuestions({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
     paddingHorizontal: spacing.md
@@ -189,7 +174,7 @@ const styles = StyleSheet.create({
     gap: 6
   },
   headerTitle: {
-    color: colorTokens.ink['900'],
+    color: colors.content.primary,
     fontSize: 14,
     fontWeight: '700'
   },
@@ -202,8 +187,8 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'center',
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
+    backgroundColor: colors.surfaces.card,
+    borderColor: colors.borders.default,
     borderRadius: radius.md,
     borderWidth: 1,
     flex: 1,
@@ -213,18 +198,18 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    shadowColor: colorTokens.teal['950'],
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1
   },
   cardPressed: {
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['500']
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.focus
   },
   questionText: {
-    color: colorTokens.ink['900'],
+    color: colors.content.primary,
     flex: 1,
     fontSize: 12.5,
     fontWeight: '600',
@@ -239,6 +224,8 @@ const styles = StyleSheet.create({
     writingDirection: 'ltr'
   },
   iconCircle: {
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.subtle,
     alignItems: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,

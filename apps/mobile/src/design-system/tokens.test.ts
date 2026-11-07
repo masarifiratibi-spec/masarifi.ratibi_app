@@ -13,6 +13,12 @@ import {
 import { darkThemeColors, lightThemeColors } from './tokens';
 
 describe('SPEC-002 design tokens', () => {
+  it('preserves the approved assistant shadow in both themes', () => {
+    for (const colors of [lightThemeColors, darkThemeColors]) {
+      expect(colors).toMatchObject({ effects: { shadow: hex('000') } });
+    }
+  });
+
   it('provides 48dp native targets and readable text on page, card and financial surfaces', () => {
     expect(minTouchTarget).toBeGreaterThanOrEqual(48);
     for (const colors of [lightThemeColors, darkThemeColors]) {

@@ -1,3 +1,4 @@
+import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import type { AdminReportCounts } from './reports.admin-types';
 import { adminObservation } from './reports.admin';
 export type { AdminReportCounts } from './reports.admin-types';
@@ -893,6 +894,7 @@ export class ReportsRepository {
           await client.query('rollback');
           return false;
         }
+        if (row.user_id) await bindFinancialClaim(client, 'report', id, null);
         const initial =
           kind === 'report.generate'
             ? 'generating'
@@ -920,6 +922,7 @@ export class ReportsRepository {
         });
         await client.query('begin');
         await this.setWorkerContext(client);
+        if (row.user_id) await bindFinancialClaim(client, 'report', id, null);
         await client.query('select private.transition_report_output($1,$2,$3,$4,$5)', [
           id,
           outcome.status,
@@ -993,6 +996,7 @@ export class ReportsRepository {
           await client.query('rollback');
           return false;
         }
+        await bindFinancialClaim(client, 'report-schedule', id, null);
         const occurrence = nextScheduleOccurrence(
           {
             frequency: schedule.frequency,

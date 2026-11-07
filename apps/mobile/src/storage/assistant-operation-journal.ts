@@ -26,6 +26,8 @@ export type AssistantOperation = z.infer<typeof operationSchema>;
 export interface AssistantJournalStore {
   read(key: string): Promise<string | null>;
   write(key: string, value: string): Promise<void>;
+  track?(ownerHash: string, key: string): Promise<void>;
+  clear?(ownerHash: string, legacyKeys: string[]): Promise<void>;
 }
 const hash = (value: string) => bytesToHex(sha256(utf8ToBytes(value)));
 const queues = new Map<string, Promise<unknown>>();
@@ -46,6 +48,19 @@ export class AssistantOperationJournal {
       if (queues.get(key) === current) queues.delete(key);
     }
   }
+  async clearOwner(owner: string, legacyPreviewIds: readonly string[]) {
+    const slots = [
+      'question',
+      ...legacyPreviewIds.flatMap((id) => ['confirm:' + id, 'cancel:' + id])
+    ];
+    await this.serial(hash(owner), async () => {
+      if (!this.store.clear) throw new Error('journal_cleanup_unavailable');
+      await this.store.clear(
+        hash(owner),
+        slots.map((slot) => this.key(owner, slot))
+      );
+    });
+  }
   async read(owner: string, slot: string): Promise<AssistantOperation | null> {
     const value = await this.store.read(this.key(owner, slot));
     if (value === null) return null;
@@ -61,7 +76,7 @@ export class AssistantOperationJournal {
     input: z.input<typeof requestSchema>,
     operationId: string
   ): Promise<AssistantOperation> {
-    return this.serial(this.key(owner, slot), async () => {
+    return this.serial(hash(owner), async () => {
       const request = requestSchema.parse(input);
       const fingerprint = hash(
         JSON.stringify(
@@ -91,7 +106,9 @@ export class AssistantOperationJournal {
         messageId: null,
         createdAt: Date.now()
       });
-      await this.store.write(this.key(owner, slot), JSON.stringify(value));
+      const key = this.key(owner, slot);
+      await this.store.track?.(hash(owner), key);
+      await this.store.write(key, JSON.stringify(value));
       return value;
     });
   }
@@ -103,7 +120,7 @@ export class AssistantOperationJournal {
       Pick<AssistantOperation, 'phase' | 'conversationId' | 'messageId'>
     >
   ) {
-    return this.serial(this.key(owner, slot), async () => {
+    return this.serial(hash(owner), async () => {
       const saved = await this.read(owner, slot);
       if (!saved || saved.operationId !== operationId)
         throw new Error('operation_conflict');
@@ -131,7 +148,9 @@ export class AssistantOperationJournal {
       )
         throw new Error('operation_conflict');
       const value = operationSchema.parse({ ...saved, ...patch });
-      await this.store.write(this.key(owner, slot), JSON.stringify(value));
+      const key = this.key(owner, slot);
+      await this.store.track?.(hash(owner), key);
+      await this.store.write(key, JSON.stringify(value));
       return value;
     });
   }

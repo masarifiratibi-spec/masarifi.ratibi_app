@@ -12,6 +12,7 @@ import { validateEnvironment } from './platform/config/environment.schema';
 import { GracefulShutdown } from './platform/observability/graceful-shutdown';
 import { PlatformLogger } from './platform/observability/platform-logger';
 import { workerErrorFields } from './platform/observability/worker-error';
+import { FinancialResetWorker } from './security/financial-reset.worker';
 import { SecurityWorkerService } from './security/security.worker';
 
 export function stagingPrivacyScope(
@@ -56,6 +57,7 @@ export async function bootstrapStagingPrivacyWorker(): Promise<INestApplicationC
   });
   const config = app.get(PlatformConfigService);
   const worker = app.get(SecurityWorkerService);
+  const resetWorker = app.get(FinancialResetWorker);
   const logger = new PlatformLogger(undefined, config.get('MASARIFI_LOG_LEVEL'));
   app.useLogger(logger);
   const pulsePath = join(tmpdir(), 'staging-privacy-health.json');
@@ -78,6 +80,7 @@ export async function bootstrapStagingPrivacyWorker(): Promise<INestApplicationC
     if (stopping || inFlight) return;
     inFlight = worker
       .runDeletionForOwner(scope.owner)
+      .then(() => resetWorker.run(scope.owner))
       .then(() => {
         pulse('checked');
       })

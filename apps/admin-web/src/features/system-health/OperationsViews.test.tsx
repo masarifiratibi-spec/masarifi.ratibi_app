@@ -17,6 +17,7 @@ import {
   StorageMonitoringView,
 } from "./OperationsViews";
 import { JobRunDetailView } from "./JobRunDetailView";
+import { LocaleProvider } from "@/core/localization/provider";
 
 const roots: Root[] = [];
 
@@ -89,6 +90,33 @@ describe("US3 provider health view", () => {
 });
 
 describe("US4 queue and job views", () => {
+  test("does not describe unavailable monitoring telemetry as current", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
+    try {
+      const host = await renderView(<ApiMonitoringView />);
+      await expect.poll(() => host.textContent).toContain("Telemetry freshness is unavailable.");
+      expect(host.textContent).not.toContain("Telemetry is current");
+    } finally { process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true"; }
+  });
+
+  test("distinguishes unknown backlog age and status from measured zero", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
+    configureApiActorProvider(() => "admin_queue_read");
+    const freshness = { state: "fresh", observedAt: "2026-11-07T06:00:00Z", staleAt: "2026-11-07T06:01:00Z" };
+    mockServer.use(http.get("/api/v1/admin/jobs/queues", () => HttpResponse.json({ partial: true, freshness, items: [
+      { key: "operations.unknown", waiting: 0, active: 0, failed: 0, oldestWaitingSeconds: null, status: "unknown" },
+      { key: "operations.measured", waiting: 1, active: 0, failed: 0, oldestWaitingSeconds: 0, status: "operational" },
+    ] })));
+    try {
+      const host = await renderView(<LocaleProvider locale="en" setLocale={() => undefined}><QueueOverviewView /></LocaleProvider>);
+      await expect.poll(() => host.querySelectorAll('[data-queue-card]').length).toBe(2);
+      const cards = host.querySelectorAll('[data-queue-card]');
+      expect(cards[0].textContent).toContain("Oldest waiting: Unavailable");
+      expect(cards[0].querySelector('.badge')?.textContent).toBe("Unknown");
+      expect(cards[1].textContent).toContain("Oldest waiting: 0 seconds");
+    } finally { process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true"; }
+  });
+
   test("renders queue counters and safe job links", async () => {
     const queues = await renderView(<QueueOverviewView />);
     expect(queues.textContent).toContain("Queue Overview");

@@ -68,7 +68,7 @@ function Sidebar({
       inert={inert}
     >
       <div className="brand">
-        <Image className="brand-mark" src="/brand-icon.png" alt="" width={36} height={36} />
+        <Image className="brand-mark" src="/masarifi-brand-2026.png" alt="" width={36} height={36} />
         {!compact && <div><strong>{translate("shell.appName")}</strong><small>{translate("shell.appSubtitle")}</small></div>}
         {mobile && <button className="icon-button sidebar-close" onClick={close} aria-label={translate("shell.mobileClose")}><X size={20} /></button>}
       </div>

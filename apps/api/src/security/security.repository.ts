@@ -20,6 +20,22 @@ export interface ProviderMutation {
   value: unknown;
 }
 
+const supportRequestSelect = `select request.id,request.user_id as "userId",request.requested_by as requester,
+  request.assignee,request.support_ticket_id as "supportTicketId",request.scope as scopes,request.status,
+  request.customer_approval_required as "customerApprovalRequired",request.customer_approved_at as "customerApprovedAt",
+  request.expires_at as "expiresAt",request.version::int,request.created_at as "createdAt",request.purpose,
+  request.decided_at as "decidedAt",request.approved_by as "approvedBy",
+  round(extract(epoch from (request.expires_at-request.created_at))/60)::int as "requestedDurationMinutes",
+  case when latest_grant.id is null then null else jsonb_build_object(
+    'id',latest_grant.id,'scopes',latest_grant.scope,'startsAt',latest_grant.starts_at,
+    'expiresAt',latest_grant.ends_at,'revokedAt',latest_grant.revoked_at) end as "grant"
+  from private.support_access_requests as request
+  left join lateral (
+    select access_grant.id,access_grant.scope,access_grant.starts_at,access_grant.ends_at,access_grant.revoked_at
+    from private.support_access_grants as access_grant where access_grant.request_id=request.id
+    order by access_grant.created_at desc,access_grant.id desc limit 1
+  ) as latest_grant on true`;
+
 function invalid(): never {
   throw Object.assign(new Error('INPUT_INVALID'), { code: '22023' });
 }
@@ -592,10 +608,10 @@ export class SecurityRepository {
       case 'listMySupportAccessRequests':
         return this.list(
           client,
-          `select id,user_id as "userId",requested_by as requester,assignee,support_ticket_id as "supportTicketId",scope as scopes,status,
-        customer_approval_required as "customerApprovalRequired",customer_approved_at as "customerApprovedAt",expires_at as "expiresAt",version::int
-        from private.support_access_requests where ($1::text is null or status=$1) and ($2::text is null or assignee=$2)
-          and ($3::text is null or support_ticket_id ilike '%'||$3||'%' or user_id ilike '%'||$3||'%') order by created_at desc,id desc`,
+          `${supportRequestSelect} where ($1::text is null or request.status=$1) and ($2::text is null or request.assignee=$2)
+          and ($3::text is null or request.support_ticket_id ilike '%'||$3||'%' or request.user_id ilike '%'||$3||'%')
+          and ($4::text is null or request.user_id=$4)
+          order by request.created_at desc,request.id desc`,
           limit,
           offset,
           [
@@ -612,16 +628,11 @@ export class SecurityRepository {
             input.operation === 'listSupportAccessRequests'
               ? optionalText(input.query.search, 128)
               : null,
+            input.operation === 'listMySupportAccessRequests' ? input.principal.userId : null,
           ],
         );
       case 'getSupportAccessRequest':
-        return this.one(
-          client,
-          `select id,user_id as "userId",requested_by as requester,assignee,support_ticket_id as "supportTicketId",scope as scopes,status,
-        customer_approval_required as "customerApprovalRequired",customer_approved_at as "customerApprovedAt",expires_at as "expiresAt",version::int
-        from private.support_access_requests where id=$1`,
-          [requiredText(input.params.requestId)],
-        );
+        return this.supportRequest(client, requiredText(input.params.requestId));
       case 'listPrivacyExports':
         return this.list(
           client,
@@ -878,7 +889,7 @@ export class SecurityRepository {
           ],
         );
         resourceId = row.id;
-        result = row;
+        result = await this.supportRequest(client, resourceId);
         break;
       }
       case 'decideMySupportAccessRequest': {
@@ -934,14 +945,16 @@ export class SecurityRepository {
         break;
       }
       case 'revokeSupportAccess':
-      case 'endSupportAccess':
+      case 'endSupportAccess': {
         resourceType = 'support_request';
         resourceId = requiredText(params.requestId);
-        await this.one(
+        const ending = await this.one<{ id: string; assignee: string }>(
           client,
-          `select id from private.support_access_requests where id=$1 and status='approved' and version=$2 for update`,
+          `select id,assignee from private.support_access_requests where id=$1 and status='approved' and version=$2 for update`,
           [resourceId, requiredInteger(body.expectedVersion)],
         );
+        if (input.operation === 'endSupportAccess' && ending.assignee !== principal.userId)
+          throw Object.assign(new Error('SUPPORT_GRANT_DENIED'), { code: '42501' });
         await client.query(
           'update private.support_access_grants set revoked_at=clock_timestamp() where request_id=$1 and revoked_at is null',
           [resourceId],
@@ -952,16 +965,48 @@ export class SecurityRepository {
         );
         result = await this.supportRequest(client, resourceId);
         break;
+      }
       case 'getSupportWorkspace': {
         resourceType = 'support_access';
         resourceId = requiredText(params.requestId);
-        const workspace = await this.one<{ workspace: unknown }>(
-          client,
-          'select private.read_support_workspace($1) as workspace',
-          [resourceId],
-        );
-        await this.audit(client, input, resourceType, resourceId, workspace.workspace, false);
-        return workspace.workspace;
+        const workspace = await this.one<{
+          workspace: Record<string, unknown> & { grantId: string };
+        }>(client, 'select private.read_support_workspace($1) as workspace', [resourceId]);
+        const access = (
+          await client.query<{
+            supportTicketId: string;
+            assignee: string;
+            startsAt: Date;
+            scopes: unknown;
+            version: number;
+          }>(
+            `select request.support_ticket_id as "supportTicketId",request.assignee,
+            access_grant.starts_at as "startsAt",access_grant.scope as scopes,request.version::int
+           from private.support_access_requests as request
+           join private.support_access_grants as access_grant on access_grant.request_id=request.id
+           where request.id=$1 and access_grant.id=$2 and request.assignee=$3 and access_grant.admin_id=$3
+             and request.status='approved' and request.expires_at>clock_timestamp()
+             and (not request.customer_approval_required or request.customer_approved_at is not null)
+             and access_grant.revoked_at is null and access_grant.starts_at<=clock_timestamp()
+             and access_grant.ends_at>clock_timestamp()
+           for share of request,access_grant`,
+            [resourceId, workspace.workspace.grantId, principal.userId],
+          )
+        ).rows[0];
+        if (!access) throw Object.assign(new Error('SUPPORT_GRANT_DENIED'), { code: '42501' });
+        // Only the existing authorized RPC can recheck the customer's active
+        // profile without widening the operator's profile read permissions.
+        const current = await this.one<{
+          workspace: Record<string, unknown> & { grantId: string };
+        }>(client, 'select private.read_support_workspace($1) as workspace', [resourceId]);
+        if (current.workspace.grantId !== workspace.workspace.grantId)
+          throw Object.assign(new Error('SUPPORT_GRANT_DENIED'), { code: '42501' });
+        const projected = {
+          ...current.workspace,
+          access: { ...access, startsAt: access.startsAt.toISOString() },
+        };
+        await this.audit(client, input, resourceType, resourceId, projected, false);
+        return projected;
       }
       case 'createSecurityIncident': {
         resourceType = 'security_incident';
@@ -1302,13 +1347,7 @@ export class SecurityRepository {
   }
 
   private supportRequest(client: PoolClient, requestId: string): Promise<QueryResultRow> {
-    return this.one(
-      client,
-      `select id,user_id as "userId",requested_by as requester,assignee,support_ticket_id as "supportTicketId",scope as scopes,status,
-      customer_approval_required as "customerApprovalRequired",customer_approved_at as "customerApprovedAt",expires_at as "expiresAt",version::int
-      from private.support_access_requests where id=$1`,
-      [requestId],
-    );
+    return this.one(client, `${supportRequestSelect} where request.id=$1`, [requestId]);
   }
 
   private async one<T extends QueryResultRow = QueryResultRow>(

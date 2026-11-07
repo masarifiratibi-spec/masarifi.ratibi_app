@@ -99,7 +99,8 @@ def main():
     # A recognized older schema is still valid Voice evidence, but cannot be
     # called current for launch admission. Keep both stores genuinely empty.
     root, want = case("empty-two-owners", owners=(A, B)); database(root); database(root, B, version=14)
-    root, want = case("future-schema17", "INDETERMINATE"); database(root, statements=["INSERT INTO schema_migrations VALUES(17,0)"])
+    # Schema17 is current in the application, but still future to this reader.
+    root, want = case("future-schema17", "INDETERMINATE"); database(root, version=17)
     want["qualificationStage"] = "MOBILE_SCHEMA"
     cache_sql = "INSERT INTO query_read_cache VALUES('dashboard','ar',16,'{\"publicFixture\":true}',123)"
     root, want = case("empty-current-schema16"); database(root)

@@ -34,7 +34,8 @@ describeLocal('immediate deletion committed receipts on the owned local database
       !(
         (url.port === '15876' && url.pathname === '/reliability_deletion_20261016') ||
         (url.port === '15918' && url.pathname === '/dev_egress_20261020') ||
-        (url.port === '55442' && url.pathname === '/admin_recovery_fresh')
+        (url.port === '55442' &&
+          ['/admin_recovery_fresh', '/qa41_dashboard_deletion'].includes(url.pathname))
       )
     )
       throw new Error('OWNED_LOCAL_DELETION_DATABASE_REQUIRED');
@@ -115,6 +116,56 @@ describeLocal('immediate deletion committed receipts on the owned local database
     params: {},
   });
   const tokenHash = () => createHash('sha256').update(token).digest('hex');
+
+  it('completes owner erasure that takes longer than the interactive query deadline', async () => {
+    const marker = randomUUID();
+    const suffix = marker.replaceAll('-', '');
+    const name = 'qa_slow_erasure_' + suffix;
+    await pool.query(
+      "select private.enqueue_outbox_event('spec_be_001.integration','spec_be_001',$1,$2::jsonb)",
+      [marker, JSON.stringify({ userId: owner })],
+    );
+    // Only the marked synthetic event on this loopback fixture incurs a delay.
+    await pool.query(`create function private.${name}() returns trigger language plpgsql as
+      $$begin perform pg_sleep(2.3); return old; end$$`);
+    try {
+      await pool.query(`create trigger ${name} before delete on private.outbox_events
+        for each row when (old.aggregate_id = '${marker}'::uuid) execute function private.${name}()`);
+      await expect(service.execute(operation())).resolves.toMatchObject({ status: 'completed' });
+      expect(
+        (await pool.query('select id from private.outbox_events where aggregate_id=$1', [marker]))
+          .rowCount,
+      ).toBe(0);
+    } finally {
+      await pool.query(`drop trigger if exists ${name} on private.outbox_events`);
+      await pool.query(`drop function private.${name}()`);
+    }
+  }, 30_000);
+
+  it('completes the mobile self-deletion of a dashboard member and revokes their dashboard access', async () => {
+    await pool.query(
+      "insert into public.admin_profiles(user_id,status,department) values($1,'active','Test')",
+      [owner],
+    );
+    try {
+      const result = await service.execute(operation());
+      expect(result).toMatchObject({ status: 'completed' });
+      expect(clerk.revokeUserSessions).toHaveBeenCalledWith(owner);
+      expect(clerk.deleteIdentityUser).toHaveBeenCalledWith(owner);
+      const account = await pool.query(
+        'select p.status, a.status as membership, a.department from public.profiles p join public.admin_profiles a on a.user_id=p.id where p.id=$1',
+        [owner],
+      );
+      expect(account.rows).toEqual([
+        { status: 'deleted', membership: 'revoked', department: null },
+      ]);
+      await expect(
+        repository.getDeletionCompletion(operationId, tokenHash(), networkHash),
+      ).resolves.toMatchObject({ value: { status: 'completed' } });
+    } finally {
+      await pool.query('delete from public.admin_profiles where user_id=$1', [owner]);
+    }
+  });
 
   it.each([false, true])(
     'a new confirmed command makes an existing cooling request eligible immediately (prior receipt=%s)',

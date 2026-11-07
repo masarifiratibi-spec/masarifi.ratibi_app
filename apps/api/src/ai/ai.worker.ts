@@ -1,3 +1,4 @@
+import { withClaimGeneration } from '../platform/database/financial-worker-generation';
 import {
   VOICE_BATCH_OUTPUT_SCHEMA,
   VOICE_BATCH_PROMPT,
@@ -516,7 +517,9 @@ export class AiWorker implements OnModuleDestroy {
       throw new Error('ASSISTANT_SCOPE_INVALID');
     for (let offset = 0; offset < claims.length; offset += concurrency)
       await Promise.all(
-        claims.slice(offset, offset + concurrency).map((claim) => this.process(claim)),
+        claims
+          .slice(offset, offset + concurrency)
+          .map((claim) => withClaimGeneration(claim.generation, () => this.process(claim))),
       );
     return claims.length;
   }
@@ -527,7 +530,7 @@ export class AiWorker implements OnModuleDestroy {
     continuous = false,
   ): Promise<boolean> {
     if (claim.kind !== 'voice.transcribe_extract') throw new Error('VOICE_SCOPE_INVALID');
-    return this.process(claim, signal, continuous);
+    return withClaimGeneration(claim.generation, () => this.process(claim, signal, continuous));
   }
 
   private async process(

@@ -92,7 +92,7 @@ it('keeps unsent phone edits while refreshing the authoritative profile version'
     '509876543'
   );
   expect(
-    view.getByLabelText(t('appShell.auth.phone.countryCode')).props.value
+    view.getByRole('button', { name: t('appShell.auth.phone.countryCode') }).props.accessibilityValue.text
   ).toBe('+971');
   fireEvent.press(
     view.getByRole('button', { name: t('settings.profile.phone.save') })

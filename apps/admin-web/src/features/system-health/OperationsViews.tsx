@@ -53,11 +53,17 @@ function statusLabel(status: HealthStatus): string {
     .join(" ");
 }
 
-function badgeStatus(status: HealthStatus): SystemStatus {
+function badgeStatus(status: Exclude<HealthStatus, "unknown">): SystemStatus {
   if (status === "partial_outage") return "partial-outage";
   if (status === "major_outage") return "major-outage";
-  if (status === "unknown") return "degraded";
   return status;
+}
+
+function HealthStatusBadge({ status }: { status: HealthStatus }) {
+  const { locale } = useLocale();
+  return status === "unknown"
+    ? <span className="badge">{locale === "ar" ? "غير معروف" : "Unknown"}</span>
+    : <StatusBadge status={badgeStatus(status)} />;
 }
 
 function labelText(value: string): string {
@@ -99,7 +105,7 @@ function FreshnessCard({ state, partialReason }: { state: string; partialReason?
       <div className="card-heading">
         <div>
           <h2>Freshness</h2>
-          <p>{partialReason ?? "Telemetry is current for the selected range."}</p>
+          <p>{partialReason ?? (state === "fresh" ? "Telemetry is current for the selected range." : state === "stale" ? "Telemetry is stale." : "Telemetry freshness is unavailable.")}</p>
         </div>
         <span className="badge">Freshness: {state}</span>
       </div>
@@ -115,7 +121,7 @@ function ProviderCard({ provider }: { provider: ProviderHealthSummary }) {
           <h2>{provider.name}</h2>
           <p>Fallback: {labelText(provider.fallbackState)} · Access: {labelText(provider.access)}</p>
         </div>
-        <StatusBadge status={badgeStatus(provider.status)} />
+        <HealthStatusBadge status={provider.status} />
       </div>
       <MetricList metrics={[provider.latency, provider.errorRate]} />
       <dl className="detail-grid">
@@ -130,14 +136,15 @@ function ProviderCard({ provider }: { provider: ProviderHealthSummary }) {
 }
 
 function QueueCard({ queue }: { queue: QueueSnapshot }) {
+  const { locale } = useLocale();
   return (
     <article className="card" data-queue-card>
       <div className="card-heading">
         <div>
           <h2>{queue.label}</h2>
-          <p>Oldest waiting: {queue.oldestWaitingSeconds ?? 0} seconds</p>
+          <p>Oldest waiting: {queue.oldestWaitingSeconds === null ? (locale === "ar" ? "غير متاح" : "Unavailable") : `${queue.oldestWaitingSeconds} seconds`}</p>
         </div>
-        <StatusBadge status={badgeStatus(queue.backlogState)} />
+        <HealthStatusBadge status={queue.backlogState} />
       </div>
       <MetricList metrics={[
         queue.counters.waiting,
@@ -257,7 +264,7 @@ export function HealthOverviewView() {
                 <h2 className="ltr">{service.name}</h2>
                 <p>{service.impactSummary}</p>
               </div>
-              <StatusBadge status={badgeStatus(service.status)} />
+              <HealthStatusBadge status={service.status} />
             </div>
             <dl className="detail-grid">
               <div className="detail-item">
@@ -448,7 +455,7 @@ export function QueueOverviewView() {
       />
       <FreshnessCard state={queues.data.freshness.state} />
       <section className="section-grid">
-        {queues.data.items.map((queue) => <QueueCard key={queue.queue} queue={queue} />)}
+        {queues.data.items.map((queue) => <QueueCard key={`${queue.queue}:${queue.label}`} queue={queue} />)}
       </section>
     </div>
   );
