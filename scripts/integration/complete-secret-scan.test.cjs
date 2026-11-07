@@ -487,6 +487,56 @@ test("one unknown finding blocks a report containing reviewed public findings", 
   );
 });
 
+test("packet digest and inventory key classifications bind to their immutable blobs and redacted spans", () => {
+  const commit = "a7cc6e0ee8dd1d743e0f59b99b92599f1bcb948e";
+  const folder = "ops/releases/2026-11-07-temporary-support-access/";
+  for (const [name, line, start, end, match, classification] of [
+    [
+      "manifest.json",
+      123,
+      7,
+      89,
+      'api_archive.py": "REDACTED"',
+      "packet-executor-digest",
+    ],
+    [
+      "host_inventory.py",
+      39,
+      40,
+      84,
+      'protectedPrimaryApi","REDACTED"',
+      "host-inventory-field",
+    ],
+  ]) {
+    const file = folder + name;
+    const f = {
+      Commit: commit,
+      File: file,
+      RuleID: "generic-api-key",
+      StartLine: line,
+      EndLine: line,
+      StartColumn: start,
+      EndColumn: end,
+      Secret: "REDACTED",
+      Match: match,
+      Fingerprint: commit + ":" + file + ":generic-api-key:" + line,
+    };
+    const check = (row) => classifyScanReport(JSON.stringify([row]), 2);
+    assert.equal(check(f).findings[0].classification, classification);
+    assert.equal(check({ ...f, EndColumn: end - 1 }).exitCode, 2);
+    assert.equal(check({ ...f, Match: 'token = "REDACTED"' }).exitCode, 2);
+    const copy = folder + "copy-" + name;
+    assert.equal(
+      check({
+        ...f,
+        File: copy,
+        Fingerprint: commit + ":" + copy + ":generic-api-key:" + line,
+      }).exitCode,
+      2,
+    );
+  }
+});
+
 test("catalog blob, exact value and JSON context are verified against original Git objects", (t) => {
   const catalog = require("./reviewed-secret-findings.json");
   const entry = catalog.findings.find(

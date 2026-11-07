@@ -89,6 +89,17 @@ function classifyScanReport(
       contextVerified =
         entry.binding === "claimToken" &&
         digest("sha512", source) === entry.sourceDigest;
+    } else if (entry.classification === "host-inventory-field") {
+      // The scanner matched the fourth field name in a literal inventory loop.
+      // Parse only its four data literals, without executing historical Python.
+      const fields = /^    for name in \((.*)\):$/.exec(line ?? "");
+      const tuple = fields && JSON.parse("[" + fields[1] + "]");
+      value = tuple?.[3];
+      contextVerified =
+        Array.isArray(tuple) &&
+        tuple.length === 4 &&
+        tuple.slice(0, 3).join("/") === "actualApi/admin/protectedPrimaryApi" &&
+        value === "protectedLegacyApi3000";
     } else {
       try {
         value = JSON.parse(source);
@@ -101,6 +112,14 @@ function classifyScanReport(
         line.includes(
           `${JSON.stringify(entry.pointer.at(-1))}: ${JSON.stringify(value)}`,
         );
+      if (entry.classification === "packet-executor-digest") {
+        const name = "api_archive.py";
+        const sibling = file.slice(0, file.lastIndexOf("/") + 1) + name;
+        contextVerified =
+          contextVerified &&
+          entry.pointer.join("/") === "executorSha256/" + name &&
+          value === digest("sha256", git("show", commit + ":" + sibling));
+      }
     }
     if (
       typeof line !== "string" ||
@@ -142,7 +161,9 @@ function classifyScanReport(
       f.Match ===
         (entry.classification === "synthetic-unit-lease"
           ? `${entry.binding} = 'REDACTED'`
-          : `${entry.pointer.at(-1)}\": \"REDACTED\"`)
+          : entry.classification === "host-inventory-field"
+            ? 'protectedPrimaryApi","REDACTED"'
+            : `${entry.pointer.at(-1)}\": \"REDACTED\"`)
     ) {
       const value = originalValue(entry);
       if (
@@ -157,7 +178,13 @@ function classifyScanReport(
         entry.pointer.at(-1) === "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
       )
         classification = entry.classification;
-      else if (entry.classification === "synthetic-unit-lease")
+      else if (
+        [
+          "synthetic-unit-lease",
+          "host-inventory-field",
+          "packet-executor-digest",
+        ].includes(entry.classification)
+      )
         classification = entry.classification;
       else if (
         entry.classification === "release-env-sha256" &&
