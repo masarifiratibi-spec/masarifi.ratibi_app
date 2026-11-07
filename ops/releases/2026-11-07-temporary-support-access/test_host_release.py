@@ -34,6 +34,7 @@ class Controls(unittest.TestCase):
             "Mounts":[{"Type":"bind","Destination":dest,"Source":src,"RW":rw} for dest,src,rw in mounts],
             "HostConfig":{"ReadonlyRootfs":True,"Privileged":False,"VolumesFrom":None,"NetworkMode":rt["network"],
                 "Memory":rt["memoryBytes"],"NanoCpus":rt["nanoCpus"],"OomKillDisable":None,
+                "RestartPolicy":{"Name":"unless-stopped","MaximumRetryCount":0},
                 "Mounts":[{"Type":"bind","Target":dest,"Source":src,"ReadOnly":not rw} for dest,src,rw in mounts],
                 "PortBindings":{container_port+"/tcp":[{"HostIp":"127.0.0.1","HostPort":host_port}]}}}
 
@@ -45,6 +46,7 @@ class Controls(unittest.TestCase):
         self.assertEqual(p["Env"][-1],"MASARIFI_RELEASE_VERSION="+"c"*40)
         self.assertEqual(p["HostConfig"]["Mounts"],old["HostConfig"]["Mounts"])
         self.assertEqual(p["HostConfig"]["PortBindings"],{"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3042"}]})
+        self.assertEqual(p["HostConfig"]["RestartPolicy"]["Name"],"no")
         for mutate in (lambda r:r["Config"]["Cmd"].append("dist/worker.js"),
                        lambda r:r["HostConfig"]["PortBindings"]["3000/tcp"][0].update(HostIp="0.0.0.0"),
                        lambda r:r["Config"]["Env"].append("A=duplicate"),
@@ -72,9 +74,29 @@ class Controls(unittest.TestCase):
         with self.assertRaises(ValueError):cfg.verify_created(row,p,name,mounts)
 
     def test_blocked_manifest_cannot_stage(self):
-        with patch.object(os,"geteuid",return_value=0,create=True):
+        raw=json.dumps(dict(self.m,state="blocked-not-admitted")).encode()
+        with patch.object(os,"geteuid",return_value=0,create=True),patch.object(wd,"exact_file",return_value=raw):
             with self.assertRaisesRegex(ValueError,"PACKET_NOT_ADMITTED"):
                 host.admitted("a"*64)
+
+    def test_restart_policy_change_refuses_foreign_name_before_docker_update(self):
+        original=self.original("api");identity=original["Id"]
+        t=dict(candidates={"api":identity},configs={"api":"unused"},started={"api":"unused"})
+        with patch.object(inv,"inspect",return_value=original),patch.object(host,"run") as engine:
+            with self.assertRaisesRegex(ValueError,"TRIAL_RESTART_DRIFT"):host.enable_accepted_restart(self.m,t)
+            engine.assert_not_called()
+
+    def test_accepted_policy_update_detects_unrelated_config_drift(self):
+        row=self.original("api");identity="a"*64
+        row["Id"]=identity;row["Name"]="/"+self.m["candidate"]["apiName"]
+        row["HostConfig"]["RestartPolicy"]={"Name":"no","MaximumRetryCount":0}
+        t=dict(candidates={"api":identity},configs={"api":cfg.fingerprint({k:row[k] for k in ("Config","HostConfig","Mounts")})},
+               started={"api":row["State"]["StartedAt"]})
+        changed=deepcopy(row);changed["HostConfig"]["RestartPolicy"]["Name"]="unless-stopped"
+        changed["HostConfig"]["ReadonlyRootfs"]=False
+        with patch.object(inv,"inspect",side_effect=[row,changed]),patch.object(host,"run") as engine:
+            with self.assertRaisesRegex(ValueError,"ACCEPTED_RESTART_OR_IDENTITY_DRIFT"):host.enable_accepted_restart(self.m,t)
+            engine.assert_called_once_with(["docker","update","--restart","unless-stopped",identity])
 
 
 class Rollback(unittest.TestCase):
@@ -188,7 +210,7 @@ class Rollback(unittest.TestCase):
     def test_durable_acceptance_precedes_any_persistent_candidate(self):
         wd.emit(self.root/"external-evidence.json",{"privateReceiptSha256":"3"*64})
         with patch.object(host,"verify_evidence"),patch.object(host,"canaries"),patch.object(host,"candidate_public"),\
-             patch.object(host.time,"monotonic",return_value=0),patch.object(wd,"finalize_trial",
+             patch.object(host.time,"monotonic",return_value=0),patch.object(host,"enable_accepted_restart"),patch.object(wd,"finalize_trial",
              side_effect=OSError("interrupted before persistent rename")):
             with self.assertRaises(OSError):host.finalize({},self.t)
         decision=json.loads((self.root/"commit.json").read_bytes())

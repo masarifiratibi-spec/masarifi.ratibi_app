@@ -73,8 +73,13 @@
     "adminHostPort": 3043,
     "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream",
     "plannedPayloadSha256": {
-      "admin": "28caf5a53f727044932e8b0cf8f63ac3bcf4388a98d9f7d00c699a8695dcdbbe",
+      "admin": "e42dc6e6754d5e3739b5cad90c92644832f1778181722a9b9db2c09af41d35f2",
       "api": null
+    },
+    "restartPolicy": {
+      "trial": "no",
+      "afterDurablePrivateAcceptance": "unless-stopped",
+      "existingServicePolicy": "unchanged"
     }
   },
   "qualification": {
@@ -134,10 +139,10 @@
     "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
   },
   "offlinePacketTests": {
-    "passed": 51,
+    "passed": 53,
     "failed": 0,
     "skipped": 0,
-    "boundary": "local synthetic, temporary files and archive admission; no hosted execution"
+    "boundary": "local synthetic and archive admission; 51 preceding tests also passed Linux, two new Docker restart drift checks additionally passed locally"
   },
   "hashEncoding": "SHA256 of canonical LF UTF-8 packet bytes; container config fingerprints retain their separately stated exact Docker output algorithm",
   "repairCommits": [
@@ -151,9 +156,9 @@
     "replacementCi": "Real extension passed in 42389327179: errors=0, explainedDynamicVariants=59; two stale pgTAP counts blocked database/image."
   },
   "executorSha256": {
-    "host_release.py": "550846545a4b7928f4f52a8462bd9fcd9cfc7f0193d4295c9f349a78d3b3a6e9",
+    "host_release.py": "c7210c76734934a3bd4df89c8d5be94b461cca4e45f7003187765c22400bf377",
     "host_inventory.py": "32d3a0f9e9fe1a41cbaabd307bc7fee8e3ddd866c4096347a42aeaba793463be",
-    "candidate_config.py": "6b1cebce0fb1d5a8b936c926a8ff12f09923a889b37019f7fb73625e1cf8200f",
+    "candidate_config.py": "c4a0b642879c8766a24d665e644f5f602b20156b56288d85c0fc146cfcaa1bec",
     "watchdog.py": "f66a7fddc4c842e405632297debfabebd3d1a24bc3cf03d91f60254da7a40b5c",
     "stage_archives.py": "560fedaee3f2ed97ebf87d9715d86c7c25a2616ea63cfa8fdf4219a87e9d3001",
     "api_archive.py": "c33f1d46c86f05a8c3be28a5da3227166b345c3885e02868107a0eb425873c7f",

@@ -337,7 +337,30 @@ def finalize(m,t):
     # committed private acceptance decision. ack.json is completion, not authority.
     wd.emit(wd.PRIVATE/"commit.json",dict(wd.binding(t,os.getpid()),privateReceiptSha256=marker["privateReceiptSha256"],
                                            decision="accepted",observedUnix=time.time()))
+    enable_accepted_restart(m,t)
     wd.finalize_trial(t)
+
+
+def enable_accepted_restart(m,t):
+    # Only the two accepted immutable IDs may inherit their originals' restart
+    # policy. Verify that Docker changed no other configuration or process.
+    configs={}
+    for role,identity in t["candidates"].items():
+        before=inv.inspect(identity)
+        fingerprint=lambda r:cfg.fingerprint({k:r[k] for k in ("Config","HostConfig","Mounts")})
+        cfg.require(before["Id"]==identity and before["Name"]=="/"+m["candidate"][role+"Name"]
+                    and fingerprint(before)==t["configs"][role] and
+                    before["HostConfig"]["RestartPolicy"]=={"Name":"no","MaximumRetryCount":0},"TRIAL_RESTART_DRIFT")
+        run(["docker","update","--restart","unless-stopped",identity])
+        after=inv.inspect(identity)
+        expected=dict(before["HostConfig"],RestartPolicy={"Name":"unless-stopped","MaximumRetryCount":0})
+        cfg.require(after["Id"]==identity and after["HostConfig"]==expected and after["Config"]==before["Config"]
+                    and after["Mounts"]==before["Mounts"] and after["State"]["Running"]
+                    and after["State"]["StartedAt"]==t["started"][role] and after["RestartCount"]==0,
+                    "ACCEPTED_RESTART_OR_IDENTITY_DRIFT")
+        configs[role]=fingerprint(after)
+    canaries(m,dict(t,configs=configs))
+    wd.emit(wd.PRIVATE/"accepted-configs.json",dict(wd.binding(t,os.getpid()),configs=configs))
 
 
 def proposed_bytes(m):
