@@ -1,7 +1,12 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { validateIdentity } = require("./verify-android-identity.cjs");
-const { benchmarkProfile } = require('../../apps/mobile/scripts/benchmark-build-policy.cjs');
+const {
+  validateIdentity,
+  loadApprovedIdentity,
+} = require("./verify-android-identity.cjs");
+const {
+  benchmarkProfile,
+} = require("../../apps/mobile/scripts/benchmark-build-policy.cjs");
 function fixture() {
   const baseline = {
     app: {
@@ -47,21 +52,104 @@ test("allows release safety configuration while preserving registered identities
   ];
   validateIdentity(candidate, baseline);
 });
-test('allows only the exact approved benchmark profile addition', () => {
+
+function reviewedFixture(isAncestor = () => true) {
+  const { baseline, candidate } = fixture();
+  const displayName = "مصاريفي وراتبي";
+  const profile = {
+    extends: "production",
+    developmentClient: false,
+    distribution: "internal",
+    ios: { simulator: false },
+    env: { MASARIFI_IOS_AD_HOC: "true" },
+  };
+  const branding = structuredClone(baseline.app);
+  branding.expo.name = displayName;
+  branding.expo.android.package = "com.unreviewed.branding";
+  const laterEas = {
+    build: { "ios-ad-hoc": profile, production: { unreviewed: true } },
+  };
+  const snapshots = {
+    "apps/mobile/app.json": baseline.app,
+    "apps/mobile/eas.json": baseline.eas,
+    "apps/mobile/google-services.json": baseline.firebase,
+    "apps/mobile/index.js": baseline.index,
+  };
+  const expected = loadApprovedIdentity((revision, file) => {
+    let value;
+    if (revision === "7e3bbef0cdccc2ee5509dd332f4e32236af01b90")
+      value = snapshots[file];
+    else if (
+      revision === "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d" &&
+      file === "apps/mobile/app.json"
+    )
+      value = branding;
+    else if (
+      revision === "0389dff3936211b968c1128471cc313af3b2aef2" &&
+      file === "apps/mobile/eas.json"
+    )
+      value = laterEas;
+    else assert.fail("Unreviewed identity source requested");
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }, isAncestor);
+  candidate.app.expo.name = displayName;
+  candidate.eas.build["ios-ad-hoc"] = structuredClone(profile);
+  return { expected, candidate };
+}
+
+test("inherits only the reviewed name and exact iOS profile while retaining C0 identity bindings", () => {
+  const { expected, candidate } = reviewedFixture();
+  assert.deepEqual(expected.eas.build.production, {});
+  validateIdentity(candidate, expected);
+});
+
+for (const [name, reviewed] of [
+  ["branding", "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d"],
+  ["paused iOS profile", "0389dff3936211b968c1128471cc313af3b2aef2"],
+])
+  test(`refuses ${name} outside the candidate ancestry`, () => {
+    assert.throws(
+      () => reviewedFixture((revision) => revision !== reviewed),
+      /ancestor/,
+    );
+  });
+
+for (const [name, change] of Object.entries({
+  distribution: (x) => {
+    x.eas.build["ios-ad-hoc"].distribution = "store";
+  },
+  environment: (x) => {
+    x.eas.build["ios-ad-hoc"].env.MASARIFI_IOS_AD_HOC = "false";
+  },
+  extraProfile: (x) => {
+    x.eas.build.unreviewed = {};
+  },
+}))
+  test(`rejects changed ${name} with the reviewed iOS profile`, () => {
+    const { expected, candidate } = reviewedFixture();
+    change(candidate);
+    assert.throws(() => validateIdentity(candidate, expected));
+  });
+test("allows only the exact approved benchmark profile addition", () => {
   const { baseline, candidate } = fixture();
   candidate.eas.build.benchmark = structuredClone(benchmarkProfile);
   validateIdentity(candidate, baseline);
-  candidate.eas.build.benchmark.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY = 'false';
+  candidate.eas.build.benchmark.env.EXPO_PUBLIC_BENCHMARK_READ_ONLY = "false";
   assert.throws(() => validateIdentity(candidate, baseline));
 });
-test('rejects arbitrary extra profiles even with an approved benchmark present', () => {
+test("rejects arbitrary extra profiles even with an approved benchmark present", () => {
   const { baseline, candidate } = fixture();
   candidate.eas.build.benchmark = structuredClone(benchmarkProfile);
   candidate.eas.build.unreviewed = {};
   assert.throws(() => validateIdentity(candidate, baseline));
 });
 for (const [name, change] of Object.entries({
+  name: (x) => (x.app.expo.name = "Unreviewed name"),
+  slug: (x) => (x.app.expo.slug = "unreviewed"),
+  scheme: (x) => (x.app.expo.scheme = "unreviewed"),
   package: (x) => (x.app.expo.android.package = "com.other.app"),
+  bundleIdentifier: (x) => (x.app.expo.ios.bundleIdentifier = "com.other.app"),
+  easProject: (x) => (x.app.expo.extra.eas.projectId = "other-project"),
   firebase: (x) => (x.firebase.project_info.project_id = "other"),
   profile: (x) => (x.eas.build.development.distribution = "store"),
   lock: (x) =>
@@ -70,6 +158,7 @@ for (const [name, change] of Object.entries({
 }))
   test(`rejects changed ${name}`, () => {
     const { baseline, candidate } = fixture();
+    baseline.app.expo.name = candidate.app.expo.name = "مصاريفي وراتبي";
     change(candidate);
     assert.throws(() => validateIdentity(candidate, baseline));
   });

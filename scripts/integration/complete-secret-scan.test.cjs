@@ -279,6 +279,147 @@ function reviewedReport() {
   );
 }
 
+function reviewedSyntheticLeaseReport() {
+  const Commit = "73b790d04d705d349107da1e34cc65a06b195107";
+  const File = "scripts/integration/tracking-upgrade-repository.test.cjs";
+  return {
+    RuleID: "generic-api-key",
+    Commit,
+    File,
+    StartLine: 9,
+    EndLine: 9,
+    StartColumn: 10,
+    EndColumn: 60,
+    Secret: "REDACTED",
+    Match: "claimToken = 'REDACTED'",
+    Fingerprint: `${Commit}:${File}:generic-api-key:9`,
+  };
+}
+
+test("the exact historical synthetic unit lease is classified without exempting other tokens", () => {
+  const result = classifyScanReport(
+    JSON.stringify([...reviewedReport(), reviewedSyntheticLeaseReport()]),
+    2,
+  );
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.findings.length, 12);
+  assert.equal(result.findings.at(-1).classification, "synthetic-unit-lease");
+});
+
+test("synthetic lease exceptions reject changed commit, copy, location, rule and declaration context", () => {
+  const original = reviewedSyntheticLeaseReport();
+  for (const changed of [
+    {
+      Commit: "b".repeat(40),
+      Fingerprint: original.Fingerprint.replace(
+        original.Commit,
+        "b".repeat(40),
+      ),
+    },
+    {
+      File: "copy.test.cjs",
+      Fingerprint: original.Fingerprint.replace(original.File, "copy.test.cjs"),
+    },
+    {
+      StartLine: 10,
+      EndLine: 10,
+      Fingerprint: original.Fingerprint.replace(/:9$/, ":10"),
+    },
+    { StartColumn: 11 },
+    { EndColumn: 61 },
+    { Match: "authToken = 'REDACTED'" },
+    {
+      RuleID: "github-pat",
+      Fingerprint: original.Fingerprint.replace(
+        "generic-api-key",
+        "github-pat",
+      ),
+    },
+  ]) {
+    const result = classifyScanReport(
+      JSON.stringify([{ ...original, ...changed }]),
+      2,
+    );
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.findings[0].classification, "unreviewed");
+  }
+});
+
+test("the synthetic lease requires the reviewed original source, line and exact value", (t) => {
+  const catalog = require("./reviewed-secret-findings.json");
+  const finding = reviewedSyntheticLeaseReport();
+  const entry = catalog.findings.find(
+    (f) => f.fingerprint === finding.Fingerprint,
+  );
+  assert.ok(entry, "Missing reviewed synthetic lease catalog entry");
+  const original = { ...entry };
+  t.after(() => Object.assign(entry, original));
+  for (const changed of [
+    { blob: "b".repeat(40) },
+    { sourceDigest: "b".repeat(128) },
+    { lineDigest: "b".repeat(128) },
+    { valueDigest: "b".repeat(128) },
+  ]) {
+    Object.assign(entry, original, changed);
+    assert.throws(
+      () => classifyScanReport(JSON.stringify([finding]), 2),
+      /original|context/i,
+    );
+  }
+  Object.assign(entry, original);
+  const f = fixture(t);
+  assert.throws(
+    () => classifyScanReport(JSON.stringify([finding]), 2, { cwd: f.cwd }),
+    /original Git blob/,
+  );
+});
+
+test("a copied fixture or real credential on its original path and line remains blocked", (t) => {
+  const f = fixture(t);
+  const finding = reviewedSyntheticLeaseReport();
+  const source = execFileSync(
+    "git",
+    ["show", `${finding.Commit}:${finding.File}`],
+    {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const originalValue = source.match(/^  const claimToken = '([^']+)';$/m)[1];
+  mkdirSync(join(f.cwd, "scripts/integration"), { recursive: true });
+  writeFileSync(join(f.cwd, finding.File), source);
+  const copy = f.commit("unreviewed synthetic lease copy");
+  for (const replacement of [
+    syntheticSecret().split("=")[1],
+    ["sk", "live", randomBytes(24).toString("hex")].join("_"),
+  ]) {
+    writeFileSync(
+      join(f.cwd, finding.File),
+      source.replace(originalValue, replacement),
+    );
+    f.commit("generated auth credential at original fixture location");
+  }
+  const head = f.git("rev-parse", "HEAD");
+  assert.equal(f.scan("workflow_dispatch", {}, head), 2);
+  const report = f.findings();
+  assert.ok(
+    report.some(
+      (r) => r.Commit === copy && r.File === finding.File && r.StartLine === 9,
+    ),
+  );
+  assert.ok(report.some((r) => r.RuleID === "github-pat"));
+  assert.ok(
+    report.some(
+      (r) => r.Commit === head && r.File === finding.File && r.StartLine === 9,
+    ),
+  );
+  assert.ok(
+    classifyScanReport(JSON.stringify(report), 2, {
+      cwd: f.cwd,
+    }).findings.every((r) => r.classification === "unreviewed"),
+  );
+});
+
 test("only the eleven independently reviewed immutable findings pass classification", () => {
   const result = classifyScanReport(JSON.stringify(reviewedReport()), 2);
   assert.equal(result.exitCode, 0);

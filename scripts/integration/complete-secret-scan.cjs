@@ -77,20 +77,37 @@ function classifyScanReport(
       );
     }
     const line = source.split(/\r?\n/)[entry.line - 1];
-    let value;
-    try {
-      value = JSON.parse(source);
-      for (const part of entry.pointer) value = value[part];
-    } catch {
-      throw new Error("Reviewed finding JSON context could not be verified");
+    let value, contextVerified;
+    if (entry.classification === "synthetic-unit-lease") {
+      // The full reviewed blob binds this declaration to its fake-only uses.
+      // Never execute historical JavaScript to inspect a finding.
+      const declaration =
+        /^  const claimToken = '([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})';$/.exec(
+          line ?? "",
+        );
+      value = declaration?.[1];
+      contextVerified =
+        entry.binding === "claimToken" &&
+        digest("sha512", source) === entry.sourceDigest;
+    } else {
+      try {
+        value = JSON.parse(source);
+        for (const part of entry.pointer) value = value[part];
+      } catch {
+        throw new Error("Reviewed finding JSON context could not be verified");
+      }
+      contextVerified =
+        typeof line === "string" &&
+        line.includes(
+          `${JSON.stringify(entry.pointer.at(-1))}: ${JSON.stringify(value)}`,
+        );
     }
-    const field = entry.pointer.at(-1);
     if (
       typeof line !== "string" ||
       digest("sha512", line) !== entry.lineDigest ||
       typeof value !== "string" ||
       digest("sha512", value) !== entry.valueDigest ||
-      !line.includes(`${JSON.stringify(field)}: ${JSON.stringify(value)}`)
+      !contextVerified
     )
       throw new Error(
         "Reviewed finding original value or line context changed",
@@ -122,7 +139,10 @@ function classifyScanReport(
       f.EndLine === entry.line &&
       f.StartColumn === entry.startColumn &&
       f.EndColumn === entry.endColumn &&
-      f.Match === `${entry.pointer.at(-1)}\": \"REDACTED\"`
+      f.Match ===
+        (entry.classification === "synthetic-unit-lease"
+          ? `${entry.binding} = 'REDACTED'`
+          : `${entry.pointer.at(-1)}\": \"REDACTED\"`)
     ) {
       const value = originalValue(entry);
       if (
@@ -136,6 +156,8 @@ function classifyScanReport(
         entry.pointer.at(-2) === "publicConfigurationSha256" &&
         entry.pointer.at(-1) === "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
       )
+        classification = entry.classification;
+      else if (entry.classification === "synthetic-unit-lease")
         classification = entry.classification;
       else if (
         entry.classification === "release-env-sha256" &&
