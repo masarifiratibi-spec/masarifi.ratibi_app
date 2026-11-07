@@ -16,6 +16,15 @@ jest.mock('@/config/demo-mode', () => ({
   isDemoModeEnabled: () => false
 }));
 jest.mock('@/services/financial-planning-service', () => ({ financialPlanningService: {} }));
+// This HTTP identity journey has no native SQLCipher owner. Its unchanged
+// generation and empty read cache still let the real write gate reconcile.
+jest.mock('@/storage/database', () => ({
+  openDatabase: () => Promise.resolve({
+    execAsync: () => Promise.resolve(),
+    getFirstAsync: () => Promise.resolve({ generation: 0 }),
+    getAllAsync: () => Promise.resolve([])
+  })
+}));
 jest.mock('react-native-safe-area-context', () =>
   jest.requireActual('react-native-safe-area-context/jest/mock').default
 );
@@ -54,7 +63,7 @@ it('withdraws the previous owner and ID working copy even when its old HTTP read
   let oldReadStarted!: () => void;
   const oldRead = new Promise<void>((resolve) => { oldReadStarted = resolve; });
   let holdOld = false;
-  const writes: { owner: string; method: string; body: { expectedVersion: number; patch: { name: string } } }[] = [];
+  const writes: { owner: string; generation: string | null; method: string; body: { expectedVersion: number; patch: { name: string } } }[] = [];
   const wire = (id: string, readOwner: string) => ({
     id, name: id === secondId ? 'Second obligation' : `${readOwner} obligation`,
     direction: 'payable', type: 'custom', scheduleKind: 'fixed_term', currencyCode: 'SAR',
@@ -73,8 +82,11 @@ it('withdraws the previous owner and ID working copy even when its old HTTP read
   const request: typeof fetch = async (url, init) => {
     const readOwner = new Headers(init?.headers).get('Authorization')!.replace('Bearer ', '');
     const method = init?.method ?? 'GET';
+    if (String(url).endsWith('/api/v1/me/financial-reset/state'))
+      return response(200, { generation: 0, status: 'ready', resetAt: null, requestId: null });
     if (method !== 'GET') {
-      writes.push({ owner: readOwner, method, body: JSON.parse(String(init?.body)) });
+      writes.push({ owner: readOwner, generation: new Headers(init?.headers).get('X-Financial-Generation'),
+        method, body: JSON.parse(String(init?.body)) });
       return response(409, { code: 'conflict', message: 'Changed concurrently' });
     }
     if (String(url).includes(missingId)) return response(404, { code: 'not_found' });
@@ -89,6 +101,9 @@ it('withdraws the previous owner and ID working copy even when its old HTTP read
   Object.assign(financialPlanningService, createLiveFinancialPlanningService({
     baseUrl: 'https://inert.invalid', request, persistent: false
   }));
+  const previousApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  process.env.EXPO_PUBLIC_API_URL = 'https://inert.invalid';
+  const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(request);
   const client = new QueryClient({ defaultOptions: {
     queries: { retry: false, staleTime: Infinity, gcTime: Infinity },
     mutations: { retry: false, gcTime: Infinity }
@@ -122,7 +137,7 @@ it('withdraws the previous owner and ID working copy even when its old HTTP read
     fireEvent.changeText(view.getByLabelText('Obligation name'), 'Owner B edit');
     fireEvent.press(view.getByRole('button', { name: 'Save obligation' }));
     await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({ owner: 'edit-owner-b', method: 'PATCH',
+    expect(writes[0]).toMatchObject({ owner: 'edit-owner-b', generation: '0', method: 'PATCH',
       body: { expectedVersion: 2, patch: { name: 'Owner B edit' } } });
     view.rerender(tree(secondId));
     await view.findByDisplayValue('Second obligation');
@@ -133,6 +148,9 @@ it('withdraws the previous owner and ID working copy even when its old HTTP read
     expect(writes).toHaveLength(1);
   } finally {
     releaseOld(); view.unmount(); client.clear();
+    fetchSpy.mockRestore();
+    if (previousApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = previousApiUrl;
     useAppShellStore.setState(previous);
   }
 });

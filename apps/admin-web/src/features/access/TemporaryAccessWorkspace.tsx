@@ -9,32 +9,45 @@ import { useSimulatedRole } from "@/core/auth/use-simulated-role";
 import { SessionExpired } from "@/components/admin/SessionExpired";
 import { AccessDeniedState, ConfirmDialog, ConflictState, ErrorState, LoadingState, PageHeader } from "@/components/admin/ui";
 import { formatDate } from "@/lib/admin-utils";
-import type { TemporaryWorkspace } from "./contracts";
+import type { AccessScope, TemporaryWorkspace } from "./contracts";
 import { useEndTemporaryAccess, useTemporaryWorkspace } from "./hooks";
+
+const scopeNames: Record<AccessScope, [string, string]> = {
+  "profile-contact": ["بيانات التواصل المخفية", "Masked contact data"], "account-status": ["حالة الحساب", "Account status"],
+  "device-diagnostics": ["تشخيص الأجهزة", "Device diagnostics"], "session-diagnostics": ["تشخيص الجلسات", "Session diagnostics"],
+  "subscription-summary": ["ملخص الاشتراك", "Subscription summary"], "import-summary": ["ملخص الاستيراد", "Import summary"],
+};
+const fieldNames: Array<[string[], string, string]> = [
+  [["emailMasked", "البريد الإلكتروني"], "البريد الإلكتروني", "Masked email"], [["phoneMasked"], "الهاتف المخفي", "Masked phone"],
+  [["status", "الحالة"], "الحالة", "Status"], [["total", "الأجهزة المسجلة"], "الأجهزة المسجلة", "Registered devices"],
+  [["active"], "النشط", "Active"], [["الجلسات النشطة"], "الجلسات النشطة", "Active sessions"], [["lastSeenAt"], "آخر ظهور", "Last seen"],
+  [["available", "Unavailable"], "التوفر", "Availability"], [["اللغة"], "اللغة", "Language"],
+  [["الخطة"], "الخطة", "Plan"], [["آخر مزامنة"], "آخر مزامنة", "Last sync"],
+];
 
 export function WorkspaceProjection({ workspace }: { workspace: TemporaryWorkspace }) {
   const { locale } = useLocale();
-  const text = locale === "ar" ? { notice: "إشعار الوصول المؤقت", ticket: "التذكرة", assignee: "المكلّف", scope: "النطاق", expires: "ينتهي في", audit: "مرجع المنحة" }
-    : { notice: "Temporary access notice", ticket: "Ticket", assignee: "Assignee", scope: "Scope", expires: "Expires", audit: "Grant reference" };
+  const text = locale === "ar" ? { notice: "إشعار الوصول المؤقت", ticket: "التذكرة", assignee: "المكلّف", scope: "النطاق", expires: "ينتهي في", audit: "مرجع الوصول" }
+    : { notice: "Temporary access notice", ticket: "Ticket", assignee: "Assignee", scope: "Scope", expires: "Expires", audit: "Access reference" };
   return (
     <>
       <aside className="privacy-notice workspace-banner" aria-label={text.notice}>
-        <strong>{workspace.accessNotice}</strong>
+        <strong>{locale === "ar" ? "هذه مساحة دعم مؤقتة ومراقبة، وتعرض البيانات المعتمدة فقط." : "Time-limited monitored support access. Only approved fields are shown."}</strong>
         <span>{text.ticket}: <bdi>{workspace.supportTicketId}</bdi></span>
         <span>{text.assignee}: <bdi>{workspace.assignee}</bdi></span>
-        <span>{text.scope}: {workspace.approvedScope.join("، ")}</span>
+        <span>{text.scope}: {workspace.approvedScope.map(scope => scopeNames[scope][locale === "ar" ? 0 : 1]).join(locale === "ar" ? "، " : ", ")}</span>
         <span>{text.expires}: <time dateTime={workspace.expiresAt}>{formatDate(workspace.expiresAt, true)}</time></span>
         <span>{text.audit}: <bdi>{workspace.auditIndicator}</bdi></span>
       </aside>
       <div className="detail-grid workspace-sections">
         {workspace.sections.map((section) => (
           <section className="card" key={section.scope} aria-labelledby={`scope-${section.scope}`}>
-            <h2 id={`scope-${section.scope}`}>{section.title}</h2>
+            <h2 id={`scope-${section.scope}`}>{scopeNames[section.scope][locale === "ar" ? 0 : 1]}</h2>
             <dl>
               {section.fields.map((field) => (
                 <div className="detail-item" data-classification={field.classification} key={field.label}>
-                  <dt>{field.label}</dt><dd>{field.value ?? "—"}</dd>
-                  <small>{field.classification}</small>
+                  <dt>{fieldNames.find(([aliases]) => aliases.includes(field.label))?.[locale === "ar" ? 1 : 2] ?? field.label}</dt><dd>{field.value === null ? (locale === "ar" ? "غير متاح" : "Unavailable") : mocksEnabled() && locale === "en" && typeof field.value === "string" ? ({ "نشط": "Active", "العربية": "Arabic", "متاحة": "Available" } as Record<string, string>)[field.value] ?? field.value : field.value}</dd>
+                  <small>{locale === "ar" ? ({ masked: "مخفي", aggregate: "مجمّع", status: "حالة" } as const)[field.classification] : field.classification}</small>
                 </div>
               ))}
             </dl>

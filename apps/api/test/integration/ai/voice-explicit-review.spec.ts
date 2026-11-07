@@ -133,7 +133,7 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
     timezoneOffsetMinutes: -180,
   });
 
-  it('admits and claims independent active customers in authenticated audience without financial writes', async () => {
+  it('admits and claims active owners regardless of dashboard membership without financial writes', async () => {
     // Before the forward migration this leaves the old owner-only policy intact,
     // so the regression fails at actual non-owner admission rather than missing DDL.
     await pool.query(`do $$ begin
@@ -157,16 +157,28 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
           status: 404,
         });
       }
+      const administrativeOwner = { ...principal, userId: admin };
       for (const contract of ['2', '3']) {
+        const ownReview = await service.createVoiceSession(
+          administrativeOwner,
+          input(),
+          randomUUID(),
+          contract,
+        );
+        expect(
+          (
+            await pool.query('select user_id from public.voice_sessions where id=$1', [
+              ownReview.session.id,
+            ])
+          ).rows,
+        ).toEqual([{ user_id: admin }]);
         await expect(
-          service.createVoiceSession(
-            { ...principal, userId: admin },
-            input(),
-            randomUUID(),
-            contract,
-          ),
-        ).rejects.toMatchObject({ status: 403 });
+          repository.getVoiceSession(principal, String(ownReview.session.id)),
+        ).rejects.toMatchObject({ status: 404 });
       }
+      await expect(
+        repository.getVoiceSession(administrativeOwner, String(created.session.id)),
+      ).rejects.toMatchObject({ status: 404 });
       await pool.query(
         "update public.voice_sessions set status='uploaded',uploaded_at=clock_timestamp(),finalized_at=clock_timestamp() where id=any($1::uuid[])",
         [ids],
@@ -186,13 +198,11 @@ describeLiveDatabase('Scoped Voice extraction with explicit financial review', (
         25,
         120,
       );
-      expect(administrative.some((claim) => ids.includes(claim.id))).toBe(false);
-      await pool.query('delete from public.admin_profiles where user_id=$1', [other]);
-      const claims = await repository.claimAnalysisWork('ordinary-client-review', 25, 120);
       for (const id of ids)
-        expect(claims).toEqual(
+        expect(administrative).toEqual(
           expect.arrayContaining([expect.objectContaining({ id, user_id: other })]),
         );
+      await pool.query('delete from public.admin_profiles where user_id=$1', [other]);
       const leased = await repository.claimAnalysisWork('second-client-review', 25, 120);
       expect(leased.some((claim) => ids.includes(claim.id))).toBe(false);
       await expect(

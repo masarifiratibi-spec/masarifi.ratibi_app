@@ -1717,6 +1717,9 @@ pre {
     align-items: stretch;
     flex-direction: column;
   }
+  .access-page-toolbar .page-header {
+    flex-basis: auto;
+  }
   .access-status-filter {
     flex-basis: auto;
     width: 100%;
@@ -1763,6 +1766,10 @@ pre {
   .access-form-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+  .access-duration-field,
+  .access-checkbox-field {
+    flex-basis: auto;
   }
   .access-duration-field,
   .access-checkbox-field,
