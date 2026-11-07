@@ -82,6 +82,34 @@ describe('tracking permission route', () => {
     expect(setMode).not.toHaveBeenCalled();
   });
 
+  it('lets a previously denied installation request SMS permission again explicitly', async () => {
+    mockPermissionService.getState.mockResolvedValue(permissionState('permanently_denied'));
+    const mode = jest.spyOn(automaticTrackingService, 'setMode').mockResolvedValue({} as never);
+    const source = jest.spyOn(trackingSourcePreferences, 'set')
+      .mockResolvedValue({ smsEnabled: true, notificationEnabled: false });
+    renderWithProviders(<PermissionRoute />);
+    await screen.findByText(translate('appShell.permission.settingsHelp'));
+    expect(mockPermissionService.requestAfterEducation).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole('button', { name: translate('appShell.permission.requestAgain') }));
+    await waitFor(() => expect(source).toHaveBeenCalledWith('sms', true));
+    expect(mockPermissionService.requestAfterEducation).toHaveBeenCalledTimes(1);
+    expect(mockPermissionService.openSettings).not.toHaveBeenCalled();
+    expect(mode).toHaveBeenCalledWith('review_all');
+  });
+
+  it('keeps tracking off when Android still refuses a new request', async () => {
+    mockPermissionService.getState.mockResolvedValue(permissionState('permanently_denied'));
+    mockPermissionService.requestAfterEducation.mockResolvedValue(permissionState('permanently_denied'));
+    const source = jest.spyOn(trackingSourcePreferences, 'set');
+    const mode = jest.spyOn(automaticTrackingService, 'setMode');
+    renderWithProviders(<PermissionRoute />);
+    fireEvent.press(await screen.findByRole('button', { name: translate('appShell.permission.requestAgain') }));
+    await waitFor(() => expect(mockPermissionService.requestAfterEducation).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(translate('appShell.permission.settingsHelp'))).toBeOnTheScreen();
+    expect(source).not.toHaveBeenCalled();
+    expect(mode).not.toHaveBeenCalled();
+  });
+
   it('finishes SMS activation after the owner grants access in Android settings', async () => {
     const listeners = new Set<() => void>();
     jest
