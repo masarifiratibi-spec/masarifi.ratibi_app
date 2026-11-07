@@ -19,6 +19,32 @@ class Controls(unittest.TestCase):
         self.m=json.loads(Path(__file__).with_name("manifest.json").read_bytes())
         self.m["api"].update(imageId="sha256:"+"a"*64,sourceCommit="c"*40)
 
+    def test_recovery_disables_restart_even_if_candidate_was_already_stopped(self):
+        for running in (False,True):
+            row={"Id":"fixture","Name":"/"+self.m["candidate"]["apiName"],"Image":self.m["api"]["imageId"],
+                 "State":{"Running":running},"HostConfig":{"RestartPolicy":{"Name":"unless-stopped"}}}
+            calls=[]
+            def engine(cmd,**kw):
+                calls.append(cmd)
+                if cmd[1]=="update":row["HostConfig"]["RestartPolicy"]["Name"]="no"
+                elif cmd[1]=="stop":row["State"]["Running"]=False
+            with patch.object(inv,"inspect",return_value=row),patch.object(host,"run",side_effect=engine):
+                host.quiesce(self.m,{"api":"fixture"})
+            self.assertEqual(calls,[["docker","update","--restart","no","fixture"]]+
+                             ([["docker","stop","--time","15","fixture"]] if running else []))
+
+    def test_recovery_refuses_foreign_candidates_and_unconfirmed_stops(self):
+        row={"Id":"fixture","Name":"/foreign","Image":self.m["api"]["imageId"],
+             "State":{"Running":True},"HostConfig":{"RestartPolicy":{"Name":"no"}}}
+        with patch.object(inv,"inspect",return_value=row),patch.object(host,"run") as cmd:
+            with self.assertRaisesRegex(ValueError,"REFUSE_FOREIGN"):
+                host.quiesce(self.m,{"api":"fixture"})
+            cmd.assert_not_called()
+            row["Name"]="/"+self.m["candidate"]["apiName"]
+            with self.assertRaisesRegex(ValueError,"CANDIDATE_NOT_QUIESCED"):
+                host.quiesce(self.m,{"api":"fixture"})
+            cmd.assert_called_once_with(["docker","stop","--time","15","fixture"],timeout=25)
+
     def original(self,role):
         base=self.b["actualApi" if role=="api" else "admin"]
         rt=base["runtime"]
@@ -34,6 +60,7 @@ class Controls(unittest.TestCase):
             "Mounts":[{"Type":"bind","Destination":dest,"Source":src,"RW":rw} for dest,src,rw in mounts],
             "HostConfig":{"ReadonlyRootfs":True,"Privileged":False,"VolumesFrom":None,"NetworkMode":rt["network"],
                 "Memory":rt["memoryBytes"],"NanoCpus":rt["nanoCpus"],"OomKillDisable":None,
+                "RestartPolicy":{"Name":"unless-stopped","MaximumRetryCount":0},
                 "Mounts":[{"Type":"bind","Target":dest,"Source":src,"ReadOnly":not rw} for dest,src,rw in mounts],
                 "PortBindings":{container_port+"/tcp":[{"HostIp":"127.0.0.1","HostPort":host_port}]}}}
 
@@ -45,6 +72,7 @@ class Controls(unittest.TestCase):
         self.assertEqual(p["Env"][-1],"MASARIFI_RELEASE_VERSION="+"c"*40)
         self.assertEqual(p["HostConfig"]["Mounts"],old["HostConfig"]["Mounts"])
         self.assertEqual(p["HostConfig"]["PortBindings"],{"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3042"}]})
+        self.assertEqual(p["HostConfig"]["RestartPolicy"]["Name"],"no")
         for mutate in (lambda r:r["Config"]["Cmd"].append("dist/worker.js"),
                        lambda r:r["HostConfig"]["PortBindings"]["3000/tcp"][0].update(HostIp="0.0.0.0"),
                        lambda r:r["Config"]["Env"].append("A=duplicate"),
@@ -72,9 +100,29 @@ class Controls(unittest.TestCase):
         with self.assertRaises(ValueError):cfg.verify_created(row,p,name,mounts)
 
     def test_blocked_manifest_cannot_stage(self):
-        with patch.object(os,"geteuid",return_value=0,create=True):
+        raw=json.dumps(dict(self.m,state="blocked-not-admitted")).encode()
+        with patch.object(os,"geteuid",return_value=0,create=True),patch.object(wd,"exact_file",return_value=raw):
             with self.assertRaisesRegex(ValueError,"PACKET_NOT_ADMITTED"):
                 host.admitted("a"*64)
+
+    def test_restart_policy_change_refuses_foreign_name_before_docker_update(self):
+        original=self.original("api");identity=original["Id"]
+        t=dict(candidates={"api":identity},configs={"api":"unused"},started={"api":"unused"})
+        with patch.object(inv,"inspect",return_value=original),patch.object(host,"run") as engine:
+            with self.assertRaisesRegex(ValueError,"TRIAL_RESTART_DRIFT"):host.enable_accepted_restart(self.m,t)
+            engine.assert_not_called()
+
+    def test_accepted_policy_update_detects_unrelated_config_drift(self):
+        row=self.original("api");identity="a"*64
+        row["Id"]=identity;row["Name"]="/"+self.m["candidate"]["apiName"]
+        row["HostConfig"]["RestartPolicy"]={"Name":"no","MaximumRetryCount":0}
+        t=dict(candidates={"api":identity},configs={"api":cfg.fingerprint({k:row[k] for k in ("Config","HostConfig","Mounts")})},
+               started={"api":row["State"]["StartedAt"]})
+        changed=deepcopy(row);changed["HostConfig"]["RestartPolicy"]["Name"]="unless-stopped"
+        changed["HostConfig"]["ReadonlyRootfs"]=False
+        with patch.object(inv,"inspect",side_effect=[row,changed]),patch.object(host,"run") as engine:
+            with self.assertRaisesRegex(ValueError,"ACCEPTED_RESTART_OR_IDENTITY_DRIFT"):host.enable_accepted_restart(self.m,t)
+            engine.assert_called_once_with(["docker","update","--restart","unless-stopped",identity])
 
 
 class Rollback(unittest.TestCase):
@@ -188,7 +236,7 @@ class Rollback(unittest.TestCase):
     def test_durable_acceptance_precedes_any_persistent_candidate(self):
         wd.emit(self.root/"external-evidence.json",{"privateReceiptSha256":"3"*64})
         with patch.object(host,"verify_evidence"),patch.object(host,"canaries"),patch.object(host,"candidate_public"),\
-             patch.object(host.time,"monotonic",return_value=0),patch.object(wd,"finalize_trial",
+             patch.object(host.time,"monotonic",return_value=0),patch.object(host,"enable_accepted_restart"),patch.object(wd,"finalize_trial",
              side_effect=OSError("interrupted before persistent rename")):
             with self.assertRaises(OSError):host.finalize({},self.t)
         decision=json.loads((self.root/"commit.json").read_bytes())
@@ -209,6 +257,31 @@ class Rollback(unittest.TestCase):
             row["statement_count"]=2;wd.emit(self.root/"database-attestation.json",obj)
             with self.assertRaisesRegex(ValueError,"DATABASE_LEDGER"):host.attest_schema("f"*64)
             with self.assertRaisesRegex(ValueError,"ATTESTATION_STALE"):host.attest_schema("e"*64)
+
+    def test_postaccept_rollback_refuses_active_or_unknown_cutover_writer(self):
+        from subprocess import CompletedProcess
+        for props in (b"ActiveState=active\nLoadState=loaded\nMainPID=12\n",b"",b"ActiveState=inactive\nLoadState=loaded\n"):
+            with patch.object(host.subprocess,"run",return_value=CompletedProcess([],0,stdout=props)),\
+                 self.assertRaisesRegex(ValueError,"CUTOVER_WATCHDOG_STATE_UNRESOLVED"):
+                host.rollback_admission({},self.t)
+
+    def test_manual_rollback_ack_follows_original_proof_and_candidate_stop(self):
+        ident=wd.binding(self.t,123)
+        order=[]
+        def restore(t,prove):order.append("restored");prove()
+        with patch.object(host,"ticket",return_value=self.t),patch.object(host,"rollback_admission",return_value=ident),\
+             patch.object(host,"run",return_value=str(os.getpid()).encode()),patch.object(wd,"restore",side_effect=restore),\
+             patch.object(host,"prove_original",side_effect=lambda _:order.append("proved")),\
+             patch.object(host,"quiesce",side_effect=lambda *_:order.append("stopped")):
+            host.rollback_accepted({},"f"*64,worker=True)
+        self.assertEqual(order,["restored","proved","stopped"])
+        self.assertEqual(json.loads((self.root/"rolled-back.json").read_bytes()),dict(ident,restored=True))
+
+    def test_manual_abort_cannot_overwrite_an_acceptance_decision(self):
+        wd.emit(self.root/"commit.json",{"decision":"accepted"})
+        with patch.object(host,"ticket",return_value=self.t),self.assertRaisesRegex(ValueError,"ALREADY_ACCEPTED"):
+            host.abort_trial({})
+        self.assertFalse((self.root/"abort.json").exists())
 
 
 if __name__=="__main__":

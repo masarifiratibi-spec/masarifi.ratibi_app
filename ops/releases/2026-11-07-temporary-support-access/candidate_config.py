@@ -39,6 +39,9 @@ def plan(old, role, manifest, baseline):
     require(manifest["candidate"][role+"HostPort"] == (3042 if role=="api" else 3043), "CANDIDATE_PORT_DRIFT")
     host["PortBindings"][port+"/tcp"][0]["HostPort"] = str(manifest["candidate"][role+"HostPort"])
     host["OomKillDisable"] = False
+    require(host.get("RestartPolicy")=={"Name":"unless-stopped","MaximumRetryCount":0},"SOURCE_RESTART_POLICY_DRIFT")
+    # An unaccepted trial must not start itself after host or daemon restart.
+    host["RestartPolicy"]={"Name":"no","MaximumRetryCount":0}
     mounts = {m["Destination"]:m for m in old["Mounts"]}
     require(len(mounts)==len(old["Mounts"]) and all(m["Type"]=="bind" for m in mounts.values()), "SOURCE_MOUNT_DRIFT")
     conf["Hostname"] = ""

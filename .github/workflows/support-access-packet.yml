@@ -28,3 +28,5 @@ jobs:
           fi
       - name: Prove live trial, rollback and persistence in a private mount namespace
         run: sudo env GITHUB_ACTIONS=true unshare --mount --propagation private python3 -B qualify_trial.py
+      - name: Prove provisional and accepted Docker restart policies on disposable containers
+        run: python3 -B qualify_restart.py

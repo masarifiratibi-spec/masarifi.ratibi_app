@@ -113,19 +113,27 @@ def unchanged_public(m):
                 "PROTECTED_LOCATION_DRIFT")
 
 
-def prove_original(t):
-    m=admitted()
+def check_restore_inventory(m,t):
     current=inv.inventory(baseline(),t["candidates"].values())
     expected=m["routing"]["hostInventory"]
     cfg.require(wd.compatible_master(expected,current) and all(current[k]==v for k,v in expected.items()
                 if k not in ("masterPid","masterStartTicks")),"PROTECTED_RESTORE_INVENTORY_DRIFT")
+
+
+PROBE_SUFFIXES=("", "/00000000-0000-4000-8000-000000000001?probe=1")
+
+
+def prove_original(t):
+    m=admitted()
+    check_restore_inventory(m,t)
     unchanged_public(m)
     status,_,body=public(ADMIN,OLD_ASSET)
     cfg.require(status==200 and wd.sha(body)==OLD_DIGEST,"OLD_ADMIN_NOT_SERVED")
     cfg.require(public(ADMIN,m["admin"]["staticProbe"]["path"])[0]==404,"OLD_ADMIN_ALSO_SERVES_NEW_BUILD")
     for family in ng.API_PATHS:
-        status,cache,_=public(API,family.decode())
-        cfg.require(status==401 and cache==[],"OLD_SUPPORT_ROUTE_NOT_SERVED")
+        for suffix in PROBE_SUFFIXES:
+            status,cache,_=public(API,family.decode()+suffix)
+            cfg.require(status==401 and cache==[],"OLD_SUPPORT_ROUTE_NOT_SERVED")
 
 
 def candidate_public(m):
@@ -134,7 +142,7 @@ def candidate_public(m):
     status,_,body=public(ADMIN,item["path"])
     cfg.require(status==200 and wd.sha(body)==item["sha256"],"NEW_STATIC_NOT_SERVED")
     for family in ng.API_PATHS:
-        for suffix in ("", "/00000000-0000-4000-8000-000000000001?probe=1"):
+        for suffix in PROBE_SUFFIXES:
             status,cache,_=public(API,family.decode()+suffix)
             cfg.require(status==401 and cache==[b"no-store"],"SUPPORT_ROUTE_OR_POLICY_DRIFT")
 
@@ -266,16 +274,32 @@ def stage_sidecars(m,pin,payloads,ids):
     wd.emit(wd.PRIVATE/"state.json",{"phase":"both private canaries passed","ids":ids})
 
 
-def quiesce(m,ids):
-    # Do not stop any existing service or reconcile a create operation by name.
+def recovery_candidate(m,role,identity):
+    cfg.require(role in ("api","admin"),"UNREVIEWED_CANDIDATE_ROLE")
+    row=inv.inspect(identity)
+    b=baseline()
+    expected=m["api"]["imageId"] if role=="api" else "sha256:"+b["admin"]["image"]
+    cfg.require(row["Id"]==identity and row["Name"]=="/"+m["candidate"][role+"Name"]
+                and row["Image"]==expected and identity not in (b["admin"]["id"],b["actualApi"]["id"]),
+                "REFUSE_FOREIGN_CANDIDATE_STOP")
+    return row
+
+
+def prove_quiesced(m,ids):
     for role,identity in ids.items():
-        cfg.require(role in ("api","admin"),"UNREVIEWED_CANDIDATE_ROLE")
-        row=inv.inspect(identity)
-        expected=m["api"]["imageId"] if role=="api" else "sha256:"+baseline()["admin"]["image"]
-        cfg.require(row["Id"]==identity and row["Name"]=="/"+m["candidate"][role+"Name"]
-                    and row["Image"]==expected and row["Id"] not in (baseline()["admin"]["id"],baseline()["actualApi"]["id"]),
-                    "REFUSE_FOREIGN_CANDIDATE_STOP")
+        row=recovery_candidate(m,role,identity)
+        cfg.require(not row["State"]["Running"] and row["HostConfig"]["RestartPolicy"]["Name"]=="no",
+                    "CANDIDATE_NOT_QUIESCED")
+
+
+def quiesce(m,ids):
+    for role,identity in ids.items():
+        row=recovery_candidate(m,role,identity)
+        if row["HostConfig"]["RestartPolicy"]["Name"]!="no":
+            run(["docker","update","--restart","no",identity])
+            row=recovery_candidate(m,role,identity)
         if row["State"]["Running"]: run(["docker","stop","--time","15",identity],timeout=25)
+    prove_quiesced(m,ids)
 
 
 def live_watch(m,t):
@@ -331,13 +355,36 @@ def finalize(m,t):
     marker=json.loads(wd.exact_file(wd.PRIVATE/"external-evidence.json"))
     verify_evidence(t,marker["privateReceiptSha256"])
     canaries(m,t);candidate_public(m)
-    cfg.require(time.monotonic()<t["deadline"]-20,"ACCEPTANCE_WINDOW_CLOSED")
+    cfg.require(time.monotonic()<t["deadline"]-20 and not (wd.PRIVATE/"abort.json").exists(),"ACCEPTANCE_WINDOW_CLOSED")
     # The durable decision precedes durable routing. A reboot before rename
     # exposes the original; after rename the exact candidate already has a
     # committed private acceptance decision. ack.json is completion, not authority.
     wd.emit(wd.PRIVATE/"commit.json",dict(wd.binding(t,os.getpid()),privateReceiptSha256=marker["privateReceiptSha256"],
                                            decision="accepted",observedUnix=time.time()))
+    enable_accepted_restart(m,t)
     wd.finalize_trial(t)
+
+
+def enable_accepted_restart(m,t):
+    # Only the two accepted immutable IDs may inherit their originals' restart
+    # policy. Verify that Docker changed no other configuration or process.
+    configs={}
+    for role,identity in t["candidates"].items():
+        before=inv.inspect(identity)
+        fingerprint=lambda r:cfg.fingerprint({k:r[k] for k in ("Config","HostConfig","Mounts")})
+        cfg.require(before["Id"]==identity and before["Name"]=="/"+m["candidate"][role+"Name"]
+                    and fingerprint(before)==t["configs"][role] and
+                    before["HostConfig"]["RestartPolicy"]=={"Name":"no","MaximumRetryCount":0},"TRIAL_RESTART_DRIFT")
+        run(["docker","update","--restart","unless-stopped",identity])
+        after=inv.inspect(identity)
+        expected=dict(before["HostConfig"],RestartPolicy={"Name":"unless-stopped","MaximumRetryCount":0})
+        cfg.require(after["Id"]==identity and after["HostConfig"]==expected and after["Config"]==before["Config"]
+                    and after["Mounts"]==before["Mounts"] and after["State"]["Running"]
+                    and after["State"]["StartedAt"]==t["started"][role] and after["RestartCount"]==0,
+                    "ACCEPTED_RESTART_OR_IDENTITY_DRIFT")
+        configs[role]=fingerprint(after)
+    canaries(m,dict(t,configs=configs))
+    wd.emit(wd.PRIVATE/"accepted-configs.json",dict(wd.binding(t,os.getpid()),configs=configs))
 
 
 def proposed_bytes(m):
@@ -366,14 +413,93 @@ def accept(m,evidence):
     raise RuntimeError("NO_WATCHDOG_ACK")
 
 
+def abort_trial(m):
+    t=ticket(m)
+    cfg.require(not (wd.PRIVATE/"commit.json").exists() and not (wd.PRIVATE/"ack.json").exists(),"ALREADY_ACCEPTED_USE_ROLLBACK")
+    cfg.require((wd.PRIVATE/"armed.json").is_file(),"NO_ARMED_TRIAL")
+    wd.emit(wd.PRIVATE/"abort.json",dict(ticket=t["ticket"],abort=True))
+    for _ in range(100):
+        if (wd.PRIVATE/"restored.json").exists():
+            record=json.loads(wd.exact_file(wd.PRIVATE/"restored.json"))
+            cfg.require(record==dict(wd.binding(t,record["watchdogPid"]),restored=True),"RESTORE_RECEIPT_DRIFT")
+            prove_original(t)
+            prove_quiesced(m,t["candidates"])
+            return
+        if (wd.PRIVATE/"commit.json").exists():raise RuntimeError("ACCEPTANCE_ALREADY_DISPATCHED_CHECK_ROLLBACK")
+        time.sleep(1)
+    raise RuntimeError("NO_RESTORE_RECEIPT_CHECK_WATCHDOG")
+
+
+def rollback_admission(m,t):
+    # A finalized ticket cannot start another switch. Do not race a finishing
+    # watchdog or guess its state from a missing PID file.
+    unit=subprocess.run(["systemctl","show",UNIT+".service","-p","MainPID","-p","ActiveState","-p","LoadState"],
+        capture_output=True,timeout=8)
+    state=dict(line.split("=",1) for line in unit.stdout.decode().splitlines())
+    cfg.require(unit.returncode in (0,4) and state.get("LoadState") in ("loaded","not-found") and
+                state.get("ActiveState") in ("inactive","failed") and (state.get("MainPID")=="0" or
+                state.get("LoadState")=="not-found" and state.get("MainPID") is None),
+                "CUTOVER_WATCHDOG_STATE_UNRESOLVED")
+    decision=json.loads(wd.exact_file(wd.PRIVATE/"commit.json"))
+    ident=wd.binding(t,decision["watchdogPid"])
+    cfg.require(decision==dict(ident,decision="accepted",privateReceiptSha256=decision["privateReceiptSha256"],
+                              observedUnix=decision["observedUnix"]),"ACCEPTED_TICKET_DRIFT")
+    # Returning to a known original must not depend on the continued availability
+    # of the private browser evidence after its accepted digest was committed.
+    digest=decision["privateReceiptSha256"]
+    cfg.require(acceptance_receipt.hex_digest(digest) and json.loads(wd.exact_file(wd.PRIVATE/"armed.json"))==ident,
+                "ACCEPTED_PROVENANCE_DRIFT")
+    if (wd.PRIVATE/"ack.json").exists():
+        cfg.require(json.loads(wd.exact_file(wd.PRIVATE/"ack.json"))==dict(ident,accepted=True),"ACCEPTED_ACK_DRIFT")
+    check_restore_inventory(m,t)
+    wd.verify_paths(t)
+    cfg.require(wd.sha(wd.exact_file(wd.TARGET)) in (t["originalSha256"],t["candidateSha256"]),"REFUSE_FOREIGN_ROUTING")
+    status,_,asset=local(3041,OLD_ASSET,ADMIN)
+    cfg.require(status==200 and wd.sha(asset)==OLD_DIGEST and all(local(port,family.decode()+suffix,API)[0]==401
+                for port,family in zip((3033,3001),ng.API_PATHS) for suffix in PROBE_SUFFIXES),
+                "ORIGINAL_UPSTREAMS_NOT_READY")
+    return ident
+
+
+def rollback_accepted(m,pin,*,worker=False):
+    t=ticket(m)
+    ident=rollback_admission(m,t)
+    name=UNIT+"-rollback"
+    if not worker:
+        # Independent unit continues after console loss. No new route can be
+        # installed by this service; it accepts either exact known file state.
+        run(["systemd-run","--no-block","--collect","--unit="+name,"--property=Restart=on-failure",
+             "--property=RestartSec=2s","--property=StartLimitBurst=3","--property=StartLimitIntervalSec=120",
+             "/usr/bin/python3","-B",str(wd.PACKET/"host_release.py"),"restore-accepted",
+             "--approved-packet-sha256",pin])
+        for _ in range(120):
+            if (wd.PRIVATE/"rolled-back.json").exists():
+                cfg.require(json.loads(wd.exact_file(wd.PRIVATE/"rolled-back.json"))==dict(ident,restored=True),
+                            "ROLLBACK_RECEIPT_DRIFT")
+                prove_original(t)
+                try: prove_quiesced(m,t["candidates"])
+                except ValueError as e:
+                    if str(e)!="CANDIDATE_NOT_QUIESCED":raise
+                else:return
+            time.sleep(1)
+        raise RuntimeError("ROLLBACK_DISPATCHED_NO_ACK_READ_UNIT")
+    cfg.require(int(run(["systemctl","show","--property=MainPID","--value",name+".service"]))==os.getpid(),
+                "INDEPENDENT_ROLLBACK_UNIT_REQUIRED")
+    wd.restore(t,lambda:prove_original(t))
+    quiesce(m,t["candidates"])
+    wd.emit(wd.PRIVATE/"rolled-back.json",dict(ident,restored=True))
+
+
 if __name__=="__main__":
     os.umask(0o077)
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action",choices=["stage","switch","accept"])
+    p.add_argument("action",choices=["stage","switch","accept","abort","rollback","restore-accepted"])
     p.add_argument("--approved-packet-sha256",required=True)
     p.add_argument("--private-acceptance-sha256")
     args=p.parse_args()
     m=admitted(args.approved_packet_sha256)
     if args.action=="stage": stage(m,args.approved_packet_sha256)
     elif args.action=="switch": switch(m)
-    else: accept(m,args.private_acceptance_sha256)
+    elif args.action=="accept": accept(m,args.private_acceptance_sha256)
+    elif args.action=="abort": abort_trial(m)
+    else: rollback_accepted(m,args.approved_packet_sha256,worker=args.action=="restore-accepted")
