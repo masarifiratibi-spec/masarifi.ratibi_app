@@ -13,7 +13,11 @@ import watchdog as wd
 
 
 def run(*args):
-    return subprocess.check_output(args,timeout=60,stderr=subprocess.STDOUT).decode().strip()
+    # These commands only handle public scratch fixtures on the disposable VM.
+    # Preserve Docker's diagnostic when the smoke fails before an assertion.
+    try:return subprocess.check_output(args,timeout=60,stderr=subprocess.STDOUT).decode().strip()
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(error.output.decode(errors="replace")[-1800:]) from error
 
 
 def main():
@@ -21,7 +25,9 @@ def main():
         raise RuntimeError("DISPOSABLE_GITHUB_RUNNER_REQUIRED")
     with tempfile.TemporaryDirectory(prefix="packet-policy-",dir=os.environ["RUNNER_TEMP"]) as td:
         tmp=Path(td)
-        tag=tmp.name+":ci"
+        # Temporary directory suffixes can start/end with "_". They are valid
+        # tag characters, but invalid next to a separator in a repository name.
+        tag="masarifi-packet-policy:"+tmp.name
         (tmp/"idle.c").write_text("#include <unistd.h>\nint main(void){for(;;) pause();}\n")
         run("cc","-static","-Os","-o",str(tmp/"idle"),str(tmp/"idle.c"))
         (tmp/"Dockerfile").write_text('FROM scratch\nCOPY idle /idle\nUSER 65532:65532\nENTRYPOINT ["/idle"]\n')
