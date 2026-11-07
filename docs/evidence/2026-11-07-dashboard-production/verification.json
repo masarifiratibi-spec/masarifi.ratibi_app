@@ -60,10 +60,57 @@
       "exitCode": 0,
       "privateLog": "lint-delivery.log",
       "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "Canonical Admin Linux CI42347991605: exact checkout, npm ci, typecheck, production build, runtime packaging",
+      "exitCode": 0,
+      "privateLog": "linux-ci-build.log",
+      "logSha256": "9ac1948e59b354684399261cb1ccfe0e64af31a2ad6d9044f0033faca9385493",
+      "buildId": "scy8yMJdAowpPKpkffiaW",
+      "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+      "backendRuntimeImageJob": "skipped"
+    },
+    {
+      "command": "python -B -m unittest discover -s ops/releases/2026-11-07-dashboard-ui -p test_*.py",
+      "exitCode": 0,
+      "privateLog": "packet-unit.log",
+      "logSha256": "d869180af388b27c8186ff0006ca1b905fa6a46eb244f6a79b3febc83735c669",
+      "passed": 14,
+      "scope": "offline temporary-file/mocked-nginx and synthetic-archive safety guards; no hosted execution"
+    },
+    {
+      "command": "python -B ops/releases/2026-11-07-dashboard-ui/verify_packet.py",
+      "exitCode": 0,
+      "privateLog": "packet-verify.log",
+      "logSha256": "7f4b163c36a3a0ba0dc780b931b2b1765fcefd27211b38ec12df5411125255a3",
+      "sourceFiles": 15,
+      "linuxRuntimeVerified": true
+    },
+    {
+      "command": "two negative runtime archive/manifest pin-tamper checks",
+      "exitCode": 0,
+      "privateLog": "packet-negative.log",
+      "logSha256": "ccf7be38d697980648da995d6c4b433b57b38fcc994ad564babc6e12903b197f",
+      "rejected": 2
     }
   ],
   "routePatterns": 106,
   "localRouteResults": 106,
   "liveModeBuildIsHostedAcceptance": false,
-  "review": "fresh read-only source review; all reported important findings resolved and regression tested"
+  "review": "Fresh source review and final packet review; all reported findings repaired. Final target-chain rejection independently reconfirmed. Host execution and whole-product readiness are not certified.",
+  "hostReconciliation": {
+    "complete": true,
+    "reference": "ops/releases/2026-11-07-dashboard-ui/host-baseline.json",
+    "protectedServicesUnchanged": 30,
+    "allRunningContainersUnchanged": 31,
+    "hostedMutationPerformed": false,
+    "ownedRootConsole": "logged out and closed"
+  },
+  "runtimeCandidate": {
+    "sha256": "186aec1f1fd5f3fa30f5e1791bb841c11664e0255e13c5195a7a26d1934c7c62",
+    "bytes": 262029155,
+    "buildId": "scy8yMJdAowpPKpkffiaW",
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42347991605",
+    "qualificationScope": "Ubuntu Linux build/typecheck, exact source/lock/public bindings/archive safety; no hosted candidate process or authentication acceptance yet"
+  }
 }

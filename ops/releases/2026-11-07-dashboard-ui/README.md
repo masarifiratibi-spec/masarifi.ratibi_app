@@ -1,44 +1,41 @@
-# Dashboard source and deployment review packet
+# Dashboard source, Linux candidate and rollout review packet
 
-**Source qualified; hosted activation is not approved or executed.**
+**Source and Linux CI artifact qualified for a scoped staging rollout review. Hosted execution has not been approved or performed.**
 
-Reviewed source: `f865131a4cfdcd8ef4b88c3287f125f4d33112e4`, based on `e13a90549788d22b56432377a4cff7da5481f43e`, same `ratibi` branch. The manifest pins the15 changed files, canonical preimages/candidate bytes, source patch and3,330,269-byte source archive.
+Reviewed source: `f865131a4cfdcd8ef4b88c3287f125f4d33112e4`, based on `e13a90549788d22b56432377a4cff7da5481f43e`, same `ratibi` branch. The source archive pins15 dashboard-owned files and is retained privately with the runtime archive.
 
-Source archive SHA256: `f07f5bc16ed0636b3022ed0964b9f7f6f4153578afd72a55ffdaf8c74596634e`.
+| Item | Exact pin |
+|---|---|
+| Linux runtime |262,029,155 bytes; SHA256 `186aec1f1fd5f3fa30f5e1791bb841c11664e0255e13c5195a7a26d1934c7c62` |
+| Candidate Next build | `scy8yMJdAowpPKpkffiaW` |
+| Linux CI | [run42347991605](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42347991605), Admin job succeeded; backend image job skipped |
+| Source archive |3,330,269 bytes; SHA256 `f07f5bc16ed0636b3022ed0964b9f7f6f4153578afd72a55ffdaf8c74596634e` |
+| Still-serving build | `RfJI7jhDb6BdroFc-2TBT`, source721a943b, Docker loopback3040 |
+| Proposed candidate | Same immutable runtime image/environment; new loopback3041; only dashboard proxy3040→3041 after approval |
 
-## Contents and verification
+The Linux build uses Node24.16.0/npm11.17.0, live mode, mocks disabled and **all five public configuration hashes identical to the current service**. The build-only server-key placeholder is not a runtime credential. Activation must retain the real ordered Docker environment on the VPS; no credential is exported or replaced. Target runtime Node24.20.0 and the existing image remain unchanged. The earlier local Windows build is separate evidence.
 
-- [Manifest](manifest.json): source pins, observed public bindings, protected scope and blocking gates.
-- [Evidence](../../../docs/evidence/2026-11-07-dashboard-production/findings.md): repairs, real reads, screenshots, tests and limits.
-- [Capability matrix](../../../docs/evidence/2026-11-07-dashboard-production/capability-matrix.md) and106-route inventory.
-- `verify_packet.py`: read-only local source/archive verification. It does not connect to the host, install packages or activate anything.
+## Reviewable files
+
+- [Manifest](manifest.json): exact source/runtime/static-probe pins, approval state and remaining gates.
+- [Host baseline](host-baseline.json): actual serving container, environment/config hashes, read-only mounts, resources, routing preimage, rollback archive and unchanged protected-service projection.
+- [CI manifest](linux-ci-manifest.json): exact checkout/tree/lock/build/public-bindings evidence.
+- [Rollout and rollback](rollout-and-rollback.md): candidate scope, admission, canary, guarded handover, deadlines and exact restoration.
+- [Findings](../../../docs/evidence/2026-11-07-dashboard-production/findings.md), [capability matrix](../../../docs/evidence/2026-11-07-dashboard-production/capability-matrix.md) and106-route inventory.
+- `verify_packet.py`: read-only hash/source/runtime/archive-safety verification; no deployment.
+- `rollback_watchdog.py`: default read-only inspection; mutation requires explicit operator assertion **after actual human approval**. It is not installed or running on the host.
 
 ```powershell
-python ops/releases/2026-11-07-dashboard-ui/verify_packet.py
+python -B ops/releases/2026-11-07-dashboard-ui/verify_packet.py
+python -B -m unittest discover -s ops/releases/2026-11-07-dashboard-ui -p 'test_*.py'
 ```
 
-On another workstation, use `--archive <copied-source-archive>` to override the local artifact path. The source is also reconstructible using `git -c core.autocrlf=false archive --format=tar.gz f865131a4cfdcd8ef4b88c3287f125f4d33112e4 apps/admin-web`; compare its checksum before use. The archive has no node_modules, private environment, session state or runtime credentials.
+Use `--archive`, `--runtime` and `--runtime-manifest` for copied artifacts, or `--source-only` for source verification alone. Download CI artifact13564411929 before14November2026 if needed; the exact archive is also retained in the ignored local evidence directory. A rebuild creates a different build/artifact pin and needs a new packet. The two report-source files included by the existing CI workflow are provenance only; no API release is proposed.
 
-The final source compiled in production mode with mocks disabled and the actual browser-observed public API/Clerk bindings. Local validation used a **noncredential server-secret placeholder**. This local build is not the hosted runtime artifact. Do not copy its environment or treat it as authentication acceptance.
+## Verified boundary and outstanding acceptance
 
-## Observed serving boundary
+The human privately completed Hostinger sign-in. Read-only Playwright terminal receipts confirmed the current3040 Docker service, all eight runtime-source preimages, matching complete baseline Admin tree, actual environment/public bindings, retained rollback archive and Nginx preimage. All31 running container identities/configurations matched before/after;30 other services are protected. The owned root shell was logged out and console closed. SSH/firewall/DNS/TLS, service configuration, roles, data and sessions were preserved.
 
-The authenticated browser served Next build `RfJI7jhDb6BdroFc-2TBT` at `https://staging.masarifiratibi.com`, reading `https://api.staging.masarifiratibi.com` and `https://clerk.staging.masarifiratibi.com`. Its release marker returned404. The October3039 service/build checkpoint is historical and differs from this browser build.
+The packet permits **review**, not execution. Exact approval is required before uploading/preparing the candidate or changing the host. Fresh drift/resource/pending-work admission, the actual host canary, watchdog arming, public handover and existing-session browser acceptance remain execution gates. Provider writes, current SQL write lifecycle, broad owner/role negatives and whole-product readiness are not proved by the build.
 
-SSH22 remains unavailable from this workstation. The hPanel console attempt did not yield a verified host command receipt; the created console was closed. Direct Playwright hPanel access reached private sign-in. No firewall, DNS, environment, proxy or service was changed to get around these limits.
-
-Therefore this packet intentionally contains **no runnable activation command**. Null serving-unit, environment and rollback pins in the manifest are blocking facts, not defaults to guess. Approval to activate must identify the final runtime artifact and verified rollback, not just this source archive.
-
-## Required preparation before requesting activation approval
-
-1. With read-only authorized access, reconcile the actual Nginx host/location/upstream and serving unit/container against browser build `RfJI7jhDb6BdroFc-2TBT`. Record source/artifact path and hash, unit definition, bind address/port, process/start identity, actual Node/dependency versions, current health checks and sanitized API/Clerk bindings. Record private environment-file hashes/ownership without displaying secret values. Do not assume the historical3039 unit is still routed.
-2. Record every protected API/worker/container/Admin unit identity, start time, image, resource limit, environment hash and pending-work baseline. Preserve the currently installed Android127, legitimate sessions, iOS work, owners' data and durable pending receipts. Record current memory/disk headroom; do not reclaim other work to fit a candidate.
-3. In an isolated candidate directory, verify retained runtime source preimages against the manifest. Reconcile any drift before applying an overlay. Preserve working hosted auth/API contracts and credentials. Build with the existing real runtime environment, live mode and mocks disabled; no dependency upgrades or example keys. Pin the complete resulting runtime artifact, source/environment hashes and public build marker.
-4. Prepare the exact proxy/unit change and exact rollback using the **freshly captured** current preimages. Keep the existing artifact/unit untouched as the rollback target. Pin the candidate loopback port and prove it is free, then provide bounded health deadlines, resource admission and watchdog rollback. No API/worker/DB/schema/DNS/TLS changes belong to this dashboard release.
-5. Publish the completed immutable runtime/review/rollback manifest, then request one specific approval covering only that candidate and handover. Current source qualification does not authorize those hosted mutations.
-
-## Acceptance after exact approval
-
-Activate only the reviewed artifact and proxy/unit delta. Check TLS/static build marker and the existing administrator session; inspect UI at the agreed widths/locales/themes. Verify real customer filtering/paging, support/feedback reads, imports/AI/jobs and the53-row queue registry. Reconfirm unknown age/status/freshness, nullable revenue and actual recent-auth failures. Verify identity/permissions and all protected service/pending-work projections against their before-state.
-
-If routing, health, permissions, resource or protected-service checks fail, restore only the captured proxy/unit preimage and old artifact binding using the pinned rollback. Do not retry uncertain provider/customer operations. Record the served build and source independently, close only newly created access and retain private receipts.
+All six Admin jobs in [Foundation run42346940801](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42346940801) passed, including five browser projects. The overall run failed: database migration inventory has an additional `private.tracking_installations` table; API formatting fails in `ai-routing.ts`/`assistant-agent-admission.spec.ts`; the mobile app-shell boundary flags `tracking-native-runtime.ts:2`; and the full-history secret gate reports four inherited matches (three public Clerk publishable keys and one environment SHA256). The CI [gate review](../../../docs/evidence/2026-11-07-dashboard-production/ci-gate-review.json) records their scope. No current dashboard secret match was reported. Shared owners were informed; no scanner rule, shared mobile/API file or historical commit was changed to conceal a failed check. These failures prevent a whole-repository production-ready claim.

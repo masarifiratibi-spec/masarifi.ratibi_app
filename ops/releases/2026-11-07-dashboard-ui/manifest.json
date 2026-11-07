@@ -5,11 +5,12 @@
   "remote": "ratibi",
   "baseCommit": "e13a90549788d22b56432377a4cff7da5481f43e",
   "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
-  "status": "qualified source review packet; hosted runtime build and activation blocked pending fresh host reconciliation",
+  "status": "source and Linux CI runtime qualified for scoped staging rollout review; exact hosted execution approval and acceptance pending",
   "sourceQualified": true,
   "hostedActivationApproved": false,
   "hostedActivationPerformed": false,
-  "hostReconciliationComplete": false,
+  "hostReconciliationComplete": true,
+  "hostBaselineHashEncoding": "canonical LF UTF-8",
   "sourceArchive": {
     "localPath": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-11-07-dashboard-production/dashboard-source-f865131a4cfd.tar.gz",
     "sha256": "f07f5bc16ed0636b3022ed0964b9f7f6f4153578afd72a55ffdaf8c74596634e",
@@ -119,10 +120,12 @@
     "clerkOrigin": "https://clerk.staging.masarifiratibi.com",
     "browserBuildId": "RfJI7jhDb6BdroFc-2TBT",
     "releaseMarkerHttpStatus": 404,
-    "servingUnit": null,
-    "artifactSourceCommit": null,
-    "environmentPin": null,
-    "rollbackArtifactPin": null
+    "servingUnit": "masarifi-admin-canonical-721a943b-20261101-01",
+    "artifactSourceCommit": "721a943b72837d3f43a4e4b61bc3ab4cd83738d8",
+    "environmentPin": "995cbca1a1699ad63e532bae6ee6849fb30ce467385cf5e10703e66d3c856cc3",
+    "rollbackArtifactPin": "0e840ba719882dac127fce6ab878a1176159e2c7c3a5e5c199d1d726430f2a39",
+    "containerId": "47ecec2481c32a6cc801498d4681a6acfa0e7f2fb7f627c40cdbf3e7e966cbda",
+    "upstream": "http://127.0.0.1:3040"
   },
   "localBuild": {
     "buildId": "W1Vh3h-g2Sorm-cPex0Bt",
@@ -142,10 +145,48 @@
     "inherited performance files and paused iOS work"
   ],
   "blockingGates": [
-    "fresh read-only serving unit/artifact/source/environment and exact rollback identification",
-    "build target runtime using retained actual credentials without replacing them",
-    "record exact candidate runtime hash and host/service/resource baseline before activation approval",
-    "post-approval hosted authenticated browser acceptance"
+    "human approval of this exact published packet and runtime SHA256 before any hosted preparation or activation",
+    "fresh no-drift host/resource/access and pending-work reconciliation immediately before the approved execution",
+    "isolated host canary and guarded ingress handover, then real authenticated candidate acceptance",
+    "provider/write/role-isolation and whole-product production acceptance remain outside this source/runtime build qualification"
   ],
-  "evidence": "docs/evidence/2026-11-07-dashboard-production/verification.json"
+  "evidence": "docs/evidence/2026-11-07-dashboard-production/verification.json",
+  "hostBaselineSha256": "1bcda7be5a7b039e65d9a9748ec7d64b4a1a96e86e36ef402b28e974a57bfef9",
+  "runtimeCandidate": {
+    "sourceCommit": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+    "adminGitTree": "b4078f3c8e41d9b47f43a405d53403c2bde236ff",
+    "qualified": true,
+    "qualificationScope": "Ubuntu Linux build/typecheck, exact source/lock/public bindings/archive safety; no hosted candidate process or authentication acceptance yet",
+    "localPath": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-11-07-dashboard-production/linux-candidate/masarifi-admin-f865131a4cfdcd8ef4b88c3287f125f4d33112e4.tar.gz",
+    "sha256": "186aec1f1fd5f3fa30f5e1791bb841c11664e0255e13c5195a7a26d1934c7c62",
+    "bytes": 262029155,
+    "manifestSha256": "f6bbb0cdd49fd9aa733d3e57e9ed7fd205f089054a82c2634b80046da00a1ed0",
+    "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+    "buildId": "scy8yMJdAowpPKpkffiaW",
+    "publicConfigurationSha256": {
+      "NEXT_PUBLIC_API_URL": "6b7b580e69f5bf597cf7f8356951e8fb495959b567c87bd68cfc7ee13fc749c9",
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475",
+      "NEXT_PUBLIC_CLIENT_MODE": "247610f4dedd4ab7247d07dbda19c81ca9817f85820742cad49d407ffae9e4ed",
+      "NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT": "e919a75364398a449f860aeadddc57fa0502145a4e63959ddb33c417a48dc0da",
+      "NEXT_PUBLIC_ENABLE_MOCKS": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+    },
+    "buildNode": "v24.16.0",
+    "buildNpm": "11.17.0",
+    "targetRuntimeNode": "v24.20.0",
+    "targetRuntimeImage": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "runtimeSecretsIncluded": false,
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42347991605",
+    "workflowHead": "b3b6d2f3c4c85ab1f5fb5d7de403c069d210ef19",
+    "checkoutSource": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+    "artifactId": 13564411929,
+    "artifactZipSha256": "f06561889ea60d9a2569775649c5e5a69c4f8390268912cd83b5bd3e60fef8c7",
+    "artifactExpiresAt": "2026-11-14T06:41:28Z",
+    "runtimeImageJob": "skipped; no backend image built or published",
+    "staticProbe": {
+      "path": "/_next/static/scy8yMJdAowpPKpkffiaW/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
+      "expectedStatus": 200
+    },
+    "retainedRuntimeEnvironment": "Clone the existing actual ordered Docker Env in memory on host; preserve its hash. Never use the CI build-only placeholder at runtime."
+  }
 }
