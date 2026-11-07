@@ -53,6 +53,7 @@ function fixture(options = {}) {
               prosrc: options.source ?? source,
               owner: "masarifi_migration",
               prosecdef: true,
+              proconfig: ['search_path=""'],
               ...options.functionMetadata,
             },
           ],
@@ -138,6 +139,9 @@ test("rejects a changed definer before role selection or planning", async () => 
   for (const functionMetadata of [
     { owner: "postgres" },
     { prosecdef: false },
+    { proconfig: null },
+    { proconfig: ["search_path=public"] },
+    { proconfig: ['search_path=""', "row_security=off"] },
   ]) {
     const { client, calls } = fixture({ functionMetadata });
     await assert.rejects(lintDatabase(client), /UNREVIEWED_DEFINER/);

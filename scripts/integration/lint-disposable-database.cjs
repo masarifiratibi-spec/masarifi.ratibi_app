@@ -14,7 +14,7 @@ const SIGNATURE = "private.reset_financial_data(text,uuid)";
 const SOURCE_HASH =
   "51cb0845b650f24b4d31559db602bb933e9f296a92cc3fb6f197bd0bdd70b228";
 const SOURCE_QUERY =
-  "select oid::text AS oid,prosrc,prosecdef,proowner::regrole::text as owner from pg_catalog.pg_proc where oid=to_regprocedure($1)";
+  "select oid::text AS oid,prosrc,prosecdef,proconfig,proowner::regrole::text as owner from pg_catalog.pg_proc where oid=to_regprocedure($1)";
 const PLAN_MEMBERSHIP = `select pg_has_role(current_user,'masarifi_migration','SET') as allowed,
   exists(select from pg_catalog.pg_auth_members where roleid='masarifi_migration'::regrole
     and member=current_user::regrole and grantor=current_user::regrole) as existing_grant`;
@@ -151,7 +151,13 @@ async function lintDatabase(client) {
     const reviewed = (await client.query(SOURCE_QUERY, [SIGNATURE])).rows[0];
     if (!reviewed || errors[0].functionOid !== reviewed.oid)
       throw new Error("DATABASE_LINT_UNREVIEWED_FUNCTION_OVERLOAD");
-    if (!reviewed.prosecdef || reviewed.owner !== "masarifi_migration")
+    if (
+      reviewed.prosecdef !== true ||
+      reviewed.owner !== "masarifi_migration" ||
+      !Array.isArray(reviewed.proconfig) ||
+      reviewed.proconfig.length !== 1 ||
+      reviewed.proconfig[0] !== 'search_path=""'
+    )
       throw new Error("DATABASE_LINT_UNREVIEWED_DEFINER");
     const commands = reviewedDynamicStatements(reviewed.prosrc);
     const remaining = errorIssues(
