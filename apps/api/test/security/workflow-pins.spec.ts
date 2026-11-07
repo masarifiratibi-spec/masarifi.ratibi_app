@@ -115,7 +115,13 @@ describe('backend workflow action pins', () => {
 });
 
 describe('isolated consolidation candidate verification policy', () => {
-  type Step = { name?: string; run?: string; if?: string; env?: Record<string, string> };
+  type Step = {
+    name?: string;
+    run?: string;
+    if?: string;
+    'continue-on-error'?: unknown;
+    env?: Record<string, string>;
+  };
   type Job = { needs?: string | string[]; env?: Record<string, string>; steps: Step[] };
   function requireJob(jobs: Record<string, Job>, name: string): Job {
     const job = jobs[name];
@@ -209,6 +215,10 @@ describe('isolated consolidation candidate verification policy', () => {
     const android = requireJob(workflow.jobs, 'android-build');
     expect(android.needs).toBe('mobile');
     expect(android.env?.EXPO_PUBLIC_API_URL).toBe('https://api.example.invalid');
+    const compiled = android.steps.filter((step) => step.run?.includes('"$aapt2" dump badging'));
+    expect(compiled).toHaveLength(1);
+    expect(compiled[0]?.if).toBeUndefined();
+    expect(compiled[0]?.['continue-on-error']).toBeUndefined();
     const commands = android.steps.map((step) => step.run ?? '').join('\n');
     expect(commands).toContain('verify-android-identity.cjs');
     expect(commands).toContain(':app:minifyReleaseWithR8');

@@ -11,7 +11,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Entry redirect to /admin; no page API of its own."
   },
   {
     "route": "/admin",
@@ -1599,7 +1600,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/payments/events/[eventId]",
@@ -1632,7 +1634,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/payments/failed",
@@ -1665,7 +1668,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/payments/reconciliation",
@@ -1698,7 +1702,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/roles",
@@ -2245,7 +2250,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Intentionally informational: ImportDeploymentSettings names deployment-managed configuration. There is no form, API mutation or save action."
   },
   {
     "route": "/admin/settings/maintenance",
@@ -2511,7 +2517,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/subscriptions/[subscriptionId]",
@@ -2545,7 +2552,8 @@
       "overflow": false,
       "explicitAlert": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/subscriptions/plans",
@@ -2578,7 +2586,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/subscriptions/promotional-codes",
@@ -2611,7 +2620,8 @@
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
   },
   {
     "route": "/admin/support",
@@ -2937,14 +2947,22 @@
     "example": "/delete-account",
     "permission": "public entry; owner authorization enforced by API",
     "navigation": "deep link / secondary navigation",
-    "adapters": [],
-    "endpoints": [],
+    "adapters": [
+      "apps/admin-web/src/features/public-deletion/DeletionPage.tsx",
+      "apps/admin-web/src/features/public-deletion/deletion-client.ts"
+    ],
+    "endpoints": [
+      "/api/v1/me/deletion-requests",
+      "/api/v1/me/deletion-requests/{requestId}",
+      "/api/v1/privacy/deletion-completions/{operationId}"
+    ],
     "source": "apps/admin-web/src/app/delete-account/page.tsx",
     "localBrowser": {
       "status": 200,
       "overflow": false,
       "scope": "synthetic route rendering; not hosted business acceptance"
-    }
+    },
+    "endpointScope": "Source trace only. Owner and completion-token flows are distinct; no deletion, cancellation, OTP or replay was performed for this review."
   },
   {
     "route": "/invitations/accept",
