@@ -8,11 +8,7 @@ import {
 } from '@/config/client-runtime';
 import { useAppShellStore } from '@/state/app-shell';
 import { captureLiveClerkIdentity } from './live/auth-service';
-import {
-  HttpError,
-  requestJson,
-  requestRecentAuthentication
-} from './live/http-client';
+import { HttpError, requestJson } from './live/http-client';
 import { readRecoveryNetwork } from './platform/read-recovery-network';
 
 const path = '/api/v1/me/financial-reset';
@@ -111,7 +107,7 @@ export async function submitFinancialReset(
       undefined,
       'network'
     );
-  // Probe the live contract immediately before step-up, including for deep links.
+  // Check the current generation before sending the confirmed operation.
   const state = await fetchFinancialResetState(ownerId);
   const saved = await loadFinancialResetOperation(ownerId);
   if (saved) {
@@ -125,8 +121,7 @@ export async function submitFinancialReset(
   }
   if (state.generation !== reviewedGeneration)
     throw new HttpError('conflict', 409, 'FINANCIAL_GENERATION_CHANGED');
-  const token = await requestRecentAuthentication({ allowRecentSignIn: true });
-  if (!token || !isActive()) return null;
+  if (!isActive()) return null;
   await actor.assertCurrent();
   assertOwner(ownerId);
   const id = saved?.id ?? randomUUID();
@@ -139,7 +134,7 @@ export async function submitFinancialReset(
   const receipt = await requestJson(path, receiptSchema, {
     method: 'POST',
     body: { operationId: id },
-    token,
+    token: actor.token,
     headers: {
       'Idempotency-Key': id,
       'X-Financial-Generation': String(generation)

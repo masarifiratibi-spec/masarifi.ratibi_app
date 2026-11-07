@@ -400,7 +400,8 @@ describe('navigation journey', () => {
     useAppShellStore.setState({ session: authenticatedSession });
     jest.spyOn(financialReset, 'financialResetRuntimeAvailable').mockReturnValue(true);
     let confirm!: () => void;
-    jest.spyOn(financialReset, 'fetchFinancialResetState').mockImplementation(() => new Promise(resolve => {
+    jest.spyOn(financialReset, 'loadFinancialResetOperation').mockResolvedValue(null);
+    jest.spyOn(financialReset, 'fetchFinancialResetState').mockResolvedValue({ generation: 0, status: 'ready', resetAt: null, requestId: null }).mockImplementationOnce(() => new Promise(resolve => {
       confirm = () => resolve({ generation: 0, status: 'ready', resetAt: null, requestId: null });
     }));
     renderWithProviders(<MoreRoute />);
@@ -412,7 +413,8 @@ describe('navigation journey', () => {
     expect(tracking).toBeGreaterThanOrEqual(0);
     expect(links[tracking + 1]).toContain(label);
     fireEvent.press(screen.getByLabelText(links[tracking + 1]));
-    expect(router.push).toHaveBeenLastCalledWith('/financial-reset');
+    await screen.findByText(translate('financialReset.confirmTitle'));
+    expect(router.push).not.toHaveBeenCalledWith('/financial-reset');
   });
 
   it('makes More the directory for every relocated secondary destination', async () => {

@@ -6,10 +6,8 @@ import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('financial reset repository contract', () => {
   const pool = createLivePool(2);
-  const service = new FinancialResetService(new SecurityRepository(pool), {
-    getRequired: () => 300,
-  } as never);
-  const owner = { userId: 'reset_' + randomUUID(), sessionId: 'session-a', factorAgeSeconds: 0 };
+  const service = new FinancialResetService(new SecurityRepository(pool));
+  const owner = { userId: 'reset_' + randomUUID(), sessionId: 'session-a', factorAgeSeconds: null };
   const other = { ...owner, userId: 'reset_' + randomUUID(), sessionId: 'session-b' };
   beforeAll(async () => {
     await pool.query("insert into public.profiles(id,status) values($1,'active'),($2,'active')", [

@@ -1,7 +1,6 @@
 import type { PoolClient } from 'pg';
 import { HttpException, Injectable } from '@nestjs/common';
-import { isRecentClerkAuthentication, type ClerkPrincipal } from '../identity/clerk-auth.guard';
-import { PlatformConfigService } from '../platform/config/platform-config.service';
+import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { SecurityRepository } from './security.repository';
 
 interface ResetRow {
@@ -22,19 +21,9 @@ function receipt(row: ResetRow | undefined) {
 
 @Injectable()
 export class FinancialResetService {
-  constructor(
-    private readonly repository: SecurityRepository,
-    private readonly config: PlatformConfigService,
-  ) {}
+  constructor(private readonly repository: SecurityRepository) {}
 
   reset(principal: ClerkPrincipal, operationId: string) {
-    if (
-      !isRecentClerkAuthentication(
-        principal,
-        this.config.getRequired('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS'),
-      )
-    )
-      throw new HttpException({ code: 'RECENT_AUTH_REQUIRED' }, 403);
     return this.transaction(principal, async (client) => {
       // Large histories need a longer statement budget than the default for interactive queries.
       await client.query("set local lock_timeout = '3s'");
