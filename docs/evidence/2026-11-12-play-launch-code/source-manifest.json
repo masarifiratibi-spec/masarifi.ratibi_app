@@ -2,8 +2,12 @@
   "hashKind": "Workspace bytes before Git line-ending normalization",
   "schemaVersion": 1,
   "unrelatedWorkExcluded": true,
-  "recordedAtUtc": "2026-11-12T15:49:58.8940941Z",
+  "recordedAtUtc": "2026-11-12T16:06:16.6143714Z",
   "sourceFiles": [
+    {
+      "workspaceSha256": "551cd403122bad268aee96c2814509449550ff154a0454733cf1b407159e499b",
+      "path": "apps/admin-web/next.config.ts"
+    },
     {
       "workspaceSha256": "18a88a68bf48b1197698a89db87f3e9ae510df74bed02df83ef457c88f03b078",
       "path": "apps/admin-web/src/app/delete-account/page.tsx"
@@ -55,6 +59,10 @@
     {
       "workspaceSha256": "7e328e41073af87b32bb87f7df359b8f4e7f416d28b7e11df693173532a8bf30",
       "path": "apps/admin-web/src/features/public-legal/PublicLegalPage.tsx"
+    },
+    {
+      "workspaceSha256": "20137479d38a43e1725534351175c36a58878acd1ea7434f6be38e3f5ae3d22f",
+      "path": "apps/admin-web/src/features/public-legal/shared-document-boundary.test.ts"
     },
     {
       "workspaceSha256": "a70734920b78343e1db2192f69611f0bd477d9471b6a880a8bd44c6d3fec743f",
