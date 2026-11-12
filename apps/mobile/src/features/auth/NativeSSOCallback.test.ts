@@ -30,6 +30,10 @@ test.each([
   'masarifi://reports',
   'masarifi://tracking',
   '/accounts',
+  '/accounts/index',
+  'masarifi://accounts/index',
+  'masarifi://index/details',
+  'https://example.test/index',
   'https://example.test/sso-callback',
   'masarifi://reports?label=%D9%85%D8%B5%D8%B1%D9%88%D9%81'
 ])('preserves unrelated link %s', (path) => {

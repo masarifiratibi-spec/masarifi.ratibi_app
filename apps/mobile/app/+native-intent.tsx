@@ -9,8 +9,21 @@ export function redirectSystemPath({
   // Router owns navigation only; WebBrowser/Clerk still receive the original event.
   try {
     const url = new URL(path, 'masarifi://app');
+    // Expo's index screen is matched at '/', including legacy launcher links.
     if (
-      (url.protocol === 'masarifi:' || url.protocol === 'masarifi-dev:' || url.protocol === 'masarifi-benchmark:') &&
+      ['masarifi:', 'masarifi-dev:', 'masarifi-benchmark:'].includes(
+        url.protocol
+      ) &&
+      ((url.hostname === 'index' &&
+        (url.pathname === '' || url.pathname === '/')) ||
+        ((url.hostname === '' || url.hostname === 'app') &&
+          (url.pathname === '/index' || url.pathname === '/index/')))
+    )
+      return '/';
+    if (
+      (url.protocol === 'masarifi:' ||
+        url.protocol === 'masarifi-dev:' ||
+        url.protocol === 'masarifi-benchmark:') &&
       ((url.hostname === 'sso-callback' &&
         (url.pathname === '' || url.pathname === '/')) ||
         ((url.hostname === '' || url.hostname === 'app') &&
@@ -20,7 +33,9 @@ export function redirectSystemPath({
   } catch {
     // Never render a malformed callback or report its potentially sensitive text.
     if (
-      (path.startsWith('masarifi:') || path.startsWith('masarifi-dev:') || path.startsWith('masarifi-benchmark:')) &&
+      (path.startsWith('masarifi:') ||
+        path.startsWith('masarifi-dev:') ||
+        path.startsWith('masarifi-benchmark:')) &&
       path.split(/[?#]/u)[0].includes('sso-callback')
     )
       return '/';
