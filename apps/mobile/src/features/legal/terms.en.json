@@ -1,12 +1,11 @@
 {
   "title": "Terms & Conditions",
-  "notice": "Proposed wording — 1.0-draft, prepared 29 October 2026. This draft is not legally approved, has no effective date and does not activate registration consent or replace any existing agreement. Operator details and the legal review items must be completed before publication.",
   "sections": [
     {
       "id": "operator",
       "title": "1. Operator and scope",
       "paragraphs": [
-        "These proposed terms concern مصاريفي وراتبي (Masarifi & Ratibi), a personal finance application intended for launch in the United Arab Emirates (UAE). The brand is not confirmation of a registered legal entity. The legal operator/controller identity, registration and address remain pending confirmation. Privacy and support contact supplied by the product owner: masarifi.ratibi@gmail.com. No particular response deadline or registered domicile is inferred from that contact.",
+        "These terms describe use of مصاريفي وراتبي (Masarifi & Ratibi) to manage personal financial records. For privacy or support enquiries, contact masarifi.ratibi@gmail.com.",
         "The application may provide accounts and card records, transactions, categories, balances, budgets, salary planning, obligations, recurring records, savings goals, reports, optional tracking, voice input, a financial assistant and support. Availability depends on the platform, application version, permissions and enabled services. This document does not enable hidden, deferred or unavailable features."
       ]
     },
@@ -14,9 +13,9 @@
       "id": "eligibility",
       "title": "2. Eligibility and registration",
       "paragraphs": [
-        "The product intention is availability across ages only where applicable UAE law permits. This is not permission for unrestricted registration by children. Legal capacity, age-appropriate access, any required parent/guardian authorization and child-data safeguards must be assessed and implemented before offering the service to the relevant age groups. Google sign-in and a general Terms checkbox do not establish age or verifiable parental consent. No such age/guardian workflow is claimed to exist in the current application.",
+        "Eligibility to use the service is subject to applicable law. Use by minors requires caregiver consent and safeguards where required. A Google account or birthday field alone does not establish age or caregiver consent.",
         "The current public mobile sign-in uses Google through Clerk. Authentication, account creation, recovery and verification require the relevant online services. A returning authorized owner may have locally restored access to saved information subject to the application’s security checks. A local session is not proof of a newly verified remote session.",
-        "When an approved consent process is introduced, the final Terms and Privacy Policy must be presented separately with the applicable versions. The draft checkbox currently prepared for review is unchecked and inactive. Signing in or viewing this draft does not record acceptance of it."
+        "Viewing the terms or signing in does not by itself provide separate consent for tracking, microphone access or AI processing. Manage these choices through the controls for each feature."
       ]
     },
     {
@@ -71,15 +70,15 @@
       "id": "privacy",
       "title": "9. Privacy and permissions",
       "paragraphs": [
-        "Read the separate Privacy Policy draft for data categories, purposes, local and server storage, service providers and unresolved retention and transfer matters. A general Terms checkbox is not blanket authorization for every optional tracking source, AI use, microphone recording, notification permission or marketing activity.",
-        "The final operator must identify the lawful basis and any required separate permission for each processing purpose. A proposed privacy notice does not waive your statutory data-protection rights or establish compliance by itself."
+        "Read the separate Privacy Policy for data categories, processing purposes, storage, service providers and retention and transfer limits. General consent is not blanket authorization for optional tracking, AI, microphone access, notifications or marketing.",
+        "Processing is subject to the lawful basis and permissions required for each purpose. The Privacy Policy does not waive your statutory data-protection rights."
       ]
     },
     {
       "id": "conduct",
       "title": "10. Your content and acceptable use",
       "paragraphs": [
-        "You retain rights you have in the information and content you submit. You authorize the processing necessary to deliver the features you request, subject to the final Privacy Policy and applicable law. This proposed authorization does not permit unrelated publication or sale of your financial content.",
+        "You retain your rights in the information and content you submit. You authorize processing necessary to deliver the features you request, subject to the Privacy Policy and applicable law. This does not permit unrelated publication or sale of your financial content.",
         "Do not access another person's account, evade security controls, submit malicious files, misuse support, impersonate others or use the service unlawfully. Respect third-party privacy and intellectual-property rights. The operator retains rights in its application, branding and original materials, subject to third-party and open-source licenses. Any restriction remains subject to rights that applicable law does not allow to be excluded."
       ]
     },
@@ -88,14 +87,14 @@
       "title": "11. Third-party services and availability",
       "paragraphs": [
         "Authentication, cloud storage, hosting, notifications and AI rely on external services described in the Privacy Policy. Their availability and your separate relationship with them may affect Masarifi. An interruption may delay authentication, synchronization, reports, deliveries or AI processing.",
-        "Features and software may need maintenance or security updates. No fixed uptime, uninterrupted background capture, permanent storage or recovery guarantee is offered by this draft. The operator should communicate material changes and significant interruptions through an appropriate channel once that process is confirmed."
+        "Features and software may need maintenance or security updates. Uninterrupted operation, background capture, permanent storage and recovery are not guaranteed."
       ]
     },
     {
       "id": "charges",
       "title": "12. Charges and future paid features",
       "paragraphs": [
-        "This draft does not create a subscription, payment obligation or auto-renewal arrangement and does not activate deferred billing features. Any future paid offer must disclose its price, currency, taxes, renewal, cancellation and refund conditions separately before purchase, subject to applicable consumer law and store rules. Connectivity and third-party service charges imposed by your own providers may still apply."
+        "These terms alone do not create a subscription, payment obligation or automatic renewal. Any paid offer must disclose its price, currency, taxes, renewal, cancellation and refund conditions before purchase. Connectivity and third-party service charges imposed by your providers may apply."
       ]
     },
     {
@@ -103,7 +102,7 @@
       "title": "13. Ending use, suspension and deletion",
       "paragraphs": [
         "You may stop using the application. Where available, use its verified account-deletion process for server-side deletion and the appropriate local-data controls for device copies. Uninstalling the application, logging out or revoking Google access alone does not establish that every server record, backup or exported file has been deleted. Keep records you lawfully need before confirming irreversible removal.",
-        "The proposed operator may restrict access where reasonably necessary for security, abuse prevention or legal obligations, with explanation and a way to seek review where appropriate and legally permitted. The operational suspension and complaint procedures require confirmation. Any retention exception must have a lawful purpose and be explained; this draft does not invent a retention deadline."
+        "Access may be restricted where reasonably necessary for security, abuse prevention or legal obligations, with explanation and a way to seek review where legally permitted. Any data-retention exception must have a lawful purpose."
       ]
     },
     {
@@ -111,23 +110,22 @@
       "title": "14. Service limitations and responsibility",
       "paragraphs": [
         "Use Masarifi as an organizational aid and verify material financial decisions independently. Software defects, unavailable services, incorrect source information and AI errors can affect results. The application is not a substitute for bank statements, statutory accounts or professional advice.",
-        "Any final warranty exclusion, liability limit or allocation of loss must be reviewed for the operator's jurisdiction and consumer obligations. No monetary liability cap or broad indemnity is established by this draft. Nothing in these terms excludes rights, remedies or liability that applicable law does not permit to be excluded, including any mandatory responsibility for fraud or other non-excludable conduct."
+        "These terms do not establish a monetary liability cap or broad indemnity. They do not exclude rights, remedies or liability that applicable law does not permit to be excluded, including mandatory responsibility for fraud."
       ]
     },
     {
       "id": "law",
       "title": "15. Applicable law, complaints and language",
       "paragraphs": [
-        "The intended launch country is the United Arab Emirates. Applicable UAE privacy, child-safety, consumer and other mandatory requirements must be reviewed for the operator and actual service. The registered operator and any relevant mainland/free-zone status are still unconfirmed; the governing-law and court clause therefore remains pending legal review. No foreign jurisdiction, arbitration requirement or class-action waiver is selected by this draft. Mandatory rights remain preserved.",
-        "For privacy or support enquiries, contact masarifi.ratibi@gmail.com. Arabic and English drafts are prepared together; neither is designated as controlling. Material discrepancies must be corrected before approval. The contact process does not restrict any right to approach a competent authority or court."
+        "Applicable mandatory rights and privacy, child-safety and consumer requirements remain preserved. These terms do not impose a foreign jurisdiction, mandatory arbitration or waiver of legally protected rights.",
+        "The terms are available in Arabic and English. For enquiries or complaints, contact masarifi.ratibi@gmail.com. This contact channel does not restrict your right to approach a competent authority or court."
       ]
     },
     {
       "id": "changes",
-      "title": "16. Version changes and final approval",
+      "title": "16. Changes to the terms",
       "paragraphs": [
-        "The final approved documents must identify their version and effective date. Material changes should be communicated before they take effect when required, and renewed consent obtained where the applicable legal basis requires it. Changes to this review draft do not retrospectively establish acceptance.",
-        "Before release, the operator must resolve the identity, contact, eligibility, retention, international-transfer, consumer-rights and consent-record issues identified in the accompanying review memo and obtain appropriate professional legal verification."
+        "Material changes should be communicated before they take effect where required, and renewed consent obtained where applicable law requires it. Changes do not establish acceptance retroactively."
       ]
     }
   ]

@@ -8,8 +8,7 @@ import { useTheme } from '@/state/theme-context';
 import { LegalDocumentLinks } from './LegalDocumentLinks';
 import {
   getLegalDocument,
-  legalDocumentVersion,
-  legalReviewCopy,
+  legalCopy,
   type LegalDocumentKind
 } from './legal-documents';
 
@@ -35,8 +34,6 @@ export function LegalScreen({ document }: { document: LegalDocumentKind }) {
         <StyledText variant="title" accessibilityRole="header">
           {content.title}
         </StyledText>
-        <StyledText variant="caption">{`${legalReviewCopy[locale].version}: ${legalDocumentVersion}`}</StyledText>
-        <StyledText>{content.notice}</StyledText>
         {content.sections.map((section) => (
           <View key={section.id} style={{ gap: theme.spacing.sm }}>
             <StyledText variant="subtitle" accessibilityRole="header">
@@ -49,7 +46,7 @@ export function LegalScreen({ document }: { document: LegalDocumentKind }) {
         ))}
       </View>
       <ActionButton
-        label={legalReviewCopy[locale].back}
+        label={legalCopy[locale].back}
         onPress={() =>
           router.canGoBack() ? router.back() : router.replace('/')
         }

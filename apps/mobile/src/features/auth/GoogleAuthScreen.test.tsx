@@ -5,10 +5,7 @@ import AuthPendingRoute from '@app/(public)/auth-pending';
 import WelcomeRoute from '@app/(public)/welcome';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
-import {
-  getLegalDocument,
-  legalReviewCopy
-} from '@/features/legal/legal-documents';
+import { getLegalDocument } from '@/features/legal/legal-documents';
 
 jest.mock('expo-router', () => ({
   router: { replace: jest.fn(), push: jest.fn() }
@@ -64,7 +61,9 @@ test.each(['ar', 'en'] as const)(
     ).toBeNull();
     expect(
       screen.getByText(
-        locale === 'ar' ? 'حيّاك في\nمصاريفي وراتبي' : 'Welcome to\nMasarifi & Ratibi'
+        locale === 'ar'
+          ? 'حيّاك في\nمصاريفي وراتبي'
+          : 'Welcome to\nMasarifi & Ratibi'
       )
     ).toBeOnTheScreen();
     expect(screen.getByTestId('sign-in-documents')).toBeOnTheScreen();
@@ -82,8 +81,6 @@ test.each(['ar', 'en'] as const)(
   (locale) => {
     changeLocale(locale);
     renderWithProviders(<AuthPendingRoute />);
-    expect(screen.queryByText(legalReviewCopy[locale].preview)).toBeNull();
-    expect(screen.queryByText(legalReviewCopy[locale].checkbox)).toBeNull();
     expect(
       screen.getByRole('button', {
         name: getLegalDocument(locale, 'terms').title

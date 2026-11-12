@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ChipSelector } from '@/design-system/components/forms/ChipControls';
-import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import { DesignIcon } from '@/design-system/icons';
 import { radius, spacing } from '@/design-system/tokens';
@@ -40,10 +39,6 @@ export function ApplicationSettingsScreen() {
   const firstDayOfWeek = usePreferenceStore((state) => state.firstDayOfWeek);
   const defaultAccountId = usePreferenceStore(
     (state) => state.defaultAccountId
-  );
-  const hideBalances = usePreferenceStore((state) => state.hideBalances);
-  const toggleHideBalances = usePreferenceStore(
-    (state) => state.toggleHideBalances
   );
   const update = usePreferenceStore(
     (state) => state.updateApplicationPreferences
@@ -621,21 +616,6 @@ export function ApplicationSettingsScreen() {
               </View>
             ) : null}
           </View>
-
-          <View
-            style={[styles.divider, { backgroundColor: theme.colors.border }]}
-          />
-
-          {/* 4. Hide Balances Row */}
-          <SwitchRow
-            label="settings.application.hideBalances"
-            subtext="settings.application.hideBalancesSubtitle"
-            icon={hideBalances ? 'eyeSlash' : 'eye'}
-            iconBg={colorTokens.raw['EBF5EC']}
-            iconFg={colorTokens.raw['1F7A5A']}
-            value={hideBalances}
-            onValueChange={toggleHideBalances}
-          />
         </View>
       </View>
     </ScrollView>
@@ -752,59 +732,6 @@ const styles = StyleSheet.create({
   emptyItem: {
     padding: spacing.md,
     alignItems: 'center'
-  },
-  hideBalancesRow: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-    gap: spacing.md
-  },
-  hideBalancesLeft: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
-  },
-  badgeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colorTokens.raw['EBF5EC'],
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  hideBalancesTexts: {
-    flex: 1,
-    gap: 2
-  },
-  switchTrack: {
-    width: 50,
-    height: 28,
-    borderRadius: 14,
-    padding: 3,
-    justifyContent: 'center'
-  },
-  switchTrackOn: {
-    backgroundColor: colorTokens.raw['103F37']
-  },
-  switchTrackOff: {
-    backgroundColor: colorTokens.raw['DDE5E1']
-  },
-  switchThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colorTokens.raw['FFFFFF'],
-    shadowColor: colorTokens.raw['000000'],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2
-  },
-  switchThumbOn: {
-    alignSelf: 'flex-end'
-  },
-  switchThumbOff: {
-    alignSelf: 'flex-start'
   },
   physicalLtr: {
     ...layoutDirectionStyle('ltr'),

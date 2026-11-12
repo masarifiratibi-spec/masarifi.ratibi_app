@@ -4,6 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun abbreviatedAvailableBalanceIsNotPurchaseMoneyForDiscovery() {
+    val policy=policy()
+    assertFalse(policy.isStrong("Purchase. Avl. Bal. is AED 9000","BANK","android_sms"))
+    assertTrue(policy.isStrong("Purchase AED 16.00. Avl. Bal. is AED 9000","BANK","android_sms"))
+  }
+
   @Test fun reportClosureDiscoveryPreservesMerchantsAndRejectsOtpAndLimitOnlyAmounts() {
     val policy=policy()
     listOf("شراء 50 SAR من معرض النور","تم الشراء 50 SAR","Purchase KD 12.750","Purchase AED25 at Code Coffee").forEach {

@@ -70,7 +70,7 @@ internal class FinancialDiscoveryPolicy private constructor(
       val amount = match.groups[2]?.value ?: match.groups[3]!!.value
       val before = text.substring(maxOf(0, match.range.first - 60), match.range.first)
       val after = text.substring(match.range.last + 1, minOf(text.length, match.range.last + 33))
-      val balance = Regex("(?:avl\\.?\\s*(?:cr\\.?\\s*)?(?:bal(?:ance)?|limit)|available\\s+(?:balance|credit(?:\\s+limit)?)|credit\\s+limit|balance|الرصيد|رصيد|الحد\\s+الائتماني|حد\\s+الائتمان)[^.;:،,]*[: ]*$").containsMatchIn(before)
+      val balance = Regex("(?:avl\\.?\\s*(?:cr\\.?\\s*)?(?:bal(?:ance)?\\.?|limit)|available\\s+(?:balance|credit(?:\\s+limit)?)|credit\\s+limit|balance|الرصيد|رصيد|الحد\\s+الائتماني|حد\\s+الائتمان)[^.;:،,]*[: ]*$").containsMatchIn(before)
       val feeRole = Regex("(?:fee|fees|charge|commission|رسوم|عمولة)\\s*[: ]*$").containsMatchIn(before)
       val fx = Regex("(?:equivalent|exchange rate|converted|ما يعادل)\\s*[: ]*$").containsMatchIn(before) ||
         Regex("^\\s*(?:equivalent|ما يعادل)").containsMatchIn(after)

@@ -518,6 +518,92 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('automatic tracking coordinator', () => {
+  // Notification examples verify supported formats; the customer supplied a detail screen, not its notification payload.
+  it.each([
+    [
+      'android_sms',
+      'FlexiblePay',
+      'Your FlexiblePay card ending with 4753 has been used for USD 5.25 at ANTHROPIC +14152360599 US. Avl. Bal. is USD 17.95',
+      'USD',
+      -525
+    ],
+    [
+      'android_notification',
+      'com.samsung.android.spay',
+      'Paid AED 16.00 at HOUSE OF TEA CAFETERIA',
+      'AED',
+      -1600
+    ],
+    [
+      'android_notification',
+      'com.synthetic.bank',
+      'Apple Pay purchase AED 16.00 at HOUSE OF TEA CAFETERIA',
+      'AED',
+      -1600
+    ]
+  ] as const)(
+    'durably queues one %s receipt from %s and deduplicates a repeated read',
+    async (channel, sender, text, currency, amountMinor) => {
+      const context = setup({ prepare: prepareFinancialMessageImport });
+      context.setOnline(false);
+      context.dependencies.listCachedAccounts.mockResolvedValue([
+        { ...ownerAccount, currencyCode: currency }
+      ]);
+      await context.queue.saveRules('owner-1', {
+        snapshot: defaultSnapshot,
+        keywords: [],
+        senders: [],
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1',
+        currencyAccountPolicy: 'source_currency_v1'
+      });
+      context.dependencies.sources.load.mockResolvedValue({
+        smsEnabled: channel === 'android_sms',
+        notificationEnabled: channel === 'android_notification',
+        smsActivatedAt: 0,
+        notificationActivatedAt: 0
+      });
+      context.inbox.readRecent.mockResolvedValue(
+        channel === 'android_sms'
+          ? [{ id: '1', sender, body: text, receivedAt: 100 }]
+          : []
+      );
+      context.bankNotifications.getAccessState.mockResolvedValue('granted');
+      context.bankNotifications.readRecent.mockResolvedValue(
+        channel === 'android_notification'
+          ? [
+              {
+                key: 'receipt-1',
+                packageName: sender,
+                title: 'Wallet',
+                text,
+                postedAt: 100,
+                capturePolicy: 'default_account_nominal_v1',
+                captureActivatedAt: 0
+              }
+            ]
+          : []
+      );
+      await context.coordinator.sync();
+      await context.coordinator.sync();
+      const queued = await context.queue.load('owner-1');
+      expect(queued.pending).toHaveLength(1);
+      expect(queued.pending[0].submission).toMatchObject({
+        schemaVersion: 3,
+        sourceChannel: channel,
+        events: [
+          {
+            currency,
+            amountMinor,
+            classification: { disposition: 'capture_candidate' }
+          }
+        ]
+      });
+      expect(queued.pending[0].submission.events).toHaveLength(1);
+      expect(context.tracking.submitImport).not.toHaveBeenCalled();
+    }
+  );
+
   it('uses the prepared pass rule response after status admission instead of another rule context', async () => {
     const context = setup();
     const readRules = jest.fn(async () => ({

@@ -59,6 +59,8 @@ function AssistantHomeContent({
 
   const createError = createConversation.error as
     { code?: string } | null | undefined;
+  const creationFailed =
+    createConversation.isError && createError?.code !== 'still_processing';
 
   const handleAskFirstQuestion = async (
     question: string,
@@ -98,9 +100,17 @@ function AssistantHomeContent({
             setActiveConversationId(result.value.id);
             resolve(true);
           },
-          onError: () => {
+          onError: (error) => {
             setFirstTurn((current) =>
-              current ? { ...current, status: 'unknown' } : null
+              current
+                ? {
+                    ...current,
+                    status:
+                      (error as { code?: string })?.code === 'still_processing'
+                        ? 'processing'
+                        : 'unknown'
+                  }
+                : null
             );
             resolve(false);
           },
@@ -157,18 +167,14 @@ function AssistantHomeContent({
         availability={availability?.data ?? null}
         isSending={createConversation.isPending || unresolved}
         error={
-          createConversation.isError
-            ? translateDynamic('assistant.state.error')
-            : undefined
+          creationFailed ? translateDynamic('assistant.state.error') : undefined
         }
         functionalStatus={
-          unresolved || createConversation.isError ? (
+          unresolved || creationFailed ? (
             <AssistantQuestionRecovery
               operation={operation?.data}
               loading={resume?.isPending || retry?.isPending}
-              error={
-                createConversation.isError || resume?.isError || retry?.isError
-              }
+              error={creationFailed || resume?.isError || retry?.isError}
               onCheck={() =>
                 resume?.mutate(undefined, {
                   onSettled: () => operation?.refetch()
@@ -313,6 +319,9 @@ function AssistantConversationContent({
       setResponses((current) => mergeAssistantRows(current, [response]));
   });
   const resetAsk = ask.reset;
+  const questionSendFailed =
+    ask.isError &&
+    (ask.error as { code?: string })?.code !== 'still_processing';
   const rename = queries.useRenameAssistantConversation();
   const remove = queries.useDeleteAssistantConversation();
   const feedback = queries.useAssistantFeedback();
@@ -376,6 +385,11 @@ function AssistantConversationContent({
 
   const unresolvedQuestion = Boolean(
     operation?.data && !['completed', 'failed'].includes(operation.data.phase)
+  );
+  const answeredMessageIds = new Set(
+    responses.flatMap((response) =>
+      response.requestMessageId ? [response.requestMessageId] : []
+    )
   );
   const optimisticOperation =
     optimisticTurn && operation?.data?.operationId === optimisticTurn.id
@@ -510,7 +524,14 @@ function AssistantConversationContent({
             const durableId = failure?.questionOperationId;
             setOptimisticTurn((current) =>
               current
-                ? { ...current, id: durableId ?? current.id, status: 'unknown' }
+                ? {
+                    ...current,
+                    id: durableId ?? current.id,
+                    status:
+                      failure?.code === 'still_processing'
+                        ? 'processing'
+                        : 'unknown'
+                  }
                 : null
             );
             if (durableId && !failure.definitiveRejection) {
@@ -532,7 +553,6 @@ function AssistantConversationContent({
   const handleViewReport = () => {
     router.push('/reports');
   };
-
 
   if (accessDenied)
     return (
@@ -578,7 +598,7 @@ function AssistantConversationContent({
             <AssistantQuestionRecovery
               operation={operation?.data}
               loading={resume?.isPending || retry?.isPending}
-              error={operation?.isError || recoveryFailed}
+              error={operation?.isError || recoveryFailed || questionSendFailed}
               onCheck={() => {
                 resume?.mutate(undefined, {
                   onSuccess: () => {
@@ -605,28 +625,34 @@ function AssistantConversationContent({
         }
         onSendMessage={handleSendMessage}
         onReviewAction={handleReviewAction}
-        renderAction={(previewId, fallback) => <AssistantActionPreviewScreen conversationId={conversationId ?? ''} previewId={previewId} inline fallback={fallback} onReviewAction={handleReviewAction} />}
+        renderAction={(previewId, fallback) => (
+          <AssistantActionPreviewScreen
+            conversationId={conversationId ?? ''}
+            previewId={previewId}
+            inline
+            fallback={fallback}
+            onReviewAction={handleReviewAction}
+          />
+        )}
         onViewReport={handleViewReport}
         isSending={
           waitingForInitialHistory ||
           ask.isPending ||
-          Boolean(latest.data?.pendingMessageIds?.length) ||
           Boolean(
-            operation?.data &&
-            !['completed', 'failed'].includes(operation.data.phase)
+            latest.data?.pendingMessageIds?.some(
+              (id) => !answeredMessageIds.has(id)
+            )
           ) ||
+          (unresolvedQuestion &&
+            !answeredMessageIds.has(operation?.data?.messageId ?? '')) ||
           availability?.data?.capabilities?.directRead === 'disabled'
         }
         error={
-          ask.isError ||
+          questionSendFailed ||
           (!hasReadableSnapshot(page) && page.isError) ||
           feedback.isError ||
           data?.failureCode
-            ? translateDynamic(
-                (ask.error as { code?: string })?.code === 'still_processing'
-                  ? 'assistant.thinking'
-                  : 'assistant.state.error'
-              )
+            ? translateDynamic('assistant.state.error')
             : null
         }
         onEndReached={() => nextCursor && setCursor(nextCursor)}

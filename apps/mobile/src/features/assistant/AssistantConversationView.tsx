@@ -3,7 +3,6 @@ import {
   View,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { AssistantHeaderBanner } from './components/AssistantHeaderBanner';
 import { UserMessageBubble } from './components/UserMessageBubble';
 import { AssistantMessageBubble } from './components/AssistantMessageBubble';
+import { AssistantTypingIndicator } from './components/AssistantTypingIndicator';
 import { AssistantFollowUpSuggestions } from './components/AssistantFollowUpSuggestions';
 import {
   AssistantComposer,
@@ -27,7 +27,6 @@ import type {
   AssistantResponse,
   AssistantUserTurn
 } from '@/domain/assistant';
-import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import type { AssistantAvailability } from './AssistantFunctionalStatus';
@@ -138,6 +137,11 @@ export function AssistantConversationView({
     );
   }, [userTurns, responses]);
   const latestTurnId = orderedTurns.at(-1)?.id;
+  const waitingForAnswer =
+    isSending ||
+    orderedTurns.some(
+      (turn) => !turn.response && ['queued', 'processing'].includes(turn.status)
+    );
   const handleBack = () => {
     if (Keyboard.isVisible()) Keyboard.dismiss();
     else onBack?.();
@@ -171,7 +175,7 @@ export function AssistantConversationView({
       {item.content && (
         <UserMessageBubble
           message={item.content}
-          status={item.status}
+          status={item.response ? 'completed' : item.status}
           timestamp={
             item.createdAt > 0 ? clock.format(item.createdAt) : undefined
           }
@@ -217,31 +221,27 @@ export function AssistantConversationView({
         keyboardShouldPersistTaps="handled"
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         ListFooterComponent={
-          isSending || error || functionalStatus ? (
+          waitingForAnswer || error || functionalStatus ? (
             <View
               testID="assistant-thinking-indicator"
               style={styles.thinkingContainer}
             >
-              {functionalStatus ?? (
-                <>
-                  {isSending && !error ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={colors.content.link}
-                    />
-                  ) : null}
-                  <StyledText style={[styles.thinkingText, { color: colors.content.link }]}>
-                    {error ?? translate('assistant.thinking')}
-                  </StyledText>
-                </>
-              )}
+              {waitingForAnswer && !error ? <AssistantTypingIndicator /> : null}
+              {functionalStatus}
+              {error && !functionalStatus ? (
+                <StyledText
+                  style={[styles.thinkingText, { color: colors.content.link }]}
+                >
+                  {error}
+                </StyledText>
+              ) : null}
             </View>
           ) : null
         }
       />
 
       {/* 3. Follow-up suggestions */}
-      {!isSending &&
+      {!waitingForAnswer &&
         responses.length > 0 &&
         !responses.at(-1)?.proposedActionIds?.length && (
           <AssistantFollowUpSuggestions
@@ -254,7 +254,7 @@ export function AssistantConversationView({
       <AssistantComposer
         conversationId={conversationId}
         onSendMessage={onSendMessage}
-        loading={isSending}
+        loading={waitingForAnswer}
       />
     </KeyboardAvoidingView>
   );
@@ -274,10 +274,8 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   thinkingContainer: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: 'stretch',
     gap: spacing.xs,
-    justifyContent: 'center',
     marginVertical: spacing.md
   },
   thinkingText: {

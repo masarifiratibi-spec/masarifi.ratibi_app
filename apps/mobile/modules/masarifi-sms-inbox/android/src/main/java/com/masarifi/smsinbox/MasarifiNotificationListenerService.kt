@@ -231,11 +231,13 @@ class MasarifiNotificationListenerService : NotificationListenerService() {
     val blocked=packages("blockedPackages")
     if(notification.packageName in blocked) return@synchronized
     val extras = notification.notification.extras
-    val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-    val text = (
-      extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
-        ?: extras.getCharSequence(Notification.EXTRA_TEXT)
-      )?.toString().orEmpty()
+    val title = extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()?.takeIf { it.isNotBlank() }
+      ?: extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+    // Expanded styles carry the details while compact text can be only a summary.
+    val text = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.takeIf { it.isNotBlank() }
+      ?: extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        ?.filterNot { it.isNullOrBlank() }?.joinToString("\n")?.takeIf { it.isNotBlank() }
+      ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
     if (title.isBlank() && text.isBlank()) return@synchronized
     val oversized=title.length+text.length>8000
     val policy=TrackingOwner.policy(state)

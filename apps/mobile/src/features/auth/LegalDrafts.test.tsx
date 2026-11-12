@@ -26,13 +26,12 @@ it.each([
   ['en', 'Terms & Conditions', 'Privacy Policy'],
   ['ar', 'الشروط والأحكام', 'سياسة الخصوصية']
 ] as const)(
-  'bundles both separate draft documents and their version offline in %s',
+  'opens separate offline terms and privacy documents in %s',
   (locale, terms, privacy) => {
     changeLocale(locale);
     mockDocument = 'terms';
     const view = renderWithProviders(<LegalRoute />);
     expect(view.getAllByText(terms).length).toBeGreaterThan(0);
-    expect(view.getAllByText(/1\.0-draft/).length).toBeGreaterThan(0);
     expect(
       view.getAllByText(/masarifi\.ratibi@gmail\.com/).length
     ).toBeGreaterThan(0);
@@ -45,32 +44,27 @@ it.each([
   }
 );
 
-it('opens the privacy document directly and labels it as a draft without an effective date', () => {
+it('opens the privacy document directly', () => {
   changeLocale('en');
   mockDocument = 'privacy';
   const view = renderWithProviders(<LegalRoute />);
   expect(
     view.getByText('8. Storage, security and offline copies')
   ).toBeTruthy();
-  expect(view.getByText(/not legally approved/i)).toBeTruthy();
   view.unmount();
 });
 
-it('prepares unchecked inactive consent and separate links without blocking or recording registration consent', async () => {
+it('shows document links without blocking registration', async () => {
   changeLocale('en');
   const signIn = jest
     .spyOn(authService, 'signInWithGoogle')
     .mockResolvedValue({ status: 'cancelled' });
   const view = renderWithProviders(<GoogleAuthScreen />);
-  const checkbox = view.getByRole('checkbox');
-  expect(checkbox).toHaveAccessibilityState({ checked: false, disabled: true });
-  expect(view.getByText(/No consent is recorded/i)).toBeTruthy();
   fireEvent.press(view.getByRole('button', { name: 'Terms & Conditions' }));
   expect(router.push).toHaveBeenCalledWith('/legal?document=terms');
   fireEvent.press(view.getByRole('button', { name: 'Privacy Policy' }));
   expect(router.push).toHaveBeenCalledWith('/legal?document=privacy');
   fireEvent.press(view.getByRole('button', { name: 'Continue with Google' }));
   await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
-  expect(checkbox).toHaveAccessibilityState({ checked: false });
   view.unmount();
 });

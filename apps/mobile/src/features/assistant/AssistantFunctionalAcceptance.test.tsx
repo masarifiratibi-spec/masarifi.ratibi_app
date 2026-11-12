@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { FoundationProviders } from '@/state/FoundationProviders';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -202,6 +203,66 @@ it('renders pending and failed questions without requiring an answer', () => {
   expect(screen.getByText(t('assistant.messageStatus.failed'))).toBeTruthy();
 });
 
+it('keeps typing dots through queue and processing, replacing them with the answer', () => {
+  const props = {
+    conversationId: 'sample-chat',
+    responses: [],
+    onSendMessage: jest.fn(),
+    userTurns: [
+      { id: 'request', content: 'My question', status: 'queued', createdAt: 1 }
+    ]
+  };
+  const view = render(<AssistantConversationView {...props} />, {
+    wrapper: FoundationProviders
+  });
+  expect(screen.getByRole('progressbar')).toHaveAccessibilityState({
+    busy: true
+  });
+  expect(screen.queryByText(t('assistant.messageStatus.pending'))).toBeNull();
+  expect(screen.queryByText(t('assistant.thinking'))).toBeNull();
+  view.rerender(
+    <AssistantConversationView
+      {...props}
+      userTurns={[{ ...props.userTurns[0], status: 'processing' }]}
+    />
+  );
+  expect(screen.getByRole('progressbar')).toBeTruthy();
+  view.rerender(
+    <AssistantConversationView
+      {...props}
+      responses={[{ ...response, requestMessageId: 'request' }]}
+    />
+  );
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Sample expenses 270.00 SAR')).toBeTruthy();
+});
+
+it('uses typing dots during initial submission even with an accepted recovery footer', () => {
+  renderWithProviders(
+    <AssistantConversationView
+      conversationId="sample-chat"
+      responses={[]}
+      onSendMessage={jest.fn()}
+      isSending
+      functionalStatus={
+        <AssistantQuestionRecovery
+          operation={{
+            operationId: 'accepted-question',
+            question: 'My question',
+            conversationId: 'sample-chat',
+            messageId: 'request',
+            phase: 'accepted'
+          }}
+          onCheck={jest.fn()}
+        />
+      }
+    />
+  );
+  expect(screen.getByRole('progressbar')).toBeTruthy();
+  expect(screen.queryByText(t('assistant.operation.state.pending'))).toBeNull();
+  expect(screen.queryByText(t('assistant.operation.check'))).toBeNull();
+});
+
 it('retains evidence internally without adding new answer fields and explains limitations', () => {
   renderWithProviders(<AssistantMessageBubble response={response} />);
   expect(response.period).toBe('2026-10-01/2026-10-31');
@@ -228,7 +289,9 @@ it('masks financial prose and reveals locally without altering global masking', 
 it('omits voting actions from ordinary answers', () => {
   renderWithProviders(<AssistantMessageBubble response={response} />);
   expect(screen.queryByLabelText(t('assistant.feedback.helpful'))).toBeNull();
-  expect(screen.queryByLabelText(t('assistant.feedback.notHelpful'))).toBeNull();
+  expect(
+    screen.queryByLabelText(t('assistant.feedback.notHelpful'))
+  ).toBeNull();
 });
 
 it('masks landing insight amounts when financial values are hidden', () => {
