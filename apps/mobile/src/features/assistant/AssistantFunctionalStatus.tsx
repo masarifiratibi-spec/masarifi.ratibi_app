@@ -38,7 +38,8 @@ export function AssistantQuestionRecovery({
 }) {
   if (
     !error &&
-    (!operation || ['completed', 'failed'].includes(operation.phase))
+    (!operation ||
+      ['accepted', 'completed', 'failed'].includes(operation.phase))
   )
     return null;
   const state =

@@ -22,7 +22,9 @@ export default function UnlockRoute() {
       if (useAppShellStore.getState().session !== session) return;
       await useAppShellStore.getState().unlock();
       if (useAppShellStore.getState().session !== session) return;
-      router.replace(resolveEntryRoute({ ...useAppShellStore.getState(), firstLaunchOnboardingCompleted }));
+      const destination = resolveEntryRoute({ ...useAppShellStore.getState(), firstLaunchOnboardingCompleted });
+      // /index is the resolver's loading sentinel; the installed entry URL is /.
+      router.replace(destination === '/index' ? '/' : destination);
     }}
   />;
 }

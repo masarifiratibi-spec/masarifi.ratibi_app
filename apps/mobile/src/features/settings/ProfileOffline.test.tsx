@@ -1,4 +1,6 @@
 import React from 'react';
+import { Platform } from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { QueryClient } from '@tanstack/react-query';
 import { FoundationProviders } from '@/state/FoundationProviders';
@@ -16,6 +18,11 @@ import * as queries from './settings-queries';
 jest.mock('./settings-queries', () => ({
   useSettingsProfile: jest.fn(),
   useSaveSettingsProfile: jest.fn()
+}));
+jest.mock('@react-native-community/datetimepicker', () => ({
+  __esModule: true,
+  default: () => null,
+  DateTimePickerAndroid: { open: jest.fn() }
 }));
 const profile: UserProfile = {
   name: 'Saved owner',
@@ -64,7 +71,93 @@ beforeEach(() => {
     .mocked(queries.useSaveSettingsProfile)
     .mockReturnValue({ mutate, isPending: false } as never);
 });
-afterEach(() => useAppShellStore.setState({ session: savedSession }));
+afterEach(() => {
+  useAppShellStore.setState({ session: savedSession });
+  jest.restoreAllMocks();
+});
+
+it('selects and saves a local birthday with the current profile version and unsent edits', () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  jest
+    .mocked(queries.useSettingsProfile)
+    .mockReturnValue(
+      snapshot({ ...profile, birthday: '2000-02-29', version: 3 }) as never
+    );
+  const view = renderProfile();
+  fireEvent.changeText(
+    view.getByLabelText(t('settings.profile.name')),
+    'Edited name'
+  );
+  fireEvent.press(view.getByText(t('settings.profile.birthday')));
+  expect(DateTimePickerAndroid.open).toHaveBeenCalledTimes(1);
+  const picker = jest.mocked(DateTimePickerAndroid.open).mock.calls[0][0];
+  expect(picker.value.getFullYear()).toBe(2000);
+  expect(picker.value.getMonth()).toBe(1);
+  expect(picker.value.getDate()).toBe(29);
+  expect(picker.maximumDate).toBeInstanceOf(Date);
+  act(() =>
+    picker.onChange?.(
+      { type: 'set', nativeEvent: { timestamp: 0, utcOffset: 180 } },
+      new Date(1996, 5, 15)
+    )
+  );
+  expect(view.getByText('1996-06-15')).toBeTruthy();
+  expect(mutate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      input: expect.objectContaining({
+        birthday: '1996-06-15',
+        name: 'Edited name'
+      }),
+      expectedVersion: 3
+    })
+  );
+});
+
+it('does not save a dismissed birthday or a date in the future', () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  const view = renderProfile();
+  fireEvent.press(view.getByText(t('settings.profile.birthday')));
+  const picker = jest.mocked(DateTimePickerAndroid.open).mock.calls[0][0];
+  act(() =>
+    picker.onChange?.({
+      type: 'dismissed',
+      nativeEvent: { timestamp: 0, utcOffset: 0 }
+    })
+  );
+  act(() =>
+    picker.onChange?.(
+      { type: 'set', nativeEvent: { timestamp: 0, utcOffset: 0 } },
+      new Date(2999, 0, 1)
+    )
+  );
+  expect(mutate).not.toHaveBeenCalled();
+  expect(view.getByText(t('settings.profile.birthday.notSet'))).toBeTruthy();
+});
+
+it('ignores an open birthday picker after switching owners', () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  useAppShellStore.setState({
+    session: {
+      userId: 'owner-a',
+      method: 'google',
+      status: 'authenticated',
+      restoration: 'restored',
+      issuedAt: 1,
+      expiresAt: 9999999999999
+    }
+  });
+  const view = renderProfile();
+  fireEvent.press(view.getByText(t('settings.profile.birthday')));
+  const picker = jest.mocked(DateTimePickerAndroid.open).mock.calls[0][0];
+  act(() => useAppShellStore.setState({ session: null }));
+  act(() =>
+    picker.onChange?.(
+      { type: 'set', nativeEvent: { timestamp: 0, utcOffset: 0 } },
+      new Date(1996, 5, 15)
+    )
+  );
+  expect(mutate).not.toHaveBeenCalled();
+});
 
 it.each(['ar', 'en'] as const)(
   'shows an authorized cached profile after a failed refresh in %s',

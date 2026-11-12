@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
+import DateTimePicker, {
+  DateTimePickerAndroid
+} from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -18,11 +27,14 @@ import { colorTokens } from '@/design-system/tokens';
 import { useAppShellStore } from '@/state/app-shell';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { TransactionDateField } from '@/features/transactions/TransactionDateField';
 
 type ProfileEdits = {
   name?: string;
   email?: string;
   gender?: 'male' | 'female' | null;
+  birthday?: string;
 };
 
 export function ProfileScreen() {
@@ -41,6 +53,11 @@ export function ProfileScreen() {
   const edits = draft.ownerId === ownerId ? draft.edits : {};
   const name = edits.name ?? profile.data?.name ?? '';
   const email = edits.email ?? profile.data?.email ?? '';
+  const birthday = edits.birthday ?? profile.data?.birthday;
+  const [birthdayPicker, setBirthdayPicker] = useState<{
+    ownerId: string | null;
+    date: Date;
+  } | null>(null);
   const selectedGender =
     edits.gender === undefined ? (profile.data?.gender ?? null) : edits.gender;
   const error = draft.ownerId === ownerId ? draft.error : null;
@@ -96,7 +113,7 @@ export function ProfileScreen() {
       : profile.data.avatar;
 
   const saveBlocked = save.isPending || profile.isError || profile.isFetching;
-  const saveFields = (gender = selectedGender) => {
+  const saveFields = (fields: ProfileEdits = {}) => {
     if (saveBlocked) return;
     const trimmedEmail = email.trim();
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
@@ -110,7 +127,9 @@ export function ProfileScreen() {
         ...profile.data,
         name,
         email: trimmedEmail || null,
-        gender
+        gender: selectedGender,
+        birthday,
+        ...fields
       },
       expectedVersion: profile.data.version,
       operationId: `settings-profile-${Date.now()}`
@@ -119,7 +138,37 @@ export function ProfileScreen() {
 
   const handleGenderSelect = (gender: 'male' | 'female') => {
     updateDraft({ gender });
-    saveFields(gender);
+    saveFields({ gender });
+  };
+
+  const saveBirthday = (date: Date) => {
+    if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
+      return;
+    if (date.getTime() > Date.now() || !Number.isFinite(date.getTime())) return;
+    const selected = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    updateDraft({ birthday: selected });
+    saveFields({ birthday: selected });
+    setBirthdayPicker(null);
+  };
+  const openBirthdayPicker = () => {
+    if (saveBlocked) return;
+    const [year, month, day] = birthday?.split('-').map(Number) ?? [];
+    const date =
+      year && month && day
+        ? new Date(year, month - 1, day)
+        : new Date(2000, 0, 1);
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: date,
+        maximumDate: new Date(),
+        mode: 'date',
+        onChange: (event, selected) => {
+          if (event.type === 'set' && selected) saveBirthday(selected);
+        }
+      });
+    } else {
+      setBirthdayPicker({ ownerId, date });
+    }
   };
 
   return (
@@ -235,10 +284,9 @@ export function ProfileScreen() {
             iconFg={colorTokens.raw['D48B17']}
             label={translateDynamic('settings.profile.birthday')}
             value={
-              profile.data.birthday ??
-              translateDynamic('settings.profile.birthday.notSet')
+              birthday ?? translateDynamic('settings.profile.birthday.notSet')
             }
-            onPress={() => {}}
+            onPress={saveBlocked ? undefined : openBirthdayPicker}
             showChevron
           />
 
@@ -332,6 +380,42 @@ export function ProfileScreen() {
           </View>
         </View>
       </View>
+      {birthdayPicker && birthdayPicker.ownerId === ownerId ? (
+        <AppSheet
+          title={translateDynamic('settings.profile.birthday')}
+          visible
+          onDismiss={() => setBirthdayPicker(null)}
+        >
+          {Platform.OS === 'ios' ? (
+            <DateTimePicker
+              value={birthdayPicker.date}
+              maximumDate={new Date()}
+              mode="date"
+              display="spinner"
+              locale={isRtl ? 'ar' : 'en'}
+              themeVariant={theme.mode}
+              onChange={(event, date) => {
+                if (event.type === 'set' && date)
+                  setBirthdayPicker({ ownerId, date });
+              }}
+            />
+          ) : (
+            <TransactionDateField
+              label={translateDynamic('settings.profile.birthday')}
+              value={birthdayPicker.date.getTime()}
+              maximumDate={new Date()}
+              onChange={(timestamp) =>
+                setBirthdayPicker({ ownerId, date: new Date(timestamp) })
+              }
+            />
+          )}
+          <ActionButton
+            label="settings.profile.save"
+            disabled={saveBlocked}
+            onPress={() => saveBirthday(birthdayPicker.date)}
+          />
+        </AppSheet>
+      ) : null}
     </ScrollView>
   );
 }

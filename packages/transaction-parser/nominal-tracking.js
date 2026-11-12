@@ -268,7 +268,7 @@ module.exports = (parser) => {
       for (const m of clause.matchAll(pattern)) {
         const before = clause.slice(0, m.index).toLowerCase();
         if (
-          /(?:balance|avl\.?\s*bal|الرصيد|رصيد|reference|ref\.?|مرجع|الرقم المرجعي|card|account|بطاقة|حساب)\s*(?:is|number|رقم)?\s*[:#*x -]*$/iu.test(
+          /(?:balance|avl\.?\s*bal\.?|الرصيد|رصيد|reference|ref\.?|مرجع|الرقم المرجعي|card|account|بطاقة|حساب)\s*(?:is|number|رقم)?\s*[:#*x -]*$/iu.test(
             before,
           )
         )

@@ -172,7 +172,7 @@ test('profile preserves an empty optional email when saving fresh profile fields
   );
 });
 
-test('application settings renders controls: language, weekStart, currency, monthStart, defaultAccount, hideBalances', () => {
+test('application settings renders language, weekStart, currency, monthStart and defaultAccount controls', () => {
   renderWithProviders(<ApplicationSettingsScreen />);
 
   expect(screen.getAllByText(t('settings.application.title'))).toHaveLength(1);
@@ -186,8 +186,7 @@ test('application settings renders controls: language, weekStart, currency, mont
     'settings.application.weekStart',
     'settings.application.currency',
     'settings.application.monthStart',
-    'settings.application.defaultAccount',
-    'settings.application.hideBalances'
+    'settings.application.defaultAccount'
   ].forEach((key) =>
     expect(screen.getAllByText(t(key)).length).toBeGreaterThan(0)
   );

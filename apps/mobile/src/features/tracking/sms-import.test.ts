@@ -80,6 +80,33 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it('prepares the reported FlexiblePay purchase without using its available balance', async () => {
+    const result = await prepareSmsImport(
+      [
+        message({
+          sender: 'FlexiblePay',
+          body: 'Your FlexiblePay card ending with 4753 has been used for USD 5.25 at ANTHROPIC +14152360599 US. Avl. Bal. is USD 17.95'
+        })
+      ],
+      options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1',
+        currencyAccountPolicy: 'source_currency_v1',
+        accounts: [account({ currencyCode: 'USD', lastFour: '4753' })]
+      })
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      amountMinor: -525,
+      currency: 'USD',
+      sourceAmountDecimal: '5.25',
+      classification: {
+        disposition: 'capture_candidate',
+        instruments: [{ role: 'card', suffix: '4753' }]
+      }
+    });
+    expect(result.skippedFingerprints).toHaveLength(0);
+  });
   it('resolves bare riyal only through a unique trusted instrument, never the default currency', async () => {
     const input = message({ body: 'Purchase 50 ريال with card 4242' });
     const result = await prepareSmsImport(

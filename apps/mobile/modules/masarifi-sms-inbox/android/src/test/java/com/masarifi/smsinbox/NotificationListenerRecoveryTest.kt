@@ -65,6 +65,114 @@ class NotificationListenerRecoveryTest {
 
   private fun stored(): JSONArray = JSONArray(TrackingEncryptedStore(service,"masarifi_notification_queue_v2").read())
 
+  // Receipt wording is synthetic; the source package is the confirmed Samsung Wallet app.
+  @Test fun blankExpandedTextFallsBackToTheFinancialCompactText() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setContentText("Paid AED 16.00 at Synthetic Cafe").build()
+    notification.extras.putCharSequence(Notification.EXTRA_BIG_TEXT,"  ")
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",21,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("com.samsung.android.spay",stored().getJSONObject(0).getString("packageName"))
+    assertEquals("Paid AED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun expandedInboxLinesRetainTheFinancialDetailsInsteadOfTheCompactSummary() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setContentText("Activity update").setStyle(Notification.InboxStyle()
+        .addLine("Purchase approved").addLine("AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",22,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Purchase approved\nAED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun inboxLinesAreRetainedWhenTheCompactTextIsAbsent() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setStyle(Notification.InboxStyle().addLine("Paid AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",23,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Paid AED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun inboxLinesDoNotBypassTheMessagingSourceExclusion() {
+    val notification=Notification.Builder(service).setContentTitle("Wallet")
+      .setStyle(Notification.InboxStyle().addLine("Paid AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.whatsapp",24,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(0,NotificationQueue(service).read(100).size)
+  }
+
+  @Test fun nullAndBlankInboxLinesDoNotMaskTheFinancialCompactText() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setContentText("Paid AED 16.00 at Synthetic Cafe").build()
+    notification.extras.putCharSequenceArray(Notification.EXTRA_TEXT_LINES,arrayOf(null," \t"))
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",25,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Paid AED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun financialExpandedTextStillTakesPriorityOverTheCompactSummary() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setContentText("Activity update").setStyle(Notification.BigTextStyle()
+        .bigText("Paid AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",26,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Paid AED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun samsungWalletInboxLinesStillRejectOtpAndFailedPurchases() {
+    listOf("OTP 123456 purchase AED 16.00","Purchase AED 16.00 failed").forEachIndexed { index, text ->
+      val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+        .setStyle(Notification.InboxStyle().addLine(text)).build()
+      shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",30+index,notification)
+    }
+
+    service.onListenerConnected()
+
+    assertEquals(0,NotificationQueue(service).read(100).size)
+  }
+
+  @Test fun expandedTitleSuppliesTheFinancialActionWhenCompactTitleOnlyNamesTheWallet() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setStyle(Notification.BigTextStyle().setBigContentTitle("Purchase approved")
+        .bigText("AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",40,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Purchase approved",stored().getJSONObject(0).getString("title"))
+    assertEquals("AED 16.00 at Synthetic Cafe",stored().getJSONObject(0).getString("text"))
+  }
+
+  @Test fun blankExpandedTitleFallsBackToTheCompactTitle() {
+    val notification=Notification.Builder(service).setContentTitle("Samsung Wallet")
+      .setStyle(Notification.BigTextStyle().setBigContentTitle(" \t")
+        .bigText("Paid AED 16.00 at Synthetic Cafe")).build()
+    shadowOf(service as NotificationListenerService).addActiveNotification("com.samsung.android.spay",41,notification)
+
+    service.onListenerConnected()
+
+    assertEquals(1,NotificationQueue(service).read(100).size)
+    assertEquals("Samsung Wallet",stored().getJSONObject(0).getString("title"))
+  }
+
   private fun selectGeneration(generation: String) {
     val preferences=service.getSharedPreferences("masarifi_tracking_owner_v2",Context.MODE_PRIVATE)
     val state=JSONObject(preferences.getString("context",null)!!).put("generation",generation)

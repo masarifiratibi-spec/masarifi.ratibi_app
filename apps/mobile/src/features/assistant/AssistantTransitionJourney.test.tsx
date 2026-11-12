@@ -378,7 +378,8 @@ describe('Assistant Transition & Chat Journey', () => {
           questionOperationId: input?.operationId
         });
       });
-      fireEvent.press(screen.getByTestId('follow-up-highest'));
+      expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+      fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
       expect(submitted).toEqual(['إيه آخر معاملة؟']);
       if (edited)
         fireEvent.changeText(
@@ -442,6 +443,85 @@ describe('Assistant Transition & Chat Journey', () => {
     expect(screen.queryByText('assistant.capability.title')).toBeNull();
   });
 
+  it('continues typing for a delayed first reply without showing failed recovery', async () => {
+    const creation = {
+      mutate: jest.fn(),
+      isError: false,
+      error: null as { code: string } | null
+    };
+    mockAssistantQueries.useCreateAssistantConversation.mockReturnValue(
+      creation
+    );
+    renderWithProviders(<AssistantHomeScreen />);
+    fireEvent.changeText(
+      screen.getByTestId('assistant-ask-input'),
+      'My first question'
+    );
+    fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
+    await act(async () => {
+      creation.isError = true;
+      creation.error = { code: 'still_processing' };
+      creation.mutate.mock.calls[0][1].onError(creation.error);
+    });
+    expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+    expect(screen.queryByTestId('assistant-inline-recovery')).toBeNull();
+  });
+
+  it('keeps recovery available for a failed send after a question was accepted', () => {
+    mockAssistantQueries.useAssistantQuestionOperation.mockReturnValue({
+      data: {
+        operationId: 'accepted-request',
+        phase: 'accepted',
+        conversationId: 'conv-101',
+        messageId: 'accepted-message',
+        question: 'My pending question'
+      }
+    });
+    mockAssistantQueries.useAskAssistant.mockReturnValue({
+      mutate: jest.fn(),
+      isError: true,
+      error: { code: 'network_error' }
+    });
+    renderWithProviders(
+      <AssistantConversationScreen conversationId="conv-101" />
+    );
+    expect(screen.getByTestId('assistant-inline-recovery')).toBeOnTheScreen();
+  });
+
+  it.each([
+    { pendingMessageIds: [] },
+    { pendingMessageIds: ['answered-message'] }
+  ])(
+    'stops typing when the answer arrived before pending metadata refreshed: %j',
+    ({ pendingMessageIds }) => {
+      const history = mockAssistantQueries.useAssistantConversation().data;
+      history.responses.items[0].requestMessageId = 'answered-message';
+      history.pendingMessageIds = pendingMessageIds;
+      history.userTurns = [
+        {
+          id: 'answered-message',
+          content: 'My question',
+          status: 'queued',
+          createdAt: 1
+        }
+      ];
+      mockAssistantQueries.useAssistantQuestionOperation.mockReturnValue({
+        data: {
+          operationId: 'accepted-operation',
+          phase: 'accepted',
+          conversationId: 'conv-101',
+          messageId: 'answered-message',
+          question: 'My question'
+        }
+      });
+      renderWithProviders(
+        <AssistantConversationScreen conversationId="conv-101" />
+      );
+      expect(screen.getByTestId('assistant-message-bubble')).toBeOnTheScreen();
+      expect(screen.queryByRole('progressbar')).toBeNull();
+    }
+  );
+
   it('shows a new pending chat turn even while the journal query still holds the preceding completed question', () => {
     const data = mockAssistantQueries.useAssistantConversation().data;
     data.userTurns = [
@@ -476,6 +556,7 @@ describe('Assistant Transition & Chat Journey', () => {
     fireEvent.press(screen.getByTestId('assistant-composer-send-button'));
     expect(ask).toHaveBeenCalledTimes(1);
     expect(screen.getByText('New typed financial question')).toBeTruthy();
+    expect(screen.getByRole('progressbar')).toBeOnTheScreen();
   });
 
   it('resumes an unresolved original with deduplicating navigation and zero replacement questions', () => {

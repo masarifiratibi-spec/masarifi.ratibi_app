@@ -25,7 +25,9 @@ export function UserMessageBubble({
   const { colors } = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
-  const {hidden, reveal} = useAssistantFinancialVisibility(`${message}:${timestamp}`);
+  const { hidden, reveal } = useAssistantFinancialVisibility(
+    `${message}:${timestamp}`
+  );
 
   return (
     <View
@@ -40,7 +42,10 @@ export function UserMessageBubble({
       <View
         style={[
           styles.bubble,
-          { backgroundColor: colors.surfaces.brandSubtle, borderColor: colors.borders.default },
+          {
+            backgroundColor: colors.surfaces.brandSubtle,
+            borderColor: colors.borders.default
+          },
           isRtl ? styles.bubbleRtl : styles.bubbleLtr
         ]}
       >
@@ -56,7 +61,13 @@ export function UserMessageBubble({
         >
           {hidden ? '••••' : message}
         </StyledText>
-        {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
+        {hidden ? (
+          <ActionButton
+            label="assistant.action.revealFinancial"
+            variant="secondary"
+            onPress={reveal}
+          />
+        ) : null}
 
         <View
           style={[
@@ -65,9 +76,26 @@ export function UserMessageBubble({
           ]}
         >
           {timestamp && (
-            <StyledText style={[styles.timestamp, { color: colors.content.secondary }]}>{timestamp}</StyledText>
+            <StyledText
+              style={[styles.timestamp, { color: colors.content.secondary }]}
+            >
+              {timestamp}
+            </StyledText>
           )}
-          {status === undefined || status === 'completed' ? <Text style={[styles.checkmarks, { color: colors.content.link }]}>✓✓</Text> : <StyledText accessibilityLiveRegion="polite" style={[styles.timestamp, { color: colors.content.secondary }]}>{t(`assistant.messageStatus.${status === 'queued' || status === 'processing' ? 'pending' : status === 'failed' || status === 'cancelled' ? 'failed' : 'unknown'}`)}</StyledText>}
+          {status === undefined || status === 'completed' ? (
+            <Text style={[styles.checkmarks, { color: colors.content.link }]}>
+              ✓✓
+            </Text>
+          ) : status === 'queued' || status === 'processing' ? null : (
+            <StyledText
+              accessibilityLiveRegion="polite"
+              style={[styles.timestamp, { color: colors.content.secondary }]}
+            >
+              {t(
+                `assistant.messageStatus.${status === 'failed' || status === 'cancelled' ? 'failed' : 'unknown'}`
+              )}
+            </StyledText>
+          )}
         </View>
       </View>
     </View>
