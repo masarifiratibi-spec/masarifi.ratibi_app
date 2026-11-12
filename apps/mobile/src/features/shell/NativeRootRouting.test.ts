@@ -17,10 +17,16 @@ function appRouteKeys(directory: string, root = directory): string[] {
   });
 }
 
-test.each(['masarifi', 'masarifi-dev', 'masarifi-benchmark'])(
-  'the checked-in route tree accepts the %s root on cold and live native entry',
-  async (scheme) => {
-    const url = `${scheme}:///`;
+test.each([
+  ...['masarifi', 'masarifi-dev', 'masarifi-benchmark'].flatMap((scheme) =>
+    [':///', ':///index', '://index', '://app/index'].map(
+      (suffix) => `${scheme}${suffix}`
+    )
+  ),
+  '/index'
+])(
+  'the checked-in route tree accepts root alias %s on cold and live native entry',
+  async (url) => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(url);
     let receive!: (event: { url: string }) => void;
