@@ -81,6 +81,38 @@ describe('same-image process commands', () => {
     expect(result.status).toBe(0);
   });
 
+  it('contains the security-fixed zlib package and matching shared library bytes', () => {
+    // CVE-2026-76844/CVE-2026-85091: verify the library, not only scanner metadata.
+    const script = `
+      const assert = require('node:assert/strict');
+      const fs = require('node:fs');
+      const crypto = require('node:crypto');
+      const prefix = '/var/lib/dpkg/status.d/zlib1g';
+      assert.match(fs.readFileSync(prefix, 'utf8'), /^Version: 1:1\\.3\\.dfsg\\+really1\\.3\\.1-1\\+deb13u1$/m);
+      const checksums = fs.readFileSync(prefix + '.md5sums', 'utf8').trim().split('\\n');
+      const libraries = checksums.map(line => line.trim().split(/\\s+/))
+        .filter(([, path]) => path.startsWith('usr/lib/') && path.includes('/libz.so.'));
+      assert.ok(libraries.length > 0, 'zlib shared library checksum is missing');
+      for (const [expected, path] of libraries) {
+        const actual = crypto.createHash('md5').update(fs.readFileSync('/' + path)).digest('hex');
+        assert.equal(actual, expected, path);
+      }
+    `;
+    const result = dockerResult([
+      'run',
+      '--rm',
+      '--read-only',
+      '--network',
+      'none',
+      '--entrypoint',
+      '/nodejs/bin/node',
+      imageUnderTest,
+      '-e',
+      script,
+    ]);
+    expect(result.status).toBe(0);
+  });
+
   it.each([
     ['dist/src/main.js', 'API_BOOTSTRAP_FAILED'],
     ['dist/src/worker.js', 'WORKER_BOOTSTRAP_FAILED'],
