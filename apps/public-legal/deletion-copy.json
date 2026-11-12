@@ -1,0 +1,18 @@
+{
+  "ar": {
+    "title": "حذف حساب مصاريفي",
+    "intro": "لطلب حذف حسابك في مصاريفي وراتبي والبيانات المرتبطة به، أرسل طلباً إلى البريد أدناه.",
+    "effect": "يشمل الطلب بيانات الحساب والمعاملات والحسابات المالية والميزانيات والصوت والتتبع المرتبطة بك. صدّر ما تحتاجه من التطبيق أولاً. البيانات غير المتزامنة على جهازك لا تصل إلى الخادم؛ أزلها من الجهاز بشكل منفصل.",
+    "retention": "لا يعني إرسال الطلب اكتمال الحذف. قد تؤخر فترة الانتظار أو التزامات الحفظ النظامي أو تعثر المهام أو معالجة مقدمي الخدمات أو دورة النسخ الاحتياطية اكتماله. قد تبقى سجلات امتثال وأمن محدودة لغرض نظامي. أزل الملفات المصدرة ونسخ المستلمين بشكل منفصل.",
+    "contact": "إذا تعذر استخدام الخدمة أو تسجيل الدخول، أرسل طلب حذف الحساب إلى البريد التالي. اذكر البريد المرتبط بالحساب والمعلومات اللازمة فقط، دون كلمات مرور أو رموز مصادقة أو مستندات مالية غير لازمة. قد نطلب التحقق من هويتك.",
+    "emailNotice": "إرسال البريد يبدأ طلباً ولا يؤكد اكتمال الحذف."
+  },
+  "en": {
+    "title": "Delete your Masarifi account",
+    "intro": "To request deletion of your Masarifi & Ratibi account and associated data, email the address below.",
+    "effect": "The request covers your profile, transactions, financial accounts, budgets, voice and tracking data. Export anything you need in the app first. Unsynced data on your device is not on the server; remove it separately from the device.",
+    "retention": "Submitting a request does not confirm erasure. A waiting period, legal hold, failed tasks, provider processing or backup cycles can delay completion. Limited compliance and security records may remain for a lawful purpose. Remove exported files and recipients' copies separately.",
+    "contact": "If you cannot use the service or sign in, email an account-deletion request to the address below. Include your account email and only necessary information, without passwords, authentication codes or unnecessary financial documents. Identity verification may be required.",
+    "emailNotice": "Sending an email starts a request; it does not confirm deletion."
+  }
+}
