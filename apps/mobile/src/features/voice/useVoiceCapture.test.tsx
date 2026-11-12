@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, renderHook, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -28,6 +28,7 @@ import { VoiceCaptureProvider } from './VoiceCaptureRuntime';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { createLiveVoiceApiService } from '@/services/live/voice-api-service';
+import { translate } from '@/localization/i18n';
 
 const mockCreateFromSource = jest.fn();
 
@@ -304,7 +305,10 @@ it('publishes Ready after backgrounding during v3 handoff without entering legac
     expect(result.current.session.state).toBe('ready');
     expect(voiceAnalyzerService.runBatch).not.toHaveBeenCalled();
     act(() => listeners.forEach((listener) => listener('active')));
-    await act(async () => result.current.start());
+    let starting!: Promise<void>;
+    act(() => { starting = result.current.start(); });
+    fireEvent.press(await screen.findByRole('button', { name: translate('voice.processingConsent.accept') }));
+    await act(async () => starting);
     expect(start).toHaveBeenCalledTimes(1);
     expect(result.current.session.state).toBe('recording');
     expect(legacyRecovery).toHaveBeenCalledTimes(1);

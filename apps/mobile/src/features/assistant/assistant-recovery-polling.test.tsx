@@ -6,7 +6,7 @@ import {
   screen,
   within
 } from '@testing-library/react-native';
-import { renderWithProviders } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { AssistantConversationScreen } from './AssistantHomeScreen';
 import { AssistantMessageBubble } from './components/AssistantMessageBubble';
 import { AppState, type AppStateStatus } from 'react-native';
@@ -152,7 +152,17 @@ async function recoveryHarness(
         }),
         { status: refreshFailure }
       );
-    const payload = path.endsWith('/availability')
+    // These recovery scenarios start with the owner's existing assistant
+    // consent, using the same response contract as the live consent endpoint.
+    const payload = path.endsWith('/consent')
+      ? {
+          policyVersion: 'assistant-privacy-v1',
+          granted: true,
+          grantedAt: at,
+          revokedAt: null,
+          version: 1
+        }
+      : path.endsWith('/availability')
       ? { status: 'available', limit: 30, used: 0, remaining: 30, resetsAt: at }
       : path.endsWith('/result')
         ? {
@@ -596,8 +606,12 @@ it('releases a pre-reserve authentication timeout so reconnecting can send a new
 
 it('acknowledges the actual reused durable operation after a cold-screen send times out and later completes', async () => {
   const h = await recoveryHarness();
-  const chat = renderWithProviders(
-    <AssistantConversationScreen conversationId={conversationId} />
+  // Consent is already known; history and operation queries deliberately stay
+  // cold so the send exercises reuse of the outstanding durable operation.
+  const existingConsent = await mockLiveService.getConsent();
+  const chat = renderWithQueryData(
+    <AssistantConversationScreen conversationId={conversationId} />,
+    [[assistantKeys.consent(), existingConsent]]
   );
   fireEvent.changeText(
     screen.getByTestId('assistant-composer-input'),

@@ -1,5 +1,6 @@
 import { openDatabase } from '@/storage/database';
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   act,
   fireEvent,
@@ -181,6 +182,8 @@ it.each(['en', 'ar'] as const)(
       'VOICE_CANARY_RESTRICTED'
     ]) {
       jest.clearAllMocks();
+      // Each backend-rejection scenario starts without a saved voice choice.
+      await AsyncStorage.clear();
       db.exec('DELETE FROM voice_batch_operations');
       useVoiceCaptureStore.getState().reset();
       useAppShellStore.setState({
@@ -223,6 +226,12 @@ it.each(['en', 'ar'] as const)(
       );
       try {
         fireEvent.press(screen.getByTestId('home-quick-action-voice'));
+        const acceptConsent = await screen.findByRole('button', {
+          name: translate('voice.processingConsent.accept')
+        });
+        expect(start).not.toHaveBeenCalled();
+        expect(calls.some(call => call.method === 'POST' || call.method === 'PUT' || call.url.endsWith('/process'))).toBe(false);
+        fireEvent.press(acceptConsent);
         await waitFor(() =>
           expect(useVoiceCaptureStore.getState().state).toBe('recording')
         );

@@ -195,8 +195,23 @@ const audienceDefinitionSchema = z
       .max(2),
     activity: z.enum(["all", "active", "inactive"]),
     segmentKeys: z.array(z.string()).max(10),
+    appUpdate: z
+      .object({
+        version: z
+          .string()
+          .max(32)
+          .regex(/^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/),
+        versionCode: z.number().int().positive().max(2_100_000_000),
+      })
+      .strict()
+      .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (audience) =>
+      !audience.appUpdate ||
+      (audience.platforms.length === 1 && audience.platforms[0] === "android"),
+  );
 const campaignDetailSchema = z
   .object({
     id: uuidSchema,
@@ -644,7 +659,9 @@ export class CommunicationsRepository {
     );
     return communicationDetailSchema.parse({
       ...this.mapRecord(item),
-      body: item.name,
+      body: item.audience.appUpdate
+        ? `${item.name}\nAndroid ${item.audience.appUpdate.version} (${item.audience.appUpdate.versionCode})`
+        : item.name,
       notes: [],
       attachments: [],
       auditTrail: [],

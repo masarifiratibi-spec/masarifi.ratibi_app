@@ -143,6 +143,32 @@ describe('RootLayout navigation chrome', () => {
     );
   });
 
+  it('allows the data-free update page while retaining the financial privacy lock', () => {
+    useAppShellStore.setState({
+      privacyLock: {
+        enabled: true,
+        autoLockDuration: 'immediate',
+        appLockStatus: 'locked'
+      } as never
+    });
+    mockPathname = '/app-update';
+    render(<RootLayout />);
+    expect(mockPrivacyProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ immediate: false, locked: false })
+    );
+    expect(useAppShellStore.getState().privacyLock?.appLockStatus).toBe(
+      'locked'
+    );
+    act(() => {
+      mockPathname = '/accounts';
+      mockPathListeners.forEach((listener) => listener());
+    });
+    expect(mockPrivacyProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ immediate: true, locked: true })
+    );
+    act(() => useAppShellStore.setState({ privacyLock: null }));
+  });
+
   it.each([
     ['accounts', AccountsLayout],
     ['assistant', AssistantLayout],

@@ -196,3 +196,16 @@ it('rejects unknown engagement response fields', () => {
     }),
   ).toBe(false);
 });
+
+it('documents the strict Android-only update audience alongside ordinary campaigns', () => {
+  const validate = validator('AudienceDefinition');
+  const base = { platforms: ['android'], locales: ['en'], activity: 'all', segmentKeys: [] };
+  expect(validate(base)).toBe(true);
+  expect(validate({ ...base, appUpdate: { version: '1.0.1', versionCode: 140 } })).toBe(true);
+  for (const input of [
+    { ...base, platforms: ['ios'], appUpdate: { version: '1.0.1', versionCode: 140 } },
+    { ...base, appUpdate: { version: '1.0.1', versionCode: '140' } },
+    { ...base, appUpdate: { version: '1.0.1', versionCode: 140, url: 'https://example.test' } },
+  ])
+    expect(validate(input)).toBe(false);
+});

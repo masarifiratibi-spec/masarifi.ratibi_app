@@ -37,6 +37,11 @@ jest.mock('@/features/core-finance/core-finance-queries', () => ({
   invalidateCoreFinanceScopes: jest.fn()
 }));
 jest.mock('@/features/assistant/assistant-queries', () => ({
+  useAssistantConsent: jest.fn(() => ({ data: { status: 'enabled' } })),
+  useSetAssistantConsent: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false
+  })),
   useAssistantConversation: jest.fn(() => ({
     data: mockConversationPage(),
     isLoading: false,
@@ -66,7 +71,9 @@ test('transaction report entry passes only the approved structural context', () 
   );
 
   renderWithProviders(
-    <TransactionActions transaction={mockTransaction() as unknown as Transaction} />
+    <TransactionActions
+      transaction={mockTransaction() as unknown as Transaction}
+    />
   );
   fireEvent.press(
     screen.getByText(translateDynamic('support.report.transaction'))
@@ -140,7 +147,17 @@ function mockConversationPage() {
           blocks: [{ label: 'fact', key: 'private answer', values: {} }],
           responseType: 'direct',
           conversationId: 'conversation-1',
-          snapshot: { reportReference: null, sources: [], values: [], completeness: {confirmed: 0, reviewRequired: 0, conflicts: 0, reasons: []} },
+          snapshot: {
+            reportReference: null,
+            sources: [],
+            values: [],
+            completeness: {
+              confirmed: 0,
+              reviewRequired: 0,
+              conflicts: 0,
+              reasons: []
+            }
+          },
           period: 'sample period',
           dataAsOf: 0,
           createdAt: 1,

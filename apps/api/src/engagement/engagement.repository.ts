@@ -5,6 +5,14 @@ import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import { PoolService } from '../platform/database/pool.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import {
+  configuredAndroidUpdate,
+  needsAndroidUpdate,
+  sameAndroidRelease,
+  type AndroidRelease,
+} from '../platform/meta/android-update-policy';
+import { parseAudience } from './campaign.service';
+import { evaluateDelivery, type QuietHours } from './notification.policy';
 import type { ReminderCandidate } from './engagement.reminders';
 import {
   readSupportWorkload,
@@ -53,7 +61,27 @@ export interface NotificationDeliveryClaim extends QueryResultRow {
   token_ciphertext: string | null;
   token_device_id: string | null;
   token_provider: 'expo' | 'apns' | 'fcm' | null;
+  campaign_update?: unknown;
 }
+
+type PushTarget = Pick<
+  NotificationDeliveryClaim,
+  'token_ciphertext' | 'token_device_id' | 'token_provider'
+>;
+type AndroidUpdateDelivery =
+  | { outcome: 'deliver'; target: PushTarget }
+  | { outcome: 'defer'; until: Date }
+  | { outcome: 'suppress'; reason: string };
+
+// u and r are fixed query aliases. CASE guards each numeric cast for legacy device strings.
+const androidVersion = '(0|[1-9][0-9]{0,8})[.](0|[1-9][0-9]{0,8})[.](0|[1-9][0-9]{0,8})';
+const androidVersionEligible = `case
+  when char_length(u.app_version)>32 then false
+  when u.app_version ~ '^${androidVersion}[+][1-9][0-9]{0,9}$' then
+    split_part(u.app_version,'+',2)::bigint<=2100000000 and split_part(u.app_version,'+',2)::bigint<r.version_code
+  when u.app_version ~ '^${androidVersion}$' then
+    string_to_array(u.app_version,'.')::integer[]<string_to_array(r.version,'.')::integer[]
+  else false end`;
 
 export interface AttachmentScanClaim extends QueryResultRow {
   id: string;
@@ -438,7 +466,7 @@ export class EngagementRepository {
       `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
           coalesce(d.rendered_title,e.title,t.subject,'Masarifi') title,coalesce(d.rendered_body,e.body_safe,t.body) body_safe,
            coalesce(e.data,'{}'::jsonb)||coalesce(d.rendered_data,jsonb_build_object('route','notification_detail')) data,
-          p.token_ciphertext,p.device_id token_device_id,p.provider token_provider
+          p.token_ciphertext,p.device_id token_device_id,p.provider token_provider,c.audience_definition->'appUpdate' campaign_update
          from ${claim} d
          left join public.notification_events e on e.id=d.event_id
          left join public.notification_campaigns c on c.id=d.campaign_id
@@ -448,6 +476,112 @@ export class EngagementRepository {
       [...values],
     );
     return claims.rows;
+  }
+
+  async prepareAndroidUpdateDelivery(
+    claim: NotificationDeliveryClaim,
+    release: AndroidRelease,
+  ): Promise<AndroidUpdateDelivery> {
+    if (!sameAndroidRelease(configuredAndroidUpdate(this.config), release))
+      return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+    return this.worker(async (client) => {
+      const lifecycle = (
+        await client.query<{ status: string; audience_definition: unknown }>(
+          `select c.status,c.audience_definition from private.notification_deliveries d
+         join public.notification_campaigns c on c.id=d.campaign_id
+         join public.notification_templates t on t.id=c.template_id and t.status='published'
+         join public.profiles owner on owner.id=d.user_id and owner.status='active'
+         where d.id=$1 and d.claim_token=$2 and d.user_id=$3 and d.channel='push' and d.status='sending'
+         for share of c`,
+          [claim.id, claim.claim_token, claim.user_id],
+        )
+      ).rows[0];
+      if (!lifecycle) return { outcome: 'suppress', reason: 'APP_UPDATE_INELIGIBLE' };
+      try {
+        const stored = parseAudience(lifecycle.audience_definition).appUpdate;
+        if (
+          !sameAndroidRelease(configuredAndroidUpdate(this.config), stored) ||
+          stored?.version !== release.version ||
+          stored.versionCode !== release.versionCode
+        )
+          return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      } catch {
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      }
+      if (lifecycle.status === 'paused')
+        return { outcome: 'defer', until: new Date(Date.now() + 60_000) };
+      if (!['running', 'completed'].includes(lifecycle.status))
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      const result = await client.query<
+        PushTarget & {
+          app_version: string;
+          audience_definition: unknown;
+          preference_enabled: boolean;
+          quiet_hours: Record<string, unknown>;
+        }
+      >(
+        `select p.token_ciphertext,p.device_id token_device_id,p.provider token_provider,u.app_version,
+          c.audience_definition,not exists(select 1 from public.notification_preferences disabled
+            where disabled.user_id=d.user_id and disabled.channel='push' and not disabled.enabled) preference_enabled,
+          coalesce(pref.quiet_hours,(select shared.quiet_hours from public.notification_preferences shared
+            where shared.user_id=d.user_id and shared.channel='push' and shared.quiet_hours->>'enabled'='true'
+            order by shared.updated_at desc,shared.id desc limit 1),'{}'::jsonb) quiet_hours
+         from private.notification_deliveries d
+         join public.notification_campaigns c on c.id=d.campaign_id
+         join public.notification_templates t on t.id=c.template_id and t.status='published'
+         join public.profiles owner on owner.id=d.user_id and owner.status='active'
+         join public.push_tokens p on p.user_id=d.user_id and p.revoked_at is null and p.provider in ('expo','fcm')
+         join public.user_devices u on u.user_id=p.user_id and u.id=p.device_id
+           and u.platform='android' and u.revoked_at is null
+         left join public.notification_preferences pref on pref.user_id=d.user_id and pref.channel='push' and pref.event_type=t.key
+         where d.id=$1 and d.claim_token=$2 and d.user_id=$3 and d.channel='push' and d.status='sending'
+           and c.status in ('running','completed')
+         order by p.updated_at desc,p.id desc`,
+        [claim.id, claim.claim_token, claim.user_id],
+      );
+      const candidate = result.rows.find((row) => needsAndroidUpdate(row.app_version, release));
+      if (!candidate) return { outcome: 'suppress', reason: 'APP_UPDATE_INELIGIBLE' };
+      try {
+        const audience = parseAudience(candidate.audience_definition);
+        if (
+          !sameAndroidRelease(configuredAndroidUpdate(this.config), audience.appUpdate) ||
+          audience.appUpdate?.version !== release.version ||
+          audience.appUpdate.versionCode !== release.versionCode
+        )
+          return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+        const quiet = candidate.quiet_hours;
+        const decision = evaluateDelivery({
+          channel: 'push',
+          enabled: candidate.preference_enabled,
+          now: new Date(),
+          ...(quiet.enabled === true ? { quietHours: quiet as unknown as QuietHours } : {}),
+        });
+        if (decision.outcome === 'defer') return decision;
+        if (decision.outcome === 'suppress')
+          return { outcome: 'suppress', reason: `PREFERENCE_${decision.reason.toUpperCase()}` };
+        return {
+          outcome: 'deliver',
+          target: {
+            token_ciphertext: candidate.token_ciphertext,
+            token_device_id: candidate.token_device_id,
+            token_provider: candidate.token_provider,
+          },
+        };
+      } catch {
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      }
+    });
+  }
+
+  async deferNotificationDelivery(id: string, claimToken: string, until: Date): Promise<void> {
+    await this.worker(async (client) => {
+      await client.query(
+        `update private.notification_deliveries set status='queued',next_attempt_at=$3,
+          attempt_count=greatest(0,attempt_count-1),claim_token=null,claimed_by=null,lease_until=null
+         where id=$1 and claim_token=$2 and status='sending'`,
+        [id, claimToken, until],
+      );
+    });
   }
 
   async reminderDeliveryEligible(eventId: string, userId: string): Promise<boolean> {
@@ -590,23 +724,56 @@ export class EngagementRepository {
         )
       ).rows[0];
       if (!campaign) return 0;
+      let update: AndroidRelease | undefined;
+      if (campaign.audience_definition.appUpdate !== undefined) {
+        try {
+          update = parseAudience(campaign.audience_definition).appUpdate;
+          if (
+            campaign.channel !== 'push' ||
+            !sameAndroidRelease(configuredAndroidUpdate(this.config), update)
+          )
+            throw new Error('APP_UPDATE_STALE');
+        } catch {
+          await client.query(
+            `update public.notification_campaigns set status='cancelled' where id=$1`,
+            [campaign.id],
+          );
+          await client.query(
+            `update private.notification_deliveries set status='suppressed',error_code='APP_UPDATE_STALE',next_attempt_at=null
+            where campaign_id=$1 and status in ('queued','failed')`,
+            [campaign.id],
+          );
+          return 0;
+        }
+      }
+      if (update) {
+        // Serialize all campaigns for this release before checking prior owner deliveries.
+        await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
+          `android-update:${update.version}:${String(update.versionCode)}`,
+        ]);
+      }
       await client.query(
         `update public.notification_campaigns set status='running' where id=$1 and status='scheduled'`,
         [campaign.id],
       );
       const inserted = await client.query(
         `insert into private.notification_deliveries(campaign_id,user_id,channel,provider,rendered_title,rendered_body,rendered_data,next_attempt_at)
-         select $1,p.id,$2,case $2 when 'push' then 'push' when 'email' then 'smtp' else 'database' end,$8,$9,jsonb_build_object('route','notification_detail'),clock_timestamp()
-         from public.profiles p where p.status='active'
+         select $1,p.id,$2,case $2 when 'push' then 'push' when 'email' then 'smtp' else 'database' end,$8,$9,$12::jsonb,clock_timestamp()
+         from public.profiles p cross join (select $10::text version,$11::bigint version_code) r where p.status='active'
            and p.id>coalesce((select max(existing.user_id) from private.notification_deliveries existing where existing.campaign_id=$1),'')
            and (coalesce(cardinality($4::text[]),0)=0 or p.locale=any($4::text[]))
            and ($5='all' or ($5='active' and p.last_seen_at>=clock_timestamp()-interval '30 days')
              or ($5='inactive' and (p.last_seen_at is null or p.last_seen_at<clock_timestamp()-interval '30 days')))
            and (coalesce(cardinality($6::text[]),0)=0 or exists(
              select 1 from public.user_devices u where u.user_id=p.id and u.revoked_at is null and u.platform=any($6::text[])))
+           and (r.version is null or exists(select 1 from public.user_devices u
+             where u.user_id=p.id and u.revoked_at is null and u.platform='android' and (${androidVersionEligible})))
            and (not ('salary_users'=any($7::text[])) or exists(select 1 from public.salary_profiles s where s.user_id=p.id and s.deleted_at is null))
            and not exists(select 1 from public.notification_preferences pref where pref.user_id=p.id and pref.channel=$2 and not pref.enabled)
            and not exists(select 1 from private.notification_deliveries d where d.campaign_id=$1 and d.user_id=p.id and d.channel=$2)
+           and (r.version is null or not exists(select 1 from private.notification_deliveries prior
+             where prior.user_id=p.id and prior.channel='push' and prior.rendered_data->>'route'='app_update'
+               and prior.rendered_data->'appUpdate'=($12::jsonb)->'appUpdate'))
          order by p.id limit $3 on conflict do nothing`,
         [
           campaign.id,
@@ -618,6 +785,11 @@ export class EngagementRepository {
           campaign.audience_definition.segmentKeys ?? [],
           campaign.subject ?? 'Masarifi',
           campaign.body,
+          update?.version ?? null,
+          update?.versionCode ?? null,
+          JSON.stringify(
+            update ? { route: 'app_update', appUpdate: update } : { route: 'notification_detail' },
+          ),
         ],
       );
       if ((inserted.rowCount ?? 0) < limit) {
@@ -944,6 +1116,33 @@ export class EngagementRepository {
     const input = commandBody(command);
     const databaseInput = databaseCommandBody(command);
     const id = Object.values(command.params ?? {})[0] ?? null;
+    let updateAudience: ReturnType<typeof parseAudience> | undefined;
+    if (
+      command.operation === 'adminPreviewNotificationAudience' ||
+      command.operation === 'adminCreateNotificationCampaign'
+    ) {
+      updateAudience = this.validateUpdateAudience(
+        command.operation === 'adminPreviewNotificationAudience' ? input : input.audience,
+      );
+      if (updateAudience?.appUpdate && command.operation === 'adminCreateNotificationCampaign') {
+        const template = await client.query<{ channel: string }>(
+          `select channel from public.notification_templates where id=$1 and status='published'`,
+          [input.templateId],
+        );
+        if (template.rows[0]?.channel !== 'push')
+          throw new HttpException({ code: 'APP_UPDATE_PUSH_REQUIRED' }, 400);
+      }
+    }
+    if (
+      command.operation === 'adminActOnNotificationCampaign' &&
+      ['approve', 'schedule', 'send_now', 'resume'].includes(String(input.action))
+    ) {
+      const campaign = await client.query<{ audience_definition: unknown }>(
+        'select audience_definition from public.notification_campaigns where id=$1',
+        [id],
+      );
+      if (campaign.rows[0]) this.validateUpdateAudience(campaign.rows[0].audience_definition);
+    }
     let sql: string;
     let values: unknown[];
     switch (command.operation) {
@@ -1006,6 +1205,19 @@ export class EngagementRepository {
           requestId: command.requestId,
         }
       : { ...(result as Record<string, unknown>), requestId: command.requestId };
+  }
+
+  private validateUpdateAudience(input: unknown): ReturnType<typeof parseAudience> | undefined {
+    if (!input || typeof input !== 'object' || !('appUpdate' in input)) return undefined;
+    let audience: ReturnType<typeof parseAudience>;
+    try {
+      audience = parseAudience(input);
+    } catch {
+      throw new HttpException({ code: 'APP_UPDATE_UNAVAILABLE' }, 409);
+    }
+    if (!sameAndroidRelease(configuredAndroidUpdate(this.config), audience.appUpdate))
+      throw new HttpException({ code: 'APP_UPDATE_UNAVAILABLE' }, 409);
+    return audience;
   }
 
   private async one(client: PoolClient, sql: string, values: unknown[]): Promise<unknown> {

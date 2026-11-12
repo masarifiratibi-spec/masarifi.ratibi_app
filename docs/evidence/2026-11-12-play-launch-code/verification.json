@@ -1,0 +1,65 @@
+{
+  "verifiedAtUtc": "2026-11-12T15:51:07.7264004Z",
+  "sourceStatus": "prepared-and-verified-locally",
+  "admin": {
+    "failed": 0,
+    "files": 112,
+    "exitCode": 0,
+    "passed": 1070,
+    "workers": 2
+  },
+  "pending": [
+    "actual disposable PostgreSQL tests",
+    "deployed anonymous legal and deletion pages",
+    "publisher identity and retention confirmation",
+    "Console permissions/data safety/financial/app access declarations",
+    "account eligibility/testing and SMS exception review",
+    "final Play bundle/signing and physical-device acceptance",
+    "later authorized publication policy and campaign activation"
+  ],
+  "typecheck": {
+    "api": "passed",
+    "mobile": "passed",
+    "admin": "passed"
+  },
+  "mobile": {
+    "skipped": 0,
+    "suites": 627,
+    "failed": 0,
+    "passed": 5169,
+    "workerTeardownWarning": true,
+    "exitCode": 0,
+    "workers": 2
+  },
+  "apiFocused": {
+    "passed": 158,
+    "actualPostgresSkipped": 6
+  },
+  "independentReview": {
+    "resolvedFindings": 7,
+    "finalLocalizationAndSupportDelta": "reviewed",
+    "remainingActionableSourceFindings": 0
+  },
+  "notPerformed": [
+    "new binary/frontend/container builds",
+    "deployment or DNS changes",
+    "real customer push",
+    "live account deletion",
+    "actual-PostgreSQL acceptance",
+    "Play Console mutation or submission",
+    "GitHub push or new CI run"
+  ],
+  "schemaVersion": 1,
+  "mobileFrontendQualityBoundaries": "passed",
+  "lint": {
+    "adminChangedFiles": "passed",
+    "mobileChangedFiles": "passed",
+    "api": "passed"
+  },
+  "apiUnit": {
+    "failed": 0,
+    "exitCode": 0,
+    "suites": 208,
+    "passed": 2300
+  }
+}

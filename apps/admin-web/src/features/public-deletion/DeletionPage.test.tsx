@@ -48,6 +48,7 @@ async function confirm() {
 }
 const id = "00000000-0000-4000-8000-000000000001";
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   sessionStorage.clear();
   fixture.listeners = [];
   fixture.clerk.user = { id: "owner" };
@@ -130,4 +131,23 @@ it("can refresh the scoped completion receipt after deletion revokes sign-in", a
     /^Bearer [a-f0-9]{64}$/,
   );
   expect(element.querySelector('input[type="checkbox"]')).toBeNull();
+});
+
+it("offers a real contact request and public legal documents when automated deletion is unavailable", async () => {
+  element = document.createElement("div");
+  document.body.append(element);
+  root = createRoot(element);
+  await act(async () => root.render(<DeletionPage enabled={false} />));
+  expect(element.querySelector('a[href="/privacy?lang=ar"]')).not.toBeNull();
+  expect(element.querySelector('a[href="/terms?lang=ar"]')).not.toBeNull();
+  await click("English");
+  const contact = element.querySelector<HTMLAnchorElement>('a[href^="mailto:masarifi.ratibi@gmail.com"]');
+  expect(contact?.textContent).toContain("masarifi.ratibi@gmail.com");
+  expect(contact?.getAttribute("href")).toContain("subject=Account%20deletion%20request");
+  expect(element.textContent).toContain("Sending an email starts a request; it does not confirm deletion.");
+  expect(element.textContent).toContain("backup cycles");
+  expect(element.querySelector('a[href="/privacy?lang=en"]')).not.toBeNull();
+  expect(element.querySelector('a[href="/terms?lang=en"]')).not.toBeNull();
+  expect(element.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(element.querySelector('[role="status"]')).toBeNull();
 });

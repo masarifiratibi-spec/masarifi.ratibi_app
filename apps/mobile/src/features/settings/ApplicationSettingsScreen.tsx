@@ -18,6 +18,7 @@ import { colorTokens } from '@/design-system/tokens';
 import { ReminderConsentControl } from '@/features/notifications/ReminderConsentControl';
 import { isMobileAutomationEnabled } from '@/config/mobile-automation';
 import { useAppShellStore } from '@/state/app-shell';
+import { AppUpdateSettingsEntry } from '@/features/app-update/AppUpdateNotice';
 
 export function ApplicationSettingsScreen() {
   const theme = useTheme();
@@ -618,6 +619,7 @@ export function ApplicationSettingsScreen() {
           </View>
         </View>
       </View>
+      <AppUpdateSettingsEntry />
     </ScrollView>
   );
 }

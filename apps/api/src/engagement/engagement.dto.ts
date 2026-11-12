@@ -105,7 +105,10 @@ const BODY_SHAPES: Readonly<Record<string, readonly [readonly string[], readonly
     ['action', 'expectedVersion', 'reason'],
     ['action', 'expectedVersion', 'reason'],
   ],
-  adminPreviewNotificationAudience: [['platforms', 'locales', 'activity', 'segmentKeys'], []],
+  adminPreviewNotificationAudience: [
+    ['platforms', 'locales', 'activity', 'segmentKeys', 'appUpdate'],
+    [],
+  ],
   adminCreateNotificationCampaign: [
     [
       'name',
@@ -318,9 +321,19 @@ function validateOperationBody(operation: string, body: Record<string, unknown>)
         : [],
   );
 
-  if (operation === 'adminPreviewNotificationAudience') parseAudience(body);
+  if (operation === 'adminPreviewNotificationAudience') {
+    try {
+      parseAudience(body);
+    } catch {
+      throw new Error('ENGAGEMENT_INPUT_INVALID');
+    }
+  }
   if (operation === 'adminCreateNotificationCampaign') {
-    parseAudience(body.audience);
+    try {
+      parseAudience(body.audience);
+    } catch {
+      throw new Error('ENGAGEMENT_INPUT_INVALID');
+    }
     oneOf('scheduleMode', ['send_now', 'scheduled']);
     if (
       (body.scheduleMode === 'scheduled') !== (typeof body.scheduledAt === 'string') ||

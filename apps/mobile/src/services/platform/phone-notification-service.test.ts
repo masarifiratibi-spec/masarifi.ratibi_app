@@ -16,6 +16,11 @@ jest.mock('expo-constants', () => ({
 jest.mock('expo-crypto', () => ({
   randomUUID: () => 'device-fingerprint-000000000001'
 }));
+jest.mock('expo-application', () => ({
+  __esModule: true,
+  nativeApplicationVersion: '0.0.1',
+  nativeBuildVersion: null
+}));
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
@@ -62,6 +67,51 @@ const mockSecureStore = jest.requireMock('expo-secure-store') as {
   getItemAsync: jest.Mock;
   setItemAsync: jest.Mock;
 };
+
+test('includes the actual Android build code in registered device metadata', async () => {
+  const previousOS = Platform.OS;
+  Object.defineProperty(Platform, 'OS', {
+    value: 'android',
+    configurable: true
+  });
+  const constants = jest.requireMock('expo-constants').default;
+  const application = jest.requireMock('expo-application');
+  application.nativeBuildVersion = '140';
+  constants.platform = { android: { versionCode: 999 } };
+  try {
+    const registration = await getDeviceRegistration();
+    expect(registration?.appVersion).toBe('0.0.1+140');
+  } finally {
+    delete constants.platform;
+    application.nativeBuildVersion = null;
+    Object.defineProperty(Platform, 'OS', {
+      value: previousOS,
+      configurable: true
+    });
+  }
+});
+
+test('recognizes an update push without accepting a remote URL as a destination', async () => {
+  mockNotifications.getLastNotificationResponseAsync.mockResolvedValueOnce({
+    actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER,
+    notification: {
+      request: {
+        content: {
+          data: {
+            route: 'app_update',
+            notificationId: '00000000-0000-4000-8000-000000000140',
+            url: 'https://evil.invalid'
+          }
+        }
+      }
+    }
+  });
+  expect(await createPhoneNotificationService().getLastResponse()).toEqual({
+    kind: 'app_update',
+    notificationId: '00000000-0000-4000-8000-000000000140',
+    action: 'view'
+  });
+});
 
 describe('phone notification platform service', () => {
   beforeEach(() => {
@@ -239,19 +289,47 @@ describe('phone notification platform service', () => {
   it('maps validated guest resume taps without a server notification id', async () => {
     mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({
       actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER,
-      notification: { request: { content: { data: { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73' } } } }
+      notification: {
+        request: {
+          content: {
+            data: {
+              kind: 'onboarding_resume',
+              cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73'
+            }
+          }
+        }
+      }
     });
-    await expect(createPhoneNotificationService().getLastResponse()).resolves.toEqual({ kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', action: 'view' });
+    await expect(
+      createPhoneNotificationService().getLastResponse()
+    ).resolves.toEqual({
+      kind: 'onboarding_resume',
+      cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73',
+      action: 'view'
+    });
   });
 
   it.each([
     { kind: 'onboarding_resume', cycleId: '../accounts/previous-owner' },
-    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', notificationId: 'previous-owner' },
+    {
+      kind: 'onboarding_resume',
+      cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73',
+      notificationId: 'previous-owner'
+    },
     { kind: 'unknown', notificationId: 'previous-owner' },
-    { kind: 'onboarding_resume', cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73', route: '/accounts/previous-owner' }
+    {
+      kind: 'onboarding_resume',
+      cycleId: '78c71e06-457f-4f20-95f6-9db73c114a73',
+      route: '/accounts/previous-owner'
+    }
   ])('rejects untrusted mixed or arbitrary resume payload %j', async (data) => {
-    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({ actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER, notification: { request: { content: { data } } } });
-    await expect(createPhoneNotificationService().getLastResponse()).resolves.toBeNull();
+    mockNotifications.getLastNotificationResponseAsync.mockResolvedValue({
+      actionIdentifier: mockNotifications.DEFAULT_ACTION_IDENTIFIER,
+      notification: { request: { content: { data } } }
+    });
+    await expect(
+      createPhoneNotificationService().getLastResponse()
+    ).resolves.toBeNull();
   });
 });
 

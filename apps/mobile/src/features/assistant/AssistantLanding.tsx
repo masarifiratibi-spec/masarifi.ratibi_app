@@ -34,6 +34,7 @@ export interface AssistantLandingProps {
   onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void | Promise<boolean>;
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
+  onDisableConsent?: () => void;
   insight?: AssistantFinancialInsight;
   conversations?: readonly { id: string; title: string }[];
   onSelectConversation?: (id: string) => void;
@@ -48,6 +49,7 @@ export function AssistantLanding({
   onAskQuestion,
   consent,
   onEnableConsent,
+  onDisableConsent,
   insight,
   loading = false,
   consentLoading = false,
@@ -85,6 +87,7 @@ export function AssistantLanding({
   });
 
   const handleAskQuestion = async (question: string, intent?: AssistantQuestionIntent) => {
+    if (consent?.status !== 'enabled' || consentLoading) return;
     const revision = question === draft.text.trim() ? draft.revision : null;
     const accepted = intent === undefined ? await onAskQuestion(question) : await onAskQuestion(question, intent);
     if (accepted === true && revision) await draft.discard(revision);
@@ -110,17 +113,17 @@ export function AssistantLanding({
           <AssistantHero />
 
           {/* 3. Main Question Input Card */}
-          <AssistantAskCard text={draft.text} onChangeText={draft.change}
-            onAskQuestion={question => { void handleAskQuestion(question).catch(() => undefined); }}
-            loading={loading || draft.loading} />
-          <AssistantDraftStatus draft={draft} />
-
-          {/* 4. Personalization Card */}
           <AssistantConsentCard
             consent={consent}
             onEnableConsent={onEnableConsent}
+            onDisableConsent={onDisableConsent}
             loading={consentLoading}
           />
+          <AssistantAskCard text={draft.text} onChangeText={draft.change}
+            canSend={consent?.status === 'enabled' && !consentLoading}
+            onAskQuestion={question => { void handleAskQuestion(question).catch(() => undefined); }}
+            loading={loading || draft.loading} />
+          <AssistantDraftStatus draft={draft} />
 
           {/* Error message if any */}
           {error && (
@@ -132,7 +135,7 @@ export function AssistantLanding({
           {/* 5. Quick Suggestions 2x2 Grid */}
           <AssistantSuggestedQuestions
             onSelectQuestion={(question, intent) => { void handleAskQuestion(question, intent).catch(() => undefined); }}
-            disabled={loading || draft.loading}
+            disabled={loading || draft.loading || consentLoading || consent?.status !== 'enabled'}
           />
 
           {insight ? (

@@ -14,6 +14,24 @@ describe('AssistantLanding', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it('keeps manual entry available while assistant consent cannot load', () => {
+    renderWithProviders(<AssistantLanding onAskQuestion={jest.fn()} onEnableConsent={jest.fn()} consentLoading />);
+    expect(screen.getByRole('button', { name: translate('appShell.permission.manualFallback') })).toBeEnabled();
+  });
+
+  it.each(['not_requested', 'disabled'] as const)('keeps the draft and prevents typed and suggested dispatch while consent is %s', async status => {
+    const ask = jest.fn();
+    renderWithProviders(<AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()}
+      consent={{ status, version: 1, disclosedDataCategories: ['transactions'], consentedAt: null, disabledAt: null }} />);
+    fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'Private question');
+    expect(screen.getByTestId('assistant-ask-submit-button')).toBeDisabled();
+    fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
+    fireEvent.press(screen.getByTestId('suggestion-card-spending'));
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByTestId('assistant-ask-input').props.value).toBe('Private question');
+    expect(screen.getByTestId('assistant-consent-enable-button')).toBeOnTheScreen();
+  });
+
   it.each([
     ['ar', 'تبي تتجاهل السؤال اللي ما أرسلته؟', 'متابعة الكتابة', 'تجاهل السؤال'],
     ['en', 'Discard this question?', 'Keep editing', 'Discard question']
@@ -56,7 +74,8 @@ describe('AssistantLanding', () => {
     const ask = jest.fn();
     renderWithProviders(
       <ThemeContext.Provider value={{ theme }}>
-        <AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()} error="Network error" />
+        <AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()} error="Network error"
+          consent={{ status: 'enabled', version: 1, disclosedDataCategories: ['transactions'], consentedAt: 1, disabledAt: null }} />
       </ThemeContext.Provider>
     );
     expect(screen.getByTestId('assistant-landing')).toHaveStyle({ backgroundColor: theme.colors.surfaces.page });
@@ -121,7 +140,7 @@ describe('AssistantLanding', () => {
       'كم أنفقت على الطعام؟'
     );
     fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
-    expect(onAskQuestion).toHaveBeenCalledWith('كم أنفقت على الطعام؟');
+    expect(onAskQuestion).not.toHaveBeenCalled();
   });
 
   it('submits quick suggestion when tapped', () => {
@@ -130,6 +149,7 @@ describe('AssistantLanding', () => {
       <AssistantLanding
         onAskQuestion={onAskQuestion}
         onEnableConsent={jest.fn()}
+        consent={{ status: 'enabled', version: 1, disclosedDataCategories: ['transactions'], consentedAt: 1, disabledAt: null }}
       />
     );
 

@@ -16,20 +16,22 @@ export interface AssistantAskCardProps {
   onChangeText: (text: string) => void;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
+  canSend?: boolean;
 }
 
 export function AssistantAskCard({
   text,
   onChangeText,
   onAskQuestion,
-  loading = false
+  loading = false,
+  canSend = true
 }: AssistantAskCardProps) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
 
-  const disabled = !text.trim() || loading;
+  const disabled = !text.trim() || loading || !canSend;
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (disabled) return;

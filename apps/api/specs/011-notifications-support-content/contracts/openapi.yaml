@@ -800,7 +800,24 @@ components:
       type: object
       additionalProperties: false
       required: [platforms,locales,activity,segmentKeys]
-      properties: { platforms: { type: array, minItems: 1, maxItems: 3, uniqueItems: true, items: { type: string, enum: [ios,android,web] } }, locales: { type: array, minItems: 1, maxItems: 2, uniqueItems: true, items: { $ref: '#/components/schemas/Locale' } }, activity: { type: string, enum: [all,active,inactive] }, segmentKeys: { type: array, maxItems: 10, uniqueItems: true, items: { type: string, pattern: '^[a-z][a-z0-9_-]{1,63}$' } } }
+      description: Update audiences are bound to the active published Android release. Preview counts are aggregate upper bounds; final installed-version, token, preference and duplicate-release checks occur during expansion and delivery.
+      properties:
+        platforms: { type: array, minItems: 1, maxItems: 3, uniqueItems: true, items: { type: string, enum: [ios,android,web] } }
+        locales: { type: array, minItems: 1, maxItems: 2, uniqueItems: true, items: { $ref: '#/components/schemas/Locale' } }
+        activity: { type: string, enum: [all,active,inactive] }
+        segmentKeys: { type: array, maxItems: 10, uniqueItems: true, items: { type: string, pattern: '^[a-z][a-z0-9_-]{1,63}$' } }
+        appUpdate:
+          type: object
+          additionalProperties: false
+          required: [version,versionCode]
+          properties:
+            version: { type: string, maxLength: 32, pattern: '^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$' }
+            versionCode: { type: integer, minimum: 1, maximum: 2100000000 }
+      allOf:
+        - if: { required: [appUpdate] }
+          then:
+            properties:
+              platforms: { type: array, minItems: 1, maxItems: 1, items: { type: string, enum: [android] } }
     AudiencePreview:
       type: object
       additionalProperties: false

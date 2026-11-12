@@ -123,7 +123,8 @@ export type PhoneNotificationResponse =
       notificationId: string;
       action: NotificationActionKind;
     }
-  | { kind: 'onboarding_resume'; cycleId: string; action: 'view' };
+  | { kind: 'onboarding_resume'; cycleId: string; action: 'view' }
+  | { kind: 'app_update'; notificationId: string; action: 'view' };
 
 export interface NotificationService {
   list(input: NotificationListQuery): Promise<Page<NotificationEvent>>;

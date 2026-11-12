@@ -6,6 +6,10 @@ import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ClerkClientService } from '../identity/clerk-client.service';
 import { PushTokenCrypto } from '../identity/push-token.crypto';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import {
+  configuredAndroidUpdate,
+  sameAndroidRelease,
+} from '../platform/meta/android-update-policy';
 import { createTlsMailTransport } from '../reports/reports.smtp';
 import { ENGAGEMENT_SOURCE_EVENTS } from './engagement.events';
 import { reminderSource } from './engagement.reminders';
@@ -332,6 +336,50 @@ export class EngagementWorker implements OnModuleDestroy {
 
   private async deliver(claim: NotificationDeliveryClaim): Promise<void> {
     const startedAt = performance.now();
+    if (
+      claim.data.route === 'app_update' ||
+      claim.data.appUpdate !== undefined ||
+      claim.campaign_update != null
+    ) {
+      const policy = configuredAndroidUpdate(this.config);
+      if (
+        !policy.release ||
+        claim.channel !== 'push' ||
+        claim.data.route !== 'app_update' ||
+        !sameAndroidRelease(policy, claim.data.appUpdate)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      const release = policy.release;
+      const decision = await this.repository.prepareAndroidUpdateDelivery(claim, release);
+      if (decision.outcome === 'defer') {
+        await this.repository.deferNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          decision.until,
+        );
+        return;
+      }
+      if (
+        decision.outcome === 'suppress' ||
+        !sameAndroidRelease(configuredAndroidUpdate(this.config), release)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          decision.outcome === 'suppress' ? decision.reason : 'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      claim = { ...claim, ...decision.target };
+    }
     if (
       claim.channel === 'push' &&
       claim.event_id &&
