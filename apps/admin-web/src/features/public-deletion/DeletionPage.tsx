@@ -19,7 +19,7 @@ const copy = {
     effect:
       "يشمل الطلب بيانات الحساب والمعاملات والحسابات المالية والميزانيات والصوت والتتبع المرتبطة بك. صدّر ما تحتاجه من التطبيق أولاً. البيانات غير المتزامنة على جهازك لا تصل إلى الخادم؛ أزلها من الجهاز بشكل منفصل.",
     retention:
-      "لا يعني إرسال الطلب اكتمال الحذف. قد تؤخر فترة الانتظار أو التزام الاحتفاظ القانوني المعالجة. تظهر حالة الطلب أدناه؛ لا نعرض تأكيد الإزالة إلا بعد إكمال المعالجة. قد تبقى سجلات امتثال وأمن محدودة وفق سياسة الاحتفاظ المطبقة.",
+      "لا يعني إرسال الطلب اكتمال الحذف. قد تؤخر فترة الانتظار أو التزامات الحفظ النظامي أو تعثر المهام أو معالجة مقدمي الخدمات أو دورة النسخ الاحتياطية اكتماله. تظهر حالة الطلب أدناه؛ لا نعرض تأكيد الإزالة إلا بعد إكمال المعالجة. قد تبقى سجلات امتثال وأمن محدودة لغرض نظامي. أزل الملفات المصدرة ونسخ المستلمين بشكل منفصل.",
     confirm: "أفهم أن حذف الحساب نهائي بعد اكتماله، وأطلب حذف حسابي وبياناته.",
     submit: "طلب حذف الحساب",
     refresh: "تحديث الحالة",
@@ -28,6 +28,12 @@ const copy = {
       "سجّل الدخول بالحساب الذي تريد حذفه. قد يُطلب منك تأكيد هويتك مرة أخرى.",
     unavailable:
       "خدمة طلب الحذف غير متاحة حالياً. حاول لاحقاً أو استخدم الخصوصية داخل تطبيق مصاريفي.",
+    contact:
+      "إذا تعذر استخدام الخدمة أو تسجيل الدخول، أرسل طلب حذف الحساب إلى البريد التالي. اذكر البريد المرتبط بالحساب والمعلومات اللازمة فقط، دون كلمات مرور أو رموز مصادقة أو مستندات مالية غير لازمة. قد نطلب التحقق من هويتك.",
+    emailNotice: "إرسال البريد يبدأ طلباً ولا يؤكد اكتمال الحذف.",
+    legal: "معلومات قانونية",
+    privacy: "سياسة الخصوصية",
+    terms: "الشروط والأحكام",
     failure:
       "تعذر إتمام الطلب. احتفظنا بمعرّف المحاولة؛ أعد المحاولة أو حدّث الحالة.",
     deadline: "نهاية فترة الانتظار",
@@ -49,7 +55,7 @@ const copy = {
     effect:
       "The request covers your profile, transactions, financial accounts, budgets, voice and tracking data. Export anything you need in the app first. Unsynced data on your device is not on the server; remove it separately from the device.",
     retention:
-      "Submitting a request does not confirm erasure. A waiting period or legal retention hold can delay processing. Check the status below; completion is shown only after processing finishes. Limited compliance and security records may remain under the applicable retention policy.",
+      "Submitting a request does not confirm erasure. A waiting period, legal hold, failed tasks, provider processing or backup cycles can delay completion. Check the status below; completion is shown only after processing finishes. Limited compliance and security records may remain for a lawful purpose. Remove exported files and recipients' copies separately.",
     confirm:
       "I understand deletion is permanent when completed, and request deletion of my account and its data.",
     submit: "Request account deletion",
@@ -59,6 +65,12 @@ const copy = {
       "Sign in to the account you want to delete. You may be asked to verify your identity again.",
     unavailable:
       "The deletion request service is currently unavailable. Try later or use Privacy in the Masarifi app.",
+    contact:
+      "If you cannot use the service or sign in, email an account-deletion request to the address below. Include your account email and only necessary information, without passwords, authentication codes or unnecessary financial documents. Identity verification may be required.",
+    emailNotice: "Sending an email starts a request; it does not confirm deletion.",
+    legal: "Legal information",
+    privacy: "Privacy Policy",
+    terms: "Terms & Conditions",
     failure:
       "The request could not be completed. We kept the attempt identifier; retry or refresh its status.",
     deadline: "Waiting period ends",
@@ -106,8 +118,21 @@ export function DeletionPage({ enabled }: { enabled: boolean }) {
           ) : (
             <p role="alert">{text.unavailable}</p>
           )}
+          <div className={styles.contact}>
+            <p>{text.contact}</p>
+            <p>
+              <a href="mailto:masarifi.ratibi@gmail.com?subject=Account%20deletion%20request">
+                <bdi>masarifi.ratibi@gmail.com</bdi>
+              </a>
+            </p>
+            <p>{text.emailNotice}</p>
+          </div>
         </section>
       </div>
+      <nav className={styles.legal} aria-label={text.legal}>
+        <a href={`/privacy?lang=${language}`}>{text.privacy}</a>
+        <a href={`/terms?lang=${language}`}>{text.terms}</a>
+      </nav>
     </main>
   );
 }

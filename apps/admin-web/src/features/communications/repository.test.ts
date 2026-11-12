@@ -217,16 +217,14 @@ describe("CommunicationsRepository", () => {
   });
 
   test("sends support search, priority, assignment, category and UTC date filters to the server", async () => {
-    const fetchSpy = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValue(
-        response({
-          items: [],
-          nextCursor: null,
-          hasMore: false,
-          totalItems: 0,
-        }),
-      );
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+        totalItems: 0,
+      }),
+    );
     await repository.getSupportTickets({
       page: 2,
       pageSize: "25",
@@ -255,21 +253,19 @@ describe("CommunicationsRepository", () => {
   });
 
   test("uses the real aggregate workload endpoint without scanning ticket pages", async () => {
-    const fetchSpy = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValue(
-        response({
-          total: 80,
-          unassigned: 9,
-          byStatus: {
-            open: 5,
-            waiting_support: 30,
-            waiting_customer: 20,
-            resolved: 15,
-            closed: 10,
-          },
-        }),
-      );
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        total: 80,
+        unassigned: 9,
+        byStatus: {
+          open: 5,
+          waiting_support: 30,
+          waiting_customer: 20,
+          resolved: 15,
+          closed: 10,
+        },
+      }),
+    );
     const data = await repository.getSupportOverview({});
     expect(data.metrics).toEqual(
       expect.arrayContaining([
@@ -284,11 +280,19 @@ describe("CommunicationsRepository", () => {
   });
 
   test("keeps a successful zero-ticket workload available so the overview still renders", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValue(response({
-      total: 0,
-      unassigned: 0,
-      byStatus: { open: 0, waiting_support: 0, waiting_customer: 0, resolved: 0, closed: 0 },
-    }));
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        total: 0,
+        unassigned: 0,
+        byStatus: {
+          open: 0,
+          waiting_support: 0,
+          waiting_customer: 0,
+          resolved: 0,
+          closed: 0,
+        },
+      }),
+    );
     const data = await repository.getSupportOverview({});
     expect(data.region?.availability).toBe("available");
     expect(data.metrics).toHaveLength(7);
@@ -430,6 +434,33 @@ describe("CommunicationsRepository", () => {
       items: [{ title: "September campaign", revision: 2 }],
     });
     expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  test("decodes an Android update campaign and exposes the version for approval", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      response({
+        id: id(42),
+        name: "Android update",
+        templateId: id(41),
+        state: "draft",
+        audience: {
+          platforms: ["android"],
+          locales: ["ar", "en"],
+          activity: "all",
+          segmentKeys: [],
+          appUpdate: { version: "1.0.1", versionCode: 140 },
+        },
+        scheduledAt: null,
+        createdBy: "admin-1",
+        approvedBy: null,
+        version: 1,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    const campaign = await repository.getCampaign(id(42));
+    expect(campaign.body).toContain("1.0.1");
+    expect(campaign.body).toContain("140");
   });
 
   test("preserves exact audience preview identity, expiry, and counts", async () => {

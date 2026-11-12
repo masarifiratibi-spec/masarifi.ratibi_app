@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import { DeletionPage } from "@/features/public-deletion/DeletionPage";
 export const metadata: Metadata = {
-  title: "حذف حساب مصاريفي | Delete your Masarifi account",
-  description: "Request deletion of your Masarifi account and associated data.",
+  title: "حذف حساب مصاريفي وراتبي | Delete your Masarifi & Ratibi account",
+  description: "Request deletion of your Masarifi & Ratibi account and associated data.",
   robots: { index: true, follow: true },
+  openGraph: {
+    title: "حذف حساب مصاريفي وراتبي | Delete your Masarifi & Ratibi account",
+    description: "Request deletion of your Masarifi & Ratibi account and associated data.",
+    siteName: "مصاريفي وراتبي | Masarifi & Ratibi",
+    images: [],
+  },
 };
 export default function Page() {
   return (

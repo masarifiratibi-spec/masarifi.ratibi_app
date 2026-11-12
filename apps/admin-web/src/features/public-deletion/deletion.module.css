@@ -50,9 +50,29 @@
   cursor: default;
 }
 .page button:focus-visible,
-.page input:focus-visible {
+.page input:focus-visible,
+.page a:focus-visible {
   outline: 3px solid #002fa7;
   outline-offset: 4px;
+}
+.page a {
+  color: #002b97;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  overflow-wrap: anywhere;
+}
+.contact {
+  margin-top: 32px;
+  border-top: 1px solid #d9d9dd;
+  padding-top: 24px;
+}
+.legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin-top: 48px;
+  border-top: 1px solid #d9d9dd;
+  padding-top: 24px;
 }
 .form {
   display: flex;

@@ -457,6 +457,41 @@ paths:
         '200': { $ref: '#/components/responses/RecoveryEvidence' }
         '401': { $ref: '#/components/responses/SafeError' }
         '403': { $ref: '#/components/responses/SafeError' }
+  /api/v1/meta/mobile-update:
+    get:
+      operationId: getMobileUpdatePolicy
+      tags: [Client configuration]
+      security: []
+      description: Public optional Android update announcement policy, disabled until a complete Play release is explicitly published. This does not extend the authenticated metadata contract.
+      responses:
+        '200':
+          description: Current publication policy. Withdrawing publication returns enabled false and release null.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'public, no-store' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [schemaVersion,enabled,release,storeUrl]
+                properties:
+                  schemaVersion: { type: integer, const: 1 }
+                  enabled: { type: boolean }
+                  release:
+                    oneOf:
+                      - type: 'null'
+                      - type: object
+                        additionalProperties: false
+                        required: [version,versionCode]
+                        properties:
+                          version: { type: string, maxLength: 32, pattern: '^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$' }
+                          versionCode: { type: integer, minimum: 1, maximum: 2100000000 }
+                  storeUrl: { type: string, const: 'https://play.google.com/store/apps/details?id=com.masarifi.mobile' }
+                allOf:
+                  - if: { properties: { enabled: { const: true } } }
+                    then: { properties: { release: { type: object } } }
+                    else: { properties: { release: { type: 'null' } } }
   /api/v1/meta/social-media:
     get:
       operationId: getSocialMediaLinks

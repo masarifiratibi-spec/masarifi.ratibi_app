@@ -1,4 +1,9 @@
-import React, { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
+import React, {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef
+} from 'react';
 import { Redirect, router, usePathname } from 'expo-router';
 
 import { resolveProtectedAccessGate } from './resolve-entry-route';
@@ -48,10 +53,11 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   });
   const destination = pathnameDestination(pathname);
   const returnDestination = sanitizeReturnRoute(destination);
-  const legalRoute = pathname === '/legal';
+  const publicReadOnlyRoute =
+    pathname === '/legal' || pathname === '/app-update';
 
   useEffect(() => {
-    if (legalRoute) return;
+    if (publicReadOnlyRoute) return;
     if (
       gate &&
       returnDestination &&
@@ -69,10 +75,10 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     pendingDestination,
     returnDestination,
     setPendingDestination,
-    legalRoute
+    publicReadOnlyRoute
   ]);
 
-  if (legalRoute) return <>{children}</>;
+  if (publicReadOnlyRoute) return <>{children}</>;
   if (!gate && (pathname === '/auth-pending' || pathname === '/welcome')) {
     return <Redirect href="/" />;
   }
@@ -89,11 +95,7 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
   ) {
     return <Redirect href={gate} />;
   }
-  if (
-    !gate &&
-    !isAppLockEnabled() &&
-    pathname === '/security/unlock'
-  ) {
+  if (!gate && !isAppLockEnabled() && pathname === '/security/unlock') {
     return <Redirect href="/security/settings" />;
   }
   if (!gate && pathname === '/security/unlock') {
@@ -143,8 +145,7 @@ export function NotificationResponseRuntime() {
     Boolean(clerkSessionKey);
   const pendingRemote = useRef(new Set<(ready: boolean) => void>());
   useEffect(() => {
-    if (remoteReady.current)
-      resolvePendingUnlocks(pendingRemote.current, true);
+    if (remoteReady.current) resolvePendingUnlocks(pendingRemote.current, true);
   }, [hydrated, session, clerkSessionKey]);
 
   useEffect(() => {

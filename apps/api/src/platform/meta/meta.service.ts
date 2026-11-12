@@ -6,6 +6,7 @@ import { PlatformConfigService } from '../config/platform-config.service';
 import { PoolService } from '../database/pool.service';
 import { OPERATIONS_METRICS, recordPlatformMetric } from '../observability/platform-metrics';
 import type { MetaResponseDto } from './meta.dto';
+import { configuredAndroidUpdate } from './android-update-policy';
 
 export type MetaContext = Readonly<{
   platform?: 'ios' | 'android' | 'admin';
@@ -30,6 +31,10 @@ export class MetaService {
     private readonly config: PlatformConfigService,
     @Optional() @Inject(PoolService) private readonly pool?: PoolService,
   ) {}
+
+  getMobileUpdate() {
+    return configuredAndroidUpdate(this.config);
+  }
 
   async get(context: MetaContext = {}): Promise<MetaResponseDto> {
     const now = Date.now();

@@ -12,6 +12,7 @@ import type {
 import type { NotificationPermissionState } from '@/domain/notifications';
 import { translateDynamic } from '@/localization/i18n';
 import { z } from 'zod';
+import { registeredApplicationVersion } from './application-version';
 
 const ExpoNotifications =
   (Notifications as unknown as { default?: typeof Notifications }).default ??
@@ -33,7 +34,10 @@ export type PushDeviceRegistration = DeviceRegistration & {
 
 // Sync identity does not require notification permission or a push provider.
 export async function getDeviceRegistration(): Promise<DeviceRegistration | null> {
-  const appVersion = Constants.expoConfig?.version;
+  const appVersion =
+    Platform.OS === 'android'
+      ? registeredApplicationVersion()
+      : Constants.expoConfig?.version;
   if (
     (Platform.OS !== 'android' && Platform.OS !== 'ios') ||
     typeof appVersion !== 'string'
@@ -241,9 +245,23 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
   const data = value.notification?.request?.content?.data;
   const action = mapAction(value.actionIdentifier);
   if (!action) return null;
+  if (data?.route === 'app_update') {
+    const id = z.string().uuid().safeParse(data.notificationId);
+    return action === 'view' && id.success
+      ? { kind: 'app_update', notificationId: id.data, action }
+      : null;
+  }
   if (data?.kind !== undefined) {
-    const local = z.object({ kind: z.literal('onboarding_resume'), cycleId: z.string().uuid() }).strict().safeParse(data);
-    return action === 'view' && local.success ? { ...local.data, action } : null;
+    const local = z
+      .object({
+        kind: z.literal('onboarding_resume'),
+        cycleId: z.string().uuid()
+      })
+      .strict()
+      .safeParse(data);
+    return action === 'view' && local.success
+      ? { ...local.data, action }
+      : null;
   }
   const notificationId = data?.notificationId;
   if (typeof notificationId !== 'string') return null;

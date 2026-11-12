@@ -1,4 +1,5 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { useTheme } from '@/state/theme-context';
 import { View, StyleSheet } from 'react-native';
 import { LockShieldIcon, SmallShieldIcon } from './AssistantIcons';
@@ -13,12 +14,14 @@ import type { AssistantConsent } from '@/domain/assistant';
 export interface AssistantConsentCardProps {
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
+  onDisableConsent?: () => void;
   loading?: boolean;
 }
 
 export function AssistantConsentCard({
   consent,
   onEnableConsent,
+  onDisableConsent,
   loading = false
 }: AssistantConsentCardProps) {
   const { colors } = useTheme();
@@ -48,6 +51,9 @@ export function AssistantConsentCard({
         >
           {translate('assistant.privacy.transactions')}
         </StyledText>
+        <StyledText variant="caption" style={[styles.description, { textAlign: 'center' }]}>
+          {translate('assistant.privacy.choice')}
+        </StyledText>
       </View>
 
       {/* CTA: enable button OR enabled confirmation */}
@@ -73,6 +79,13 @@ export function AssistantConsentCard({
           </StyledText>
         </View>
       )}
+      {isEnabled && onDisableConsent ? (
+        <ActionButton label="assistant.consent.withdraw" variant="secondary" disabled={loading}
+          onPress={onDisableConsent} />
+      ) : !isEnabled ? (
+        <ActionButton label="appShell.permission.manualFallback" variant="quiet"
+          onPress={() => router.replace('/(tabs)/add')} />
+      ) : null}
     </View>
   );
 }

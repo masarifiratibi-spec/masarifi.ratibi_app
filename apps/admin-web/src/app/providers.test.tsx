@@ -6,14 +6,19 @@ import { apiActorCacheKey, liveCursor, rememberLiveCursor } from "@/core/api/cli
 import { SignOutButton } from "@/components/admin/SignOutButton";
 import { Providers } from "./providers";
 
+const route = vi.hoisted(() => ({ pathname: "/admin", identityUnavailable: false, mocksUnavailable: false }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
 const clerk = vi.hoisted(() => ({
   identity: { userId: "support", sessionId: "session-support", isLoaded: true, getToken: vi.fn(async () => "support-token") },
   signOut: vi.fn(),
   redirect: vi.fn(),
 }));
-vi.mock("@clerk/nextjs", () => ({ useAuth: () => clerk.identity, useClerk: () => ({ signOut: clerk.signOut, get session() { return { id: clerk.identity.sessionId, user: { id: clerk.identity.userId }, getToken: clerk.identity.getToken }; } }) }));
+vi.mock("@clerk/nextjs", () => ({ useAuth: () => {
+  if (route.identityUnavailable) throw new Error("Identity unavailable");
+  return clerk.identity;
+}, useClerk: () => ({ signOut: clerk.signOut, get session() { return { id: clerk.identity.sessionId, user: { id: clerk.identity.userId }, getToken: clerk.identity.getToken }; } }) }));
 vi.mock("@/core/auth/sign-in-navigation", () => ({ returnToAdminSignIn: clerk.redirect }));
-vi.mock("./MockProvider", () => ({ MockProvider: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock("./MockProvider", () => ({ MockProvider: ({ children }: { children: React.ReactNode }) => route.mocksUnavailable ? <p>Loading admin demo data</p> : children }));
 
 let root: Root;
 let element: HTMLDivElement;
@@ -31,12 +36,34 @@ async function click() {
   await act(async () => element.querySelector("button")?.click());
 }
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  route.pathname = "/admin";
+  route.identityUnavailable = false;
+  route.mocksUnavailable = false;
   element = document.createElement("div"); document.body.append(element); root = createRoot(element);
   clients.length = 0;
   clerk.identity = { userId: "support", sessionId: "session-support", isLoaded: true, getToken: vi.fn(async () => "support-token") };
   clerk.signOut.mockImplementation(async (callback: () => Promise<void>) => callback());
 });
-afterEach(async () => { await act(async () => root.unmount()); });
+afterEach(async () => { await act(async () => root.unmount()); vi.unstubAllGlobals(); });
+
+describe("Public legal routes", () => {
+  test.each(["/privacy", "/terms", "/delete-account"])("renders %s without an available admin identity or mock service", async (pathname) => {
+    route.pathname = pathname;
+    route.identityUnavailable = true;
+    route.mocksUnavailable = true;
+    await act(async () => root.render(<Providers identityEnabled><main>Public legal document</main></Providers>));
+    expect(element.querySelector("main")?.textContent).toBe("Public legal document");
+  });
+
+  test.each(["/privacy-preview", "/terms/admin", "/admin"])("keeps %s inside the admin providers", async (pathname) => {
+    route.pathname = pathname;
+    route.mocksUnavailable = true;
+    await act(async () => root.render(<Providers identityEnabled={false}><main>Private content</main></Providers>));
+    expect(element.querySelector("main")).toBeNull();
+    expect(element.textContent).toContain("Loading admin demo data");
+  });
+});
 
 describe("Admin current-session sign out", () => {
   test("is visible for authenticated users, hidden for demo, loading and signed-out users", async () => {

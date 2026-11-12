@@ -15,6 +15,7 @@ export const shellDestinations = [
   '/assistant',
   '/tracking',
   '/notifications',
+  '/app-update',
   '/notifications/preferences',
   '/subscriptions',
   '/subscriptions/checkout',

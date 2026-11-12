@@ -30,6 +30,23 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('keeps Android announcements unpublished by default and requires a valid complete published release', () => {
+    expect(validateEnvironment(valid).MASARIFI_ANDROID_UPDATE_PUBLISHED).toBe(false);
+    const release = {
+      MASARIFI_ANDROID_UPDATE_PUBLISHED: true,
+      MASARIFI_ANDROID_LATEST_VERSION: '1.0.1',
+      MASARIFI_ANDROID_LATEST_VERSION_CODE: 140,
+    };
+    expect(validateEnvironment({ ...valid, ...release })).toMatchObject(release);
+    for (const input of [
+      { ...release, MASARIFI_ANDROID_LATEST_VERSION: undefined },
+      { ...release, MASARIFI_ANDROID_LATEST_VERSION_CODE: undefined },
+      { ...release, MASARIFI_ANDROID_LATEST_VERSION_CODE: 0 },
+      { ...release, MASARIFI_ANDROID_LATEST_VERSION_CODE: 2_100_000_001 },
+      { ...release, MASARIFI_ANDROID_LATEST_VERSION: '1.0.1+140' },
+    ])
+      expect(() => validateEnvironment({ ...valid, ...input })).toThrow('MASARIFI_ANDROID_');
+  });
   it.each(['MASARIFI_SYNC_COMMAND_DATABASE_URL', 'MASARIFI_OPERATIONS_JOB_KEYS'])(
     'keeps normal sync worker configuration %s off the API process',
     (key) => {

@@ -10,23 +10,45 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
-  'financialReset.sessionExpired': 'انتهت جلستك. افتح التطبيق من جديد وحاول مرة ثانية.',
-  'financialReset.reviewChanged': 'تم تصفير بياناتك من جهاز ثاني. تأكد قبل ما تبدأ تصفير جديد.',
-  'financialReset.stale': 'الطلب السابق يخص بيانات أقدم. تقدر ترجع للتأكيد وتبدأ طلب جديد.',
+  'app-update.title': 'تحديث جديد متاح',
+  'app-update.page': 'تحديث التطبيق',
+  'app-update.check': 'التحقق من التحديثات',
+  'app-update.update': 'حدّث الآن',
+  'app-update.later': 'لاحقًا',
+  'app-update.retry': 'حاول مرة أخرى',
+  'app-update.body':
+    'يتوفر الإصدار {{version}} من مصاريفي وراتبي. حدّث التطبيق للحصول على التحسينات والإصلاحات. يمكنك متابعة استخدام التطبيق والتحديث لاحقًا.',
+  'app-update.checking': 'جارٍ التحقق من التحديثات…',
+  'app-update.current': 'لا يوجد تحديث معلن أحدث من نسختك حاليًا.',
+  'app-update.unavailable':
+    'تعذر التحقق من التحديثات. تحقق من اتصالك وحاول مرة أخرى.',
+  'app-update.storeError': 'تعذر فتح Google Play. حاول مرة أخرى.',
+  'app-update.unsupported': 'تحديث Google Play متاح على Android فقط.',
+  'financialReset.sessionExpired':
+    'انتهت جلستك. افتح التطبيق من جديد وحاول مرة ثانية.',
+  'financialReset.reviewChanged':
+    'تم تصفير بياناتك من جهاز ثاني. تأكد قبل ما تبدأ تصفير جديد.',
+  'financialReset.stale':
+    'الطلب السابق يخص بيانات أقدم. تقدر ترجع للتأكيد وتبدأ طلب جديد.',
   'financialReset.reviewAgain': 'الرجوع للتأكيد',
   'financialReset.title': 'تصفير البيانات المالية',
   'financialReset.subtitle': 'ابدأ من جديد بأرصدة صفر.',
   'financialReset.confirmTitle': 'تبي تبدأ من جديد؟',
-  'financialReset.confirmMessage': 'بنمسح سجلك وخططك المالية ونصفّر أرصدة حساباتك على كل أجهزتك. حساباتك وأسماؤها بتبقى، وما تقدر تتراجع عن هالخطوة.',
+  'financialReset.confirmMessage':
+    'بنمسح سجلك وخططك المالية ونصفّر أرصدة حساباتك على كل أجهزتك. حساباتك وأسماؤها بتبقى، وما تقدر تتراجع عن هالخطوة.',
   'financialReset.external': 'الملفات اللي حمّلتها خارج التطبيق بتبقى عندك.',
   'financialReset.submit': 'تصفير البيانات',
   'financialReset.checking': 'لحظة، نجهّز طلبك…',
-  'financialReset.processing': 'جارٍ تصفير بياناتك… تقدر تقفل هالنافذة وترجع تتابع الطلب.',
-  'financialReset.complete': 'تم تصفير بياناتك. أرصدة حساباتك صارت صفر، وتقدر تبدأ من جديد.',
+  'financialReset.processing':
+    'جارٍ تصفير بياناتك… تقدر تقفل هالنافذة وترجع تتابع الطلب.',
+  'financialReset.complete':
+    'تم تصفير بياناتك. أرصدة حساباتك صارت صفر، وتقدر تبدأ من جديد.',
   'financialReset.done': 'تم',
   'financialReset.close': 'إغلاق',
-  'financialReset.error': 'ما قدرنا نتأكد من حالة الطلب. تأكد من اتصالك وحاول مرة ثانية.',
-  'financialReset.retryNotice': 'ما وصلنا تأكيد للطلب السابق. اضغط تصفير البيانات عشان نعيد نفس الطلب.',
+  'financialReset.error':
+    'ما قدرنا نتأكد من حالة الطلب. تأكد من اتصالك وحاول مرة ثانية.',
+  'financialReset.retryNotice':
+    'ما وصلنا تأكيد للطلب السابق. اضغط تصفير البيانات عشان نعيد نفس الطلب.',
   'financialReset.checkStatus': 'تحديث حالة الطلب',
   'tracking.unverified.title': 'التتبع غير متاح حتى التحقق من الحساب',
   'tracking.unverified.message':
@@ -163,7 +185,8 @@ const ar: MessageCatalog = {
   'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
   'settings.deletion.error':
     'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
-  'settings.deletion.processingRetry': 'طلب حذف حسابك محفوظ. سيعيد الخادم محاولة إكمال الحذف. يمكنك إغلاق هذه الرسالة أو التحقق من الحالة لاحقًا.',
+  'settings.deletion.processingRetry':
+    'طلب حذف حسابك محفوظ. سيعيد الخادم محاولة إكمال الحذف. يمكنك إغلاق هذه الرسالة أو التحقق من الحالة لاحقًا.',
   'settings.deletion.rateLimited':
     'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
   'settings.deletion.sessionExpired':
@@ -561,7 +584,7 @@ const ar: MessageCatalog = {
     'يمكن لأندرويد مساعدتك في اكتشاف الرسائل المالية الواضحة بعد موافقتك.',
   'appShell.onboarding.permission.title': 'السماح بتتبع الرسائل',
   'appShell.onboarding.permission.purpose':
-    'بموافقتك، يقرأ مصاريفي الرسائل النصية على هذا الجهاز لاكتشاف المعاملات المالية.',
+    'بموافقتك، يقرأ مصاريفي الرسائل النصية على هذا الجهاز لاكتشاف المعاملات المالية، بما في ذلك في الخلفية عندما يكون التطبيق مغلقًا أو غير مستخدم.',
   'appShell.onboarding.permission.dataUse':
     'يتم التحليل على جهازك، وتُرسل التفاصيل المالية المكتشفة، مثل الجهة والتاجر والمبلغ والعملة والتاريخ، إلى خوادم مصاريفي للمراجعة ومزامنة الحساب. لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
   'appShell.onboarding.permission.benefit':
@@ -578,7 +601,8 @@ const ar: MessageCatalog = {
   'appShell.onboarding.complete.openHome': 'فتح الرئيسية',
   'appShell.permission.enable': 'تفعيل التتبع',
   'appShell.permission.retry': 'إعادة طلب الإذن',
-  'appShell.permission.settingsHelp': 'إذن الرسائل غير مفعّل. من إعدادات جهازك، افتح التطبيقات ← مصاريفي ← الأذونات ← الرسائل النصية، واختر السماح، ثم ارجع للتطبيق. تقدر تطلب الإذن مرة ثانية من هنا.',
+  'appShell.permission.settingsHelp':
+    'إذن الرسائل غير مفعّل. من إعدادات جهازك، افتح التطبيقات ← مصاريفي ← الأذونات ← الرسائل النصية، واختر السماح، ثم ارجع للتطبيق. تقدر تطلب الإذن مرة ثانية من هنا.',
   'appShell.permission.requestAgain': 'طلب الإذن مرة ثانية',
   'appShell.permission.openSettings': 'فتح الإعدادات',
   'appShell.permission.manualFallback': 'المتابعة بالإدخال اليدوي',
@@ -1234,10 +1258,10 @@ const ar: MessageCatalog = {
   'tracking.source.financialSms': 'الرسائل المالية',
   'tracking.source.smsTracking': 'تتبع الرسائل النصية',
   'tracking.source.smsTrackingDescription':
-    'معاملاتك تتسجّل تلقائيًا من الرسائل المالية.',
+    'بموافقتك، يقرأ الرسائل النصية على هذا الجهاز في الخلفية حتى عندما يكون التطبيق مغلقًا أو غير مستخدم. يجري التحليل محليًا، وتُزامَن التفاصيل المالية المستخرجة مع خوادم مصاريفي لتسجيل المعاملات ومراجعتها. يمكنك إيقاف هذا المصدر في أي وقت، ويظل الإدخال اليدوي متاحًا.',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'معاملاتك تتسجّل تلقائيًا من إشعارات البنوك والمحافظ.',
+    'بموافقتك، يصل إلى إشعارات التطبيقات في الخلفية حتى عندما يكون مصاريفي مغلقًا أو غير مستخدم، لاكتشاف المعاملات المالية. يجري التحليل محليًا، وتُزامَن التفاصيل المالية المستخرجة مع خوادم مصاريفي لتسجيل المعاملات ومراجعتها. يمكنك إيقاف هذا المصدر في أي وقت، ويظل الإدخال اليدوي متاحًا.',
   'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
   'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
   'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
@@ -1251,7 +1275,7 @@ const ar: MessageCatalog = {
   'tracking.howItWorks.detection':
     'المعاملات الواضحة تتسجّل تلقائيًا، واللي تحتاج تأكيد تلقاها في المراجعة.',
   'tracking.howItWorks.privacy':
-    'نحلّل الرسائل المالية ونزامن معاملاتك مع حسابك في مصاريفي.',
+    'يجري تحليل الرسائل النصية والإشعارات محليًا، بما في ذلك في الخلفية. تُزامَن التفاصيل المالية المستخرجة، مثل المرسل والتاجر والمبلغ والعملة والتاريخ، مع خوادم مصاريفي للتسجيل والمراجعة ومزامنة الحساب.',
   'tracking.howItWorks.background':
     'اسمح لمصاريفي بالعمل في الخلفية عشان يستمر التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
@@ -1408,6 +1432,19 @@ const ar: MessageCatalog = {
     'يستخدم مصاريفي وراتبي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
   'voice.permission.request': 'السماح بالميكروفون',
   'voice.permission.settings': 'فتح الإعدادات',
+  'voice.processingConsent.title': 'معالجة الصوت والذكاء الاصطناعي',
+  'voice.processingConsent.data':
+    'يُرسَل تسجيلك والنص المستخرج والسياق المالي المحدد إلى خوادم مصاريفي. تعالج خدمات ذكاء اصطناعي خارجية عبر OpenRouter ومزوّدي النماذج المحتوى اللازم لاستخراج النص وتحليل المعاملات.',
+  'voice.processingConsent.purpose':
+    'يحوّل ذلك كلامك إلى معاملات مالية. قد تُضاف المعاملات الواضحة تلقائيًا، ويمكنك مراجعة النتائج وتصحيحها.',
+  'voice.processingConsent.choice':
+    'المعالجة الصوتية اختيارية. يمكنك الرفض والمتابعة بالإدخال اليدوي، أو سحب الموافقة من إعدادات الخصوصية لإيقاف التسجيلات المستقبلية على هذا الجهاز. السحب لا يلغي المعالجة المكتملة. يخضع احتفاظ الخوادم والمزوّدين بالبيانات واستخدامها لسياساتهم المعمول بها؛ ولا يوجد ضمان بعدم الاحتفاظ أو عدم الاستخدام للتدريب.',
+  'voice.processingConsent.accept': 'أوافق وأتابع',
+  'voice.processingConsent.decline': 'المتابعة بالإدخال اليدوي',
+  'voice.processingConsent.withdraw': 'سحب الموافقة الصوتية',
+  'voice.processingConsent.manage': 'إدارة الموافقة على معالجة الصوت',
+  'voice.processingConsent.error':
+    'تعذّر حفظ اختيارك. أعد المحاولة أو تابع دون معالجة صوتية.',
   'voice.record.start': 'بدء التسجيل',
   'voice.record.stop': 'إيقاف التسجيل',
   'voice.record.cancel': 'إلغاء التسجيل',
@@ -2175,7 +2212,10 @@ const ar: MessageCatalog = {
   'notifications.preferences.day.saturday': 'السبت',
   'assistant.consent.title': 'المساعد المالي المخصص',
   'assistant.privacy.transactions':
-    'أستخدم سجلاتك المالية المؤكدة بعد موافقتك فقط.',
+    'بموافقتك، تعالج خوادم مصاريفي وخدمات ذكاء اصطناعي خارجية عبر OpenRouter ومزوّدي النماذج أسئلتك والسياق المالي المحدد، بما يشمل المعاملات والحسابات والميزانيات والتقارير ذات الصلة، للإجابة وإعداد الرؤى المالية أو الإجراءات المقترحة.',
+  'assistant.privacy.choice':
+    'هذا اختياري. يمكنك المتابعة بالإدخال اليدوي إذا رفضت، أو سحب الموافقة هنا لإيقاف أسئلة الذكاء الاصطناعي المستقبلية. السحب لا يلغي المعالجة المكتملة. يخضع احتفاظ الخوادم والمزوّدين بالبيانات واستخدامها لسياساتهم المعمول بها؛ ولا يوجد ضمان بعدم الاحتفاظ أو عدم الاستخدام للتدريب.',
+  'assistant.consent.withdraw': 'سحب موافقة المساعد',
   'assistant.state.disabled': 'التخصيص متوقف.',
   'assistant.state.limit': 'وصلت لحد استخدام المساعد. جرّب لاحقًا.',
   'assistant.state.offline':
@@ -2183,7 +2223,7 @@ const ar: MessageCatalog = {
   'assistant.state.empty': 'ما عندك محادثات للحين.',
   'assistant.state.error': 'المساعد مو متاح الحين. جرّب مرّة ثانية.',
   'assistant.backendUnavailable': 'خدمة المساعد مو جاهزة الحين. جرّب لاحقًا.',
-  'assistant.action.enable': 'تفعيل التخصيص',
+  'assistant.action.enable': 'أوافق وأفعّل المساعد',
   'assistant.consent.enabled': 'تم تفعيل التخصيص الذكي',
   'assistant.hero.title': 'المساعد الذكي',
   'assistant.hero.subtitle':
@@ -2197,7 +2237,8 @@ const ar: MessageCatalog = {
   'assistant.unsent.message': 'إذا طلعت من هالشاشة، بينحذف نص السؤال.',
   'assistant.unsent.keep': 'متابعة الكتابة',
   'assistant.unsent.discard': 'تجاهل السؤال',
-  'assistant.privacy.note': 'خصوصيتك أولوية. أستخدم بياناتك بعد موافقتك فقط.',
+  'assistant.privacy.note':
+    'قد تخطئ إجابات الذكاء الاصطناعي. راجع التفاصيل المالية قبل الاعتماد على إجابة أو إجراء مقترح. يمكنك إدارة الموافقة في المساعد.',
   'assistant.suggestions.spending': 'كم صرفت هالشهر؟',
   'assistant.suggestions.restaurants': 'كم صرفت على المطاعم هالشهر؟',
   'assistant.suggestions.highest': 'وش أكثر شي صرفت عليه؟',
@@ -2583,7 +2624,8 @@ const ar: MessageCatalog = {
   'support.form.failure.offline': 'تم الحفظ محليًا. أرسل الطلب عند الاتصال.',
   'support.form.failure.representative_failure': 'تعذر حفظ المسودة مؤقتًا.',
   'support.form.sessionFailure': 'تحقّق من جلسة الحساب ثم أعد إرسال الطلب.',
-  'support.form.rateLimited': 'تم إرسال طلبات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
+  'support.form.rateLimited':
+    'تم إرسال طلبات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
   'support.form.submitFailure': 'تعذر إرسال الطلب. النص باقٍ لإعادة المحاولة.',
   'support.report.assistant': 'إبلاغ الدعم عن رد المساعد',
   'support.form.title': 'التواصل مع الدعم',
@@ -2808,8 +2850,10 @@ const ar: MessageCatalog = {
   'notifications.validation.edit': 'عرض إشعار تعديل',
   'notifications.validation.undo': 'عرض إشعار تراجع',
   'notifications.validation.expired': 'عرض إشعار تراجع منتهي',
-  'recentAuth.signInAgain': 'إذا كنت تستخدم Google للدخول، سجّل الخروج ثم ادخل بالحساب نفسه وارجع إلى هذه الصفحة.',
-  'recentAuth.unsupported': 'لا تتوفر طريقة تحقق لحسابك داخل التطبيق. سجّل الخروج وادخل مجددًا بالحساب نفسه، ثم ارجع إلى الإجراء.',
+  'recentAuth.signInAgain':
+    'إذا كنت تستخدم Google للدخول، سجّل الخروج ثم ادخل بالحساب نفسه وارجع إلى هذه الصفحة.',
+  'recentAuth.unsupported':
+    'لا تتوفر طريقة تحقق لحسابك داخل التطبيق. سجّل الخروج وادخل مجددًا بالحساب نفسه، ثم ارجع إلى الإجراء.',
   'recentAuth.useSignIn': 'استخدام تسجيل دخولي الأخير',
   'recentAuth.passkey': 'استخدم مفتاح المرور للتحقق من هذه الجلسة.',
   'recentAuth.title': 'تأكيد هويتك',

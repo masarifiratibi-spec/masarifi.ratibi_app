@@ -11,8 +11,10 @@ import { PrivacyExportPanel } from './PrivacyExportPanel';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { LegalDocumentLinks } from '@/features/legal/LegalDocumentLinks';
+import { useVoiceCapture } from '@/features/voice/useVoiceCapture';
 
 export function PrivacySettingsScreen() {
+  const voice = useVoiceCapture({ permissionSync: 'on-demand' });
   const request = usePrivacyRequest();
   const localDelete = useDeleteLocalData();
   const tracking = usePreferenceStore((state) => state.trackingPersonalization);
@@ -32,6 +34,8 @@ export function PrivacySettingsScreen() {
       <StyledText variant="title">settings.privacy.title</StyledText>
       <StyledText>settings.privacy.legalExplanation</StyledText>
       <LegalDocumentLinks />
+      {voice.live ? <ActionButton label="voice.processingConsent.manage" variant="secondary"
+        onPress={voice.reviewProcessingConsent} /> : null}
       <SurfaceCard style={styles.section}>
         <SwitchRow
           label="settings.privacy.tracking"

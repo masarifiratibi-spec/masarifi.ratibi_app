@@ -43,6 +43,8 @@ import {
 } from '@/state/voice-capture';
 import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
+import { beginVoiceUpdateInteraction } from '@/state/voice-update-interaction';
+import { useVoiceProcessingConsent } from './useVoiceProcessingConsent';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 
 // Pre-journal audio remains cleanup-owned across component/owner changes.
@@ -94,6 +96,7 @@ function canRefreshPermissionState(
 
 function useOwnedVoiceCapture() {
   const session = useVoiceCaptureStore();
+  const processingConsent = useVoiceProcessingConsent();
   const authenticatedOwner = useAppShellStore((state) =>
     state.session?.status === 'authenticated' ? state.session.userId : null
   );
@@ -296,7 +299,12 @@ function useOwnedVoiceCapture() {
       traceId,
       phase: 'start'
     });
+    const finishInteraction = beginVoiceUpdateInteraction();
     try {
+      if (voiceAnalyzerService.metadata.kind === 'live') {
+        const accepted = await processingConsent.ensure();
+        if (!accepted || !valid(attempt)) return;
+      }
       // Native start still checks the current grant; avoid a duplicate bridge
       // round trip when the UI already has a granted permission hint.
       const permission =
@@ -369,6 +377,7 @@ function useOwnedVoiceCapture() {
       }
       fail(error, attempt);
     } finally {
+      finishInteraction();
       startInFlight.current = false;
     }
   };
@@ -1038,6 +1047,11 @@ function useOwnedVoiceCapture() {
 
   resumeTransport.current = retry;
   return {
+    reviewProcessingConsent: processingConsent.review,
+    processingConsentDialog: processingConsent.render(async () => {
+      if (saveInFlight.current || ['saving', 'confirmation_unknown'].includes(useVoiceCaptureStore.getState().state)) return;
+      await cancelRecording();
+    }),
     live: voiceAnalyzerService.metadata.kind === 'live',
     automatic: Boolean(voiceAnalyzerService.queueBatch),
     batches,
@@ -1099,6 +1113,7 @@ export function VoiceCaptureProvider({ children }: { children: ReactNode }) {
     <VoiceRuntimeContext.Provider value={runtime}>
       <VoiceRouteInterruption cancelRecording={runtime.cancelRecording} />
       {children}
+      {runtime.processingConsentDialog}
     </VoiceRuntimeContext.Provider>
   );
 }

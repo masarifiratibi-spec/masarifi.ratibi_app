@@ -152,8 +152,8 @@ export function Providers({
   identityEnabled: boolean;
 }) {
   const pathname = usePathname();
-  // Public deletion remains usable after erasure revokes the current session.
-  if (pathname === "/delete-account") return children;
+  // Public legal documents and deletion must not depend on admin identity or demo data.
+  if (["/delete-account", "/privacy", "/terms"].includes(pathname)) return children;
   const content = <MockProvider>{children}</MockProvider>;
   return identityEnabled ? (
     <IdentityQueryProvider>{content}</IdentityQueryProvider>

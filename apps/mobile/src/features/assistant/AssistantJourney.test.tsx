@@ -122,6 +122,22 @@ test('does not fetch an unused conversation index on the approved landing design
   expect(mockAssistantQueries.useAssistantConversations).not.toHaveBeenCalled();
 });
 
+test('blocks existing-conversation questions after withdrawal and preserves the draft while renewed consent is pending', async () => {
+  const ask = jest.fn((_input, options) => options?.onSuccess?.());
+  const enable = jest.fn();
+  mockAssistantQueries.useAskAssistant.mockReturnValue({ mutate: ask });
+  mockAssistantQueries.useSetAssistantConsent.mockReturnValue({ mutate: enable });
+  mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'disabled', version: 2 } });
+  renderWithProviders(<AssistantConversationScreen conversationId="conversation-1" />);
+  fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Keep this private draft');
+  await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
+  expect(ask).not.toHaveBeenCalled();
+  expect(screen.getByTestId('assistant-composer-input').props.value).toBe('Keep this private draft');
+  fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
+  expect(enable).toHaveBeenCalledWith(expect.objectContaining({ enabled: true, expectedVersion: 2 }));
+  expect(ask).not.toHaveBeenCalled();
+});
+
 test('withdraws accumulated history after an access denial instead of keeping private message state', () => {
   mockAssistantQueries.useAssistantConversation.mockReturnValue({
     data: {

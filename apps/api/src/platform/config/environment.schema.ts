@@ -35,6 +35,9 @@ const applicationKeys = new Set([
   'MASARIFI_LOG_LEVEL',
   'MASARIFI_META_MIN_MOBILE_VERSION',
   'MASARIFI_META_MIN_ADMIN_VERSION',
+  'MASARIFI_ANDROID_UPDATE_PUBLISHED',
+  'MASARIFI_ANDROID_LATEST_VERSION',
+  'MASARIFI_ANDROID_LATEST_VERSION_CODE',
   'MASARIFI_MIGRATION_CHECKSUM_FILE',
   'MASARIFI_MIGRATION_STATEMENT_TIMEOUT_MS',
   'MASARIFI_PUSH_TOKEN_HASH_KEY',
@@ -262,6 +265,16 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error').default('info'),
   MASARIFI_META_MIN_MOBILE_VERSION: Joi.string().trim().min(1).max(32).optional(),
   MASARIFI_META_MIN_ADMIN_VERSION: Joi.string().trim().min(1).max(32).optional(),
+  MASARIFI_ANDROID_UPDATE_PUBLISHED: Joi.boolean().default(false),
+  MASARIFI_ANDROID_LATEST_VERSION: Joi.string()
+    .pattern(/^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/)
+    .max(32)
+    .when('MASARIFI_ANDROID_UPDATE_PUBLISHED', { is: true, then: Joi.required() }),
+  MASARIFI_ANDROID_LATEST_VERSION_CODE: Joi.number()
+    .integer()
+    .min(1)
+    .max(2_100_000_000)
+    .when('MASARIFI_ANDROID_UPDATE_PUBLISHED', { is: true, then: Joi.required() }),
   MASARIFI_MIGRATION_CHECKSUM_FILE: Joi.string()
     .pattern(/^supabase\/[A-Za-z0-9._/-]+$/)
     .default('supabase/migration-checksums.sha256'),

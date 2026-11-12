@@ -29,6 +29,7 @@ import {
 } from '@/design-system/components/feedback/StartupLoadingBoundary';
 import { usePreferenceStore } from '@/state/preferences';
 import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
+import { AppUpdateNotice } from '@/features/app-update/AppUpdateNotice';
 import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
 
 recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'module' });
@@ -60,6 +61,7 @@ export default function RootLayout() {
                 <VoiceCaptureProvider>
                   <RoutePrivacyGate>
                     <NotificationResponseRuntime />
+                    <AppUpdateNotice />
                     <RootStack />
                   </RoutePrivacyGate>
                 </VoiceCaptureProvider>
@@ -86,6 +88,8 @@ function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
   );
   const appLockEnabled = isAppLockEnabled() && preferenceEnabled;
   const pathname = usePathname();
+  const hidesPrivateContent =
+    pathname !== '/security/unlock' && pathname !== '/app-update';
   const autoLockDuration = useAppShellStore(
     (state) => state.privacyLock?.autoLockDuration
   );
@@ -110,14 +114,14 @@ function RoutePrivacyGate({ children }: { children: React.ReactNode }) {
       immediate={
         appLockEnabled &&
         autoLockDuration === 'immediate' &&
-        pathname !== '/security/unlock'
+        hidesPrivateContent
       }
       lockAfterMs={appLockEnabled ? lockAfterMs : null}
       locked={
         appLockEnabled &&
         appLockStatus !== undefined &&
         appLockStatus !== 'unlocked' &&
-        pathname !== '/security/unlock'
+        hidesPrivateContent
       }
       onLock={appLockEnabled ? handleLock : undefined}
     >
