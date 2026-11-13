@@ -231,7 +231,7 @@ export const securityRepository = {
     if (cursor) params.set("cursor", cursor);
     const response = mocksEnabled()
       ? await apiClient.get(`${path}?${params}`, z.object({ items: z.array(incidentDetailSchema).max(100), nextCursor: z.string().nullable() }).strict())
-      : await apiClient.get(`${path}?${params}`, z.object({ items: z.array(securityIncidentSchema.omit({ timeline: true })).max(100), nextCursor: z.string().max(512).nullable() }).strict());
+      : await apiClient.get(`${path}?${params}`, z.object({ items: z.array(securityIncidentSchema.partial({ timeline: true })).max(100), nextCursor: z.string().max(512).nullable() }).strict());
     rememberLiveCursor(scope, page, response.nextCursor);
     return {
       items: response.items.map((row) => ({
@@ -278,7 +278,7 @@ export const securityRepository = {
       action: request.action,
       expectedVersion: request.context.expectedRevision,
       reason: request.context.reason,
-    }, securityIncidentSchema.omit({ timeline: true }));
+    }, securityIncidentSchema.partial({ timeline: true }));
   },
   listAuditEvents(input: ListQuery) {
     if (!mocksEnabled()) return liveSecurityRepository.listAuditEvents(input);

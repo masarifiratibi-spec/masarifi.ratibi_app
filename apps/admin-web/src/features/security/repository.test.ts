@@ -114,7 +114,7 @@ describe("Live security incident mapping", () => {
       const url = new URL(request.url);
       expect(url.searchParams.get("limit")).toBe("25");
       expect(url.searchParams.get("cursor")).toBeNull();
-      return HttpResponse.json({ items: [{ ...incident, timeline: undefined }], nextCursor: "next-page" });
+      return HttpResponse.json({ items: [{ ...incident, timeline: [] }], nextCursor: "next-page" });
     }));
     await expect(securityRepository.listSecurityIncidents({ page: 1, pageSize: 25 })).resolves.toMatchObject({
       items: [{ id: incidentId, title: incident.title, state: "Contained" }],
@@ -137,12 +137,12 @@ describe("Live security incident mapping", () => {
     });
   });
 
-  test("sends the selected transition and displayed version to the security endpoint", async () => {
+  test.each([{ timeline: undefined }, { timeline: [] }])("accepts the mutation response $timeline and sends the displayed version", async ({ timeline }) => {
     let body: unknown;
     mockServer.use(
       http.patch(endpoint, async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ ...incident, status: "resolved", version: 4, timeline: undefined });
+        return HttpResponse.json({ ...incident, status: "resolved", version: 4, timeline });
       }),
     );
     const context = {
