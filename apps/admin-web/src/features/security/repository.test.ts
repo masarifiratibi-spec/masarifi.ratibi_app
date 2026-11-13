@@ -67,90 +67,76 @@ describe("Phase 7 repository and MSW boundary", () => {
   });
 });
 
-describe("BE013 operations incident mapping", () => {
+describe("Live security incident mapping", () => {
   const incidentId = "13000000-0000-4000-8000-000000000001";
+  const endpoint = `/api/v1/admin/security/incidents/${incidentId}`;
+  const incident = {
+    id: incidentId,
+    title: "Suspicious session investigated",
+    severity: "high",
+    status: "contained",
+    detectedAt: "2026-09-10T08:00:00.000Z",
+    owner: null,
+    summaryRedacted: null,
+    version: 3,
+    timeline: [{
+      id: "13000000-0000-4000-8000-000000000002",
+      eventType: "incident_contain",
+      detailsRedacted: "Internal case note",
+      occurredAt: "2026-09-10T08:30:00.000Z",
+    }],
+  };
 
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_MOCKS", "false");
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true";
   });
 
-  test("fetches one incident by id and preserves values without invented impact", async () => {
-    let calls = 0;
-    mockServer.use(
-      http.get("/api/v1/admin/incidents", ({ request }) => {
-        calls += 1;
-        const params = new URL(request.url).searchParams;
-        expect(params.get("id")).toBe(incidentId);
-        expect(params.get("limit")).toBe("1");
-        return HttpResponse.json({
-              items: [{
-                id: incidentId,
-                title: "Provider latency under review",
-                severity: "warning",
-                status: "monitoring",
-                startedAt: "2026-09-10T08:00:00.000Z",
-                resolvedAt: null,
-                publicSummary: "The provider recovered and remains under observation.",
-                assignedAdminId: null,
-                version: 3,
-              }],
-              nextCursor: null,
-            }
-          );
-      }),
-    );
-
+  test("reads the security incident by its UUID and projects only timeline labels", async () => {
+    mockServer.use(http.get(endpoint, () => HttpResponse.json(incident)));
     await expect(securityRepository.getSecurityIncident(incidentId)).resolves.toMatchObject({
       id: incidentId,
-      severity: "warning",
-      state: "monitoring",
+      severity: "high",
+      state: "Contained",
       affectedCustomerCount: null,
       affectedServices: [],
-      timeline: [],
+      timeline: [{ at: "2026-09-10T08:30:00.000Z", label: "incident_contain" }],
       revision: 3,
       allowedActions: ["resolve"],
     });
-    expect(calls).toBe(1);
   });
 
-  test("maps only supported incident actions to exact BE013 PATCH fields", async () => {
+  test("accepts an investigating security incident", async () => {
+    mockServer.use(http.get(endpoint, () => HttpResponse.json({ ...incident, status: "investigating" })));
+    await expect(securityRepository.getSecurityIncident(incidentId)).resolves.toMatchObject({
+      state: "Investigating",
+      allowedActions: ["contain"],
+    });
+  });
+
+  test("sends the selected transition and displayed version to the security endpoint", async () => {
     let body: unknown;
     mockServer.use(
-      http.patch(`/api/v1/admin/incidents/${incidentId}`, async ({ request }) => {
+      http.patch(endpoint, async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ resourceId: incidentId, status: "updated", version: 4 });
+        return HttpResponse.json({ ...incident, status: "resolved", version: 4, timeline: undefined });
       }),
     );
+    const context = {
+      expectedState: "Contained",
+      expectedRevision: 3,
+      reason: "Resolve the security incident after review.",
+      confirmationToken: "CONFIRM-SPEC-008",
+    };
 
-    await expect(securityRepository.actOnSecurityIncident(incidentId, {
-      action: "resolve",
-      context: {
-        expectedState: "monitoring",
-        expectedRevision: 3,
-        reason: "Resolve the monitored incident after recovery evidence.",
-        confirmationToken: "CONFIRM-SPEC-008",
-      },
-    })).resolves.toEqual({ resourceId: incidentId, status: "updated", version: 4 });
-    expect(body).toEqual({
-      status: "resolved",
-      expectedVersion: 3,
-      reason: "Resolve the monitored incident after recovery evidence.",
-    });
-
-    await expect(securityRepository.actOnSecurityIncident(incidentId, {
-      action: "note",
-      context: {
-        expectedState: "monitoring",
-        expectedRevision: 3,
-        reason: "Notes have no accepted BE013 mutation contract.",
-        confirmationToken: "CONFIRM-SPEC-008",
-      },
-    })).rejects.toMatchObject({ code: "provider_unavailable" });
+    await expect(securityRepository.actOnSecurityIncident(incidentId, { action: "resolve", context }))
+      .resolves.toMatchObject({ id: incidentId, status: "resolved", version: 4 });
+    expect(body).toEqual({ action: "resolve", expectedVersion: 3, reason: context.reason });
+    await expect(securityRepository.actOnSecurityIncident(incidentId, { action: "monitor", context }))
+      .rejects.toMatchObject({ code: "provider_unavailable" });
   });
 });
 

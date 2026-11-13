@@ -27,8 +27,6 @@ import {
   exportRequestsPageSchema,
   incidentActionSchema,
   incidentDetailSchema,
-  operationsIncidentMutationResultSchema,
-  operationsIncidentPageSchema,
   listQuerySchema,
   overviewQuerySchema,
   permissionChangePageSchema,
@@ -72,6 +70,36 @@ function encodeUuid(id: string): string {
 function query(input: ListQuery): string {
   return buildSecurityQuery(listQuerySchema.parse(input)).toString();
 }
+
+const securityIncidentSchema = z.object({
+  id: z.uuid(),
+  title: z.string().trim().min(1).max(160),
+  severity: z.enum(["info", "low", "medium", "high", "critical"]),
+  status: z.enum(["open", "investigating", "contained", "resolved"]),
+  detectedAt: z.iso.datetime({ offset: true }),
+  owner: z.string().min(1).max(128).nullable(),
+  summaryRedacted: z.string().max(1000).nullable(),
+  version: z.number().int().positive(),
+  timeline: z.array(z.object({
+    id: z.uuid(),
+    eventType: z.string().min(1).max(160),
+    detailsRedacted: z.string().nullable(),
+    occurredAt: z.iso.datetime({ offset: true }),
+  }).strict()),
+}).strict();
+
+const securityIncidentState = {
+  open: "Open",
+  investigating: "Investigating",
+  contained: "Contained",
+  resolved: "Resolved",
+} as const;
+const securityIncidentAction = {
+  open: "contain",
+  investigating: "contain",
+  contained: "resolve",
+  resolved: null,
+} as const;
 
 const liveDeletionSchema = z.object({
   id: z.uuid(),
@@ -197,48 +225,41 @@ export const securityRepository = {
   async getSecurityIncident(id: string) {
     if (mocksEnabled())
       return apiClient.get(`${SECURITY_BASE_PATH}/security/incidents/${encodeSecurityId(id, "INC-")}`, incidentDetailSchema);
-    const incidentId = encodeUuid(id);
-    const params = new URLSearchParams({ limit: "1", id: decodeURIComponent(incidentId) });
-    const response = await apiClient.get(`${SECURITY_BASE_PATH}/incidents?${params.toString()}`, operationsIncidentPageSchema);
-    const incident = response.items.find((item) => item.id === decodeURIComponent(incidentId));
-      if (incident)
-        return incidentDetailSchema.parse({
-          id: incident.id,
-          title: incident.title,
-          publicSummary: incident.publicSummary ?? null,
-          startedAt: incident.startedAt,
-          resolvedAt: incident.resolvedAt ?? null,
-          assignedAdminId: incident.assignedAdminId ?? null,
-          severity: incident.severity,
-          state: incident.status,
-          owner: null,
-          affectedServices: [],
-          affectedCustomerCount: null,
-          platform: "unknown",
-          revision: incident.version,
-          timeline: [],
-          allowedActions: incident.status === "resolved"
-            ? []
-            : incident.status === "open"
-              ? ["contain", "resolve"]
-              : incident.status === "investigating"
-                ? ["monitor", "resolve"]
-                : ["resolve"],
-          auditReferences: [],
-        });
-    throw new ApiError("not_found", safeApiMessage("not_found"), 404);
+    const incident = await apiClient.get(
+      `${SECURITY_BASE_PATH}/security/incidents/${encodeUuid(id)}`,
+      securityIncidentSchema,
+    );
+    const action = securityIncidentAction[incident.status];
+    return incidentDetailSchema.parse({
+      id: incident.id,
+      title: incident.title,
+      startedAt: incident.detectedAt,
+      assignedAdminId: incident.owner,
+      severity: incident.severity,
+      state: securityIncidentState[incident.status],
+      owner: null,
+      affectedServices: [],
+      affectedCustomerCount: null,
+      platform: "unknown",
+      revision: incident.version,
+      timeline: incident.timeline.slice(-30).map((entry) => ({
+        at: entry.occurredAt,
+        label: entry.eventType,
+      })),
+      allowedActions: action ? [action] : [],
+      auditReferences: [],
+    });
   },
   actOnSecurityIncident(id: string, input: unknown) {
     const request = incidentActionSchema.parse(input);
     if (mocksEnabled())
       return apiClient.post(`${SECURITY_BASE_PATH}/security/incidents/${encodeSecurityId(id, "INC-")}/actions`, request, actionResultSchema);
-    const status = ({ contain: "investigating", monitor: "monitoring", resolve: "resolved" } as const)[request.action as "contain" | "monitor" | "resolve"];
-    if (!status) return unavailableClientOperation();
-    return apiClient.patch(`${SECURITY_BASE_PATH}/incidents/${encodeUuid(id)}`, {
-      status,
+    if (request.action !== "contain" && request.action !== "resolve") return unavailableClientOperation();
+    return apiClient.patch(`${SECURITY_BASE_PATH}/security/incidents/${encodeUuid(id)}`, {
+      action: request.action,
       expectedVersion: request.context.expectedRevision,
       reason: request.context.reason,
-    }, operationsIncidentMutationResultSchema);
+    }, securityIncidentSchema.omit({ timeline: true }));
   },
   listAuditEvents(input: ListQuery) {
     if (!mocksEnabled()) return liveSecurityRepository.listAuditEvents(input);
