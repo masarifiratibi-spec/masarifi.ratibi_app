@@ -5,9 +5,11 @@ import { ConfirmDialog, ErrorState, LoadingState, PageHeader, UnavailableState }
 import { ApiError } from "@/core/api/errors";
 import { getActionLabel, getPlatformLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import {
   useSecurityAction,
   useSecurityIncident,
+  useSecurityIncidents,
   useSecurityList,
   useSecurityOverview,
 } from "./hooks";
@@ -277,10 +279,36 @@ export function SecurityOverviewRoute() {
           ))}
         </section>
       )}
+      <SecurityIncidentList />
       <SimpleList resource="authentication" title={copy.authenticationTitle} />
       <SimpleList resource="suspicious" title={copy.suspiciousTitle} />
     </div>
   );
+}
+
+export function SecurityIncidentList() {
+  const { locale } = useLocale();
+  const allowed = useCurrentPermission()("security.incidents.manage");
+  const [page, setPage] = useState(1);
+  const query = useSecurityIncidents(page, allowed);
+  if (!allowed) return null;
+  const ar = locale === "ar";
+  return <section className="table-card ops-table-card" aria-labelledby="security-incidents-title">
+    <h2 id="security-incidents-title">{ar ? "الحوادث الأمنية" : "Security incidents"}</h2>
+    {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : <>
+      {query.data.items.length === 0 ? <p role="status">{ar ? "لا توجد حوادث أمنية." : "No security incidents."}</p> :
+        <div className="phase7-cards">{query.data.items.map((item) => <article className="mobile-data-card" key={item.id}>
+          <a href={`/admin/security/incidents/${encodeURIComponent(item.id)}`}>{item.title}</a>
+          <p><Id value={item.id} /></p>
+          <p>{ar && item.state === "Contained" ? "تم الاحتواء" : statusText(locale, item.state)} · {getSeverityLabel(locale, item.severity)}</p>
+        </article>)}</div>}
+      <div className="card-heading">
+        <button className="button" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{ar ? "السابق" : "Previous"}</button>
+        <span>{ar ? "صفحة" : "Page"} {page}</span>
+        <button className="button" disabled={page >= query.data.pagination.totalPages} onClick={() => setPage((value) => value + 1)}>{ar ? "التالي" : "Next"}</button>
+      </div>
+    </>}
+  </section>;
 }
 
 export function AuthenticationEventsRoute() {

@@ -222,6 +222,25 @@ export const securityRepository = {
     if (!mocksEnabled()) return liveSecurityRepository.revokeSupportAccess(id, input);
     return apiClient.post(`${SECURITY_BASE_PATH}/security/support-access/${encodeSecurityId(id, "SAC-")}/revoke`, supportAccessRevokeSchema.parse(input), actionResultSchema);
   },
+  async listSecurityIncidents(input: Pick<ListQuery, "page" | "pageSize">) {
+    const { page, pageSize } = listQuerySchema.parse(input);
+    const path = `${SECURITY_BASE_PATH}/security/incidents`;
+    const scope = `${path}:${pageSize}`;
+    const params = new URLSearchParams({ limit: String(pageSize) });
+    const cursor = liveCursor(scope, page);
+    if (cursor) params.set("cursor", cursor);
+    const response = mocksEnabled()
+      ? await apiClient.get(`${path}?${params}`, z.object({ items: z.array(incidentDetailSchema).max(100), nextCursor: z.string().nullable() }).strict())
+      : await apiClient.get(`${path}?${params}`, z.object({ items: z.array(securityIncidentSchema.omit({ timeline: true })).max(100), nextCursor: z.string().max(512).nullable() }).strict());
+    rememberLiveCursor(scope, page, response.nextCursor);
+    return {
+      items: response.items.map((row) => ({
+        id: row.id, title: row.title ?? row.id, severity: row.severity,
+        state: "status" in row ? securityIncidentState[row.status] : row.state,
+      })),
+      pagination: { page, totalPages: page + (response.nextCursor ? 1 : 0), totalItemsRelation: response.nextCursor || page > 1 ? "lower-bound" as const : "exact" as const },
+    };
+  },
   async getSecurityIncident(id: string) {
     if (mocksEnabled())
       return apiClient.get(`${SECURITY_BASE_PATH}/security/incidents/${encodeSecurityId(id, "INC-")}`, incidentDetailSchema);

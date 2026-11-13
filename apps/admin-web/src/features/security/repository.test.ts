@@ -109,6 +109,26 @@ describe("Live security incident mapping", () => {
     });
   });
 
+  test("lists security incidents from the security domain with cursor pagination", async () => {
+    mockServer.use(http.get("/api/v1/admin/security/incidents", ({ request }) => {
+      const url = new URL(request.url);
+      expect(url.searchParams.get("limit")).toBe("25");
+      expect(url.searchParams.get("cursor")).toBeNull();
+      return HttpResponse.json({ items: [{ ...incident, timeline: undefined }], nextCursor: "next-page" });
+    }));
+    await expect(securityRepository.listSecurityIncidents({ page: 1, pageSize: 25 })).resolves.toMatchObject({
+      items: [{ id: incidentId, title: incident.title, state: "Contained" }],
+      pagination: { page: 1, totalPages: 2, totalItemsRelation: "lower-bound" },
+    });
+    mockServer.use(http.get("/api/v1/admin/security/incidents", ({ request }) => {
+      expect(new URL(request.url).searchParams.get("cursor")).toBe("next-page");
+      return HttpResponse.json({ items: [], nextCursor: null });
+    }));
+    await expect(securityRepository.listSecurityIncidents({ page: 2, pageSize: 25 })).resolves.toMatchObject({
+      items: [], pagination: { page: 2, totalPages: 2 },
+    });
+  });
+
   test("accepts an investigating security incident", async () => {
     mockServer.use(http.get(endpoint, () => HttpResponse.json({ ...incident, status: "investigating" })));
     await expect(securityRepository.getSecurityIncident(incidentId)).resolves.toMatchObject({
