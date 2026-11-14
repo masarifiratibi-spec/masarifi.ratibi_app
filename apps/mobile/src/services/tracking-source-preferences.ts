@@ -114,7 +114,12 @@ function sourceScope() {
       : storageKey,
     async check(requireSession = true) {
       assertCurrent();
-      if (useTrackingAdmission.getState().nativeLease !== admission.nativeLease)
+      // Foreground configuration can rotate the same owner's native generation
+      // while consent is saved. The storage partition belongs to its owner digest.
+      if (
+        useTrackingAdmission.getState().nativeLease?.ownerDigest !==
+        admission.nativeLease?.ownerDigest
+      )
         throw new Error('tracking_source_owner_unavailable');
       if (
         ownerId &&

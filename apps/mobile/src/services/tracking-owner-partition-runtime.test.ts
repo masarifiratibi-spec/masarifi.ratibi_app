@@ -467,6 +467,73 @@ it('keeps intake suspended until the authoritative profile completes', async () 
   expect(useTrackingAdmission.getState().ready).toBe(true);
 });
 
+// 2026-11-14: returning from Android permission settings overlaps source saves
+// with foreground configuration. A consent generation is not a new account.
+it.each([
+  ['sms', true],
+  ['notification', false]
+] as const)(
+  'retains an approved %s=%s source save across foreground lease rotation',
+  async (source, enabled) => {
+    await restoreAppShellSession(verifiedSession(), () => true, {
+      getProfileSetup: async () => ({ complete: true })
+    } as never);
+    let entered!: () => void;
+    let release!: () => void;
+    const applying = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const response = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const acknowledge = jest.fn(async () => undefined);
+    const preferences = new TrackingSourcePreferences(
+      AsyncStorage,
+      async () => ({ activatedAt: 1000, afterId: '42' }),
+      {
+        async apply(sources) {
+          entered();
+          await response;
+          return {
+            commandId: 'aaaaaaaa-1111-4111-8111-111111111111',
+            sources
+          };
+        },
+        retry: async () => null,
+        acknowledge
+      }
+    );
+    const saving = preferences.set(source, enabled);
+    void saving.catch(() => undefined);
+    await applying;
+    const previousGeneration =
+      useTrackingAdmission.getState().nativeLease!.generation;
+    try {
+      await configureTrackingBackground(
+        owner,
+        { keywords: [], senders: [] },
+        'paused'
+      );
+      expect(useTrackingAdmission.getState().nativeLease!.generation).not.toBe(
+        previousGeneration
+      );
+    } finally {
+      release();
+    }
+    await expect(saving).resolves.toMatchObject({
+      smsEnabled: source === 'sms',
+      notificationEnabled: false
+    });
+    expect(await preferences.load()).toMatchObject({
+      smsEnabled: source === 'sms',
+      notificationEnabled: false
+    });
+    expect(acknowledge).toHaveBeenCalledWith(
+      'aaaaaaaa-1111-4111-8111-111111111111'
+    );
+  }
+);
+
 it.each(['prepare', 'commit'] as const)(
   'reconciles an interrupted native %s using the same durable generation',
   async (boundary) => {

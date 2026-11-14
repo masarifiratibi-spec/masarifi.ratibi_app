@@ -1,6 +1,9 @@
 import { TrackingSourcePreferences } from './tracking-source-preferences';
 import { registerLiveClerkBridge } from './live/auth-service';
-import { admitTrackingOwner } from '@/state/tracking-admission';
+import {
+  admitTrackingOwner,
+  refreshTrackingNativeLease
+} from '@/state/tracking-admission';
 import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import { disableTrackingBackground } from './tracking-background-runtime';
 
@@ -124,3 +127,35 @@ it('applies a recovered explicit pending command without observing or issuing a 
   expect(f.consent.apply).not.toHaveBeenCalled();
   expect(f.consent.acknowledge).toHaveBeenCalledWith(commandId);
 });
+
+it.each(['partition', 'owner', 'session'] as const)(
+  'does not apply an accepted activation after its %s changes',
+  async (changed) => {
+    const f = fixture();
+    f.consent.apply.mockImplementationOnce(async (sources) => {
+      const lease = {
+        ownerDigest: changed === 'partition' ? 'b'.repeat(64) : digest,
+        generation: 'bbbbbbbb-2222-4222-8222-222222222222'
+      };
+      if (changed === 'partition') {
+        refreshTrackingNativeLease(ownerId, lease, 'synthetic-source-session');
+      } else {
+        admitTrackingOwner(
+          changed === 'owner' ? 'synthetic-different-owner' : ownerId,
+          lease,
+          changed === 'session'
+            ? 'synthetic-new-session'
+            : 'synthetic-source-session'
+        );
+      }
+      return { commandId, sources };
+    });
+    await expect(f.preferences.set('sms', true)).rejects.toThrow(
+      changed === 'partition'
+        ? 'tracking_source_owner_unavailable'
+        : 'tracking_admission_changed'
+    );
+    expect(f.values.get(key)).toBeUndefined();
+    expect(f.consent.acknowledge).not.toHaveBeenCalled();
+  }
+);
