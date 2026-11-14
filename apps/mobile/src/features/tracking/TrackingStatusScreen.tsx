@@ -499,6 +499,16 @@ function TrackingStatusContent() {
     queueSourceChange('notification', nextValue);
   }
 
+  async function enableSourceFromGuide(source: 'sms' | 'notification') {
+    if (updating) throw new Error('tracking_source_busy');
+    const assertCurrent = captureTrackingAdmission(ownerId ?? undefined);
+    queueSourceChange(source, true);
+    await sourceCommands.tail;
+    assertCurrent();
+    if (sourceCommands.snapshot.failed)
+      throw new Error('tracking_source_activation_failed');
+  }
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -754,8 +764,8 @@ function TrackingStatusContent() {
         <TrackingSetupGuide
           smsAvailable={smsPermission !== 'unavailable'}
           notificationAvailable={notificationAccess !== 'unavailable'}
-          onOpenSmsSettings={() => permissionService.openSettings()}
-          onOpenNotificationSettings={() => bankNotificationService.openSettings()}
+          onEnableSmsTracking={() => enableSourceFromGuide('sms')}
+          onEnableNotificationTracking={() => enableSourceFromGuide('notification')}
           onOpenAlertSettings={openTrackingAlertSettings}
         />
 

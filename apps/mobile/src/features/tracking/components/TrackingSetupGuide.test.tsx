@@ -14,24 +14,24 @@ import { TrackingSetupGuide } from './TrackingSetupGuide';
 import { resolveTheme } from '@/design-system/theme';
 
 const originalOS = Platform.OS;
-const openSms = jest.fn(async () => undefined);
-const openListener = jest.fn(async () => undefined);
+const enableSms = jest.fn(async () => undefined);
+const enableNotifications = jest.fn(async () => undefined);
 const openAlerts = jest.fn(async () => true);
 const renderGuide = () =>
   renderWithProviders(
     <TrackingSetupGuide
       smsAvailable
       notificationAvailable
-      onOpenSmsSettings={openSms}
-      onOpenNotificationSettings={openListener}
+      onEnableSmsTracking={enableSms}
+      onEnableNotificationTracking={enableNotifications}
       onOpenAlertSettings={openAlerts}
     />
   );
 beforeEach(() => {
   Platform.OS = 'android';
   changeLocale('en');
-  openSms.mockReset().mockResolvedValue(undefined);
-  openListener.mockReset().mockResolvedValue(undefined);
+  enableSms.mockReset().mockResolvedValue(undefined);
+  enableNotifications.mockReset().mockResolvedValue(undefined);
   openAlerts.mockReset().mockResolvedValue(true);
 });
 afterEach(() => {
@@ -46,48 +46,62 @@ it('keeps the settings shortcut visible while guide steps start collapsed', asyn
   expect(screen.queryByTestId('tracking-guide-sms')).toBeNull();
   fireEvent.press(screen.getByTestId('tracking-alert-settings'));
   await waitFor(() => expect(openAlerts).toHaveBeenCalledTimes(1));
-  expect(openListener).not.toHaveBeenCalled();
-  expect(openSms).not.toHaveBeenCalled();
+  expect(enableNotifications).not.toHaveBeenCalled();
+  expect(enableSms).not.toHaveBeenCalled();
 });
 
 it.each([
-  ['sms', openSms, 'Enable text message tracking'],
-  ['notification', openListener, 'Track bank notifications'],
-  ['alerts', openAlerts, 'Transaction alerts']
+  ['sms', enableSms, 'Enable text message tracking', 'Enable SMS tracking'],
+  [
+    'notification',
+    enableNotifications,
+    'Track bank notifications',
+    'Enable bank notification tracking'
+  ],
+  [
+    'alerts',
+    openAlerts,
+    'Transaction alerts',
+    'Open transaction alert settings'
+  ]
 ] as const)(
   'opens the %s steps without changing permissions, then routes only its explicit action',
-  async (id, action, title) => {
+  async (id, action, title, actionLabel) => {
     renderGuide();
     fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
     fireEvent.press(screen.getByTestId(`tracking-guide-${id}`));
     expect(
       within(screen.getByTestId('app-sheet-modal')).getByLabelText(title)
     ).toBeOnTheScreen();
-    expect(openSms).not.toHaveBeenCalled();
-    expect(openListener).not.toHaveBeenCalled();
+    expect(enableSms).not.toHaveBeenCalled();
+    expect(enableNotifications).not.toHaveBeenCalled();
     expect(openAlerts).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+    fireEvent.press(screen.getByRole('button', { name: actionLabel }));
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     expect(
-      [openSms, openListener, openAlerts].filter((fn) => fn.mock.calls.length)
+      [enableSms, enableNotifications, openAlerts].filter(
+        (fn) => fn.mock.calls.length
+      )
     ).toHaveLength(1);
   }
 );
 
 it('shows settings failures and allows retry without losing the selected steps', async () => {
-  openSms.mockRejectedValueOnce(new Error('Unavailable'));
+  enableSms.mockRejectedValueOnce(new Error('Unavailable'));
   renderGuide();
   fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
   fireEvent.press(screen.getByTestId('tracking-guide-sms'));
   fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
   expect(
-    await screen.findByText('Could not open settings. Try again.')
+    await screen.findByText('Could not enable tracking. Try again.')
   ).toBeOnTheScreen();
   fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
   await waitFor(() =>
-    expect(screen.queryByText('Could not open settings. Try again.')).toBeNull()
+    expect(
+      screen.queryByText('Could not enable tracking. Try again.')
+    ).toBeNull()
   );
-  expect(openSms).toHaveBeenCalledTimes(2);
+  expect(enableSms).toHaveBeenCalledTimes(2);
 });
 
 it('resets restricted-settings help after dismissal and supports system back', () => {
@@ -121,7 +135,7 @@ it('explains Android-only capture on iOS without offering an unusable settings a
     )
   ).toBeOnTheScreen();
   expect(screen.queryByTestId('tracking-guide-open-settings')).toBeNull();
-  expect(openListener).not.toHaveBeenCalled();
+  expect(enableNotifications).not.toHaveBeenCalled();
 });
 
 it('mirrors Arabic rows, uses the selected theme and respects reduced motion', () => {
@@ -172,8 +186,8 @@ it.each(['sms', 'notification'] as const)(
       <TrackingSetupGuide
         smsAvailable={false}
         notificationAvailable={false}
-        onOpenSmsSettings={openSms}
-        onOpenNotificationSettings={openListener}
+        onEnableSmsTracking={enableSms}
+        onEnableNotificationTracking={enableNotifications}
         onOpenAlertSettings={openAlerts}
       />
     );
@@ -185,7 +199,7 @@ it.each(['sms', 'notification'] as const)(
       )
     ).toBeOnTheScreen();
     expect(screen.queryByTestId('tracking-guide-open-settings')).toBeNull();
-    expect(openSms).not.toHaveBeenCalled();
-    expect(openListener).not.toHaveBeenCalled();
+    expect(enableSms).not.toHaveBeenCalled();
+    expect(enableNotifications).not.toHaveBeenCalled();
   }
 );

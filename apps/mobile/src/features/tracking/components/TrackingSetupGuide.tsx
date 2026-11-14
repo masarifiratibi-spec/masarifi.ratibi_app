@@ -23,14 +23,14 @@ const topics: readonly GuideTopic[] = ['sms', 'notification', 'alerts'];
 export function TrackingSetupGuide({
   smsAvailable,
   notificationAvailable,
-  onOpenSmsSettings,
-  onOpenNotificationSettings,
+  onEnableSmsTracking,
+  onEnableNotificationTracking,
   onOpenAlertSettings
 }: {
   smsAvailable: boolean;
   notificationAvailable: boolean;
-  onOpenSmsSettings: () => Promise<void>;
-  onOpenNotificationSettings: () => Promise<void>;
+  onEnableSmsTracking: () => Promise<void>;
+  onEnableNotificationTracking: () => Promise<void>;
   onOpenAlertSettings: () => Promise<boolean>;
 }) {
   const { colors } = useTheme();
@@ -77,7 +77,7 @@ export function TrackingSetupGuide({
     setOpening(false);
   }
 
-  async function openSettings(topic: GuideTopic) {
+  async function runSetupAction(topic: GuideTopic) {
     if (opening) return;
     const version = ++actionVersion.current;
     setOpening(true);
@@ -85,16 +85,20 @@ export function TrackingSetupGuide({
     try {
       const opened =
         topic === 'sms'
-          ? await onOpenSmsSettings()
+          ? await onEnableSmsTracking()
           : topic === 'notification'
-            ? await onOpenNotificationSettings()
+            ? await onEnableNotificationTracking()
             : await onOpenAlertSettings();
       if (version === actionVersion.current && opened === false) {
         setError('tracking.setup.webUnavailable');
       }
     } catch {
       if (version === actionVersion.current)
-        setError('tracking.setup.openFailed');
+        setError(
+          topic === 'alerts'
+            ? 'tracking.setup.openFailed'
+            : 'tracking.setup.enableFailed'
+        );
     } finally {
       if (version === actionVersion.current) setOpening(false);
     }
@@ -122,7 +126,7 @@ export function TrackingSetupGuide({
           )}
           accessibilityState={{ disabled: opening, busy: opening }}
           disabled={opening}
-          onPress={() => void openSettings('alerts')}
+          onPress={() => void runSetupAction('alerts')}
           style={({ pressed }) => [
             styles.header,
             row,
@@ -363,9 +367,13 @@ export function TrackingSetupGuide({
                 {errorMessage}
                 <ActionButton
                   testID="tracking-guide-open-settings"
-                  label={`tracking.setup.${selected}.open`}
+                  label={
+                    selected === 'alerts'
+                      ? 'tracking.setup.alerts.open'
+                      : `tracking.setup.${selected}.enable`
+                  }
                   loading={opening}
-                  onPress={() => void openSettings(selected)}
+                  onPress={() => void runSetupAction(selected)}
                 />
               </>
             )}
