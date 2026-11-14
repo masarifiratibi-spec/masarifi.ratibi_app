@@ -164,7 +164,7 @@
   "qualification": {
     "linuxPassed": false,
     "workflow": "dashboard-vps-packet.yml",
-    "localControlsPassed": 66,
+    "localControlsPassed": 69,
     "hostedRuntimeExecuted": false
   },
   "files": {
@@ -172,7 +172,7 @@
     "acceptance_receipt.py": "403f16bb43b2a01e01e51b1fef380b203b63a5540b77f83962f5434af4c0424a",
     "admission.py": "d46c3b5281876468378a808cc8c7400719237e917f4313d08dc93205fa5839c4",
     "candidate_verifier.py": "4a06f7a3e0a480940385086652f9a6873fa63ef2ae01baaa57e8414e80daf1a5",
-    "host_release.py": "edcfbe657e7663dcf1dbb2af9af7b8f826f6433cf74197df4fe399120a9be2ea",
+    "host_release.py": "ed8445bd1233468edb73d4e56eed561baf5cd7a1ebb0f9d19349f88dcff7ebb4",
     "migration_packet.py": "67261f20d0a7da022c769cc27a681be31665a5e4707631ccdedb1c5e11fabd1d",
     "nginx_delta.py": "3f1e1da84ff8f7c34fc5d99bfce7710c1a09d61e5c1dcf2a5533a690dd3d26b7",
     "patch_security_modules.py": "8ae1a44f58eb244c33e41d57326519a0d84b26028471ca5734271773f457b86b",
@@ -189,14 +189,14 @@
     "stage_admin.py": "ace9982d23bcddddbe07085179282cb26ba6dccbfd0801ff7adbaf8d67c478a6",
     "test_acceptance_receipt.py": "0cab9f0f3a505c69db0a22ca78c74d308a67fec3d762fac5c6b09c6f00cd3226",
     "test_candidate_verifier.py": "3d8437445206e9d6fadff6d065a0b7f40c28407ee7fc04bba0098a4eb5903473",
-    "test_host_release.py": "099b8883681a085cdff4d91184cebf75902f5ecda2653a45888152a3144d261e",
+    "test_host_release.py": "69bff8b7a1d6e57c8fbcda0f0c39ea5e4b91780d81f5f58c79b4a60b049c69bd",
     "test_nginx_delta.py": "d413e1eaa4a42690f679d66bd0e24ba3b9f810529ee1409ff7b1dd754a5676b3",
     "test_patch_security_modules.py": "bba1c13febfc1a0411da3089e239bc049927ba226552fd20913f4926a9646e2d",
     "test_read_nginx_context.py": "542e99e3cfc4ef2974da851609d8f8e1e8ce813cdb5b3f728e96da16453fe947",
     "test_routing_files.py": "77b535c03138c789f79d350456376bd91e1c90e50f4cfa0e9c94058ced9bc329",
     "test_runtime_plan.py": "c96120926c44b8e9ec089ce958b6234e232a862357612d6db806973088675db3",
     "test_stage_admin.py": "2ad0ec1d4a2aa878d7d764e308c84a0535a5ac83e37cb4a43006624ed1cc7079",
-    "test_trial_watchdog.py": "233517e676a0d381c6866065863a1be37c200e8737614bd2dc42b4383414d16e",
+    "test_trial_watchdog.py": "ecbb51feb42f53fdd4cbd4cb080c123244bed56c00898c3cd7ec16dc0ee24ffd",
     "trial_watchdog.py": "c12dfb5391ed433e85ad86f2262708b2b1901e7183c67661b9acf91ce6182e35"
   },
   "admission": {

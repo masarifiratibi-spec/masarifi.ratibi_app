@@ -354,7 +354,10 @@ def stage(m, pin):
     Path(ROOT).mkdir(mode=0o700)
     files.PRIVATE.mkdir(mode=0o700)
     files.emit(files.PRIVATE / "stage-owner.json", {"packetSha256": pin, "createdUnix": time.time()})
-    (files.PRIVATE / "original").write_bytes(files.exact_file(files.TARGET))
+    with (files.PRIVATE / "original").open("xb") as backup:
+        backup.write(files.exact_file(files.TARGET))
+        backup.flush()
+        os.fsync(backup.fileno())
     stage_admin.admin(INPUT / "admin-artifact.zip", Path(ROOT), m["admin"])
     sources = {role: inspect(b["originals"][role]["containerId"]) for role in NAMES}
     stage_overlay(m, sources["api"])

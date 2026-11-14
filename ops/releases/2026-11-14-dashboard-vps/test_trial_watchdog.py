@@ -101,6 +101,14 @@ class WatchdogTests(unittest.TestCase):
         self.assert_restored()
         self.assertGreaterEqual(self.clock.value, 60)
 
+    def test_already_expired_stage_is_quiesced_without_switching(self):
+        self.clock.value = 61
+        self.switch()
+        self.drive()
+        self.assert_restored()
+        self.assertNotIn("armed", self.f.records)
+        self.assertNotIn("switched", self.f.records)
+
     def test_old_pid_acceptance_cannot_outlive_new_watchdog(self):
         self.switch()
         self.accept()

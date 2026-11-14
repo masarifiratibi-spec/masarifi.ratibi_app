@@ -54,8 +54,6 @@ jobs:
       contents: read
       actions: read
       packages: read
-    env:
-      DOCKER_CONFIG: ${{ runner.temp }}/dashboard-readonly-docker-auth
     defaults:
       run:
         working-directory: ops/releases/2026-11-14-dashboard-vps
@@ -67,8 +65,10 @@ jobs:
       - name: Authenticate only for reading the already installed image
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/dashboard-readonly-docker-auth
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Verify and cold-start the pinned Admin without network or live secrets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/dashboard-readonly-docker-auth
         run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_TEMP,GH_TOKEN,GITHUB_REPOSITORY,DOCKER_CONFIG python3 -B qualify_admin_runtime.py

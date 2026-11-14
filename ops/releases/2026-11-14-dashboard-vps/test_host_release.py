@@ -9,6 +9,28 @@ from runtime_plan import NAMES
 
 
 class HostControls(unittest.TestCase):
+    def test_baseline_reads_the_complete_collected_receipt_and_requires_stability(self):
+        receipt = dict(collectorStatus="passed", stableBeforeAfter=True,
+                       counts=dict(targetRunning=30, frozenSourceAllStoppedRestartNo=True),
+                       collected={"inventorySha256": "fixture"})
+        manifest = {"admission": {"receiptPath": "/fixture", "canonicalSha256": "a" * 64}}
+        with patch.object(host, "private_json", return_value=receipt):
+            self.assertEqual(host.baseline(manifest), receipt["collected"])
+            receipt["stableBeforeAfter"] = False
+            with self.assertRaisesRegex(ValueError, "LIVE_COLLECTION_NOT_ADMITTED"):
+                host.baseline(manifest)
+
+    def test_current_inventory_drift_stops_staging_before_any_host_change(self):
+        captured = {k: "same" for k in ("originals", "plannedPayloadSha256", "inventorySha256", "mountFiles", "nginx", "master")}
+        fresh = dict(captured, inventorySha256="changed")
+        with patch.object(host, "baseline", return_value=captured), \
+             patch.object(host.admission, "collect", return_value=fresh), \
+             patch.object(host, "production_ready") as readiness, patch.object(host, "run") as command:
+            with self.assertRaisesRegex(ValueError, "FRESH_HOST_ADMISSION_DRIFT"):
+                host.stage({"routing": {"protectedPrimarySha256": "a" * 64}}, "b" * 64)
+            readiness.assert_not_called()
+            command.assert_not_called()
+
     def test_blocked_packet_cannot_dispatch_even_with_correct_manifest_hash(self):
         raw = json.dumps({"status": "blocked", "blockers": ["fixture"]}).encode()
         digest = host.files.sha(raw)
