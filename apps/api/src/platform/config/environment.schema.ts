@@ -1,10 +1,16 @@
 import Joi from 'joi';
+import { isProjectRuntimeEnvironment } from './runtime-scope';
 
 import type { PlatformEnvironment, ProcessKind } from './environment.types';
 
 const applicationKeys = new Set([
+  'MASARIFI_RUNTIME_SCOPE',
+  'MASARIFI_STORAGE_PROVIDER',
+  'MASARIFI_STORAGE_URL',
+  'MASARIFI_STORAGE_SERVICE_KEY',
   'MASARIFI_PROCESS_KIND',
   'MASARIFI_RELEASE_VERSION',
+  'MASARIFI_LOG_SERVICE',
   'MASARIFI_HTTP_PORT',
   'MASARIFI_CORS_ORIGINS',
   'MASARIFI_HTTP_BODY_LIMIT_BYTES',
@@ -328,6 +334,18 @@ const schema = Joi.object<PlatformEnvironment>({
     .max(2_048)
     .optional(),
   SUPABASE_SERVICE_ROLE_KEY: Joi.string().trim().min(16).max(4_096).optional(),
+  MASARIFI_RUNTIME_SCOPE: Joi.string()
+    .valid('supabase-staging', 'project-server')
+    .default('supabase-staging'),
+  MASARIFI_STORAGE_PROVIDER: Joi.string().valid('supabase', 'filesystem').default('supabase'),
+  MASARIFI_STORAGE_URL: Joi.string()
+    .uri({ scheme: ['https'] })
+    .max(2_048)
+    .optional(),
+  MASARIFI_STORAGE_SERVICE_KEY: Joi.string().trim().min(32).max(4_096).optional(),
+  MASARIFI_LOG_SERVICE: Joi.string()
+    .pattern(/^[A-Za-z0-9._:-]{1,128}$/)
+    .optional(),
   MASARIFI_EXPORT_MAX_BYTES: Joi.number().integer().min(1_048_576).max(1_073_741_824).optional(),
   MASARIFI_EXPORT_MAX_ENTRIES: Joi.number().integer().min(1).max(10_000).optional(),
   MASARIFI_EXPORT_RETENTION_HOURS: Joi.number().integer().min(1).max(168).optional(),
@@ -460,8 +478,6 @@ const requiredByProcess: Record<ProcessKind, readonly (keyof PlatformEnvironment
     'MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS',
     'MASARIFI_ADMIN_INVITATION_REDIRECT_URL',
     'MASARIFI_SECURITY_IP_HASH_KEYS',
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
     'MASARIFI_EXPORT_RETENTION_HOURS',
     'MASARIFI_EXPORT_SIGNED_URL_SECONDS',
     'MASARIFI_DELETION_COOLING_OFF_HOURS',
@@ -471,8 +487,6 @@ const requiredByProcess: Record<ProcessKind, readonly (keyof PlatformEnvironment
     'MASARIFI_PUSH_TOKEN_HASH_KEY',
     'MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS',
     'MASARIFI_SECURITY_IP_HASH_KEYS',
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
     'MASARIFI_EXPORT_MAX_BYTES',
     'MASARIFI_EXPORT_MAX_ENTRIES',
     'MASARIFI_EXPORT_RETENTION_HOURS',
@@ -498,6 +512,13 @@ function validateIdentityEnvironment(environment: PlatformEnvironment): void {
     const value = environment[key];
     return value === undefined || value === '';
   });
+  if (environment.MASARIFI_PROCESS_KIND !== 'migration') {
+    const storageKeys: (keyof PlatformEnvironment)[] =
+      environment.MASARIFI_STORAGE_PROVIDER === 'filesystem'
+        ? ['MASARIFI_STORAGE_URL', 'MASARIFI_STORAGE_SERVICE_KEY']
+        : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+    missing.push(...storageKeys.filter((key) => !environment[key]));
+  }
   if (missing.length > 0) invalidEnvironment(missing);
 
   if (
@@ -665,10 +686,23 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   }
 
   const environment = value as PlatformEnvironment;
+  if (environment.MASARIFI_STORAGE_PROVIDER === 'filesystem') {
+    if (!isProjectRuntimeEnvironment(environment) || environment.SUPABASE_SERVICE_ROLE_KEY) {
+      invalidEnvironment(['MASARIFI_RUNTIME_SCOPE', 'MASARIFI_STORAGE_PROVIDER']);
+    }
+  } else if (
+    environment.MASARIFI_RUNTIME_SCOPE === 'project-server' ||
+    environment.MASARIFI_STORAGE_URL ||
+    environment.MASARIFI_STORAGE_SERVICE_KEY
+  ) {
+    invalidEnvironment(['MASARIFI_RUNTIME_SCOPE', 'MASARIFI_STORAGE_PROVIDER']);
+  }
+  if (processKind === 'migration' && environment.MASARIFI_STORAGE_SERVICE_KEY)
+    invalidEnvironment(['MASARIFI_STORAGE_SERVICE_KEY']);
   if (
     environment.MASARIFI_STAGING_SELF_DELETION_ENABLED &&
     (environment.MASARIFI_PROCESS_KIND !== 'api' ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co' ||
+      !isProjectRuntimeEnvironment(environment) ||
       environment.MASARIFI_DELETION_COOLING_OFF_HOURS !== 0 ||
       environment.MASARIFI_STAGING_SELF_DELETION_OWNER_ID)
   )
@@ -676,20 +710,18 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
   if (
     environment.MASARIFI_STAGING_SELF_DELETION_OWNER_ID &&
     (environment.MASARIFI_PROCESS_KIND !== 'api' ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co' ||
+      !isProjectRuntimeEnvironment(environment) ||
       environment.MASARIFI_DELETION_COOLING_OFF_HOURS !== 0)
   )
     invalidEnvironment(['MASARIFI_STAGING_SELF_DELETION_OWNER_ID']);
   if (
     environment.MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID &&
-    (environment.MASARIFI_PROCESS_KIND !== 'api' ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+    (environment.MASARIFI_PROCESS_KIND !== 'api' || !isProjectRuntimeEnvironment(environment))
   )
     invalidEnvironment(['MASARIFI_STAGING_PLANNING_REPAIR_OWNER_ID']);
   if (
     environment.MASARIFI_STAGING_PRIVACY_OWNER_ID &&
-    (environment.MASARIFI_PROCESS_KIND !== 'worker' ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+    (environment.MASARIFI_PROCESS_KIND !== 'worker' || !isProjectRuntimeEnvironment(environment))
   )
     invalidEnvironment(['MASARIFI_STAGING_PRIVACY_OWNER_ID']);
   if (environment.MASARIFI_STAGING_VOICE_CONTINUOUS && !environment.MASARIFI_STAGING_VOICE_EPOCH_ID)
@@ -698,7 +730,7 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
     environment.MASARIFI_STAGING_VOICE_DEV_OWNER_ID &&
     (environment.MASARIFI_PROCESS_KIND !== 'api' ||
       !environment.MASARIFI_VOICE_ANALYSIS_ONLY ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+      !isProjectRuntimeEnvironment(environment))
   )
     invalidEnvironment(['MASARIFI_STAGING_VOICE_DEV_OWNER_ID']);
   if (
@@ -710,14 +742,11 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
     environment.MASARIFI_STAGING_VOICE_EPOCH_ID &&
     (environment.MASARIFI_PROCESS_KIND !== 'worker' ||
       environment.MASARIFI_VOICE_ANALYSIS_ONLY ||
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+      !isProjectRuntimeEnvironment(environment))
   ) {
     invalidEnvironment(['MASARIFI_STAGING_VOICE_EPOCH_ID']);
   }
-  if (
-    environment.MASARIFI_VOICE_ANALYSIS_ONLY &&
-    environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
-  ) {
+  if (environment.MASARIFI_VOICE_ANALYSIS_ONLY && !isProjectRuntimeEnvironment(environment)) {
     invalidEnvironment(['MASARIFI_VOICE_ANALYSIS_ONLY']);
   }
   if (
@@ -777,7 +806,7 @@ export function validateEnvironment(input: Record<string, unknown>): PlatformEnv
       !environment.MASARIFI_ASSISTANT_AGENT_OWNER_ID) ||
     ((environment.MASARIFI_ASSISTANT_AGENT_ENABLED ||
       environment.MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED) &&
-      environment.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co')
+      !isProjectRuntimeEnvironment(environment))
   ) {
     invalidEnvironment(['MASARIFI_ASSISTANT_AGENT_ENABLED']);
   }

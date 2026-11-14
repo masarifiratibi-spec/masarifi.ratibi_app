@@ -1,0 +1,52 @@
+{
+  "recordedAtUtc": "2026-11-14T08:37:23.400140+00:00",
+  "platformSourceCommit": "e9fe1e70d97c57498611ad50f746565e3ae22e46",
+  "mobileSourceCommit": "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718",
+  "localQualificationSourceCommit": "3d100174125468ef566f34288708b403a48ec6c4",
+  "android146BuildInputMap": "ops/mobile/android146-published-source-map-2026-11-14.json",
+  "productionCredentialsInherited": false,
+  "liveDatabaseTestsEnabled": false,
+  "backupWork": "deferred by user instruction, 14 November 2026",
+  "scope": "Source publication and handoff only; no new APK build/install or live deployment in this publication turn.",
+  "api": {
+    "passedTests": 2835,
+    "passedSuites": 366,
+    "pendingTests": 1108,
+    "pendingSuites": 132,
+    "failedTests": 0,
+    "projects": [
+      "unit",
+      "contract",
+      "integration",
+      "security"
+    ]
+  },
+  "mobile": {
+    "passedTests": 5196,
+    "passedSuites": 627,
+    "pendingTests": 0,
+    "pendingSuites": 0,
+    "failedTests": 0,
+    "projects": [
+      "complete mobile Jest suite"
+    ]
+  },
+  "checks": {
+    "api-tests": 0,
+    "api-types": 0,
+    "api-lint": 0,
+    "mobile-tests": 0,
+    "mobile-types": 0,
+    "mobile-lint": 0,
+    "selfhost-node": 0,
+    "selfhost-python": 0
+  },
+  "secretScan": {
+    "scanner": "Gitleaks 8.30.1",
+    "redacted": true,
+    "ruleSuppressionsAdded": false,
+    "workingTreeCandidateFiles": 207,
+    "findings": 0,
+    "note": "An inert offline-only qualification fixture was replaced with generated dummy bytes; actual scanner rules and the reviewed findings catalog were not changed."
+  }
+}

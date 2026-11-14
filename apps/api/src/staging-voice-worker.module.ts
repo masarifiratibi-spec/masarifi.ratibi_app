@@ -1,3 +1,4 @@
+import { isProjectRuntime } from './platform/config/runtime-scope';
 import { Module } from '@nestjs/common';
 import { writeFileSync, renameSync } from 'node:fs';
 import { AiWorkerModule } from './ai/ai.module';
@@ -28,7 +29,7 @@ import { EngagementWorker } from './engagement/engagement.worker';
         if (
           !epoch ||
           !/^[a-f0-9]{40}$/.test(source) ||
-          config.get('SUPABASE_URL') !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co' ||
+          !isProjectRuntime(config) ||
           config.get('MASARIFI_VOICE_ANALYSIS_ONLY') ||
           !config.get('MASARIFI_AI_PROVIDER_ENABLED') ||
           config.get('MASARIFI_AI_WORKER_POLL_MS') !== 500 ||

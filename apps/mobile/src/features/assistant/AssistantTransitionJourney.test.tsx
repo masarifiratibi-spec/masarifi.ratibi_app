@@ -402,8 +402,10 @@ describe('Assistant Transition & Chat Journey', () => {
     }
   );
 
-  it('allows consent while direct financial questions are disabled', () => {
+  it('allows asking directly when legacy consent capabilities are disabled', () => {
     const enable = jest.fn();
+    const create = jest.fn();
+    mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create });
     mockAssistantQueries.useAssistantConsent.mockReturnValue({
       data: { status: 'disabled', version: 2 }
     });
@@ -420,10 +422,10 @@ describe('Assistant Transition & Chat Journey', () => {
       }
     });
     renderWithProviders(<AssistantHomeScreen />);
-    fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
-    expect(enable).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true, expectedVersion: 2 })
-    );
+    expect(screen.queryByTestId('assistant-consent-enable-button')).toBeNull();
+    fireEvent.press(screen.getByTestId('suggestion-card-spending'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(enable).not.toHaveBeenCalled();
   });
 
   it('shows the first typed question in the original chat before creation is acknowledged', () => {

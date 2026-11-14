@@ -6,9 +6,7 @@ describe('app shell localization', () => {
     changeLocale('ar');
     expect(translate('appShell.security.settingsTitle')).toBe('إعدادات الأمان');
     expect(translate('appShell.security.nativeLock')).toBe('استخدام مصادقة الجهاز');
-    expect(translate('appShell.security.nativeLockSubtitle')).toContain(
-      'رمز الجهاز'
-    );
+    expect(translate('appShell.security.nativeLockSubtitle')).toMatch(/بصمة.*رمز.*نمط.*جهازك/u);
     expect(backIconForDirection('rtl')).toBe('chevron-right');
     expect(primaryTabRoutes).toHaveLength(3);
 
@@ -17,9 +15,7 @@ describe('app shell localization', () => {
       'Security settings'
     );
     expect(translate('appShell.security.nativeLock')).toBe('Use device authentication');
-    expect(translate('appShell.security.nativeLockSubtitle')).toContain(
-      'device PIN'
-    );
+    expect(translate('appShell.security.nativeLockSubtitle')).toMatch(/fingerprint.*passcode.*pattern.*device/i);
     expect(backIconForDirection('ltr')).toBe('chevron-left');
     expect(primaryTabRoutes).toHaveLength(3);
   });

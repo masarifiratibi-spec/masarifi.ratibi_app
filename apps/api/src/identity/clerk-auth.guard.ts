@@ -1,3 +1,4 @@
+import { isProjectRuntimeEnvironment } from '../platform/config/runtime-scope';
 import {
   type CanActivate,
   type ExecutionContext,
@@ -58,7 +59,7 @@ export class ClerkAuthGuard implements CanActivate {
       (request as ClerkPrincipalRequest & { requestId?: string }).requestId ??
       request.headers['x-request-id'];
     if (
-      process.env.SUPABASE_URL === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      isProjectRuntimeEnvironment(process.env) &&
       process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED === 'true' &&
       /^\/api\/v1\/voice(?:\/|$)/.test(request.originalUrl) &&
       typeof requestId === 'string' &&

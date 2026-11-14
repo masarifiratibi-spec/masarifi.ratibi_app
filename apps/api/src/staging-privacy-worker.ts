@@ -1,3 +1,4 @@
+import { isProjectRuntimeEnvironment } from './platform/config/runtime-scope';
 import 'reflect-metadata';
 import { createHash } from 'node:crypto';
 import { renameSync, writeFileSync } from 'node:fs';
@@ -21,6 +22,9 @@ export function stagingPrivacyScope(
     | 'MASARIFI_STAGING_PRIVACY_OWNER_ID'
     | 'MASARIFI_RELEASE_VERSION'
     | 'SUPABASE_URL'
+    | 'MASARIFI_RUNTIME_SCOPE'
+    | 'MASARIFI_STORAGE_PROVIDER'
+    | 'MASARIFI_STORAGE_URL'
     | 'MASARIFI_PROCESS_KIND'
     | 'CLERK_SECRET_KEY'
   >,
@@ -34,7 +38,7 @@ export function stagingPrivacyScope(
     owner.length > 128 ||
     !/^[a-f0-9]{40}$/.test(config.MASARIFI_RELEASE_VERSION) ||
     config.MASARIFI_PROCESS_KIND !== 'worker' ||
-    config.SUPABASE_URL !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
+    !isProjectRuntimeEnvironment(config)
   )
     throw new Error('PRIVACY_SCOPED_RUNTIME_CONFIGURATION_INVALID');
   return {

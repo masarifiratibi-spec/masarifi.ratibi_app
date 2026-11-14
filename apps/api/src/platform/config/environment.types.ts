@@ -5,6 +5,7 @@ export interface PlatformEnvironment {
   NODE_ENV: NodeEnvironment;
   MASARIFI_PROCESS_KIND: ProcessKind;
   MASARIFI_RELEASE_VERSION: string;
+  MASARIFI_LOG_SERVICE?: string;
   DATABASE_URL: string;
   MASARIFI_PRIVACY_DATABASE_URL?: string;
   MASARIFI_SYNC_COMMAND_DATABASE_URL?: string;
@@ -62,6 +63,10 @@ export interface PlatformEnvironment {
   MASARIFI_SECURITY_IP_HASH_KEYS?: string;
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  MASARIFI_RUNTIME_SCOPE?: 'supabase-staging' | 'project-server';
+  MASARIFI_STORAGE_PROVIDER?: 'supabase' | 'filesystem';
+  MASARIFI_STORAGE_URL?: string;
+  MASARIFI_STORAGE_SERVICE_KEY?: string;
   MASARIFI_EXPORT_MAX_BYTES?: number;
   MASARIFI_EXPORT_MAX_ENTRIES?: number;
   MASARIFI_EXPORT_RETENTION_HOURS?: number;

@@ -51,9 +51,8 @@ export function AssistantConsentCard({
         >
           {translate('assistant.privacy.transactions')}
         </StyledText>
-        <StyledText variant="caption" style={[styles.description, { textAlign: 'center' }]}>
-          {translate('assistant.privacy.choice')}
-        </StyledText>
+        <ActionButton label="privacy.details" variant="quiet"
+          onPress={() => router.push({ pathname: '/(public)/legal', params: { document: 'privacy' } })} />
       </View>
 
       {/* CTA: enable button OR enabled confirmation */}

@@ -51,15 +51,14 @@ describe('TrackingStatusJourney', () => {
     expect(await screen.findByTestId('tracking-sms-switch')).toBeDisabled();
     expect(screen.getByTestId('tracking-notification-switch')).toBeDisabled();
     expect(
-      screen.getByText(translate('tracking.permission.unavailableMessage'))
-    ).toBeOnTheScreen();
+      screen.queryByText(translate('tracking.permission.unavailableMessage'))
+    ).toBeNull();
     expect(
-      screen.getByTestId('tracking-permission-warning-banner').props
-        .accessibilityState
-    ).toEqual({ disabled: true });
+      screen.queryByTestId('tracking-permission-warning-banner')
+    ).toBeNull();
   });
 
-  it('shows status, recovery, and explanations', async () => {
+  it('shows concise explanations without a passive permission warning or privacy link', async () => {
     const status = {
       platform: 'android' as const,
       mode: 'automatic_clear' as const,
@@ -83,14 +82,17 @@ describe('TrackingStatusJourney', () => {
       expect.objectContaining({ checked: false })
     );
     expect(
-      screen.getByTestId('tracking-permission-warning-banner')
-    ).toBeOnTheScreen();
+      screen.queryByTestId('tracking-permission-warning-banner')
+    ).toBeNull();
     expect(
-      screen.getByText(translate('tracking.permission.warning'))
-    ).toBeOnTheScreen();
+      screen.queryByText(translate('tracking.permission.warning'))
+    ).toBeNull();
     expect(
       screen.getByText(translate('tracking.howItWorks.detection'))
     ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: translate('privacy.details') })
+    ).toBeNull();
   });
 
   it('shows independent Android SMS and transaction-notification switches', async () => {

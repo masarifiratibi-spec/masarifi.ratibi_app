@@ -12,8 +12,8 @@ jest.mock('@/services/owner-lifecycle', () => ({ retryPendingLogout: jest.fn() }
 afterEach(() => { act(() => useAppShellStore.getState().reset()); jest.resetAllMocks(); });
 
 it.each([
-  ['en', 'Retry sign-out', 'The original session could not be verified. Your data has been kept. Retry when that session is available.'],
-  ['ar', 'إعادة محاولة تسجيل الخروج', 'تعذّر التحقق من الجلسة الأصلية. حُفظت بياناتك. أعد المحاولة عندما تكون الجلسة متاحة.']
+  ['en', 'Retry sign-out', 'Cannot verify the session. Data saved; retry later.'],
+  ['ar', 'إعادة محاولة تسجيل الخروج', 'تعذّر التحقق من الجلسة. بياناتك محفوظة؛ حاول لاحقًا.']
 ] as const)('shows a bounded original-session recovery action in %s', async (locale, label, message) => {
   changeLocale(locale);
   usePreferenceStore.setState({ locale });

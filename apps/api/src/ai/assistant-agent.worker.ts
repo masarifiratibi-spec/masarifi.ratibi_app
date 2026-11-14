@@ -1,3 +1,4 @@
+import { isProjectRuntime } from '../platform/config/runtime-scope';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { PlatformLogger } from '../platform/observability/platform-logger';
@@ -48,7 +49,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
       (!this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
         !this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED')) ||
       !this.config.get('MASARIFI_AI_ASSISTANT_ONLY') ||
-      this.config.get('SUPABASE_URL') !== 'https://qcffvfbpzvpwcwxwjyro.supabase.co'
+      !isProjectRuntime(this.config)
     )
       throw Error('ASSISTANT_SCOPE_INVALID');
     this.timer = setInterval(() => {
@@ -86,7 +87,11 @@ export class AssistantAgentWorker implements OnModuleDestroy {
             apiKey: this.config.get('OPENROUTER_API_KEY'),
             assistantRecovery: true,
             onAttempt: (fields) => {
-              this.logger.info('AI_PROVIDER_ATTEMPT', fields);
+              this.logger.info('AI_PROVIDER_ATTEMPT', {
+                ...fields,
+                requestId: claim.operationId,
+                jobName: 'assistant.respond',
+              });
             },
           }),
           async (receipt) => {
@@ -100,6 +105,8 @@ export class AssistantAgentWorker implements OnModuleDestroy {
           },
           (diagnostic) => {
             this.logger.info('ASSISTANT_AGENT_STAGE', {
+              requestId: claim.operationId,
+              jobName: 'assistant.respond',
               eventName: `assistant.agent.${diagnostic.stage}`,
               state: diagnostic.state,
               attempt: claim.attempt,
@@ -114,6 +121,8 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         this.controller.signal.throwIfAborted();
         await this.jobs.finish(claim, answer);
         this.logger.info('ASSISTANT_AGENT_FINISHED', {
+          requestId: claim.operationId,
+          jobName: 'assistant.respond',
           state: 'completed',
           durationMs: Date.now() - started,
         });
@@ -127,6 +136,8 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         const retry =
           error instanceof AiGatewayError ? error.retryable : code === 'AI_TEMPORARILY_UNAVAILABLE';
         this.logger.error('ASSISTANT_AGENT_FAILED', {
+          requestId: claim.operationId,
+          jobName: 'assistant.respond',
           code,
           durationMs: Date.now() - started,
           ...(error instanceof AiGatewayError ? error.diagnostic : {}),

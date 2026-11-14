@@ -47,6 +47,8 @@ const appIconMap = {
   search: { ios: 'magnifyingglass', android: 'search', web: 'search' },
   settings: { ios: 'gearshape', android: 'settings', web: 'settings' },
   close: { ios: 'xmark', android: 'close', web: 'close' },
+  history: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+  arrowUp: { ios: 'arrow.up', android: 'arrow_upward', web: 'arrow_upward' },
   check: { ios: 'checkmark', android: 'check', web: 'check' },
   checkCircle: {
     ios: 'checkmark.circle.fill',

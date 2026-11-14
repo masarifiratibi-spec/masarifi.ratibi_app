@@ -1336,7 +1336,7 @@ export class AiRepository {
     action: (client: PoolClient, operationId: string) => Promise<Record<string, unknown>>,
     admin = false,
   ) {
-    return this.owner(principal, async (client) => {
+    const result = await this.owner(principal, async (client) => {
       const keyHash = hashIdempotencyKey(key),
         requestHash = hashNormalizedCommand(command);
       const storedScope = admin ? `tracking.admin.${scope}` : scope;
@@ -1373,6 +1373,31 @@ export class AiRepository {
       );
       return response;
     });
+    if (status === 202 && 'operationId' in result && typeof result.operationId === 'string') {
+      new PlatformLogger().info('task.accepted', {
+        operation: 'ai.operation.accepted',
+        resourceId: result.operationId,
+        code: 'OK',
+      });
+    }
+    if (
+      status === 202 &&
+      'resource' in result &&
+      result.resource &&
+      typeof result.resource === 'object'
+    ) {
+      const id: unknown = Reflect.get(result.resource, 'id');
+      if (
+        typeof id === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+      )
+        new PlatformLogger().info('task.accepted', {
+          operation: 'ai.resource.accepted',
+          resourceId: id,
+          code: 'OK',
+        });
+    }
+    return result;
   }
 
   private ownerJson(

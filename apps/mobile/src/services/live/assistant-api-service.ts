@@ -2,6 +2,8 @@ import { captureWriteGeneration, financialMutation, generationHeaders } from '@/
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import Constants from 'expo-constants';
 import { z } from 'zod';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 import { optionalSpendingPresentationSchema } from '@/domain/assistant-presentation';
 import { hasCompleteAssistantEffect } from '@/domain/assistant-action-effect';
 import {
@@ -450,7 +452,8 @@ export function createLiveAssistantApiService(
     body?: unknown,
     key?: string,
     expectedOwner?: string,
-    timeoutMs?: number
+    timeoutMs?: number,
+    prepareDefault = true
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
     const binding = financialMutation(path,method) ? await captureWriteGeneration() : undefined;
@@ -520,6 +523,36 @@ export function createLiveAssistantApiService(
         value && typeof value === 'object' && 'code' in value
           ? Reflect.get(value, 'code')
           : null;
+      const questionRequest = method === 'POST' && key && (
+        path === '/api/v1/assistant/conversations' ||
+        /^\/api\/v1\/assistant\/conversations\/[a-f0-9-]{36}\/messages$/u.test(path)
+      );
+      if (prepareDefault && questionRequest && response.status === 403 && ownerCode === 'AI_CONSENT_REQUIRED') {
+        // Only an explicit question prepares the legacy setting. Keep its owner,
+        // payload and idempotency key through the single definitive-rejection retry.
+        const readSetting = async () => parse(consentSchema, await send(
+          'GET', '/api/v1/assistant/consent', undefined, undefined, actor.userId, undefined, false
+        ));
+        let setting = await readSetting();
+        if (setting.policyVersion !== 'assistant-privacy-v1')
+          throw new AssistantApiError('consent_required', [], true);
+        if (!setting.granted) {
+          const activationKey = 'assistant-default-' + bytesToHex(sha256(utf8ToBytes(`${key}:${setting.version}`)));
+          try {
+            setting = parse(consentSchema, await send('PUT', '/api/v1/assistant/consent', {
+              policyVersion: setting.policyVersion, accepted: true, expectedVersion: setting.version
+            }, activationKey, actor.userId, undefined, false));
+          } catch (error) {
+            if (!(error instanceof AssistantApiError) || !['conflict', 'outcome_unknown'].includes(error.code)) throw error;
+            setting = await readSetting();
+            if (!setting.granted) throw error;
+          }
+        }
+        if (!setting.granted || setting.policyVersion !== 'assistant-privacy-v1')
+          throw new AssistantApiError('consent_required', [], true);
+        await actor.assertCurrent();
+        return send(method, path, body, key, actor.userId, timeoutMs, false);
+      }
       const mapped =
         response.status === 401
           ? 'session_expired'

@@ -1,3 +1,7 @@
+import {
+  correlatedStorageFetch,
+  storageConfiguration,
+} from '../platform/storage/storage-configuration';
 import { withAiAbort } from './ai.abort';
 import { Injectable, Optional } from '@nestjs/common';
 
@@ -7,6 +11,7 @@ const KEY = /^voice\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/u;
 
 @Injectable()
 export class AiStorage {
+  private readonly local: boolean;
   private readonly origin: URL;
   private readonly credential: string;
 
@@ -14,8 +19,11 @@ export class AiStorage {
     config: PlatformConfigService,
     @Optional() private readonly fetcher: typeof fetch = fetch,
   ) {
-    this.origin = new URL(config.getRequired('SUPABASE_URL'));
-    this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
+    this.local = config.getRequired('MASARIFI_STORAGE_PROVIDER') === 'filesystem';
+    this.fetcher = correlatedStorageFetch(this.fetcher);
+    const storage = storageConfiguration(config);
+    this.origin = storage.origin;
+    this.credential = storage.credential;
   }
 
   async upload(key: string, body: Buffer, contentType: string): Promise<void> {
@@ -41,7 +49,13 @@ export class AiStorage {
   ): Promise<{ url: string; token: string; expiresAt: string; headers: Record<string, string> }> {
     const value = await this.request(
       `/storage/v1/object/upload/sign/voice-temp/${this.encoded(key)}`,
-      { method: 'POST', body: JSON.stringify({ upsert: false }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          upsert: false,
+          ...(this.local ? { contentType, expiresIn: _seconds } : {}),
+        }),
+      },
       false,
       async (result) => (await result.json()) as { url?: unknown; token?: unknown },
     );
@@ -60,7 +74,7 @@ export class AiStorage {
     return {
       url: url.toString(),
       token: value.token,
-      expiresAt: new Date(Date.now() + 7_200 * 1_000).toISOString(),
+      expiresAt: new Date(Date.now() + (this.local ? _seconds : 7_200) * 1_000).toISOString(),
       headers: { 'content-type': contentType },
     };
   }

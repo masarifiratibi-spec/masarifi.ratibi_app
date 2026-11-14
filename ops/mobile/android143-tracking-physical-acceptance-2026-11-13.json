@@ -1,0 +1,31 @@
+{
+  "atUtc": "2026-11-13 20:47:46 UTC",
+  "versionCode": 143,
+  "versionName": "1.0.1",
+  "versionEvidence": "E:/Masarifi-tracking-direct-143-20261113/installed143.json",
+  "deviceWindow": "23076RN8DY",
+  "scope": "Physical tracking explanation card and SMS settings round trip only",
+  "checks": {
+    "explanationCardVisible": true,
+    "explanationMentionsEnabledSources": true,
+    "explanationMentionsOnDeviceAnalysisAndTransactionSync": true,
+    "privacyDetailsLinkAbsent": true,
+    "smsPermissionNoticeAbsent": true,
+    "smsInitiallyOff": true,
+    "smsToggleOpenedAndroidAppInfoDirectly": true,
+    "smsListedUnderNotAllowed": true,
+    "returnedToTrackingScreen": true,
+    "smsRemainedOffAfterReturn": true,
+    "explanationCardRemainedVisible": true
+  },
+  "constraints": {
+    "buildPerformed": false,
+    "installationPerformed": false,
+    "permissionsGranted": false,
+    "permissionsChanged": false
+  },
+  "limitations": [
+    "Does not test the permission-granted branch or real SMS capture.",
+    "Does not complete unrelated assistant dark-mode or voice-popup physical acceptance."
+  ]
+}

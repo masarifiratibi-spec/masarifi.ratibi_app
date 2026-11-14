@@ -122,7 +122,7 @@ test('does not fetch an unused conversation index on the approved landing design
   expect(mockAssistantQueries.useAssistantConversations).not.toHaveBeenCalled();
 });
 
-test('blocks existing-conversation questions after withdrawal and preserves the draft while renewed consent is pending', async () => {
+test('keeps existing-conversation questions available without activation controls', async () => {
   const ask = jest.fn((_input, options) => options?.onSuccess?.());
   const enable = jest.fn();
   mockAssistantQueries.useAskAssistant.mockReturnValue({ mutate: ask });
@@ -131,11 +131,21 @@ test('blocks existing-conversation questions after withdrawal and preserves the 
   renderWithProviders(<AssistantConversationScreen conversationId="conversation-1" />);
   fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Keep this private draft');
   await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
-  expect(ask).not.toHaveBeenCalled();
-  expect(screen.getByTestId('assistant-composer-input').props.value).toBe('Keep this private draft');
-  fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
-  expect(enable).toHaveBeenCalledWith(expect.objectContaining({ enabled: true, expectedVersion: 2 }));
-  expect(ask).not.toHaveBeenCalled();
+  expect(ask).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('assistant-consent-enable-button')).toBeNull();
+  expect(enable).not.toHaveBeenCalled();
+});
+
+test.each(['not_requested', 'disabled'])('opens ready to ask when the legacy setting is %s', async status => {
+  const create = jest.fn();
+  mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status, version: 2 }, isPending: false });
+  mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create });
+  renderWithProviders(<AssistantHomeScreen />);
+  expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
+  expect(screen.queryByText(t('assistant.consent.withdraw'))).toBeNull();
+  fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'How much did I spend today?');
+  await act(async () => { fireEvent.press(screen.getByTestId('assistant-ask-submit-button')); });
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ question: 'How much did I spend today?' }), expect.any(Object));
 });
 
 test('withdraws accumulated history after an access denial instead of keeping private message state', () => {
@@ -261,7 +271,7 @@ test('invalid report dates do not prefill a misleading report question', () => {
   expect(screen.getByTestId('assistant-ask-input').props.value).toBe('');
 });
 
-test('original home shows consent disclosure, suggestions and required data states without a history redesign', () => {
+test('home shows suggestions and required data states without activation controls', () => {
   const create = jest.fn();
   mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({
     mutate: create,
@@ -278,8 +288,8 @@ test('original home shows consent disclosure, suggestions and required data stat
   expect(
     screen.getByLabelText(t('appShell.navigation.assistant'))
   ).toBeTruthy();
-  expect(screen.getByText(t('assistant.consent.title'))).toBeTruthy();
-  expect(screen.getByText(t('assistant.privacy.transactions'))).toBeTruthy();
+  expect(screen.queryByText(t('assistant.consent.title'))).toBeNull();
+  expect(screen.queryByText(t('assistant.privacy.transactions'))).toBeNull();
   expect(screen.getByText(t('assistant.suggestions.spending'))).toBeTruthy();
   expect(screen.queryByText('January budget help')).toBeNull();
   expect(screen.getByText(t('assistant.state.offline'))).toBeTruthy();

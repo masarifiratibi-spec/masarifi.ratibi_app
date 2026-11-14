@@ -334,14 +334,17 @@ it('navigates only through typed targets, marks unread items read, and deletes o
   );
 });
 
-it('routes settings targets to their existing protected destinations', () => {
+it.each([
+  { kind: 'settings', key: 'security' },
+  { kind: 'security', securityEventId: 'event-1' }
+] as const)('routes security targets to Security Settings (%s)', target => {
   mockUseNotifications.mockReturnValue({
     data: {
       items: [
         notification({
           id: 'settings',
           titleKey: 'Security settings',
-          target: { kind: 'settings', key: 'security' }
+          target
         })
       ],
       total: 1
@@ -350,6 +353,11 @@ it('routes settings targets to their existing protected destinations', () => {
     isError: false,
     refetch: jest.fn()
   });
+
+  mockResolveOpen.mutate.mockImplementation(
+    (_id: string, options: { onSuccess: (value: NotificationEvent['target']) => void }) =>
+      options.onSuccess(target)
+  );
 
   renderWithProviders(<NotificationCenterScreen />);
 

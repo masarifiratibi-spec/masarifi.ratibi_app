@@ -13,7 +13,6 @@ const optionalRoutes = [
   ['@app/settings/application', '@/features/settings/ApplicationSettingsScreen'],
   ['@app/security/unlock', '@/features/security/UnlockScreen'],
   ['@app/security/sessions', '@/features/settings/SessionListScreen'],
-  ['@app/security/events', '@/features/settings/SecurityEventScreen'],
   ['@app/foundation/notifications', '@/features/notifications/NativeNotificationValidationScreen'],
   ['@app/foundation/accessibility', '@/features/foundation/AccessibilityStateGallery'],
   ['@app/profile/privacy', '@/features/settings/PrivacySettingsScreen'],

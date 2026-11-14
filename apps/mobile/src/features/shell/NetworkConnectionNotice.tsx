@@ -236,14 +236,6 @@ export function NetworkConnectionNotice() {
               >
                 {t('appShell.networkNotice.message')}
               </Text>
-              <Text
-                style={[
-                  styles.detail,
-                  { color: theme.colors.content.secondary }
-                ]}
-              >
-                {t('appShell.networkNotice.stale')}
-              </Text>
             </View>
             <ActionButton
               label={t('appShell.networkNotice.retry')}

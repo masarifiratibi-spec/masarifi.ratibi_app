@@ -30,6 +30,27 @@ const valid = {
 };
 
 describe('validateEnvironment', () => {
+  it('admits a project-server runtime without Supabase credentials and rejects mixed providers', () => {
+    const local = {
+      ...valid,
+      SUPABASE_URL: undefined,
+      SUPABASE_SERVICE_ROLE_KEY: undefined,
+      MASARIFI_RUNTIME_SCOPE: 'project-server',
+      MASARIFI_STORAGE_PROVIDER: 'filesystem',
+      MASARIFI_STORAGE_URL: 'https://api.example.test',
+      MASARIFI_STORAGE_SERVICE_KEY: 'fixture-private-storage-key-0123456789',
+      MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED: true,
+    };
+    expect(validateEnvironment(local).MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED).toBe(true);
+    for (const override of [
+      { MASARIFI_STORAGE_SERVICE_KEY: undefined },
+      { MASARIFI_STORAGE_URL: 'http://api.example.test' },
+      { MASARIFI_STORAGE_URL: 'https://api.example.test/path' },
+      { MASARIFI_STORAGE_PROVIDER: 'supabase' },
+      { SUPABASE_URL: valid.SUPABASE_URL },
+    ])
+      expect(() => validateEnvironment({ ...local, ...override })).toThrow();
+  });
   it('keeps Android announcements unpublished by default and requires a valid complete published release', () => {
     expect(validateEnvironment(valid).MASARIFI_ANDROID_UPDATE_PUBLISHED).toBe(false);
     const release = {

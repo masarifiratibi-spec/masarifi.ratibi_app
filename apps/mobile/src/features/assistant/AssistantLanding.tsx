@@ -3,20 +3,20 @@ import { useTheme } from '@/state/theme-context';
 import {
   ScrollView,
   View,
-  StyleSheet
+  StyleSheet,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { AppBar } from '@/design-system/components/navigation/AppNavigation';
+import { AssistantLandingHeader } from './components/AssistantLandingHeader';
 import { AssistantHero } from './components/AssistantHero';
 import { AssistantAskCard } from './components/AssistantAskCard';
-import { AssistantConsentCard } from './components/AssistantConsentCard';
 import { AssistantSuggestedQuestions } from './components/AssistantSuggestedQuestions';
-import { AssistantPrivacyFooter } from './components/AssistantPrivacyFooter';
 import { StyledText } from '@/components/StyledText';
 import { currentLocale, translate } from '@/localization/i18n';
-import { usePreferenceStore } from '@/state/preferences';
 import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
-import type { AssistantConsent } from '@/domain/assistant';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 import type { AssistantFinancialInsight } from '@/services/contracts/assistant-notifications-service';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
@@ -31,15 +31,14 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
 export interface AssistantLandingProps {
   initialQuestion?: string;
-  onAskQuestion: (question: string, intent?: AssistantQuestionIntent) => void | Promise<boolean>;
-  consent?: AssistantConsent | null;
-  onEnableConsent: () => void;
-  onDisableConsent?: () => void;
+  onAskQuestion: (
+    question: string,
+    intent?: AssistantQuestionIntent
+  ) => void | Promise<boolean>;
   insight?: AssistantFinancialInsight;
   conversations?: readonly { id: string; title: string }[];
   onSelectConversation?: (id: string) => void;
   loading?: boolean;
-  consentLoading?: boolean;
   error?: string | null;
   onBack?: () => void;
 }
@@ -47,22 +46,40 @@ export interface AssistantLandingProps {
 export function AssistantLanding({
   initialQuestion,
   onAskQuestion,
-  consent,
-  onEnableConsent,
-  onDisableConsent,
   insight,
   loading = false,
-  consentLoading = false,
   error = null,
-  onBack
+  onBack,
+  onSelectConversation
 }: AssistantLandingProps) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
-  const direction = usePreferenceStore((state) => state.direction);
-  const scope = initialQuestion ? `report:${bytesToHex(sha256(utf8ToBytes(initialQuestion)))}` : 'landing';
+  const insets = React.useContext(SafeAreaInsetsContext);
+  const [keyboardVisible, setKeyboardVisible] = React.useState(
+    () => Keyboard.isVisible?.() ?? false
+  );
+  React.useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const scope = initialQuestion
+    ? `report:${bytesToHex(sha256(utf8ToBytes(initialQuestion)))}`
+    : 'landing';
   const draft = useAssistantDraft(scope, initialQuestion);
   const hasUnsentQuestion = Boolean(draft.text.trim());
-  const { hidden, reveal } = useAssistantFinancialVisibility(insight?.id ?? 'no-insight');
+  const { hidden, reveal } = useAssistantFinancialVisibility(
+    insight?.id ?? 'no-insight'
+  );
 
   const handleBack = () => {
     if (onBack) {
@@ -86,114 +103,145 @@ export function AssistantLanding({
     }
   });
 
-  const handleAskQuestion = async (question: string, intent?: AssistantQuestionIntent) => {
-    if (consent?.status !== 'enabled' || consentLoading) return;
+  const handleAskQuestion = async (
+    question: string,
+    intent?: AssistantQuestionIntent
+  ) => {
     const revision = question === draft.text.trim() ? draft.revision : null;
-    const accepted = intent === undefined ? await onAskQuestion(question) : await onAskQuestion(question, intent);
+    const accepted =
+      intent === undefined
+        ? await onAskQuestion(question)
+        : await onAskQuestion(question, intent);
     if (accepted === true && revision) await draft.discard(revision);
   };
 
   return (
-    <View testID="assistant-landing" style={styles.root}>
-      {/* 1. Header with back navigation and title */}
-      <AppBar
-        title={translate('assistant.hero.title')}
+    <KeyboardAvoidingView
+      testID="assistant-landing"
+      style={styles.root}
+      behavior="padding"
+      enabled={keyboardVisible}
+      keyboardVerticalOffset={insets?.top ?? 0}
+    >
+      <AssistantLandingHeader
         onBack={requestClose}
-        direction={direction}
+        onSelectConversation={(id) =>
+          onSelectConversation
+            ? onSelectConversation(id)
+            : router.push(`/assistant/${id}`)
+        }
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          keyboardVisible && styles.typingContent
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Main interactive content zone */}
-        <View style={styles.mainZone}>
-          {/* 2. Compact AI Identity */}
-          <AssistantHero />
+        {!keyboardVisible ? (
+          <View style={styles.heroZone}>
+            <AssistantHero />
+            {insight ? (
+              <SurfaceCard
+                testID="assistant-proactive-insight"
+                style={styles.insightCard}
+              >
+                <StyledText variant="title">
+                  {hidden ? '••••' : insight.budgetName}
+                </StyledText>
+                <StyledText>
+                  {hidden
+                    ? `•••• ${insight.currency}`
+                    : formatMinorAmount(
+                        insight.spentMinor,
+                        insight.currency,
+                        currentLocale()
+                      ).replace('\u00a0', ' ')}
+                </StyledText>
+                {hidden ? (
+                  <ActionButton
+                    label="assistant.action.revealFinancial"
+                    variant="secondary"
+                    onPress={reveal}
+                  />
+                ) : null}
+              </SurfaceCard>
+            ) : null}
+          </View>
+        ) : null}
 
-          {/* 3. Main Question Input Card */}
-          <AssistantConsentCard
-            consent={consent}
-            onEnableConsent={onEnableConsent}
-            onDisableConsent={onDisableConsent}
-            loading={consentLoading}
-          />
-          <AssistantAskCard text={draft.text} onChangeText={draft.change}
-            canSend={consent?.status === 'enabled' && !consentLoading}
-            onAskQuestion={question => { void handleAskQuestion(question).catch(() => undefined); }}
-            loading={loading || draft.loading} />
-          <AssistantDraftStatus draft={draft} />
-
-          {/* Error message if any */}
-          {error && (
-            <View style={styles.errorContainer}>
-              <StyledText accessibilityRole="alert" style={styles.errorText}>{error}</StyledText>
-            </View>
-          )}
-
-          {/* 5. Quick Suggestions 2x2 Grid */}
-          <AssistantSuggestedQuestions
-            onSelectQuestion={(question, intent) => { void handleAskQuestion(question, intent).catch(() => undefined); }}
-            disabled={loading || draft.loading || consentLoading || consent?.status !== 'enabled'}
-          />
-
-          {insight ? (
-            <SurfaceCard testID="assistant-proactive-insight" style={styles.insightCard}>
-              <StyledText variant="title">{hidden ? '••••' : insight.budgetName}</StyledText>
-              <StyledText>
-                {hidden ? `•••• ${insight.currency}` : formatMinorAmount(insight.spentMinor, insight.currency, currentLocale()).replace('\u00a0', ' ')}
-              </StyledText>
-              {hidden ? <ActionButton label="assistant.action.revealFinancial" variant="secondary" onPress={reveal} /> : null}
-            </SurfaceCard>
-          ) : null}
-        </View>
-
-        {/* Bottom closing zone (anchored naturally to available height) */}
         <View style={styles.bottomZone}>
-          {/* 6. Privacy Message Note */}
-          <AssistantPrivacyFooter />
+          {error ? (
+            <View style={styles.errorContainer}>
+              <StyledText accessibilityRole="alert" style={styles.errorText}>
+                {error}
+              </StyledText>
+            </View>
+          ) : null}
+          {!keyboardVisible ? (
+            <AssistantSuggestedQuestions
+              onSelectQuestion={(question, intent) => {
+                void handleAskQuestion(question, intent).catch(() => undefined);
+              }}
+              disabled={loading || draft.loading}
+            />
+          ) : null}
+          <AssistantDraftStatus draft={draft} />
+          <AssistantAskCard
+            text={draft.text}
+            onChangeText={draft.change}
+            onAskQuestion={(question) => {
+              void handleAskQuestion(question).catch(() => undefined);
+            }}
+            loading={loading || draft.loading}
+          />
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  root: {
-    backgroundColor: colors.surfaces.page,
-    flex: 1
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'space-between',
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.xs
-  },
-  mainZone: {
-    gap: spacing.lg,
-    width: '100%'
-  },
-  bottomZone: {
-    paddingTop: spacing.lg,
-    width: '100%'
-  },
-  errorContainer: {
-    backgroundColor: colors.iconBadges.danger.background,
-    borderColor: colors.iconBadges.danger.border,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    marginHorizontal: spacing.md,
-    padding: spacing.md
-  },
-  errorText: {
-    color: colors.iconBadges.danger.foreground,
-    fontSize: 13,
-    textAlign: 'center'
-  },
-  insightCard: {
-    gap: spacing.xs,
-    marginHorizontal: spacing.md,
-    padding: spacing.md
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      backgroundColor: colors.surfaces.page,
+      flex: 1
+    },
+    scrollContent: {
+      flexGrow: 1,
+      gap: spacing.lg,
+      paddingHorizontal: 20,
+      paddingBottom: 48,
+      paddingTop: spacing.sm
+    },
+    typingContent: { justifyContent: 'flex-end', paddingBottom: spacing.sm },
+    heroZone: {
+      flex: 1,
+      minHeight: 240,
+      justifyContent: 'center',
+      gap: spacing.lg,
+      width: '100%'
+    },
+    bottomZone: {
+      gap: 20,
+      width: '100%'
+    },
+    errorContainer: {
+      backgroundColor: colors.iconBadges.danger.background,
+      borderColor: colors.iconBadges.danger.border,
+      borderRadius: radius.control,
+      borderWidth: 1,
+      padding: spacing.md
+    },
+    errorText: {
+      color: colors.iconBadges.danger.foreground,
+      fontSize: 13,
+      textAlign: 'center'
+    },
+    insightCard: {
+      gap: spacing.xs,
+      padding: spacing.md
+    }
+  });

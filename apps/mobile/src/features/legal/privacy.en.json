@@ -65,7 +65,7 @@
       "title": "8. Storage, security and offline copies",
       "paragraphs": [
         "The mobile implementation uses an owner-specific encrypted SQLite database for local financial and workflow records, with encryption keys stored through the operating system's secure-storage mechanism. It also uses secure storage, preferences, temporary files and owner-bound native tracking queues. Saved display projections reuse the existing owner database and retain their original update timestamps. This architecture is designed to avoid displaying one owner's saved data to another owner.",
-        "Backend application data and files use Supabase PostgreSQL and Storage; application services run on hosted server infrastructure, currently evidenced on Hostinger VPS. Access controls, server authorization, private-object and signed-link flows are implemented for relevant resources. This is not end-to-end encryption that prevents the authorized backend from processing data.",
+        "Server data and files are stored in PostgreSQL and private file storage on the project Hostinger VPS. Server authorization and temporary links protect private files. The authorized backend can process data; this is not end-to-end encryption.",
         "Device/app lock, hidden balances, encryption and access checks provide different protections. No system guarantees absolute security. Notifications, screenshots, downloaded files, device backups, compromised devices and copies opened in another app need separate consideration. The production backup configuration, all processing locations, staff access and incident-response arrangements require operational verification."
       ]
     },
@@ -73,7 +73,7 @@
       "id": "providers",
       "title": "9. Service providers and other recipients",
       "paragraphs": [
-        "Integrated services include Google and Clerk for authentication, Supabase for database and files, Hostinger for hosting, OpenRouter and model providers for enabled AI processing, and Expo and native notifications where configured and permitted. Available services may differ by platform and feature.",
+        "Services include Google and Clerk for authentication, Hostinger for the database, files and application hosting, OpenRouter and model providers for enabled AI processing, and Expo and native notifications where configured and permitted. Availability varies by platform and feature.",
         "Authorized support or administrative personnel may process support messages, attachments, account status and permitted diagnostic information for their work, subject to access controls. Downloads and sharing go to the destination or recipient you choose. Legally required disclosures and necessary security investigations need a valid basis and appropriate limits. Any business transfer and its safeguards must be legally reviewed before related processing occurs.",
         "Viewing this policy does not authorize sale, advertising, training or unrelated secondary use of data. Service-provider processing is subject to its purposes, controls and applicable terms."
       ]

@@ -137,6 +137,8 @@ function TrackingStatusContent() {
     assertCurrent: () => void;
     isCurrent: () => boolean;
   } | null>(null);
+  const awaitingSmsAccess =
+    useRef<typeof awaitingNotificationAccess.current>(null);
   const loadKeywords = keywords.refetch;
   const queueSourceChangeRef = useRef(queueSourceChange);
   queueSourceChangeRef.current = queueSourceChange;
@@ -225,6 +227,17 @@ function TrackingStatusContent() {
       if (state === 'active') {
         const admissionRevision = useTrackingAdmission.getState().revision;
         void (async () => {
+          if (awaitingSmsAccess.current !== null) {
+            const pending = awaitingSmsAccess.current;
+            awaitingSmsAccess.current = null;
+            if (
+              (await permissionService.getState()).status === 'granted' &&
+              pending.isCurrent()
+            ) {
+              pending.assertCurrent();
+              queueSourceChangeRef.current('sms', true);
+            }
+          }
           if (awaitingNotificationAccess.current !== null) {
             const pending = awaitingNotificationAccess.current;
             awaitingNotificationAccess.current = null;
@@ -250,7 +263,7 @@ function TrackingStatusContent() {
       }
     });
     return () => subscription.remove();
-  }, [refetchTrackingStatus, loadKeywords, ownerId]);
+  }, [refetchTrackingStatus, loadKeywords, ownerId, permissionService]);
 
   const handleKeywordsChange = useCallback(
     async (newRules: KeywordRule[]) => {
@@ -285,22 +298,6 @@ function TrackingStatusContent() {
       setUpdating(false);
     }
   }, [updating, keywordLoadState, setKeywordRules]);
-
-  async function recoverPermission() {
-    if (updating) return;
-    setActionFailed(false);
-    try {
-      router.push({
-        pathname: '/tracking/permission',
-        params: {
-          mode:
-            query.data?.mode === 'review_all' ? 'review_all' : 'automatic_clear'
-        }
-      });
-    } catch {
-      setActionFailed(true);
-    }
-  }
 
   function queueSourceChange(source: 'sms' | 'notification', enabled: boolean) {
     if (updating) return;
@@ -376,7 +373,18 @@ function TrackingStatusContent() {
             if (permission.status === 'unavailable')
               throw new Error('tracking_sms_unavailable');
             if (permission.status !== 'granted') {
-              await recoverPermission();
+              const pending = {
+                assertCurrent: assertIntent,
+                isCurrent: currentRequest
+              };
+              awaitingSmsAccess.current = pending;
+              try {
+                await permissionService.openSettings();
+              } catch (error) {
+                if (awaitingSmsAccess.current === pending)
+                  awaitingSmsAccess.current = null;
+                throw error;
+              }
               return;
             }
           } else {
@@ -580,12 +588,6 @@ function TrackingStatusContent() {
     status.permissionStatus === 'unavailable' ||
     status.serviceState === 'unavailable';
   const isEnabled = status.mode !== 'paused' && !permissionUnavailable;
-  const hasPermission = status.permissionStatus === 'granted';
-  const permissionMessage = translate(
-    permissionUnavailable
-      ? 'tracking.permission.unavailableMessage'
-      : 'tracking.permission.warning'
-  );
   const smsPermission = status.smsPermissionStatus ?? status.permissionStatus;
   const notificationAccess =
     status.notificationAccessStatus ??
@@ -746,131 +748,46 @@ function TrackingStatusContent() {
               }}
             />
           ) : null}
-
-          {/* Actionable Permission Warning: START = Warning Icon, MIDDLE = Warning Text, END = Chevron */}
-          {!hasPermission && (
-            <Pressable
-              testID="tracking-permission-warning-banner"
-              disabled={updating || permissionUnavailable}
-              onPress={
-                permissionUnavailable
-                  ? undefined
-                  : () => void recoverPermission()
-              }
-              style={({ pressed }) => [
-                styles.warningBanner,
-                styles.physicalLtr,
-                { flexDirection: isRtl ? 'row-reverse' : 'row' },
-                pressed && styles.bannerPressed
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={permissionMessage}
-              accessibilityState={{
-                disabled: updating || permissionUnavailable
-              }}
-            >
-              {/* START: Warning Icon */}
-              <View style={styles.warningIconBadge}>
-                <DesignIcon
-                  name="warning"
-                  size="sm"
-                  color={colors.status.warning}
-                  direction={direction}
-                  decorative
-                />
-              </View>
-
-              {/* MIDDLE: Warning Text */}
-              <StyledText
-                style={[
-                  styles.warningText,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {permissionMessage}
-              </StyledText>
-
-              {/* END: Chevron pointing in reading direction (left in RTL, right in LTR) */}
-              {!permissionUnavailable ? (
-                <DesignIcon
-                  name="chevronEnd"
-                  size="sm"
-                  color={colors.status.warning}
-                  direction={direction}
-                  decorative
-                />
-              ) : null}
-            </Pressable>
-          )}
         </SurfaceCard>
 
-        {/* 3. Explanation Section: START = Semantic Icon Circle, END = Concise Text */}
-        <SurfaceCard style={styles.card}>
+        <SurfaceCard testID="tracking-explanation-card" style={styles.card}>
           <View style={styles.explanationList}>
-            {/* Automatic Detection */}
-            <View
-              testID="tracking-explanation-row"
-              style={[
-                styles.explanationItem,
-                styles.physicalLtr,
-                { flexDirection: isRtl ? 'row-reverse' : 'row' }
-              ]}
-            >
-              <View style={styles.iconCircle}>
-                <DesignIcon
-                  name="obligation"
-                  size="sm"
-                  color={colors.content.link}
-                  direction={direction}
-                  decorative
-                />
-              </View>
-              <StyledText
+            {(
+              [
+                ['notifications', 'tracking.howItWorks.detection'],
+                ['transactions', 'tracking.howItWorks.privacy']
+              ] as const
+            ).map(([icon, textKey]) => (
+              <View
+                key={textKey}
+                testID="tracking-explanation-row"
                 style={[
-                  styles.explanationItemText,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
+                  styles.explanationItem,
+                  styles.physicalLtr,
+                  { flexDirection: isRtl ? 'row-reverse' : 'row' }
                 ]}
               >
-                {translate('tracking.howItWorks.detection')}
-              </StyledText>
-            </View>
-
-            {/* Privacy */}
-            <View
-              testID="tracking-explanation-row"
-              style={[
-                styles.explanationItem,
-                styles.physicalLtr,
-                { flexDirection: isRtl ? 'row-reverse' : 'row' }
-              ]}
-            >
-              <View style={styles.iconCircle}>
-                <DesignIcon
-                  name="privacy"
-                  size="sm"
-                  color={colors.content.link}
-                  direction={direction}
-                  decorative
-                />
+                <View style={styles.explanationIcon}>
+                  <DesignIcon
+                    name={icon}
+                    decorative
+                    size="sm"
+                    color={colors.content.link}
+                  />
+                </View>
+                <StyledText
+                  style={[
+                    styles.explanationText,
+                    {
+                      textAlign: isRtl ? 'right' : 'left',
+                      writingDirection: direction
+                    }
+                  ]}
+                >
+                  {translate(textKey)}
+                </StyledText>
               </View>
-              <StyledText
-                style={[
-                  styles.explanationItemText,
-                  {
-                    textAlign: isRtl ? 'right' : 'left',
-                    writingDirection: direction
-                  }
-                ]}
-              >
-                {translate('tracking.howItWorks.privacy')}
-              </StyledText>
-            </View>
+            ))}
           </View>
         </SurfaceCard>
 
@@ -1029,7 +946,11 @@ function TrackingSourceToggleRow({
           importantForAccessibility="no-hide-descendants"
           accessibilityElementsHidden
         >
-          <Toggle accessibilityLabel={label} disabled={disabled} value={value} />
+          <Toggle
+            accessibilityLabel={label}
+            disabled={disabled}
+            value={value}
+          />
         </View>
       </View>
     </Pressable>
@@ -1210,53 +1131,19 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontWeight: '600'
     },
-    warningBanner: {
-      alignItems: 'center',
-      backgroundColor: colors.surfaces.inset,
-      borderColor: colors.status.warning,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      flexDirection: 'row',
-      gap: spacing.sm,
-      justifyContent: 'space-between',
-      marginTop: spacing.xs,
-      padding: spacing.md
-    },
-    bannerPressed: {
-      opacity: 0.8
-    },
-    warningIconBadge: {
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    warningText: {
-      color: colors.content.primary,
-      flex: 1,
-      fontSize: 13,
-      fontWeight: '600',
-      lineHeight: 18
-    },
-    explanationList: {
-      gap: spacing.lg
-    },
-    explanationItem: {
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: spacing.md
-    },
-    iconCircle: {
-      alignItems: 'center',
-      backgroundColor: colors.surfaces.brandSubtle,
-      borderColor: colors.borders.default,
-      borderRadius: radius.pill,
-      borderWidth: 1,
+    explanationList: { gap: spacing.md },
+    explanationItem: { alignItems: 'center', gap: spacing.md },
+    explanationIcon: {
+      width: 38,
       height: 38,
+      borderRadius: radius.pill,
+      alignItems: 'center',
       justifyContent: 'center',
-      width: 38
+      backgroundColor: colors.surfaces.brandSubtle
     },
-    explanationItemText: {
-      color: colors.content.secondary,
+    explanationText: {
       flex: 1,
+      color: colors.content.secondary,
       fontSize: 13.5,
       lineHeight: 20
     },

@@ -391,8 +391,10 @@ describe('navigation journey', () => {
 
     const assistant = renderWithProviders(<AssistantRoute />);
     expect(
-      screen.getByText(translateDynamic('assistant.consent.title'))
+      screen.getByText(translateDynamic('assistant.hero.heading'))
     ).toBeOnTheScreen();
+    expect(screen.getByPlaceholderText(translateDynamic('assistant.ask.placeholder'))).toBeOnTheScreen();
+    expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
     assistant.unmount();
   });
 

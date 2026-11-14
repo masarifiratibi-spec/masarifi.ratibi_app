@@ -15,6 +15,7 @@ import { translate, type MessageKey } from '@/localization/i18n';
 import type { PrivacyLockPreference } from '@/domain/app-shell';
 import type { BiometricAvailability } from '@/services/contracts/app-shell-service';
 import { createBiometricService } from '@/services/platform/biometric-service';
+import { AppUpdateSettingsEntry } from '@/features/app-update/AppUpdateNotice';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
@@ -147,11 +148,7 @@ export default function SecuritySettingsRoute() {
         </StyledText>
       )}
 
-      <GroupedList label={translate('appShell.security.sections.privacy')}>
-        <NavigationRow
-          label={translate('settings.privacy.title')}
-          onPress={() => router.push('/profile/privacy')}
-        />
+      <GroupedList label={translate('appShell.security.hideBalances')}>
         <View style={styles.insetRow}>
           <SwitchRow
             icon="eyeSlash"
@@ -161,6 +158,8 @@ export default function SecuritySettingsRoute() {
           />
         </View>
       </GroupedList>
+
+      <AppUpdateSettingsEntry />
 
     </ScrollView>
   );

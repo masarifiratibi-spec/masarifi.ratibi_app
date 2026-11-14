@@ -215,8 +215,9 @@ describe('notification response controller', () => {
 
   it.each([
     [{ kind: 'home' }, '/(tabs)/home'],
-    [{ kind: 'tracking' }, '/tracking']
-  ])('opens the existing reminder destination', async (target, route) => {
+    [{ kind: 'tracking' }, '/tracking'],
+    [{ kind: 'security', securityEventId: 'event-1' }, '/security/settings']
+  ])('opens the existing protected destination', async (target, route) => {
     const navigate = jest.fn();
     const controller = createNotificationResponseController({
       notificationService: targetService({

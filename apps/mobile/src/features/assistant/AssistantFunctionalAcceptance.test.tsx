@@ -166,7 +166,6 @@ it('restores the original landing without a new history card', () => {
   renderWithProviders(
     <AssistantLanding
       onAskQuestion={jest.fn()}
-      onEnableConsent={jest.fn()}
       conversations={[{ id: 'sample-chat', title: 'Sample history' }]}
       onSelectConversation={select}
     />
@@ -299,7 +298,6 @@ it('masks landing insight amounts when financial values are hidden', () => {
   renderWithProviders(
     <AssistantLanding
       onAskQuestion={jest.fn()}
-      onEnableConsent={jest.fn()}
       insight={{
         id: 'sample-insight',
         kind: 'budget_threshold',

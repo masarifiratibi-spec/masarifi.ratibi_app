@@ -49,8 +49,9 @@ it.each(['ar', 'en'] as const)('requires affirmative disclosure consent before m
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
   expect(transcribe).not.toHaveBeenCalled();
   expect(analyze).not.toHaveBeenCalled();
-  expect(screen.getByText(translate('voice.processingConsent.data'))).toBeOnTheScreen();
-  expect(screen.getByText(translate('voice.processingConsent.choice'))).toBeOnTheScreen();
+  expect(screen.getByTestId('voice-processing-consent-modal')).toBeOnTheScreen();
+  expect(screen.queryByText(translate('voice.processingConsent.data'))).toBeNull();
+  expect(screen.queryByRole('button', { name: translate('privacy.details') })).toBeNull();
   fireEvent.press(screen.getByRole('button', { name: translate('voice.processingConsent.decline') }));
   await waitFor(() => expect(screen.queryByText(translate('voice.processingConsent.title'))).toBeNull());
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
@@ -60,6 +61,15 @@ it.each(['ar', 'en'] as const)('requires affirmative disclosure consent before m
   fireEvent.press(screen.getByRole('button', { name: 'Start' }));
   fireEvent.press(await screen.findByRole('button', { name: translate('voice.processingConsent.accept') }));
   await waitFor(() => expect(voiceRecorderService.start).toHaveBeenCalledTimes(1));
+});
+
+it('dismisses the popup without consenting or accessing the microphone', async () => {
+  renderWithProviders(<CaptureActions />);
+  fireEvent.press(screen.getByRole('button', { name: 'Start' }));
+  fireEvent.press(await screen.findByRole('button', { name: translate('appShell.navigation.close') }));
+  await waitFor(() => expect(screen.queryByText(translate('voice.processingConsent.title'))).toBeNull());
+  expect(voiceRecorderService.getPermission).not.toHaveBeenCalled();
+  expect(voiceRecorderService.start).not.toHaveBeenCalled();
 });
 
 it('remembers an accepted disclosure for the owner and requires consent again after withdrawal', async () => {

@@ -1,12 +1,9 @@
 import React from 'react';
+import { Redirect } from 'expo-router';
 
-jest.mock('@/config/demo-mode', () => ({ isFixtureModeEnabled: () => false }));
-jest.mock('./SecurityEventScreen', () => ({ SecurityEventScreen: () => null }));
-
-test('opens live events after the owner-filtered endpoint deployment', () => {
+test('redirects the retired security-events route to Security Settings', () => {
   const Route = jest.requireActual<{ default: () => React.ReactElement }>(
     '@app/security/events'
   ).default;
-  const { SecurityEventScreen } = jest.requireMock('./SecurityEventScreen');
-  expect(Route().type).toBe(SecurityEventScreen);
+  expect(Route()).toEqual(<Redirect href="/security/settings" />);
 });
