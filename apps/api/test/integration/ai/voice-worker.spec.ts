@@ -175,94 +175,101 @@ describe('voice transcription worker', () => {
     'stream_overflow',
     'stream_length',
     'Bearer private-fixture-token',
-  ])('fails closed before provider dispatch and logs only a fixed stage with safe metadata for %s', async (stage) => {
-    const lines: string[] = [];
-    jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-      lines.push(String(chunk));
-      return true;
-    });
-    const repository = {
-      renewVoiceWork: jest.fn(() => Promise.resolve(true)),
-      claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
-      workInput: jest.fn(() =>
-        Promise.resolve({
-          storageRef:
-            'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
-          sizeBytes: 44,
-          contentType: 'audio/wav',
-          contentHash: createHash('sha256')
-            .update(
-              (() => {
-                const b = Buffer.alloc(44);
-                b.write('RIFF');
-                b.write('WAVE', 8);
-                return b;
-              })(),
-            )
-            .digest('hex'),
-        }),
-      ),
-      getRoute: jest.fn(() => Promise.resolve(route)),
-      completeWork: jest.fn(),
-      recordFailure: jest.fn(),
-      expire: jest.fn(),
-      finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
-      rollup: jest.fn(),
-      claimPurges: jest.fn(() => Promise.resolve([])),
-      reconcile: jest.fn(),
-    };
-    const gateway = { complete: jest.fn() };
-    const config = {
-      getRequired: jest.fn(
-        (name: string) =>
-          (
-            ({
-              MASARIFI_AI_PROVIDER_ENABLED: true,
-              MASARIFI_AI_JOB_BATCH_SIZE: 1,
-              MASARIFI_AI_LEASE_SECONDS: 120,
-              MASARIFI_AI_MAX_CONCURRENCY: 1,
-            }) as Record<string, unknown>
-          )[name],
-      ),
-      get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
-    };
-    await new AiWorker(
-      repository as never,
-      {
-        download: jest.fn(() =>
-          stage === 'magic'
-            ? Promise.resolve(Buffer.alloc(44))
-            : Promise.reject(new Error('VOICE_MEDIA_INVALID', { cause: stage })),
+  ])(
+    'fails closed before provider dispatch and logs only a fixed stage with safe metadata for %s',
+    async (stage) => {
+      jest.replaceProperty(process, 'env', {
+        ...process.env,
+        MASARIFI_RELEASE_VERSION: 'test-release',
+      });
+      const lines: string[] = [];
+      jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+        lines.push(String(chunk));
+        return true;
+      });
+      const repository = {
+        renewVoiceWork: jest.fn(() => Promise.resolve(true)),
+        claimWork: jest.fn((kind: string) => Promise.resolve(kind === claim.kind ? [claim] : [])),
+        workInput: jest.fn(() =>
+          Promise.resolve({
+            storageRef:
+              'voice/99000000-0000-4000-8000-000000000003/99000000-0000-4000-8000-000000000004',
+            sizeBytes: 44,
+            contentType: 'audio/wav',
+            contentHash: createHash('sha256')
+              .update(
+                (() => {
+                  const b = Buffer.alloc(44);
+                  b.write('RIFF');
+                  b.write('WAVE', 8);
+                  return b;
+                })(),
+              )
+              .digest('hex'),
+          }),
         ),
-      } as never,
-      gateway as never,
-      config as never,
-    ).runOnce();
-    expect(gateway.complete).not.toHaveBeenCalled();
-    expect(repository.completeWork).toHaveBeenCalledWith(
-      claim.kind,
-      claim.id,
-      claim.claim_token,
-      'failed',
-      'VOICE_MEDIA_INVALID',
-    );
-    expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
-      {
-        timestamp: expect.any(String) as unknown,
-        level: 'warn',
-        message: 'VOICE_MEDIA_INVALID',
-        eventName: 'voice.media.rejected',
-        state: stage === 'Bearer private-fixture-token' ? 'unknown' : stage,
-        service: 'api',
-        version: 'test-release',
-        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/i) as unknown,
-        operation: 'voice.media.rejected',
-        outcome: 'failure',
-        durationMs: 0,
-        code: 'UNCLASSIFIED',
-      },
-    ]);
-  });
+        getRoute: jest.fn(() => Promise.resolve(route)),
+        completeWork: jest.fn(),
+        recordFailure: jest.fn(),
+        expire: jest.fn(),
+        finalizeVoiceBatches: jest.fn(() => Promise.resolve(0)),
+        rollup: jest.fn(),
+        claimPurges: jest.fn(() => Promise.resolve([])),
+        reconcile: jest.fn(),
+      };
+      const gateway = { complete: jest.fn() };
+      const config = {
+        getRequired: jest.fn(
+          (name: string) =>
+            (
+              ({
+                MASARIFI_AI_PROVIDER_ENABLED: true,
+                MASARIFI_AI_JOB_BATCH_SIZE: 1,
+                MASARIFI_AI_LEASE_SECONDS: 120,
+                MASARIFI_AI_MAX_CONCURRENCY: 1,
+              }) as Record<string, unknown>
+            )[name],
+        ),
+        get: jest.fn((key: string) => (key === 'MASARIFI_WORKER_ID' ? 'voice-worker' : undefined)),
+      };
+      await new AiWorker(
+        repository as never,
+        {
+          download: jest.fn(() =>
+            stage === 'magic'
+              ? Promise.resolve(Buffer.alloc(44))
+              : Promise.reject(new Error('VOICE_MEDIA_INVALID', { cause: stage })),
+          ),
+        } as never,
+        gateway as never,
+        config as never,
+      ).runOnce();
+      expect(gateway.complete).not.toHaveBeenCalled();
+      expect(repository.completeWork).toHaveBeenCalledWith(
+        claim.kind,
+        claim.id,
+        claim.claim_token,
+        'failed',
+        'VOICE_MEDIA_INVALID',
+      );
+      expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([
+        {
+          timestamp: expect.any(String) as unknown,
+          level: 'warn',
+          message: 'VOICE_MEDIA_INVALID',
+          eventName: 'voice.media.rejected',
+          state: stage === 'Bearer private-fixture-token' ? 'unknown' : stage,
+          service: 'api',
+          version: 'test-release',
+          requestId: expect.stringMatching(/^[0-9a-f-]{36}$/i) as unknown,
+          operation: 'voice.media.rejected',
+          outcome: 'failure',
+          durationMs: 0,
+          code: 'UNCLASSIFIED',
+        },
+      ]);
+    },
+  );
 
   it.each(['transfer', 'multiple', 'obligation'] as const)(
     'fails %s intent explicitly without saving a transaction proposal',
