@@ -66,7 +66,8 @@
   "runFrozenConsumers": false,
   "supersededPacket": "2026-11-07-temporary-support-access",
   "blockers": [
-    "Complete remote history-scan requalification for the three exact reviewed digest findings",
+    "Complete Linux requalification of deadline/abort race fixes",
+    "Complete exact-head Foundation CI after scoped source publication",
     "Identify independent authenticated acceptance participants",
     "Review final actor-bound packet and obtain user approval"
   ],
@@ -163,9 +164,9 @@
     "hostedExecuted": false
   },
   "qualification": {
-    "linuxPassed": true,
+    "linuxPassed": false,
     "workflow": "dashboard-vps-packet.yml",
-    "localControlsPassed": 69,
+    "localControlsPassed": 78,
     "hostedRuntimeExecuted": false,
     "run": 43538257141,
     "headSha": "6d9dff6210056ef1c91f6c845f4c7d7aee871904",
@@ -214,7 +215,18 @@
       "unreviewed": 0,
       "scanner": "gitleaks-8.24.3",
       "classifierTestsPassed": 19,
-      "remoteRequalificationPending": true
+      "remoteRequalificationPending": false
+    },
+    "historicalQualifiedRun": 43540107612,
+    "historicalQualifiedHead": "59436090332d1a7142c5a8949b53790f2197f036",
+    "linuxOnlyControlsPending": 3,
+    "review": {
+      "independentReadOnly": true,
+      "findings": 2,
+      "severity": "P2",
+      "resolvedLocally": true,
+      "reproductionsNowRestore": true,
+      "linuxRequalificationPending": true
     }
   },
   "files": {
@@ -222,32 +234,32 @@
     "acceptance_receipt.py": "403f16bb43b2a01e01e51b1fef380b203b63a5540b77f83962f5434af4c0424a",
     "admission.py": "d46c3b5281876468378a808cc8c7400719237e917f4313d08dc93205fa5839c4",
     "candidate_verifier.py": "4a06f7a3e0a480940385086652f9a6873fa63ef2ae01baaa57e8414e80daf1a5",
-    "host_release.py": "ed8445bd1233468edb73d4e56eed561baf5cd7a1ebb0f9d19349f88dcff7ebb4",
+    "host_release.py": "6637de78336d4aafbc474753cd227317f22790d3b672f2f453fad5d7592e23d9",
     "migration_packet.py": "67261f20d0a7da022c769cc27a681be31665a5e4707631ccdedb1c5e11fabd1d",
     "nginx_delta.py": "3f1e1da84ff8f7c34fc5d99bfce7710c1a09d61e5c1dcf2a5533a690dd3d26b7",
     "patch_security_modules.py": "8ae1a44f58eb244c33e41d57326519a0d84b26028471ca5734271773f457b86b",
     "qualify_admin_runtime.py": "2007e4f9f7c7bf605eea5bee504a2072d0816c8006c86f54b2a142dd7df55386",
     "qualify_migration.py": "7efd8a8809c296d0fcd1004406b25a40b9cd98d092a00910cdb75ab61b69da0b",
     "qualify_timeout.py": "d2014ca04356c85d9efdbb0172f8d3dbe34e3e841f28a501fb55cb97bcd3d6f8",
-    "qualify_trial.py": "6e9fc33ded391fb77bdb369578c5d5d3cb2a7040002c87d320eb3d013a6a2e5b",
+    "qualify_trial.py": "53d794fc6089bc48c903613abd817e5145a545d43bcacc39aa806f2de25464e8",
     "read_nginx_context.py": "0eb4d953502ee9b6693bab8a41459aff50dfadc35b4559df10b99f41f0410e30",
-    "README.md": "8468b0fa93fe9c62e4b626bd0a221f8bb2352a9f18ef25732d2db02a566ef245",
-    "routing_files.py": "2b721f4d5b80603c74a119a32cfd5ca2044d888028aee664a09eab81436adb1d",
+    "README.md": "5fd7f1e3263a3dc92d2dfefcef340e6925b9046f7ae0c4e270c9a369d201fd99",
+    "routing_files.py": "5aa534999afabddba1fc655c07865abe3f6fde437e0efcc7f90117f843546945",
     "runtime_plan.py": "1d2e0ca17f68ddbcc5678063d51a858db70783ecbb8db1a011634bd34609dc65",
     "security.repository.js.patch": "df3ce17c3bf91e5ac1fbe26e09117ffafde8f6fb356b958207eb8bf49f62a85b",
     "security.service.js.patch": "4579dd11cf30e381e9657bb621cd702aa9ce473e64af930140111410578549d4",
     "stage_admin.py": "ace9982d23bcddddbe07085179282cb26ba6dccbfd0801ff7adbaf8d67c478a6",
     "test_acceptance_receipt.py": "0cab9f0f3a505c69db0a22ca78c74d308a67fec3d762fac5c6b09c6f00cd3226",
     "test_candidate_verifier.py": "3d8437445206e9d6fadff6d065a0b7f40c28407ee7fc04bba0098a4eb5903473",
-    "test_host_release.py": "69bff8b7a1d6e57c8fbcda0f0c39ea5e4b91780d81f5f58c79b4a60b049c69bd",
+    "test_host_release.py": "2f41f538ae41d49646e116a4a1a3b3c1c180c23db48b9ddaf73990f2ef277473",
     "test_nginx_delta.py": "d413e1eaa4a42690f679d66bd0e24ba3b9f810529ee1409ff7b1dd754a5676b3",
     "test_patch_security_modules.py": "bba1c13febfc1a0411da3089e239bc049927ba226552fd20913f4926a9646e2d",
     "test_read_nginx_context.py": "542e99e3cfc4ef2974da851609d8f8e1e8ce813cdb5b3f728e96da16453fe947",
-    "test_routing_files.py": "77b535c03138c789f79d350456376bd91e1c90e50f4cfa0e9c94058ced9bc329",
+    "test_routing_files.py": "28be2be6c29cd1101a9438130e972066acc292883645fc5e38a0069ad3810d54",
     "test_runtime_plan.py": "c96120926c44b8e9ec089ce958b6234e232a862357612d6db806973088675db3",
     "test_stage_admin.py": "2ad0ec1d4a2aa878d7d764e308c84a0535a5ac83e37cb4a43006624ed1cc7079",
-    "test_trial_watchdog.py": "ecbb51feb42f53fdd4cbd4cb080c123244bed56c00898c3cd7ec16dc0ee24ffd",
-    "trial_watchdog.py": "c12dfb5391ed433e85ad86f2262708b2b1901e7183c67661b9acf91ce6182e35"
+    "test_trial_watchdog.py": "57e056730beedd58756503a68f70658f5a16bd2a2b6bd5111f20666bdc0aa81d",
+    "trial_watchdog.py": "2f5a646a189e9b777ace7175ed61cc288253c819ffb7355d2afa101e3286cf43"
   },
   "admission": {
     "receiptPath": "/etc/masarifi/selfhost/dashboard-collector-qualification-20261114T003239Z.json",

@@ -109,6 +109,26 @@ class WatchdogTests(unittest.TestCase):
         self.assertNotIn("armed", self.f.records)
         self.assertNotIn("switched", self.f.records)
 
+    def test_slow_install_cannot_acknowledge_a_switch_after_deadline(self):
+        self.switch()
+        def install():
+            self.f.route = "candidate"
+            self.clock.value = 61
+        self.f.install = install
+        self.drive()
+        self.assert_restored()
+        self.assertNotIn("switched", self.f.records)
+
+    def test_abort_during_install_cannot_acknowledge_a_switch(self):
+        self.switch()
+        def install():
+            self.f.route = "candidate"
+            self.f.records["abort"] = self.identity
+        self.f.install = install
+        self.drive()
+        self.assert_restored()
+        self.assertNotIn("switched", self.f.records)
+
     def test_old_pid_acceptance_cannot_outlive_new_watchdog(self):
         self.switch()
         self.accept()
@@ -160,6 +180,45 @@ class WatchdogTests(unittest.TestCase):
             self.accept()
             self.f.records["abort"] = self.identity
         self.drive(step)
+        self.assert_restored()
+
+    def test_deadline_crossed_inside_finalization_restores_instead_of_accepting(self):
+        self.switch()
+        def finalize(_):
+            self.clock.value = 61
+        self.f.finalize = finalize
+        self.drive(self.accept)
+        self.assert_restored()
+
+    def test_abort_arriving_inside_finalization_restores_instead_of_accepting(self):
+        self.switch()
+        def finalize(_):
+            self.f.records["abort"] = self.identity
+        self.f.finalize = finalize
+        self.drive(self.accept)
+        self.assert_restored()
+
+    def test_abort_during_candidate_proof_prevents_durable_acceptance(self):
+        self.switch()
+        original = self.f.prove_candidate
+        def prove():
+            original()
+            if self.f.read("accept") is not None:
+                self.f.records["abort"] = self.identity
+        self.f.prove_candidate = prove
+        self.drive(self.accept)
+        self.assert_restored()
+        self.assertNotIn("durable-acceptance", self.f.events)
+
+    def test_final_proof_crossing_deadline_has_no_accepted_acknowledgment(self):
+        self.switch()
+        original = self.f.prove_candidate
+        def prove():
+            original()
+            if "durable-acceptance" in self.f.events:
+                self.clock.value = 61
+        self.f.prove_candidate = prove
+        self.drive(self.accept)
         self.assert_restored()
 
     def test_acceptance_placed_before_switch_is_rejected(self):

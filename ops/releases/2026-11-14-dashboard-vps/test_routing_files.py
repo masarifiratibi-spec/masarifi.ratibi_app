@@ -1,5 +1,7 @@
 """Routing restoration fixtures; no real /etc, Docker, Nginx or services."""
 import tempfile,unittest
+import os
+import time
 from pathlib import Path
 from unittest.mock import Mock,patch
 import routing_files as wd
@@ -25,6 +27,40 @@ class Rollback(unittest.TestCase):
         r=patch.object(wd.context,"receipt",return_value={"contextSha256":"x","candidateSha256":self.t["candidateSha256"]})
         r.start();self.addCleanup(r.stop)
         self.n=0
+
+    @unittest.skipUnless(os.name=="posix","Production decision serialization uses Linux flock")
+    def test_abort_published_first_prevents_an_accepted_receipt(self):
+        self.t["deadline"]=time.monotonic()+10
+        wd.publish_abort({"ticket":"t"})
+        with self.assertRaisesRegex(ValueError,"ACCEPTANCE_WINDOW_CLOSED"):
+            wd.publish_acceptance(self.t,{"ticket":"t"})
+        self.assertFalse((self.root/"accepted.json").exists())
+
+    @unittest.skipUnless(os.name=="posix","Production decision serialization uses Linux flock")
+    def test_completed_acceptance_rejects_later_abort_instead_of_silently_ignoring_it(self):
+        self.t["deadline"]=time.monotonic()+10
+        wd.publish_acceptance(self.t,{"ticket":"t"})
+        with self.assertRaisesRegex(ValueError,"ALREADY_ACCEPTED_USE_RESTORE"):
+            wd.publish_abort({"ticket":"t"})
+        self.assertTrue((self.root/"accepted.json").exists())
+        self.assertFalse((self.root/"abort.json").exists())
+
+    @unittest.skipUnless(os.name=="posix","Production decision serialization uses Linux flock")
+    def test_expired_window_cannot_publish_an_accepted_receipt(self):
+        self.t["deadline"]=time.monotonic()-1
+        with self.assertRaisesRegex(ValueError,"ACCEPTANCE_WINDOW_CLOSED"):
+            wd.publish_acceptance(self.t,{"ticket":"t"})
+        self.assertFalse((self.root/"accepted.json").exists())
+
+    def test_reload_stops_before_signal_when_validation_exhausts_the_window(self):
+        clock=[10]
+        def command(*args,**kwargs):clock[0]=12
+        with patch.object(wd.time,"monotonic",side_effect=lambda:clock[0]), \
+             patch.object(wd.subprocess,"run",side_effect=command) as execute:
+            with self.assertRaisesRegex(ValueError,"ACCEPTANCE_WINDOW_CLOSED"):
+                wd.nginx_reload(deadline=11)
+        self.assertEqual(execute.call_count,1)
+        self.assertEqual(execute.call_args.kwargs["timeout"],1)
 
     def test_original_disk_still_requires_reload_and_endpoint_proof(self):
         with patch.object(wd,"links"),patch.object(wd,"nginx_reload") as reload:

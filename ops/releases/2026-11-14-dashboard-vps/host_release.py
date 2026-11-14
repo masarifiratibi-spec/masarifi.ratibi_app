@@ -35,7 +35,10 @@ ADMIN = "staging.masarifiratibi.com"
 API = "api.staging.masarifiratibi.com"
 
 
-def run(args, *, data=None, timeout=30):
+def run(args, *, data=None, timeout=30, deadline=None):
+    if deadline is not None:
+        timeout=min(timeout,deadline-time.monotonic())
+        require(timeout>0,"ACCEPTANCE_WINDOW_CLOSED")
     p = subprocess.run(args, input=data, capture_output=True, timeout=timeout)
     require(p.returncode == 0, "HOST_COMMAND_FAILED")
     return p.stdout
@@ -71,8 +74,8 @@ def admitted(pin):
     return m
 
 
-def inspect(identity):
-    return json.loads(run(["docker", "inspect", identity]))[0]
+def inspect(identity, deadline=None):
+    return json.loads(run(["docker", "inspect", identity],deadline=deadline))[0]
 
 
 def baseline(m):
@@ -88,11 +91,11 @@ def same_target():
     require(s["phase"] == "complete" and s["targetMayAcceptWrites"] is True, "VPS_AUTHORITY_CHANGED")
 
 
-def protected(m, candidates=()):
+def protected(m, candidates=(), deadline=None):
     same_target()
     b = baseline(m)
-    ids = admission.run(["docker", "ps", "-aq", "--no-trunc"]).decode().splitlines()
-    rows = json.loads(admission.run(["docker", "inspect", *ids]))
+    ids = run(["docker", "ps", "-aq", "--no-trunc"],deadline=deadline).decode().splitlines()
+    rows = json.loads(run(["docker", "inspect", *ids],deadline=deadline))
     require(fingerprint(admission.inventory(rows, exclude=candidates)) == b["inventorySha256"],
             "PROTECTED_CONTAINER_DRIFT")
     require(all(r["State"].get("Health", {}).get("Status") in (None, "healthy")
@@ -104,12 +107,14 @@ def protected(m, candidates=()):
             "PROTECTED_PRIMARY_DRIFT")
 
 
-def probe(host, path, port=None):
+def probe(host, path, port=None, deadline=None):
     origin = f"http://127.0.0.1:{port}" if port else "https://" + host
     request = Request(origin + path, headers={"Host": host, "X-Request-ID": "dashboard-release-readonly"})
     from urllib.error import HTTPError
+    budget=5 if deadline is None else min(5,deadline-time.monotonic())
+    require(budget>0,"ACCEPTANCE_WINDOW_CLOSED")
     try:
-        response = urlopen(request, timeout=5)
+        response = urlopen(request, timeout=budget)
     except HTTPError as error:
         response = error
     with response:
@@ -118,14 +123,14 @@ def probe(host, path, port=None):
         return response.status, response.headers, body
 
 
-def production_ready():
-    status, _, body = probe("api.masarifiratibi.com", "/health/ready")
+def production_ready(deadline=None):
+    status, _, body = probe("api.masarifiratibi.com", "/health/ready",deadline=deadline)
     require(status == 200 and json.loads(body) == {"status": "ready", "checks": {"database": "up", "queue": "up"}},
             "PRODUCTION_NOT_READY")
 
 
-def static_probe(item, port=None):
-    status, _, body = probe(ADMIN, item["path"], port)
+def static_probe(item, port=None, deadline=None):
+    status, _, body = probe(ADMIN, item["path"], port, deadline)
     require(status == 200 and files.sha(body) == item["sha256"], "STATIC_GENERATION_DRIFT")
 
 
@@ -135,13 +140,13 @@ def prove_original(m):
     require(probe(ADMIN, m["admin"]["staticProbe"]["path"])[0] == 404, "CANDIDATE_STILL_SERVED")
 
 
-def prove_candidate(m):
-    production_ready()
-    static_probe(m["admin"]["staticProbe"])
+def prove_candidate(m,deadline=None):
+    production_ready(deadline)
+    static_probe(m["admin"]["staticProbe"],deadline=deadline)
     for prefix in ("/api/v1/admin/support-access/requests", "/api/v1/me/support-access/requests"):
         for suffix, expected in (("", 401), ("/00000000-0000-4000-8000-000000000001?probe=1",
                                            401 if "/admin/" in prefix else 404)):
-            status, headers, _ = probe(API, prefix + suffix)
+            status, headers, _ = probe(API, prefix + suffix,deadline=deadline)
             require(status == expected and headers.get_all("Cache-Control") == ["no-store"],
                     "SUPPORT_INGRESS_OR_CACHE_DRIFT")
 
@@ -154,19 +159,19 @@ def ticket(m):
     return t
 
 
-def canaries(m, t):
-    protected(m, t["candidates"].values())
+def canaries(m, t, deadline=None):
+    protected(m, t["candidates"].values(),deadline)
     accepted = files.PRIVATE / "accepted-configs.json"
     configs = private_json(accepted)["configs"] if accepted.exists() else t["configs"]
     for role, identity in t["candidates"].items():
-        row = inspect(identity)
+        row = inspect(identity,deadline)
         require(row["Id"] == identity and row["Name"] == "/" + NAMES[role]
                 and row["State"]["Running"] and not row["State"].get("OOMKilled")
                 and row["RestartCount"] == 0 and row["State"]["StartedAt"] == t["started"][role]
                 and fingerprint([row[k] for k in ("Config", "HostConfig", "Mounts")]) == configs[role],
                 "CANDIDATE_IDENTITY_OR_CONFIG_DRIFT")
-    static_probe(m["admin"]["staticProbe"], 3090)
-    require(probe(API, "/health/ready", 3091)[0] == 200, "CANDIDATE_API_NOT_READY")
+    static_probe(m["admin"]["staticProbe"], 3090,deadline)
+    require(probe(API, "/health/ready", 3091,deadline)[0] == 200, "CANDIDATE_API_NOT_READY")
 
 
 def quiesce(m, t):
@@ -194,7 +199,10 @@ class Adapter:
         return private_json(path) if path.exists() else None
 
     def emit(self, name, value):
-        files.emit(files.PRIVATE / (name + ".json"), value)
+        if name=="accepted":
+            files.publish_acceptance(self.t,value)
+        else:
+            files.emit(files.PRIVATE / (name + ".json"), value)
         if name == "switched":
             files.emit(files.PRIVATE / "switch-observation.json", {"switchedUnix": time.time()})
 
@@ -203,19 +211,20 @@ class Adapter:
 
     def protected(self):
         files.links(self.t)
-        protected(self.m, self.t["candidates"].values())
+        protected(self.m, self.t["candidates"].values(),self.t["deadline"])
 
     def healthy(self):
-        canaries(self.m, self.t)
+        canaries(self.m, self.t,self.t["deadline"])
 
     def prove_original(self):
         prove_original(self.m)
 
     def prove_candidate(self):
-        files.converge(lambda: prove_candidate(self.m))
+        files.converge(lambda: prove_candidate(self.m,self.t["deadline"]),deadline=self.t["deadline"])
 
     def install(self):
-        attest_migration(self.m)
+        files.require_acceptance_open(self.t)
+        attest_migration(self.m,self.t["deadline"])
         master = self.t["master"]["pid"]
         require(os.readlink("/proc/self/ns/mnt") == os.readlink("/proc/1/ns/mnt") ==
                 os.readlink(f"/proc/{master}/ns/mnt"), "MASTER_MOUNT_NAMESPACE_REQUIRED")
@@ -223,9 +232,13 @@ class Adapter:
         r = context.receipt(primary_hash=self.t["protectedPrimarySha256"], candidate_sink=proposed.append)
         require(r["contextSha256"] == self.t["contextSha256"] and r["candidateSha256"] == self.t["candidateSha256"],
                 "FRESH_ROUTING_CONTEXT_DRIFT")
+        files.require_acceptance_open(self.t)
         files.prepare_trial(proposed[0], self.t)
+        files.require_acceptance_open(self.t)
         files.bind_trial(files.TARGET, files.PRIVATE / "trial")
-        files.nginx_reload()
+        files.require_acceptance_open(self.t)
+        files.nginx_reload(self.t["deadline"])
+        files.require_acceptance_open(self.t)
 
     def restore(self):
         files.restore(self.t, self.prove_original)
@@ -238,13 +251,18 @@ class Adapter:
         acceptance_receipt.verify(INPUT / "evidence", dict(self.t, **observed), digest)
         self.healthy()
         require(time.monotonic() < self.t["deadline"] - 20, "ACCEPTANCE_WINDOW_CLOSED")
-        files.emit(files.PRIVATE / "commit.json", {"decision": "accepted", "packetSha256": self.t["packetSha256"],
+        files.require_acceptance_open(self.t)
+        files.emit(files.PRIVATE / "commit.json", {"decision": "acceptance-intent", "packetSha256": self.t["packetSha256"],
                                                    "evidenceSha256": digest, "ticket": self.t["ticket"]})
         configs = {}
         for role, identity in self.t["candidates"].items():
-            before = inspect(identity)
-            run(["docker", "update", "--restart", "unless-stopped", identity])
-            after = inspect(identity)
+            files.require_acceptance_open(self.t)
+            before = inspect(identity,self.t["deadline"])
+            files.require_acceptance_open(self.t)
+            run(["docker", "update", "--restart", "unless-stopped", identity],deadline=self.t["deadline"])
+            files.require_acceptance_open(self.t)
+            after = inspect(identity,self.t["deadline"])
+            files.require_acceptance_open(self.t)
             expected = deepcopy(before["HostConfig"])
             expected["RestartPolicy"] = {"Name": "unless-stopped", "MaximumRetryCount": 0}
             require(after["HostConfig"] == expected and after["Config"] == before["Config"]
@@ -253,6 +271,7 @@ class Adapter:
                     and after["RestartCount"] == 0, "ACCEPTED_POLICY_DRIFT")
             configs[role] = fingerprint([after[k] for k in ("Config", "HostConfig", "Mounts")])
         files.emit(files.PRIVATE / "accepted-configs.json", {"configs": configs})
+        files.require_acceptance_open(self.t)
         files.finalize_trial(self.t)
 
 
@@ -412,10 +431,10 @@ def migrate(m):
     canaries(m, t)
 
 
-def attest_migration(m):
+def attest_migration(m,deadline=None):
     """Resolve an uncertain commit read-only, without repeating the transaction."""
     t = ticket(m)
-    canaries(m, t)
+    canaries(m, t,deadline)
     postgres = next(v for v in baseline(m)["inventory"] if v["name"] == "/masarifi-postgres17")
     prior = migration_packet.LEDGER_HASH.replace("from supabase_migrations.schema_migrations)",
               "from supabase_migrations.schema_migrations where version<>'20261107140100')")
@@ -433,7 +452,7 @@ select jsonb_build_object(
    and encode(sha256(convert_to(statements[1],'UTF8')),'hex')='{migration_packet.SHA}'));
 rollback;"""
     raw = run(["docker", "exec", "-i", postgres["id"], "psql", "-XqAt", "-v", "ON_ERROR_STOP=1",
-               "-h", "/tmp", "-U", m["migration"]["executor"], "-d", "postgres"], data=query.encode(), timeout=8)
+               "-h", "/tmp", "-U", m["migration"]["executor"], "-d", "postgres"], data=query.encode(), timeout=8,deadline=deadline)
     result = json.loads(raw)
     require(result == dict.fromkeys(("cluster", "database", "constraint", "priorLedger", "memberships", "count", "entry"), True),
             "VPS_MIGRATION_POSTIMAGE_NOT_ADMITTED")
@@ -566,7 +585,7 @@ def main():
     elif args.action == "accept":
         request_acceptance(m, args.evidence_sha256)
     elif args.action == "abort":
-        files.emit(files.PRIVATE / "abort.json", live_identity(m))
+        files.publish_abort(live_identity(m))
     elif args.action == "restore":
         dispatch_restore(m, args.approved_packet_sha256)
     else:

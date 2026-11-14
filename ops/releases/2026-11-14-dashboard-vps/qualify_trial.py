@@ -32,7 +32,7 @@ def runner():
         probe.write_text(f"pid {root}/master.pid; error_log {root}/error.log; events {{}} "
                          f"http {{ access_log off; server {{ listen 127.0.0.1:{port}; include {target}; }} }}")
         nginx=["/usr/sbin/nginx","-p",tmp,"-c",str(probe)]
-        def reload():
+        def reload(deadline=None):
             subprocess.run(nginx+["-t"],check=True,timeout=5)
             subprocess.run(nginx+["-s","reload"],check=True,timeout=5)
         def serves(want):
@@ -63,7 +63,7 @@ def runner():
             wd.bind_trial(target,source);reload();serves(b"candidate")
             from unittest.mock import patch
             with patch.object(wd,"PRIVATE",root),patch.object(wd,"TARGET",target),patch.object(wd,"nginx_reload",reload):
-                wd.finalize_trial(dict(candidateSha256=wd.sha(new),originalSha256=wd.sha(old)))
+                wd.finalize_trial(dict(candidateSha256=wd.sha(new),originalSha256=wd.sha(old),deadline=time.monotonic()+10))
             check(not wd.mounted_file(target,source) and target.read_bytes()==new,"ACCEPTED_BYTES_NOT_PERSISTENT")
             serves(b"candidate")
         finally:

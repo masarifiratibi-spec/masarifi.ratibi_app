@@ -24,6 +24,11 @@ def require(condition, reason):
         raise ValueError(reason)
 
 
+def require_acceptance_open(ticket, adapter, runtime):
+    require(runtime.now() < ticket["deadline"] and adapter.read("abort") is None,
+            "ACCEPTANCE_WINDOW_CLOSED")
+
+
 def watch(ticket, adapter, runtime):
     pid, boot_id, now, sleep = runtime.pid, runtime.boot_id, runtime.now, runtime.sleep
     deadline = ticket["deadline"]
@@ -56,7 +61,9 @@ def watch(ticket, adapter, runtime):
                     require(request == identity and now() < deadline - 15,
                             "SWITCH_REQUEST_INVALID")
                     adapter.install()
+                    require_acceptance_open(ticket, adapter, runtime)
                     adapter.prove_candidate()
+                    require_acceptance_open(ticket, adapter, runtime)
                     adapter.emit("switched", identity)
                     switched = True
             else:
@@ -67,10 +74,13 @@ def watch(ticket, adapter, runtime):
                             and re.fullmatch(r"[0-9a-f]{64}", evidence)
                             and accept == dict(identity, evidenceSha256=evidence)
                             and now() < deadline - 30, "ACCEPTANCE_INVALID")
+                    require_acceptance_open(ticket, adapter, runtime)
                     # finalize must verify actor-bound evidence and record the
                     # durable decision before making candidate routing persistent.
                     adapter.finalize(evidence)
+                    require_acceptance_open(ticket, adapter, runtime)
                     adapter.prove_candidate()
+                    require_acceptance_open(ticket, adapter, runtime)
                     adapter.emit("accepted", accept)
                     return "accepted"
             sleep(2)

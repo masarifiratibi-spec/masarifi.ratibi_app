@@ -7,6 +7,7 @@ import stat
 import subprocess
 import tempfile
 import time
+from contextlib import contextmanager
 
 from runtime_plan import require, fingerprint, ROOT
 import admission as inv
@@ -71,10 +72,14 @@ def compatible_master(original,current):
     return all(original[k]==current[k] for k in ("bootId","executableSha256","commandSha256","mainConfigSha256"))
 
 
-def converge(probe,seconds=8):
-    end=time.monotonic()+seconds
+def converge(probe,seconds=8,deadline=None):
+    end=min(time.monotonic()+seconds, deadline) if deadline is not None else time.monotonic()+seconds
     while True:
-        try:probe();return
+        try:
+            require(time.monotonic()<end,"PROBE_WINDOW_CLOSED")
+            probe()
+            require(time.monotonic()<end,"PROBE_WINDOW_CLOSED")
+            return
         except (ValueError,OSError,subprocess.SubprocessError):
             if time.monotonic()>=end:raise
             time.sleep(0.2)
@@ -109,10 +114,40 @@ def atomic(target, raw, expected):
         if tmp is not None: tmp.unlink(missing_ok=True)
 
 
-def nginx_reload():
+def nginx_reload(deadline=None):
     # Do not log arbitrary configuration values on validator failure.
     for args in (["/usr/sbin/nginx","-t"],["/usr/sbin/nginx","-s","reload"]):
-        subprocess.run(args,check=True,timeout=15,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        budget=15 if deadline is None else min(15,deadline-time.monotonic())
+        require(budget>0,"ACCEPTANCE_WINDOW_CLOSED")
+        subprocess.run(args,check=True,timeout=budget,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+
+
+def require_acceptance_open(ticket):
+    require(time.monotonic()<ticket["deadline"] and not (PRIVATE/"abort.json").exists(),
+            "ACCEPTANCE_WINDOW_CLOSED")
+
+
+@contextmanager
+def decision_lock():
+    import fcntl
+    with (PRIVATE/"decision.lock").open("a+b") as lock:
+        fcntl.flock(lock.fileno(),fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
+
+
+def publish_acceptance(ticket,receipt):
+    with decision_lock():
+        require_acceptance_open(ticket)
+        emit(PRIVATE/"accepted.json",receipt)
+
+
+def publish_abort(receipt):
+    with decision_lock():
+        require(not (PRIVATE/"accepted.json").exists(),"ALREADY_ACCEPTED_USE_RESTORE")
+        emit(PRIVATE/"abort.json",receipt)
 
 
 def mounted_file(target, source):
@@ -149,12 +184,16 @@ def prepare_trial(raw,t):
 
 
 def finalize_trial(t):
+    require_acceptance_open(t)
     raw=exact_file(PRIVATE/"trial")
     require(sha(raw)==t["candidateSha256"] and sha(exact_file(TARGET))==t["candidateSha256"],"TRIAL_DRIFT")
     detach(TARGET,PRIVATE/"trial")
+    require_acceptance_open(t)
     # Existing workers keep the accepted candidate while its bytes become durable.
     atomic(TARGET,raw,t["originalSha256"])
-    nginx_reload()
+    require_acceptance_open(t)
+    nginx_reload(t["deadline"])
+    require_acceptance_open(t)
 
 
 def restore(ticket, prove):

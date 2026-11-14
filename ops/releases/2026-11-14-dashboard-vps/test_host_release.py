@@ -9,6 +9,18 @@ from runtime_plan import NAMES
 
 
 class HostControls(unittest.TestCase):
+    def test_blocking_command_timeout_cannot_exceed_remaining_trial_window(self):
+        with patch.object(host.time, "monotonic", return_value=10), \
+             patch.object(host.subprocess, "run") as command:
+            command.return_value.returncode = 0
+            command.return_value.stdout = b"fixture"
+            self.assertEqual(host.run(["fixture"], timeout=30, deadline=11), b"fixture")
+            self.assertEqual(command.call_args.kwargs["timeout"], 1)
+            command.reset_mock()
+            with self.assertRaisesRegex(ValueError, "ACCEPTANCE_WINDOW_CLOSED"):
+                host.run(["fixture"], deadline=9)
+            command.assert_not_called()
+
     def test_baseline_reads_the_complete_collected_receipt_and_requires_stability(self):
         receipt = dict(collectorStatus="passed", stableBeforeAfter=True,
                        counts=dict(targetRunning=30, frozenSourceAllStoppedRestartNo=True),
@@ -94,6 +106,37 @@ class HostControls(unittest.TestCase):
             with self.assertRaises(OSError):
                 host.Adapter({}, t).finalize("e" * 64)
         self.assertEqual(events, ["commit.json", "policy", "accepted-configs.json"])
+
+    def test_slow_update_or_abort_during_update_prevents_routing_persistence(self):
+        for failure in ("deadline", "abort"):
+            with self.subTest(failure=failure):
+                events, clock, aborted = [], [78], [False]
+                t = dict(ticket="t", packetSha256="a" * 64, deadline=100, candidates={"api": "candidate"})
+                before = self.fixture()
+                before.update(Mounts=[], RestartCount=0)
+                before["State"]["StartedAt"] = "start"
+                before["HostConfig"]["RestartPolicy"]["Name"] = "no"
+                after = deepcopy(before)
+                after["HostConfig"]["RestartPolicy"]["Name"] = "unless-stopped"
+                def command(*args, **kwargs):
+                    events.append("policy")
+                    clock[0] += 25 if failure == "deadline" else 1
+                    aborted[0] = failure == "abort"
+                def check(_):
+                    if clock[0] >= t["deadline"] or aborted[0]:
+                        raise ValueError("ACCEPTANCE_WINDOW_CLOSED")
+                with patch.object(host, "private_json", return_value={"switchedUnix": 1}), \
+                     patch.object(host.acceptance_receipt, "verify"), patch.object(host.Adapter, "healthy"), \
+                     patch.object(host.time, "monotonic", side_effect=lambda: clock[0]), \
+                     patch.object(host.files, "require_acceptance_open", side_effect=check, create=True), \
+                     patch.object(host, "inspect", side_effect=[before, after]), \
+                     patch.object(host, "run", side_effect=command), \
+                     patch.object(host.files, "emit", side_effect=lambda path, value: events.append(path.name)), \
+                     patch.object(host.files, "finalize_trial") as persist:
+                    with self.assertRaisesRegex(ValueError, "ACCEPTANCE_WINDOW_CLOSED"):
+                        host.Adapter({}, t).finalize("e" * 64)
+                    persist.assert_not_called()
+                self.assertNotIn("accepted-configs.json", events)
 
 
 if __name__ == "__main__":
