@@ -28,6 +28,16 @@ jobs:
         run: |
           if [ ! -x /usr/sbin/nginx ] || [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
             sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends curl ca-certificates gpg
+            curl --fail --silent --show-error --location --proto '=https' \
+              https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/pgdg.asc"
+            test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/pgdg.asc" | awk -F: '$1=="fpr" {print $10; exit}')" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+            sudo install -D -m 644 "$RUNNER_TEMP/pgdg.asc" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+            printf '%s\n' 'Types: deb' 'URIs: https://apt.postgresql.org/pub/repos/apt' \
+              'Suites: noble-pgdg' 'Components: main' \
+              'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' > "$RUNNER_TEMP/pgdg.sources"
+            sudo install -m 644 "$RUNNER_TEMP/pgdg.sources" /etc/apt/sources.list.d/pgdg.sources
+            sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends nginx postgresql-17
           fi
       - name: Qualify exactly PostgreSQL 17 transaction and failure paths
@@ -36,3 +46,29 @@ jobs:
         run: sudo env GITHUB_ACTIONS=true unshare --mount --propagation private python3 -B qualify_trial.py
       - name: Prove independent systemd timeout after the operator process exits
         run: sudo env GITHUB_ACTIONS=true RUNNER_TEMP="$RUNNER_TEMP" python3 -B qualify_timeout.py
+
+  admin-cold-start:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    env:
+      DOCKER_CONFIG: ${{ runner.temp }}/dashboard-readonly-docker-auth
+    defaults:
+      run:
+        working-directory: ops/releases/2026-11-14-dashboard-vps
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate only for reading the already installed image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Verify and cold-start the pinned Admin without network or live secrets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_TEMP,GH_TOKEN,GITHUB_REPOSITORY,DOCKER_CONFIG python3 -B qualify_admin_runtime.py

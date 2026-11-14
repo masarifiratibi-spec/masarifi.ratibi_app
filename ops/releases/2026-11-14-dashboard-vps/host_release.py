@@ -76,7 +76,11 @@ def inspect(identity):
 
 
 def baseline(m):
-    return private_json(Path(m["admission"]["receiptPath"]), m["admission"]["canonicalSha256"])
+    receipt = private_json(Path(m["admission"]["receiptPath"]), m["admission"]["canonicalSha256"])
+    require(receipt["collectorStatus"] == "passed" and receipt["stableBeforeAfter"] is True
+            and receipt["counts"]["targetRunning"] == 30
+            and receipt["counts"]["frozenSourceAllStoppedRestartNo"] is True, "LIVE_COLLECTION_NOT_ADMITTED")
+    return receipt["collected"]
 
 
 def same_target():

@@ -44,7 +44,8 @@
     "staticProbe": {
       "path": "/_next/static/JnPTcIfQ1KSXKIwHFmZEy/_buildManifest.js",
       "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
-    }
+    },
+    "runtimeImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5"
   },
   "dataAuthority": "current-vps",
   "currentHostAdmission": {
@@ -63,11 +64,8 @@
   "runFrozenConsumers": false,
   "supersededPacket": "2026-11-07-temporary-support-access",
   "blockers": [
-    "Admit exact current container and TLS preimage pins",
-    "Qualify candidate runtime cold start and narrow ingress delta",
-    "Pin and test independent timeout restoration",
-    "Reconcile any required API overlay with installed VPS runtime",
-    "Prepare target-bound denial migration transaction only if included in trial",
+    "Complete current packet Linux/PG17/systemd qualification",
+    "Review scoped current-host executor and runtime qualification gates",
     "Identify independent authenticated acceptance participants",
     "Obtain user approval for final concrete packet"
   ],
@@ -173,11 +171,12 @@
     ".gitattributes": "95bd20e106c0bf5ad7e8ea9be5f1e6c443614628b20284eea258617520732854",
     "acceptance_receipt.py": "403f16bb43b2a01e01e51b1fef380b203b63a5540b77f83962f5434af4c0424a",
     "admission.py": "d46c3b5281876468378a808cc8c7400719237e917f4313d08dc93205fa5839c4",
-    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
-    "host_release.py": "8e519e2a67bff30c17b7b1be7862948a52cbf42c320f6275900222c0d6fd96c6",
+    "candidate_verifier.py": "4a06f7a3e0a480940385086652f9a6873fa63ef2ae01baaa57e8414e80daf1a5",
+    "host_release.py": "edcfbe657e7663dcf1dbb2af9af7b8f826f6433cf74197df4fe399120a9be2ea",
     "migration_packet.py": "67261f20d0a7da022c769cc27a681be31665a5e4707631ccdedb1c5e11fabd1d",
     "nginx_delta.py": "3f1e1da84ff8f7c34fc5d99bfce7710c1a09d61e5c1dcf2a5533a690dd3d26b7",
     "patch_security_modules.py": "8ae1a44f58eb244c33e41d57326519a0d84b26028471ca5734271773f457b86b",
+    "qualify_admin_runtime.py": "de98674c921ca976088545537a573d4a5fd17accca87e2953ceecb1ea9bf1a26",
     "qualify_migration.py": "5d67dd95d6517e9b7fc44b2b1f2a4ca782073eca3beec49d111ed1df4412e033",
     "qualify_timeout.py": "d2014ca04356c85d9efdbb0172f8d3dbe34e3e841f28a501fb55cb97bcd3d6f8",
     "qualify_trial.py": "6e9fc33ded391fb77bdb369578c5d5d3cb2a7040002c87d320eb3d013a6a2e5b",
@@ -199,5 +198,62 @@
     "test_stage_admin.py": "2ad0ec1d4a2aa878d7d764e308c84a0535a5ac83e37cb4a43006624ed1cc7079",
     "test_trial_watchdog.py": "233517e676a0d381c6866065863a1be37c200e8737614bd2dc42b4383414d16e",
     "trial_watchdog.py": "c12dfb5391ed433e85ad86f2262708b2b1901e7183c67661b9acf91ce6182e35"
+  },
+  "admission": {
+    "receiptPath": "/etc/masarifi/selfhost/dashboard-collector-qualification-20261114T003239Z.json",
+    "canonicalSha256": "536b0d0c379cb93ad6b461cd659e649630b97783f407cbaf5c2f124b6ee3a6ac",
+    "collectedSha256": "d747503e639620ab655850eb4ceeef7218071293c88c95640b9db4db5cd1fe51",
+    "inventorySha256": "a016f1033291bd300f5cd218aa4e83cef6b77016a6c056eb8ac515d6e1933041",
+    "plannedPayloadSha256": {
+      "admin": "76ae6be618180c1222861cc2070cc0c8ae354ae2ff824058acdf88be2861200b",
+      "api": "94805c3ae816443be2eb229bf6a264317c23b9bc214d20789133283bcfeda002"
+    },
+    "observedAtUtc": "2026-11-14T00:32:39.077041+00:00",
+    "requiresFreshReadmission": true
+  },
+  "routing": {
+    "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "candidateSha256": "300833745d8d9aab61f4e1803826b9820c7f44a643c340d2860d7f77311af4a0",
+    "contextSha256": "d61e332313e46699d77078ab37765213f065ac01587430495b8a9bf85eadea32",
+    "protectedPrimarySha256": "02a2b1a9380cc7905d13134d31f51ead38fa6c7dc789303016ae857c39d744ee",
+    "originalStaticProbe": {
+      "path": "/_next/static/HpKjKCcL4BG8PJNVU5_VI/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
+    },
+    "diff": {
+      "addedLocations": [
+        {
+          "cacheControl": "no-store",
+          "modifier": "=",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/admin/support-access/requests"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "^~",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/admin/support-access/requests/"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "=",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/me/support-access/requests"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "^~",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/me/support-access/requests/"
+        }
+      ],
+      "adminHost": "staging.masarifiratibi.com",
+      "apiHost": "api.staging.masarifiratibi.com",
+      "changedAdminUpstream": [
+        "http://127.0.0.1:3041",
+        "http://127.0.0.1:3090"
+      ],
+      "defaultApiRetained": "http://127.0.0.1:3001"
+    }
   }
 }

@@ -88,7 +88,8 @@ def validate_runtime_members(members):
 
 def git(root,*args):
     # Reproduce the Linux CI archive independently of a Windows autocrlf setting.
-    result=subprocess.run(["git","-c","core.autocrlf=false","-c","core.eol=lf",*args],cwd=root,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    result=subprocess.run(["git","-c","safe.directory="+str(Path(root).resolve()),
+        "-c","core.autocrlf=false","-c","core.eol=lf",*args],cwd=root,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     require(result.returncode==0, "GIT_OBJECT_OR_COMMAND_UNAVAILABLE")
     return result.stdout
 
