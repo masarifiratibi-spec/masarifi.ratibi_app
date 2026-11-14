@@ -1,0 +1,38 @@
+name: Dashboard VPS Packet
+
+on:
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    paths:
+      - 'ops/releases/2026-11-14-dashboard-vps/**'
+      - '.github/workflows/dashboard-vps-packet.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-and-disposable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ops/releases/2026-11-14-dashboard-vps
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Exercise blocked admission, archive, overlay, actor and restoration controls
+        run: python3 -B -m unittest discover -p 'test_*.py'
+      - name: Obtain Linux fixture tools on the disposable VM
+        run: |
+          if [ ! -x /usr/sbin/nginx ] || [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends nginx postgresql-17
+          fi
+      - name: Qualify exactly PostgreSQL 17 transaction and failure paths
+        run: python3 -B qualify_migration.py /usr/lib/postgresql/17/bin "$RUNNER_TEMP"
+      - name: Prove real Nginx trial, restoration, namespace exit and accepted persistence
+        run: sudo env GITHUB_ACTIONS=true unshare --mount --propagation private python3 -B qualify_trial.py
+      - name: Prove independent systemd timeout after the operator process exits
+        run: sudo env GITHUB_ACTIONS=true RUNNER_TEMP="$RUNNER_TEMP" python3 -B qualify_timeout.py
