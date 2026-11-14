@@ -8,6 +8,8 @@
 
 اقرأ [التسليم التشغيلي المعتمد](2026-11-13-supabase-vps-final-handoff-ar.md)، و[دليل التشغيل](../operations/selfhost-runbook.md)، و[قبول Android146](../operations/2026-11-14-security-settings-mobile-updates.md). تحقق من حالة الملفات واحفظ WIP غير التابع؛ أعمال Admin/performance وحزم الداشبورد لها مالك آخر. ابدأ بفحص قراءة فقط للخدمات والأدلة، ثم أصلح العطل الذي يثبته الفحص.
 
+[فحوص حفظ المصدر](../../ops/selfhost/github-publication-validation-2026-11-14.json): نجح5196اختبار موبايل و2835اختبارAPI في المشاريع المحلية الأربعة، مع types وlint وفحوص أدوات النقل.1108اختباراتAPI تحتاج بيئة/قاعدة فعلية بقيت متجاوزة؛ هذه ليست قبولًا تشغيليًا حيًا. [تأهيل الصفحات القانونية](../../ops/selfhost/public-legal-source-qualification-2026-11-14.json) نجح محليًا من adapter ملتزم ونظيف، مع ست استجابات لغوية وضوابط رفض العبث؛ لا يعني نشرًا جديدًا للموقع.
+
 ## الحالة التي لا تُعاد
 
 نقل PostgreSQL والملفات **مكتمل**: الهدف قبل الكتابة منذ13نوفمبر16:15:51UTC، والحالة الدائمة `phase=complete` و`targetMayAcceptWrites=true`. طابقت199جدولًا و5sequences و177migration والملفات الأصلية. آخر فحص API عام في14نوفمبر07:42:57UTC أعاد200 وready مع database=up وqueue=up؛ لا يساوي ذلك حصرًا جديدًا للحاويات.
