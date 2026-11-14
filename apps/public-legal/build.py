@@ -12,7 +12,7 @@ import tarfile
 import io
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SOURCE = "ae290abac9b3d55c1f482ec8198e91200a8ea0b4"
+CANONICAL_SOURCE = "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718"
 ORIGIN = "https://masarifiratibi.com"
 EMAIL = "masarifi.ratibi@gmail.com"
 MAILTO = "mailto:" + EMAIL + "?subject=Account%20deletion%20request"

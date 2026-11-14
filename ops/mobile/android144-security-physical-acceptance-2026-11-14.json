@@ -1,0 +1,31 @@
+{
+  "recordedAtUtc": "2026-11-14T07:17:34.469739+00:00",
+  "versionCode": 144,
+  "versionName": "1.0.1",
+  "versionEvidence": "E:/Masarifi-security-settings-144-20261114/installed144.json",
+  "verificationMethod": "Computer Use visual inspection through scrcpy on physical 23076RN8DY",
+  "scope": "Security Settings privacy entry removal, existing signed-in session and home balance only",
+  "checks": {
+    "privacyEntryAbsent": true,
+    "nativeAuthenticationAndAutoLockVisible": true,
+    "hideBalancesVisible": true,
+    "signedInSessionPreserved": true,
+    "homeBalanceBeforeAndAfter": "200.00 SAR",
+    "activeAccountsBeforeAndAfter": 1
+  },
+  "installationEvidence": {
+    "uidPreserved": true,
+    "bothProfilesDataInodesPreserved": true,
+    "firstInstallTimesPreserved": true
+  },
+  "finalObservedScreen": "Security Settings in light mode",
+  "constraints": {
+    "dataCleared": false,
+    "uninstalled": false,
+    "settingsChanged": false,
+    "permissionsGranted": false
+  },
+  "limitations": [
+    "This scoped acceptance does not qualify store publication or all application features."
+  ]
+}
