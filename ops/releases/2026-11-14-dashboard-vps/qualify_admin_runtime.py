@@ -1,8 +1,10 @@
 """Run the pinned Admin on a disposable GitHub VM, without network or live secrets."""
+import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
+import re
 import subprocess
 import tempfile
 import time
@@ -57,8 +59,29 @@ def run(args):
     return command.stdout
 
 
+def public_environment(js_chunks, approved_hashes):
+    candidates = {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": set(), "NEXT_PUBLIC_API_URL": set()}
+    patterns = {"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": rb"pk_live_[A-Za-z0-9_-]{10,}",
+                "NEXT_PUBLIC_API_URL": rb"https://[^\s\x22\x27\x60\\<>]+"}
+    for content in js_chunks:
+        for key, pattern in patterns.items():
+            candidates[key].update(match.decode() for match in re.findall(pattern, content)
+                                   if hashlib.sha256(match).hexdigest() == approved_hashes[key])
+    require(all(len(matches) == 1 for matches in candidates.values()), "BUILT_PUBLIC_CONFIGURATION_NOT_FOUND")
+    environment = {key: next(iter(matches)) for key, matches in candidates.items()}
+    environment.update(NEXT_PUBLIC_CLIENT_MODE="live", NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT="staging",
+                       NEXT_PUBLIC_ENABLE_MOCKS="false")
+    require(all(hashlib.sha256(content.encode()).hexdigest() == approved_hashes[key]
+                for key, content in environment.items()), "PUBLIC_CONFIGURATION_HASH_DRIFT")
+    return environment
+
+
 def cold_start(root, pins, image):
     runtime = stage_admin.admin(root / "artifact.zip", root, pins)
+    environment = public_environment((path.read_bytes() for path in
+                  (runtime / "apps/admin-web/.next/static").rglob("*.js")), pins["publicConfigurationSha256"])
+    environment.update(CLERK_SECRET_KEY="sk_live_replace_with_server_key", NEXT_TELEMETRY_DISABLED="1")
+    environment_args = ["--env=" + key + "=" + content for key, content in environment.items()]
     require(image == "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
             "CURRENT_ADMIN_IMAGE_PIN_REQUIRED")
     run(["docker", "pull", "--platform=linux/amd64", image])
@@ -66,7 +89,7 @@ def cold_start(root, pins, image):
     identity = run(["docker", "create", "--name", name, "--pull=never", "--platform=linux/amd64",
                     "--network=none", "--restart=no", "--read-only", "--user=1000:1000",
                     "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=128",
-                    "--memory=512m", "--cpus=0.5", "--no-healthcheck", "--env=NEXT_TELEMETRY_DISABLED=1",
+                    "--memory=512m", "--cpus=0.5", "--no-healthcheck", *environment_args,
                     "--mount", "type=bind,src=" + str(runtime) + ",dst=/workspace,readonly",
                     "--mount", "type=bind,src=" + str(root / "cache") + ",dst=/workspace/apps/admin-web/.next/cache",
                     "--workdir=/workspace/apps/admin-web", "--entrypoint=/nodejs/bin/node", image,
@@ -85,7 +108,14 @@ def cold_start(root, pins, image):
                                    capture_output=True, timeout=10)
             if probe.returncode == 0 and probe.stdout == b"QUALIFIED\n":
                 break
-            require(time.monotonic() < until, "PINNED_ADMIN_COLD_START_FAILED")
+            if time.monotonic() >= until:
+                logs = run(["docker", "logs", "--tail=30", identity]).decode(errors="replace")
+                reasons = [reason for reason in ("live mode requires a valid HTTPS API URL",
+                           "live mode requires a valid Clerk publishable key", "production requires a valid Clerk secret",
+                           "ERR_MODULE_NOT_FOUND", "EACCES", "ENOENT") if reason in logs]
+                print(json.dumps({"phase": "cold-start", "knownReasons": reasons,
+                                  "logSha256": hashlib.sha256(logs.encode()).hexdigest()}), flush=True)
+                raise ValueError("PINNED_ADMIN_COLD_START_FAILED")
             time.sleep(1)
         row = json.loads(run(["docker", "inspect", identity]))[0]
         require(row["State"]["Running"] and not row["State"].get("OOMKilled") and row["RestartCount"] == 0
@@ -95,6 +125,7 @@ def cold_start(root, pins, image):
         return dict(qualified=True, source=pins["source"], artifact=pins["artifact"], buildId=pins["buildId"],
                     runtimeNode="v24.20.0", imageReference=image, actualImageId=row["Image"],
                     staticProbePassed=True, network="none", liveSecretsProvided=False,
+                    publicConfigurationHashesMatched=True, serverSecretPlaceholder=True,
                     restartCount=0, hostedActions=False)
     finally:
         run(["docker", "rm", "-f", identity])
@@ -119,4 +150,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        raise SystemExit("DISPOSABLE_ADMIN_RUNTIME_QUALIFICATION_FAILED:" + type(error).__name__) from None
+        reason = str(error) if re.fullmatch(r"[A-Z0-9_]+", str(error)) else type(error).__name__
+        raise SystemExit("DISPOSABLE_ADMIN_RUNTIME_QUALIFICATION_FAILED:" + reason) from None

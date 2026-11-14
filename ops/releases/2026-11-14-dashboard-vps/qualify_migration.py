@@ -9,6 +9,7 @@ import sys
 import tempfile
 from unittest.mock import patch
 import json
+import os
 
 import migration_packet as packet
 
@@ -24,14 +25,24 @@ def qualify(bin_dir, evidence):
             # The Windows server inherits redirected handles. A PIPE would keep
             # communicate() waiting after pg_ctl has already returned.
             with (root / "control.log").open("ab") as log:
-                return subprocess.run([str(bin_dir / name), *args], stdout=log, stderr=log, timeout=30, **kw)
+                try:
+                    return subprocess.run([str(bin_dir / name), *args], stdout=log, stderr=log, timeout=30, **kw)
+                except subprocess.CalledProcessError:
+                    for diagnostic in (root / "control.log", root / "server.log"):
+                        if diagnostic.exists():
+                            print(diagnostic.read_text(errors="replace")[-4000:], flush=True)
+                    raise
         return subprocess.run([str(bin_dir / name), *args], capture_output=True, **kw)
     run("initdb", ["-D", str(data), "-U", "packet_fixture", "-A", "trust", "-E", "UTF8",
                    "--locale=C"], check=True)
+    if os.name == "posix":
+        # The fixture must not use a system-owned /var/run/postgresql socket.
+        with (data / "postgresql.auto.conf").open("a") as config:
+            config.write("\nunix_socket_directories='" + str(root).replace("'", "''") + "'\n")
     server = ["-D", str(data), "-w", "-t", "20"]
-    run("pg_ctl", [*server, "-l", str(root / "server.log"), "-o",
-        f"-h 127.0.0.1 -p {port} -c shared_buffers=16MB -c max_connections=10", "start"], check=True)
     try:
+        run("pg_ctl", [*server, "-l", str(root / "server.log"), "-o",
+            f"-h 127.0.0.1 -p {port} -c shared_buffers=16MB -c max_connections=10", "start"], check=True)
         def sql(stmt, error=None, user="packet_fixture"):
             p = run("psql", ["-X", "-h", "127.0.0.1", "-p", str(port), "-U", user,
                 "-d", "postgres", "-qAt", "-v", "ON_ERROR_STOP=1"], input=stmt.encode("utf8"))
@@ -90,7 +101,8 @@ def qualify(bin_dir, evidence):
         (root/"qualification.json").write_text(json.dumps({"postgresVersion":sql("show server_version;"),"isolated":True,"passed":True,"checks":["cluster","ledger","memberships","atomic-failure","canonical-ledger-bytes","replay","grant-cleanup","denied-without-consent","approval-requires-consent"]},indent=2)+"\n")
         print("Local disposable SQL: cluster and ledger drift blocked; postimage failure rolled back; canonical DDL + ledger committed once; replay and approval without consent blocked.")
     finally:
-        run("pg_ctl", [*server, "-m", "fast", "stop"], check=True)
+        if (data / "postmaster.pid").exists():
+            run("pg_ctl", [*server, "-m", "fast", "stop"], check=True)
 
 
 if __name__ == "__main__":
