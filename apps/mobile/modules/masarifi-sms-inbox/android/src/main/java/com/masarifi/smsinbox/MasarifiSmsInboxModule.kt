@@ -158,7 +158,8 @@ class MasarifiSmsInboxModule : Module() {
         ?: throw IllegalStateException("notification_context_unavailable")
       context.startActivity(
         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          // Reusing Settings must reveal this page rather than its previous top activity.
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
       )
     }
 
