@@ -23,7 +23,6 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { Toggle } from '@/design-system/components/forms/SelectionControls';
-import { DesignIcon } from '@/design-system/icons';
 import {
   useAutomaticTrackingSyncState,
   useTrackingStatus,
@@ -64,6 +63,8 @@ import type {
 import { trackingKeywordConfiguration } from '@/services/tracking-keyword-configuration';
 import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
+import { TrackingSetupGuide } from './components/TrackingSetupGuide';
+import { openTrackingAlertSettings } from '@/services/platform/tracking-alert-settings';
 import {
   setTrackingSourceFailure,
   setTrackingSourceIntent,
@@ -98,7 +99,7 @@ export function TrackingStatusScreen() {
 }
 
 function TrackingStatusContent() {
-  const { colors, mode: themeMode } = useTheme();
+  const { mode: themeMode } = useTheme();
   const styles = themedStyles[themeMode];
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const statusKey = automaticTrackingReadKey(
@@ -750,46 +751,13 @@ function TrackingStatusContent() {
           ) : null}
         </SurfaceCard>
 
-        <SurfaceCard testID="tracking-explanation-card" style={styles.card}>
-          <View style={styles.explanationList}>
-            {(
-              [
-                ['notifications', 'tracking.howItWorks.detection'],
-                ['transactions', 'tracking.howItWorks.privacy']
-              ] as const
-            ).map(([icon, textKey]) => (
-              <View
-                key={textKey}
-                testID="tracking-explanation-row"
-                style={[
-                  styles.explanationItem,
-                  styles.physicalLtr,
-                  { flexDirection: isRtl ? 'row-reverse' : 'row' }
-                ]}
-              >
-                <View style={styles.explanationIcon}>
-                  <DesignIcon
-                    name={icon}
-                    decorative
-                    size="sm"
-                    color={colors.content.link}
-                  />
-                </View>
-                <StyledText
-                  style={[
-                    styles.explanationText,
-                    {
-                      textAlign: isRtl ? 'right' : 'left',
-                      writingDirection: direction
-                    }
-                  ]}
-                >
-                  {translate(textKey)}
-                </StyledText>
-              </View>
-            ))}
-          </View>
-        </SurfaceCard>
+        <TrackingSetupGuide
+          smsAvailable={smsPermission !== 'unavailable'}
+          notificationAvailable={notificationAccess !== 'unavailable'}
+          onOpenSmsSettings={() => permissionService.openSettings()}
+          onOpenNotificationSettings={() => bankNotificationService.openSettings()}
+          onOpenAlertSettings={openTrackingAlertSettings}
+        />
 
         {/* 4. Keyword Management Card */}
         <SurfaceCard
@@ -1130,22 +1098,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.content.secondary,
       fontSize: 13,
       fontWeight: '600'
-    },
-    explanationList: { gap: spacing.md },
-    explanationItem: { alignItems: 'center', gap: spacing.md },
-    explanationIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surfaces.brandSubtle
-    },
-    explanationText: {
-      flex: 1,
-      color: colors.content.secondary,
-      fontSize: 13.5,
-      lineHeight: 20
     },
     errorBanner: {
       backgroundColor: colors.iconBadges.danger.background,

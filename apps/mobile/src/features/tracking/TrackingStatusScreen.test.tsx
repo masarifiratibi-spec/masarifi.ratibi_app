@@ -655,7 +655,7 @@ describe('TrackingStatusScreen', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('renders concise tracking explanations without a privacy-details action', async () => {
+  it('renders the approved collapsed setup guide between source controls and keywords', async () => {
     renderStatus({
       platform: 'android',
       mode: 'automatic_clear',
@@ -682,13 +682,14 @@ describe('TrackingStatusScreen', () => {
       expect.objectContaining({ checked: true })
     );
 
-    // 2. How it works explanations
+    // 2. Setup guide and compact explanation
     expect(
-      screen.getByText(translate('tracking.howItWorks.detection'))
+      screen.getByRole('button', { name: translate('tracking.setup.alertSettings') })
     ).toBeOnTheScreen();
     expect(
-      screen.getByText(translate('tracking.howItWorks.privacy'))
+      screen.getByText(translate('tracking.setup.privacy'))
     ).toBeOnTheScreen();
+    expect(screen.getByTestId('tracking-setup-toggle')).toHaveAccessibilityState({ expanded: false });
     expect(
       screen.queryByRole('button', { name: translate('privacy.details') })
     ).toBeNull();
@@ -1140,7 +1141,7 @@ describe('TrackingStatusScreen', () => {
     expect(screen.getByTestId('tracking-sms-switch-text')).toHaveStyle({
       alignItems: 'flex-end'
     });
-    expect(screen.getAllByTestId('tracking-explanation-row')[0]).toHaveStyle({
+    expect(screen.getByTestId('tracking-setup-toggle')).toHaveStyle({
       flexDirection: 'row-reverse'
     });
 

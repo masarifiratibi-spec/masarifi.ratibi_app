@@ -1,6 +1,5 @@
 import { Linking, Platform } from 'react-native';
 import { applicationId } from 'expo-application';
-import { ActivityAction, startActivityAsync } from 'expo-intent-launcher';
 
 /** Opens display settings only; never requests a permission or enables capture. */
 export async function openTrackingAlertSettings(): Promise<boolean> {
@@ -8,9 +7,15 @@ export async function openTrackingAlertSettings(): Promise<boolean> {
   if (Platform.OS === 'android') {
     try {
       if (applicationId) {
-        await startActivityAsync(ActivityAction.APP_NOTIFICATION_SETTINGS, {
-          extra: { 'android.provider.extra.APP_PACKAGE': applicationId }
-        });
+        // Load inside the recovery boundary: older binaries may lack this module.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+        const intents: typeof import('expo-intent-launcher') = require('expo-intent-launcher');
+        await intents.startActivityAsync(
+          intents.ActivityAction.APP_NOTIFICATION_SETTINGS,
+          {
+            extra: { 'android.provider.extra.APP_PACKAGE': applicationId }
+          }
+        );
         return true;
       }
     } catch {

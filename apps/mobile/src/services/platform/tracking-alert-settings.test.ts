@@ -65,3 +65,18 @@ it('reports failure if neither system route can open', async () => {
     'Settings unavailable'
   );
 });
+
+it('still opens app settings when the installed binary has no intent launcher module', async () => {
+  let openSettings: (() => Promise<boolean>) | undefined;
+  jest.isolateModules(() => {
+    jest.doMock('react-native', () => ({ Linking, Platform }));
+    jest.doMock('expo-intent-launcher', () => {
+      throw new Error('Native module absent');
+    });
+    openSettings = jest.requireActual<
+      typeof import('./tracking-alert-settings')
+    >('./tracking-alert-settings').openTrackingAlertSettings;
+  });
+  await expect(openSettings!()).resolves.toBe(true);
+  expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+});
