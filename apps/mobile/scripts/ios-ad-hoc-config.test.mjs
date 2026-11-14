@@ -132,7 +132,7 @@ test('local EAS config resolution uses the iPhone profile version before EAS_BUI
     delete process.env.EAS_BUILD_PLATFORM;
     delete process.env.MASARIFI_APP_VARIANT;
     const result = configure({ config: JSON.parse(JSON.stringify(app)) });
-    assert.equal(result.version, '1.0.0');
+    assert.equal(result.version, '1.0.1');
     assert.deepEqual(result.android, app.android);
   } finally {
     for (const key of Object.keys(process.env))
