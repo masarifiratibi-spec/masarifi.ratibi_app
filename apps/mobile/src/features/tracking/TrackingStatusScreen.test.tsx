@@ -109,22 +109,34 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
-  it.each(['dark', 'light'] as const)('uses matching page, card and text colors in %s mode', async mode => {
-    const prior = usePreferenceStore.getState().theme;
-    usePreferenceStore.setState({ theme: mode, hydrated: true });
-    const view = renderStatus(responsiveStatus);
-    try {
-      const { colors } = resolveTheme(mode);
-      expect(await screen.findByTestId('tracking-status-screen')).toHaveStyle({ backgroundColor: colors.surfaces.page });
-      expect(await screen.findByTestId('tracking-keywords-card')).toHaveStyle({ backgroundColor: colors.surfaces.card });
-      for (const key of ['tracking.source.smsTracking', 'tracking.source.notificationTracking'] as const) {
-        expect(screen.getByText(translate(key))).toHaveStyle({ color: colors.content.primary });
+  it.each(['dark', 'light'] as const)(
+    'uses matching page, card and text colors in %s mode',
+    async (mode) => {
+      const prior = usePreferenceStore.getState().theme;
+      usePreferenceStore.setState({ theme: mode, hydrated: true });
+      const view = renderStatus(responsiveStatus);
+      try {
+        const { colors } = resolveTheme(mode);
+        expect(await screen.findByTestId('tracking-status-screen')).toHaveStyle(
+          { backgroundColor: colors.surfaces.page }
+        );
+        expect(await screen.findByTestId('tracking-keywords-card')).toHaveStyle(
+          { backgroundColor: colors.surfaces.card }
+        );
+        for (const key of [
+          'tracking.source.smsTracking',
+          'tracking.source.notificationTracking'
+        ] as const) {
+          expect(screen.getByText(translate(key))).toHaveStyle({
+            color: colors.content.primary
+          });
+        }
+      } finally {
+        view.unmount();
+        usePreferenceStore.setState({ theme: prior });
       }
-    } finally {
-      view.unmount();
-      usePreferenceStore.setState({ theme: prior });
     }
-  });
+  );
 
   it('does not use a cached SMS grant to activate a newly denied native permission', async () => {
     const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
@@ -144,11 +156,8 @@ describe('TrackingStatusScreen', () => {
     );
     try {
       fireEvent.press(await readyControl('tracking-sms-switch'));
-      await waitFor(() =>
-        expect(push).toHaveBeenCalledWith(
-          expect.objectContaining({ pathname: '/tracking/permission' })
-        )
-      );
+      await waitFor(() => expect(openSmsSettings).toHaveBeenCalledTimes(1));
+      expect(push).not.toHaveBeenCalled();
       expect(save).not.toHaveBeenCalledWith('sms', true);
     } finally {
       view.unmount();
@@ -646,7 +655,7 @@ describe('TrackingStatusScreen', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('renders tracking status, how it works, and keyword chips with dynamic count', async () => {
+  it('renders concise tracking explanations without a privacy-details action', async () => {
     renderStatus({
       platform: 'android',
       mode: 'automatic_clear',
@@ -680,6 +689,9 @@ describe('TrackingStatusScreen', () => {
     expect(
       screen.getByText(translate('tracking.howItWorks.privacy'))
     ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: translate('privacy.details') })
+    ).toBeNull();
 
     // 3. Keywords section with real keywords
     await waitFor(() => {
@@ -731,7 +743,7 @@ describe('TrackingStatusScreen', () => {
   });
 
   it.each(['denied', 'revoked', 'permanently_denied'] as const)(
-    'shows disclosure before requesting SMS access from %s state',
+    'opens Android settings directly for SMS access from %s state',
     async (permission) => {
       const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
       const setSource = jest.spyOn(trackingSourcePreferences, 'set');
@@ -756,14 +768,67 @@ describe('TrackingStatusScreen', () => {
         'granted'
       );
       fireEvent.press(await readyControl('tracking-sms-switch'));
-      await waitFor(() =>
-        expect(push).toHaveBeenCalledWith({
-          pathname: '/tracking/permission',
-          params: { mode: 'automatic_clear' }
-        })
-      );
+      await waitFor(() => expect(openSmsSettings).toHaveBeenCalledTimes(1));
+      expect(push).not.toHaveBeenCalled();
       expect(setSource).not.toHaveBeenCalled();
       expect(setMode).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['granted', 'denied'] as const)(
+    'rechecks SMS permission on returning from Android settings: %s',
+    async (returnedPermission) => {
+      const listeners = new Set<(state: AppStateStatus) => void>();
+      jest
+        .spyOn(AppState, 'addEventListener')
+        .mockImplementation((_event, listener) => {
+          listeners.add(listener);
+          return { remove: () => listeners.delete(listener) } as never;
+        });
+      const saveSource = jest
+        .spyOn(trackingSourcePreferences, 'set')
+        .mockResolvedValue({ smsEnabled: true, notificationEnabled: false });
+      const setMode = jest
+        .spyOn(automaticTrackingService, 'setMode')
+        .mockResolvedValue({ ...responsiveStatus, mode: 'automatic_clear' });
+      const native = {
+        smsPermission: 'denied' as ReturnType<typeof permissionState>['status']
+      };
+      renderStatus(
+        {
+          ...responsiveStatus,
+          mode: 'paused',
+          permissionStatus: 'denied',
+          smsPermissionStatus: 'denied'
+        },
+        'denied',
+        native
+      );
+      const service = jest
+        .mocked(trackingPermissionModule.createTrackingPermissionService)
+        .mock.results.at(-1)?.value;
+      const readNativePermission = jest.spyOn(service, 'getState');
+      fireEvent.press(await readyControl('tracking-sms-switch'));
+      await waitFor(() => expect(openSmsSettings).toHaveBeenCalledTimes(1));
+      expect(saveSource).not.toHaveBeenCalled();
+      native.smsPermission = returnedPermission;
+      await act(async () =>
+        listeners.forEach((listener) => listener('active'))
+      );
+      await waitFor(() =>
+        expect(readNativePermission.mock.calls.length).toBeGreaterThanOrEqual(2)
+      );
+      if (returnedPermission === 'granted') {
+        await waitFor(() =>
+          expect(saveSource).toHaveBeenCalledWith('sms', true)
+        );
+        expect(setMode).toHaveBeenCalledWith('automatic_clear');
+      } else {
+        expect(saveSource).not.toHaveBeenCalledWith('sms', true);
+        expect(
+          screen.getByTestId('tracking-sms-switch')
+        ).toHaveAccessibilityState({ checked: false });
+      }
     }
   );
 
@@ -1084,7 +1149,7 @@ describe('TrackingStatusScreen', () => {
     changeLocale('en');
   });
 
-  it('displays actionable permission warning when permission is not granted', async () => {
+  it('omits the permission warning while preserving explicit SMS activation', async () => {
     renderStatus({
       platform: 'android',
       mode: 'automatic_clear',
@@ -1100,20 +1165,18 @@ describe('TrackingStatusScreen', () => {
     });
 
     expect(
-      await screen.findByTestId('tracking-permission-warning-banner')
-    ).toBeOnTheScreen();
+      screen.queryByTestId('tracking-permission-warning-banner')
+    ).toBeNull();
     expect(
-      screen.getByText(translate('tracking.permission.warning'))
-    ).toBeOnTheScreen();
+      screen.queryByText(translate('tracking.permission.warning'))
+    ).toBeNull();
 
     const setMode = jest.spyOn(automaticTrackingService, 'setMode');
     const push = jest.spyOn(router, 'push').mockImplementation(jest.fn());
-    fireEvent.press(await readyControl('tracking-permission-warning-banner'));
+    fireEvent.press(await readyControl('tracking-sms-switch'));
 
-    expect(push).toHaveBeenCalledWith({
-      pathname: '/tracking/permission',
-      params: { mode: 'automatic_clear' }
-    });
+    await waitFor(() => expect(openSmsSettings).toHaveBeenCalledTimes(1));
+    expect(push).not.toHaveBeenCalled();
     expect(setMode).not.toHaveBeenCalled();
   });
 
@@ -1142,12 +1205,9 @@ describe('TrackingStatusScreen', () => {
       expect(
         await screen.findByTestId('tracking-add-keyword-toggle')
       ).toBeDisabled();
-      const warning = screen.getByTestId('tracking-permission-warning-banner');
-      expect(warning).toBeDisabled();
-      expect(warning).toHaveProp(
-        'accessibilityLabel',
-        translate('tracking.permission.unavailableMessage')
-      );
+      expect(
+        screen.queryByTestId('tracking-permission-warning-banner')
+      ).toBeNull();
     }
   );
 

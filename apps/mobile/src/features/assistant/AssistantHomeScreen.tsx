@@ -4,7 +4,6 @@ import { View, StyleSheet, AppState } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { AssistantLanding } from './AssistantLanding';
-import { AssistantConsentCard } from './components/AssistantConsentCard';
 import { AssistantConversationView } from './AssistantConversationView';
 import { AssistantActionPreviewScreen } from './AssistantActionPreviewScreen';
 import { StyledText } from '@/components/StyledText';
@@ -40,9 +39,7 @@ function AssistantHomeContent({
   initialQuestion
 }: HomeProps) {
   const { colors } = useTheme();
-  const consent = queries.useAssistantConsent();
   const insights = queries.useAssistantInsights();
-  const setConsent = queries.useSetAssistantConsent();
   const createConversation = queries.useCreateAssistantConversation();
   const availability = queries.useAssistantAvailability?.();
   const operation = queries.useAssistantQuestionOperation?.();
@@ -67,7 +64,6 @@ function AssistantHomeContent({
     question: string,
     intent?: AssistantQuestionIntent
   ): Promise<boolean> => {
-    if (consent.data?.status !== 'enabled' || consent.isPending || setConsent.isPending) return false;
     if (unresolved) {
       if (operation?.data?.conversationId)
         router.navigate(`/assistant/${operation.data.conversationId}`);
@@ -82,8 +78,7 @@ function AssistantHomeContent({
     }
     if (
       firstDispatching.current ||
-      createConversation.isPending ||
-      availability?.data?.capabilities?.directRead === 'disabled'
+      createConversation.isPending
     )
       return false;
     const operationId = `assistant-create-${Date.now()}`;
@@ -121,21 +116,6 @@ function AssistantHomeContent({
           }
         }
       );
-    });
-  };
-
-  const handleEnableConsent = () => {
-    if (
-      !consent.data ||
-      consent.isPending ||
-      consent.isError ||
-      setConsent.isPending
-    )
-      return;
-    setConsent.mutate({
-      enabled: true,
-      expectedVersion: consent.data.version,
-      operationId: `assistant-consent-${Date.now()}`
     });
   };
 
@@ -202,8 +182,6 @@ function AssistantHomeContent({
     errorMessage = translateDynamic('assistant.state.offline');
   } else if (
     createError ||
-    consent.isError ||
-    setConsent.isError ||
     insights.isError
   ) {
     errorMessage = translateDynamic('assistant.state.error');
@@ -225,25 +203,12 @@ function AssistantHomeContent({
       <AssistantLanding
         initialQuestion={initialQuestion}
         onAskQuestion={handleAskFirstQuestion}
-        consent={consent.data}
-        onEnableConsent={handleEnableConsent}
-        onDisableConsent={() => {
-          if (!consent.data || setConsent.isPending) return;
-          setConsent.mutate({ enabled: false, expectedVersion: consent.data.version,
-            operationId: `assistant-consent-${Date.now()}` });
-        }}
-        consentLoading={
-          consent.isPending || consent.isError || setConsent.isPending
-        }
         insight={insights.data?.[0]}
         onSelectConversation={(id) => {
           router.push(`/assistant/${id}`);
         }}
         loading={
-          createConversation.isPending ||
-          consent.isPending ||
-          setConsent.isPending ||
-          availability?.data?.capabilities?.directRead === 'disabled'
+          createConversation.isPending
         }
         error={errorMessage}
       />
@@ -272,8 +237,6 @@ function AssistantConversationContent({
   onBack
 }: ConversationProps) {
   const { colors } = useTheme();
-  const consent = queries.useAssistantConsent();
-  const setConsent = queries.useSetAssistantConsent();
   const queryClient = useQueryClient();
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const latest = queries.useAssistantConversation(conversationId);
@@ -481,12 +444,10 @@ function AssistantConversationContent({
 
   const handleSendMessage = async (questionText: string): Promise<boolean> => {
     if (
-      consent.data?.status !== 'enabled' || consent.isPending || setConsent.isPending ||
       !questionText.trim() ||
       waitingForInitialHistory ||
       pendingAcknowledgement.current ||
       ask.isPending ||
-      availability?.data?.capabilities?.directRead === 'disabled' ||
       (operation?.data &&
         !['completed', 'failed'].includes(operation.data.phase))
     )
@@ -576,15 +537,6 @@ function AssistantConversationContent({
     <View style={[styles.container, { backgroundColor: colors.surfaces.page }]}>
       {/* 1. Rich Modern Conversation View (Reference 2) */}
       {page.isError ? <FinancialRefreshStatus query={page} /> : null}
-      {consent.data?.status !== 'enabled' ? (
-        <AssistantConsentCard consent={consent.data}
-          loading={consent.isPending || consent.isError || setConsent.isPending}
-          onEnableConsent={() => {
-            if (!consent.data || consent.isPending || consent.isError || setConsent.isPending) return;
-            setConsent.mutate({ enabled: true, expectedVersion: consent.data.version,
-              operationId: `assistant-consent-${Date.now()}` });
-          }} />
-      ) : null}
       <AssistantConversationView
         conversation={conversation}
         conversationId={conversationId}
@@ -663,8 +615,7 @@ function AssistantConversationContent({
             )
           ) ||
           (unresolvedQuestion &&
-            !answeredMessageIds.has(operation?.data?.messageId ?? '')) ||
-          availability?.data?.capabilities?.directRead === 'disabled'
+            !answeredMessageIds.has(operation?.data?.messageId ?? ''))
         }
         error={
           questionSendFailed ||

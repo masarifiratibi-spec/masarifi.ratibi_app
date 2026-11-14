@@ -1,6 +1,8 @@
 import React, { type ReactNode } from 'react';
+import { router } from 'expo-router';
 
 import { StyledText } from '@/components/StyledText';
+import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import { OnboardingScaffold } from './OnboardingScaffold';
 
@@ -31,14 +33,16 @@ export function PermissionEducation({
       <StyledText>
         {translate('appShell.onboarding.permission.dataUse')}
       </StyledText>
-      <StyledText>
-        {translate('appShell.onboarding.permission.benefit')}
-      </StyledText>
-      <StyledText>
-        {translate('appShell.onboarding.permission.denial')}
-      </StyledText>
-      <StyledText>{translate('capture.permission.disable')}</StyledText>
-      <StyledText>{translate('trust.review')}</StyledText>
+      <ActionButton
+        label="privacy.details"
+        variant="quiet"
+        onPress={() =>
+          router.push({
+            pathname: '/(public)/legal',
+            params: { document: 'privacy' }
+          })
+        }
+      />
       {children}
     </OnboardingScaffold>
   );

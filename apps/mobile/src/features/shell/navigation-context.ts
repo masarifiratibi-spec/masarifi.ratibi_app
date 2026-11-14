@@ -24,7 +24,6 @@ export const shellDestinations = [
   '/profile/privacy',
   '/security/settings',
   '/security/sessions',
-  '/security/events',
   '/support',
   '/support/new',
   '/support/tickets'

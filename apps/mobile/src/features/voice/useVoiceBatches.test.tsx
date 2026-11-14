@@ -110,8 +110,8 @@ it.each(['ar', 'en'] as const)(
       expect(view.batches.processing).toBe(false);
       const message =
         locale === 'ar'
-          ? 'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.'
-          : 'Voice analysis is paused by a usage limit. Your recording is saved and will retry automatically. Do not record it again.';
+          ? 'بلغت حد التحليل. تسجيلك محفوظ؛ سنعيد المحاولة تلقائيًا.'
+          : 'Analysis limit reached. Recording saved; retrying automatically.';
       expect(screen.getByText(message)).toBeTruthy();
       expect(
         screen.queryByText(translate('voice.state.processing'))

@@ -68,7 +68,7 @@ it.each(['ar', 'en'] as const)(
     changeLocale(locale);
     const send = jest.fn();
     const view = () => (
-      <AssistantLanding onAskQuestion={send} onEnableConsent={jest.fn()} />
+      <AssistantLanding onAskQuestion={send} />
     );
     const first = renderWithProviders(view());
     await waitFor(() =>
@@ -102,7 +102,6 @@ it('keeps the draft and stays on the screen when protected discard fails', async
     <AssistantLanding
       onBack={back}
       onAskQuestion={jest.fn()}
-      onEnableConsent={jest.fn()}
     />
   );
   await waitFor(() =>

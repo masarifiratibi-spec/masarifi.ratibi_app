@@ -6,6 +6,7 @@ import { changeLocale, translate } from '@/localization/i18n';
 import { ThemeContext } from '@/state/theme-context';
 import { resolveTheme } from '@/design-system/theme';
 import { AssistantLanding } from './AssistantLanding';
+import * as queries from './assistant-queries';
 
 describe('AssistantLanding', () => {
   beforeEach(() => {
@@ -14,22 +15,51 @@ describe('AssistantLanding', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('keeps manual entry available while assistant consent cannot load', () => {
-    renderWithProviders(<AssistantLanding onAskQuestion={jest.fn()} onEnableConsent={jest.fn()} consentLoading />);
-    expect(screen.getByRole('button', { name: translate('appShell.permission.manualFallback') })).toBeEnabled();
+  it('opens directly on the question composer without activation controls', () => {
+    renderWithProviders(<AssistantLanding onAskQuestion={jest.fn()} />);
+    expect(screen.getByTestId('assistant-ask-input')).toBeOnTheScreen();
+    expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
+    expect(screen.queryByText(translate('assistant.consent.withdraw'))).toBeNull();
   });
 
-  it.each(['not_requested', 'disabled'] as const)('keeps the draft and prevents typed and suggested dispatch while consent is %s', async status => {
-    const ask = jest.fn();
-    renderWithProviders(<AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()}
-      consent={{ status, version: 1, disclosedDataCategories: ['transactions'], consentedAt: null, disabledAt: null }} />);
+  it('sends typed and suggested questions without a setup step', async () => {
+    const ask = jest.fn().mockResolvedValue(true);
+    renderWithProviders(<AssistantLanding onAskQuestion={ask} />);
     fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'Private question');
-    expect(screen.getByTestId('assistant-ask-submit-button')).toBeDisabled();
-    fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
+    await waitFor(() => expect(screen.getByTestId('assistant-ask-submit-button')).toBeEnabled());
+    await act(async () => { fireEvent.press(screen.getByTestId('assistant-ask-submit-button')); });
+    expect(ask).toHaveBeenCalledWith('Private question');
     fireEvent.press(screen.getByTestId('suggestion-card-spending'));
+    expect(ask).toHaveBeenCalledWith(translate('assistant.suggestions.spending'), 'spending_summary');
+  });
+
+  it('opens an existing conversation from history without sending the current draft', async () => {
+    jest.spyOn(queries, 'useAssistantConversations').mockReturnValue({
+      data: { pages: [{ items: [{ id: 'saved-chat', title: 'Budget review' }] }] },
+      isPending: false, isError: false
+    } as unknown as ReturnType<typeof queries.useAssistantConversations>);
+    const select = jest.fn();
+    const ask = jest.fn();
+    renderWithProviders(<AssistantLanding onAskQuestion={ask} onSelectConversation={select} />);
+    fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'Unsent question');
+    fireEvent.press(screen.getByTestId('assistant-open-history'));
+    fireEvent.press(await screen.findByRole('button', { name: 'Budget review' }));
+    expect(select).toHaveBeenCalledWith('saved-chat');
     expect(ask).not.toHaveBeenCalled();
-    expect(screen.getByTestId('assistant-ask-input').props.value).toBe('Private question');
-    expect(screen.getByTestId('assistant-consent-enable-button')).toBeOnTheScreen();
+    expect(screen.getByTestId('assistant-ask-input').props.value).toBe('Unsent question');
+  });
+
+  it('does not display cached history after an authoritative access denial', () => {
+    const refetch = jest.fn();
+    jest.spyOn(queries, 'useAssistantConversations').mockReturnValue({
+      data: { pages: [{ items: [{ id: 'revoked-chat', title: 'Private history' }] }] },
+      isPending: false, isError: true, error: { status: 403 }, refetch
+    } as unknown as ReturnType<typeof queries.useAssistantConversations>);
+    renderWithProviders(<AssistantLanding onAskQuestion={jest.fn()} />);
+    fireEvent.press(screen.getByTestId('assistant-open-history'));
+    expect(screen.queryByText('Private history')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: translate('coreFinance.action.retry') }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -41,7 +71,7 @@ describe('AssistantLanding', () => {
     const onAskQuestion = jest.fn();
     const alert = jest.spyOn(Alert, 'alert');
     renderWithProviders(
-      <AssistantLanding onBack={onBack} onAskQuestion={onAskQuestion} onEnableConsent={jest.fn()} />
+      <AssistantLanding onBack={onBack} onAskQuestion={onAskQuestion} />
     );
     fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'QA unsent question');
     fireEvent.press(screen.getByRole('button', {name: translate('appShell.navigation.back')}));
@@ -62,7 +92,7 @@ describe('AssistantLanding', () => {
     const onBack = jest.fn();
     const alert = jest.spyOn(Alert, 'alert');
     renderWithProviders(
-      <AssistantLanding onBack={onBack} onAskQuestion={jest.fn()} onEnableConsent={jest.fn()} />
+      <AssistantLanding onBack={onBack} onAskQuestion={jest.fn()} />
     );
     fireEvent.press(screen.getByRole('button', {name: translate('appShell.navigation.back')}));
     expect(onBack).toHaveBeenCalledTimes(1);
@@ -74,44 +104,34 @@ describe('AssistantLanding', () => {
     const ask = jest.fn();
     renderWithProviders(
       <ThemeContext.Provider value={{ theme }}>
-        <AssistantLanding onAskQuestion={ask} onEnableConsent={jest.fn()} error="Network error"
-          consent={{ status: 'enabled', version: 1, disclosedDataCategories: ['transactions'], consentedAt: 1, disabledAt: null }} />
+        <AssistantLanding onAskQuestion={ask} error="Network error" />
       </ThemeContext.Provider>
     );
     expect(screen.getByTestId('assistant-landing')).toHaveStyle({ backgroundColor: theme.colors.surfaces.page });
-    for (const id of ['assistant-ask-card', 'assistant-consent-card', 'suggestion-card-spending']) {
-      expect(screen.getByTestId(id)).toHaveStyle({ backgroundColor: theme.colors.surfaces.card });
-    }
+    expect(screen.getByTestId('assistant-ask-card')).toHaveStyle({ backgroundColor: theme.colors.surfaces.card });
+    expect(screen.getByTestId('suggestion-card-spending')).toHaveStyle({ borderColor: theme.colors.borders.default });
     expect(screen.getByRole('alert')).toHaveStyle({ color: theme.colors.iconBadges.danger.foreground });
     const send = screen.getByTestId('assistant-ask-submit-button');
     expect(send).toBeDisabled();
-    expect(send).toHaveStyle({ backgroundColor: theme.colors.borders.disabled });
+    expect(send).toHaveStyle({ opacity: 0.5 });
     fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'How much did I spend?');
     await waitFor(() => expect(screen.getByTestId('assistant-ask-submit-button')).toBeEnabled());
     expect(send).toHaveStyle({ backgroundColor: theme.colors.interactions.primary });
   });
 
-  it('renders header, compact identity, ask card, consent card, 4 suggestions, and privacy footer', () => {
+  it('renders the selected greeting, four compact suggestions and composer without the old footer', () => {
     const onAskQuestion = jest.fn();
-    const onEnableConsent = jest.fn();
 
     renderWithProviders(
       <AssistantLanding
         onAskQuestion={onAskQuestion}
-        onEnableConsent={onEnableConsent}
-        consent={{
-          status: 'not_requested',
-          disclosedDataCategories: ['transactions'],
-          consentedAt: null,
-          disabledAt: null,
-          version: 1
-        }}
       />
     );
 
     // Header & Hero
     expect(screen.getAllByText(translate('assistant.hero.title')).length).toBe(1);
     expect(screen.getByText(translate('assistant.hero.subtitle'))).toBeTruthy();
+    expect(screen.getByText(translate('assistant.hero.heading'))).toBeOnTheScreen();
     expect(screen.getByTestId('assistant-hero-avatar')).toBeTruthy();
 
     // Ask Card
@@ -119,20 +139,18 @@ describe('AssistantLanding', () => {
     expect(screen.getByTestId('assistant-ask-input')).toBeTruthy();
 
     // Personalization Card
-    expect(screen.getByTestId('assistant-consent-card')).toBeTruthy();
-    expect(screen.getByText(translate('assistant.consent.title'))).toBeTruthy();
-    expect(screen.getByText(translate('assistant.action.enable'))).toBeTruthy();
+    expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
 
     // Quick Suggestions Header & 4 Cards
-    expect(screen.getByText(translate('assistant.suggestions.header'))).toBeTruthy();
+    expect(screen.queryByText(translate('assistant.suggestions.header'))).toBeNull();
     expect(screen.getByTestId('suggestion-card-spending')).toBeTruthy();
     expect(screen.getByTestId('suggestion-card-highest')).toBeTruthy();
     expect(screen.getByTestId('suggestion-card-weekly')).toBeTruthy();
     expect(screen.getByTestId('suggestion-card-budget')).toBeTruthy();
 
     // Privacy Footer
-    expect(screen.getByTestId('assistant-privacy-footer')).toBeTruthy();
-    expect(screen.getByText(translate('assistant.privacy.note'))).toBeTruthy();
+    expect(screen.queryByTestId('assistant-privacy-footer')).toBeNull();
+    expect(screen.queryByText(translate('assistant.privacy.note'))).toBeNull();
 
     // Type in ask input and submit
     fireEvent.changeText(
@@ -140,7 +158,7 @@ describe('AssistantLanding', () => {
       'كم أنفقت على الطعام؟'
     );
     fireEvent.press(screen.getByTestId('assistant-ask-submit-button'));
-    expect(onAskQuestion).not.toHaveBeenCalled();
+    expect(onAskQuestion).toHaveBeenCalledWith('كم أنفقت على الطعام؟');
   });
 
   it('submits quick suggestion when tapped', () => {
@@ -148,8 +166,6 @@ describe('AssistantLanding', () => {
     renderWithProviders(
       <AssistantLanding
         onAskQuestion={onAskQuestion}
-        onEnableConsent={jest.fn()}
-        consent={{ status: 'enabled', version: 1, disclosedDataCategories: ['transactions'], consentedAt: 1, disabledAt: null }}
       />
     );
 
@@ -166,31 +182,10 @@ describe('AssistantLanding', () => {
     );
   });
 
-  it('handles consent activation CTA', () => {
-    const onEnableConsent = jest.fn();
-    renderWithProviders(
-      <AssistantLanding
-        onAskQuestion={jest.fn()}
-        onEnableConsent={onEnableConsent}
-        consent={{
-          status: 'not_requested',
-          disclosedDataCategories: ['transactions'],
-          consentedAt: null,
-          disabledAt: null,
-          version: 1
-        }}
-      />
-    );
-
-    fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
-    expect(onEnableConsent).toHaveBeenCalled();
-  });
-
   it('renders only authoritative proactive insight values supplied by the backend', () => {
     renderWithProviders(
       <AssistantLanding
         onAskQuestion={jest.fn()}
-        onEnableConsent={jest.fn()}
         insight={{
           id: 'insight-1',
           kind: 'budget_threshold',
@@ -219,7 +214,6 @@ describe('AssistantLanding', () => {
       renderWithProviders(
         <AssistantLanding
           onAskQuestion={jest.fn()}
-          onEnableConsent={jest.fn()}
         />
       );
 

@@ -10,14 +10,14 @@ import type { MessageCatalog } from './en';
 import { gulfArabicProductGlossary as glossary } from '../gulf-arabic-glossary';
 
 const ar: MessageCatalog = {
+  'privacy.details': 'تفاصيل الخصوصية',
   'app-update.title': 'تحديث جديد متاح',
   'app-update.page': 'تحديث التطبيق',
   'app-update.check': 'التحقق من التحديثات',
   'app-update.update': 'حدّث الآن',
   'app-update.later': 'لاحقًا',
   'app-update.retry': 'حاول مرة أخرى',
-  'app-update.body':
-    'يتوفر الإصدار {{version}} من مصاريفي وراتبي. حدّث التطبيق للحصول على التحسينات والإصلاحات. يمكنك متابعة استخدام التطبيق والتحديث لاحقًا.',
+  'app-update.body': 'الإصدار {{version}} متاح. حدّث الآن أو لاحقًا.',
   'app-update.checking': 'جارٍ التحقق من التحديثات…',
   'app-update.current': 'لا يوجد تحديث معلن أحدث من نسختك حاليًا.',
   'app-update.unavailable':
@@ -35,7 +35,7 @@ const ar: MessageCatalog = {
   'financialReset.subtitle': 'ابدأ من جديد بأرصدة صفر.',
   'financialReset.confirmTitle': 'تبي تبدأ من جديد؟',
   'financialReset.confirmMessage':
-    'بنمسح سجلك وخططك المالية ونصفّر أرصدة حساباتك على كل أجهزتك. حساباتك وأسماؤها بتبقى، وما تقدر تتراجع عن هالخطوة.',
+    'يمسح السجل والخطط ويصفّر الأرصدة بكل أجهزتك. لا يمكن التراجع.',
   'financialReset.external': 'الملفات اللي حمّلتها خارج التطبيق بتبقى عندك.',
   'financialReset.submit': 'تصفير البيانات',
   'financialReset.checking': 'لحظة، نجهّز طلبك…',
@@ -51,11 +51,10 @@ const ar: MessageCatalog = {
     'ما وصلنا تأكيد للطلب السابق. اضغط تصفير البيانات عشان نعيد نفس الطلب.',
   'financialReset.checkStatus': 'تحديث حالة الطلب',
   'tracking.unverified.title': 'التتبع غير متاح حتى التحقق من الحساب',
-  'tracking.unverified.message':
-    'اتصل بالإنترنت للتحقق من صلاحية الوصول إلى بيانات التتبع المحفوظة. بياناتك تبقى محمية.',
+  'tracking.unverified.message': 'اتصل بالإنترنت للتحقق من الوصول إلى التتبع.',
   'tracking.isolated.title': 'التتبع معلّق لحماية بيانات محفوظة',
   'tracking.isolated.message':
-    'بيانات التتبع المحفوظة مرتبطة بحساب آخر وتبقى محمية. يمكنك استخدام حسابك كالمعتاد، والتتبع ومسح البيانات المحلية غير متاحين حتى تتم معالجة ارتباط الملكية.',
+    'بيانات التتبع مرتبطة بحساب آخر ومحميّة. تواصل مع الدعم.',
   'assistant.response.up': 'زيادة',
   'assistant.response.down': 'انخفاض',
   'assistant.response.flat': 'بدون تغيّر',
@@ -96,12 +95,12 @@ const ar: MessageCatalog = {
   'reports.pdf.accountUnsupported':
     'لا يمكن تصدير هذا التقرير بفلتر الحساب المحدد. تم الاحتفاظ بفلاترك.',
   'reports.pdf.periodUnsupported':
-    'لم تتمكن الخدمة من تطبيق فترة التقرير أو المنطقة الزمنية المحددة. تم الاحتفاظ باختيارك.',
+    'تعذّر تطبيق الفترة أو التوقيت. اختيارك محفوظ.',
   'reports.pdf.authentication':
     'تحقّق من جلستك لإرسال هذا التقرير الخاص، ثم أعد المحاولة.',
   'reports.pdf.cancelled': 'لم يُحفظ PDF بسبب إلغاء اختيار المجلد.',
   'reports.pdf.nativeUpdate':
-    'يحتاج هذا الإصدار من التطبيق إلى تحديث لفتح ملفات PDF أو مشاركتها. يبقى ملف PDF المحفوظ في المجلد الذي اخترته.',
+    'حدّث التطبيق لفتح PDF أو مشاركته. الملف المحفوظ باقٍ.',
   'reports.pdf.processing':
     'ما زال التقرير قيد المعالجة. أعد المحاولة للتحقق من الطلب نفسه.',
   'reports.export.title': 'تصدير البيانات',
@@ -112,14 +111,14 @@ const ar: MessageCatalog = {
   'reports.export.signIn': 'سجّل الدخول لتصدير بيانات حسابك.',
   'reports.export.share': 'مشاركة رابط التنزيل',
   'reports.export.sharePrivacy':
-    'شارك الرابط فقط مع من تثق بهم. يمكن لأي شخص لديه هذا الرابط تنزيل بيانات التصدير حتى انتهاء صلاحيته.',
+    'أي شخص يملك الرابط يمكنه التنزيل حتى انتهاء صلاحيته.',
   'reports.export.opened.download': 'تم فتح التنزيل',
   'reports.export.opened.share': 'تم فتح خيارات المشاركة',
   'reports.action.more': 'عرض المزيد',
   'reports.schedule.liveSettings':
-    'تُرسل التقارير المجدولة الساعة 08:00 في أول يوم من الفترة التقويمية المختارة، حسب المنطقة الزمنية المعروضة. تستخدم عملة ملفك في الخادم وإعدادات التقرير الافتراضية. أعد إدخال بريد حسابك والتحقق منه عند تعديل المستلم.',
+    'يُرسل أول يوم من الفترة الساعة 08:00 بتوقيتك وبعملة ملفك.',
   'settings.privacy.exportExplanation':
-    'اطلب نسخة من بياناتك المحفوظة في الخادم. تستغرق المعالجة وقتًا وتنتهي صلاحية رابط التنزيل. حذف الحساب إجراء مستقل.',
+    'اطلب نسخة من بيانات الخادم؛ رابط التنزيل مؤقت.',
   'settings.privacy.exportFailure':
     'تعذّر إكمال إجراء التصدير. تم الاحتفاظ بطلبك؛ أعد المحاولة أو حدّث حالته.',
   'settings.privacy.exportDownload': 'تنزيل البيانات',
@@ -148,8 +147,7 @@ const ar: MessageCatalog = {
 
   'settings.socialMedia.openError': 'تعذر فتح الحساب. حاول مرة أخرى.',
   'reminders.control.label': 'تفعيل الإشعارات',
-  'reminders.control.description':
-    'تذكيرات متباعدة لاستكمال الإعداد أو مراجعة مصاريفك. يمكنك إيقافها في أي وقت.',
+  'reminders.control.description': 'تذكيرات للإعداد والمراجعة؛ يمكنك إيقافها.',
   'reminders.guest.label': 'ذكّرني باستكمال الإعداد',
   'reminders.guest.description':
     'أرسل تذكيرًا واحدًا غدًا إذا لم أُنشئ حسابًا.',
@@ -160,12 +158,11 @@ const ar: MessageCatalog = {
   'reminders.permission.allow': 'السماح بالإشعارات',
   'assistant.report.scope':
     'من {{start}} إلى {{end}}، بعملة {{currency}}، لنطاق {{account}} فقط. تحليل دون تنفيذ.',
-  'reports.preview.accountScopeUnavailable':
-    'تصدير الملفات متاح حاليًا لكل الحسابات معًا فقط. ارجع إلى «كل الحسابات» للتصدير. تحليلات الحساب المحدد متاحة.',
+  'reports.preview.accountScopeUnavailable': 'اختر «كل الحسابات» لتصدير الملف.',
   'settings.deletion.dev.description':
-    'احذف حسابك نهائيًا مع بياناته المالية والتخطيط والتتبع والمساعد المحفوظة. لا يمكن التراجع عن هذا الإجراء.',
+    'يحذف حسابك وبياناته نهائيًا. لا يمكن التراجع.',
   'settings.deletion.dev.confirmation':
-    'هل تريد حذف حسابك وكل بياناته المحفوظة الآن نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+    'حذف الحساب وكل بياناته نهائيًا؟ لا يمكن التراجع.',
   'settings.deletion.dev.deleting':
     'جارٍ حذف حسابك… أبقِ التطبيق مفتوحًا. لم يتم تأكيد اكتمال الحذف بعد.',
   'settings.deletion.dev.completed': 'تم حذف حسابك وبياناته المحفوظة.',
@@ -173,20 +170,20 @@ const ar: MessageCatalog = {
   'settings.deletion.dev.loadingDescription':
     'جارٍ حذف حسابك بأمان\nيرجى الانتظار حتى اكتمال العملية',
   'settings.deletion.dev.localRetry':
-    'أكد الخادم الحذف، لكن تنظيف بيانات الجهاز لم يكتمل. أعد المحاولة أو أعد تشغيل التطبيق إذا استمر تعذّر التنظيف.',
+    'حُذف الحساب. أعد المحاولة لإكمال تنظيف الجهاز.',
   'settings.deletion.dev.notAllowed':
-    'الحذف غير مفعّل لهذا الحساب في بيئة الاختبار. لم يُحذف الحساب. أعد المحاولة بعد تفعيل الصلاحية.',
+    'الحذف غير مفعّل لهذا الحساب التجريبي. لم يُحذف شيء.',
   'settings.deletion.retentionNotice':
-    'يخفي هذا الإجراء هوية ملفك في التطبيق ويزيل بيانات المساعد والتتبع والدعم ويحذف حسابك لدى مزود تسجيل الدخول. تبقى سجلاتك المالية وبيانات التخطيط محفوظة.',
+    'يحذف هويتك وبيانات المساعد والتتبع والدعم؛ تبقى السجلات المالية.',
   'settings.deletion.verificationUnavailable':
-    'التحقق بالرمز غير متاح لهذا الحساب. سجّل الخروج ثم ادخل مجددًا وأعد طلب الحذف.',
+    'التحقق غير متاح. سجّل الدخول مجددًا ثم أعد طلب الحذف.',
   'settings.deletion.verificationError':
     'تعذر إكمال التحقق. تحقق من الرمز أو أرسل رمزًا جديدًا وحاول مجددًا.',
   'settings.deletion.pending': 'جارٍ التواصل مع خدمة الحساب…',
   'settings.deletion.error':
     'تعذر تأكيد الطلب. تحقق من اتصالك وحاول مجددًا. لم يتم تأكيد اكتمال الحذف.',
   'settings.deletion.processingRetry':
-    'طلب حذف حسابك محفوظ. سيعيد الخادم محاولة إكمال الحذف. يمكنك إغلاق هذه الرسالة أو التحقق من الحالة لاحقًا.',
+    'طلب الحذف محفوظ؛ سيعيد الخادم المحاولة تلقائيًا.',
   'settings.deletion.rateLimited':
     'محاولات كثيرة. انتظر ثم حاول مجددًا. لا يعني ذلك اكتمال الحذف أو إلغاءه.',
   'settings.deletion.sessionExpired':
@@ -223,7 +220,7 @@ const ar: MessageCatalog = {
   'assistant.messageStatus.failed': 'تعذر الإكمال',
   'assistant.messageStatus.unknown': 'غير مؤكد',
   'assistant.operation.checkFailed':
-    'ما قدرت أتحقّق من النتيجة الحين. السؤال الأصلي محفوظ؛ تحقّق من حالته قبل ترسل سؤال ثاني.',
+    'تعذّر التحقق. سؤالك محفوظ؛ تحقّق قبل إرسال سؤال آخر.',
   'assistant.history.title': 'سجل المحادثات',
   'assistant.history.hiddenTitle': 'محادثة مخفية — افتحها للمراجعة',
   'assistant.history.loadMore': 'تحميل المزيد من المحادثات',
@@ -259,7 +256,7 @@ const ar: MessageCatalog = {
   'assistant.capability.provider.unknown': 'لم يتم التحقق من جاهزية المزود',
   'assistant.scope.title': 'النطاق المدعوم',
   'assistant.scope.excluded':
-    'تستخدم القراءات المالية السجلات الموثقة. تقييم القدرة على الشراء وإجمالي جميع الأقساط والتخطيط التاريخي والبحث في العمليات وإجراءات الدفعات الزائدة غير مدعومة في هذا الإصدار.',
+    'بعض تحليلات الأقساط والتخطيط والبحث غير متاحة حاليًا.',
   'assistant.evidence.title': 'أدلة الإجابة',
   'assistant.evidence.period': 'الفترة المطلوبة',
   'assistant.evidence.timezone': 'المنطقة الزمنية',
@@ -275,8 +272,7 @@ const ar: MessageCatalog = {
   'assistant.evidence.kind.goal': 'دليل هدف الادخار',
   'assistant.evidence.kind.report': 'دليل التقرير',
   'assistant.evidence.kind.ledger': 'دليل السجل المالي',
-  'assistant.limitation.next_installment_only':
-    'تشمل الإجابة القسط التالي فقط، وليست إجمالي جميع الأقساط المستحقة خلال الفترة.',
+  'assistant.limitation.next_installment_only': 'الإجابة تخص القسط التالي فقط.',
   'assistant.limitation.total_outstanding':
     'هذا إجمالي الالتزامات المتبقية، وليس مجموع الأقساط المستحقة خلال الفترة.',
   'assistant.limitation.data_incomplete':
@@ -308,7 +304,7 @@ const ar: MessageCatalog = {
   'assistant.limitation.scope_required': 'حدد نطاقًا ماليًا مدعومًا.',
   'googleAuth.brand': 'مصاريفي وراتبي',
   'googleAuth.incomplete':
-    'يتطلب التسجيل باستخدام Google معلومات إضافية للحساب. جرّب حساب Google آخر أو تواصل مع الدعم.',
+    'حساب Google يحتاج معلومات إضافية. جرّب حسابًا آخر أو الدعم.',
   'googleAuth.welcome': 'حيّاك في\nمصاريفي وراتبي',
   'googleAuth.supporting': 'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
@@ -354,7 +350,7 @@ const ar: MessageCatalog = {
   'capture.sms.title': 'تتبع رسائل SMS (أندرويد)',
   'capture.sms.purpose': 'اكتشف المعاملات من رسائل البنك تلقائيًا',
   'capture.sms.dataUse':
-    'تُحلَّل الرسائل على جهازك، وتُزامَن تفاصيل المعاملات المكتشفة مع خوادم مصاريفي للمراجعة ومزامنة الحساب.',
+    'يحلّل الرسائل على جهازك ويزامن المعاملات مع خوادم مصاريفي.',
   'capture.sms.continue': 'متابعة',
   'capture.sms.skip': 'تخطٍ للآن',
   'capture.manual': 'إضافة يدوية',
@@ -539,10 +535,10 @@ const ar: MessageCatalog = {
   'appShell.public.legal': 'الخصوصية والشروط',
   'appShell.public.privacyTitle': 'الخصوصية',
   'appShell.public.privacyBody':
-    'يحفظ هذا الإصدار التجريبي السجلات المالية محليًا على هذا الجهاز. يمكنك إخفاء القيم الحساسة وحذف السجلات المحلية من الشاشات الخاصة بها.',
+    'تُحفظ سجلات النسخة التجريبية على جهازك. تحكّم بها من الإعدادات.',
   'appShell.public.termsTitle': 'شروط هذا الإصدار',
   'appShell.public.termsBody':
-    'يعرض هذا الإصدار تدفقات لإدارة المال الشخصي ولا يقدم نصائح مصرفية أو استثمارية أو ضريبية أو قانونية.',
+    'التطبيق لإدارة المال الشخصي، ولا يقدم مشورة مهنية.',
   'appShell.auth.method.phone': 'رقم الهاتف',
   'appShell.auth.method.google': 'جوجل',
   'appShell.auth.signIn.title': 'تسجيل دخول آمن',
@@ -584,16 +580,16 @@ const ar: MessageCatalog = {
     'يمكن لأندرويد مساعدتك في اكتشاف الرسائل المالية الواضحة بعد موافقتك.',
   'appShell.onboarding.permission.title': 'السماح بتتبع الرسائل',
   'appShell.onboarding.permission.purpose':
-    'بموافقتك، يقرأ مصاريفي الرسائل النصية على هذا الجهاز لاكتشاف المعاملات المالية، بما في ذلك في الخلفية عندما يكون التطبيق مغلقًا أو غير مستخدم.',
+    'يقرأ الرسائل المالية في الخلفية، حتى عند إغلاق التطبيق، بإذنك.',
   'appShell.onboarding.permission.dataUse':
-    'يتم التحليل على جهازك، وتُرسل التفاصيل المالية المكتشفة، مثل الجهة والتاجر والمبلغ والعملة والتاريخ، إلى خوادم مصاريفي للمراجعة ومزامنة الحساب. لا تتم إضافة الأكواد أو الرسائل التسويقية أو غير الواضحة تلقائيًا.',
+    'يحلّلها على جهازك ويزامن تفاصيل المعاملات مع خوادم مصاريفي.',
   'appShell.onboarding.permission.benefit':
     'يمكن للمعاملات الواضحة أن تظهر مع خيارات التعديل والتراجع.',
   'appShell.onboarding.permission.denial':
     'إذا رفضت، سيظل الإدخال اليدوي والصوتي متاحًا.',
   'appShell.onboarding.ios.title': 'الإدخال على iOS',
   'appShell.onboarding.ios.body':
-    'استخدم الإدخال اليدوي أو الصوتي أو خيارات الأتمتة المعتمدة. تتبع الرسائل المباشر غير متاح.',
+    'استخدم الإدخال اليدوي أو الصوتي؛ تتبع الرسائل غير متاح هنا.',
   'appShell.onboarding.conservative.title': 'اختر طريقة إدخال',
   'appShell.onboarding.complete.title': 'جاهز للمتابعة',
   'appShell.onboarding.complete.destinations':
@@ -602,7 +598,7 @@ const ar: MessageCatalog = {
   'appShell.permission.enable': 'تفعيل التتبع',
   'appShell.permission.retry': 'إعادة طلب الإذن',
   'appShell.permission.settingsHelp':
-    'إذن الرسائل غير مفعّل. من إعدادات جهازك، افتح التطبيقات ← مصاريفي ← الأذونات ← الرسائل النصية، واختر السماح، ثم ارجع للتطبيق. تقدر تطلب الإذن مرة ثانية من هنا.',
+    'فعّل إذن الرسائل من إعدادات الجهاز، ثم ارجع للتطبيق.',
   'appShell.permission.requestAgain': 'طلب الإذن مرة ثانية',
   'appShell.permission.openSettings': 'فتح الإعدادات',
   'appShell.permission.manualFallback': 'المتابعة بالإدخال اليدوي',
@@ -654,7 +650,7 @@ const ar: MessageCatalog = {
   'appShell.security.unlockHint': 'استخدم البصمة أو طريقة فتح جهازك للمتابعة.',
   'appShell.security.nativeLock': 'استخدام مصادقة الجهاز',
   'appShell.security.nativeLockSubtitle':
-    'بصمة الإصبع أو الوجه أو رمز الجهاز أو كلمة المرور أو النمط. يديرها نظام الجهاز.',
+    'بصمة أو رمز أو نمط يديره نظام جهازك.',
   'appShell.security.settingsTitle': 'إعدادات الأمان',
   'appShell.security.mockSignOutAll': 'تسجيل الخروج من كل الأجهزة',
   'appShell.profile.name': 'الاسم',
@@ -740,13 +736,13 @@ const ar: MessageCatalog = {
   'appShell.connectionUnavailable.title': 'الاتصال غير متاح',
   'appShell.networkNotice.title': 'أنت غير متصل بالإنترنت',
   'appShell.networkNotice.message':
-    'يمكنك تصفح المعلومات المحفوظة. تتطلب العمليات عبر الخادم اتصالًا.',
+    'نعرض آخر بيانات محفوظة؛ اتصل لمزامنة تغييراتك.',
   'appShell.networkNotice.stale':
     'قد تكون الأرصدة والمعاملات المعروضة غير محدثة.',
   'appShell.networkNotice.retry': 'إعادة المحاولة',
   'appShell.networkNotice.dismiss': 'إغلاق',
   'appShell.connectionUnavailable.message':
-    'تعذّر الاتصال بمصاريفي وراتبي. تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم تحميل أرصدتك الحالية.',
+    'تعذّر الاتصال. تحقّق من الإنترنت وأعد المحاولة.',
   'appShell.state.loading': 'جار التحميل',
   'appShell.startup.preparing': 'جارٍ تجهيز بياناتك…',
   'appShell.state.empty': 'لا يوجد شيء بعد',
@@ -830,7 +826,7 @@ const ar: MessageCatalog = {
   'coreFinance.home.manageAccounts': 'إدارة الحسابات',
   'coreFinance.home.howBalancesWork': 'كيف تعمل الأرصدة',
   'coreFinance.home.balanceExplanation':
-    'يجمع الإجمالي الحسابات النشطة باستخدام أسعار الصرف المتاحة، وقد تُستبعد الحسابات التي لا يتوفر لها سعر حالي.',
+    'إجمالي الحسابات النشطة بأسعار الصرف المتاحة.',
   'coreFinance.category.housing': 'السكن',
   'coreFinance.category.food': 'الطعام',
   'coreFinance.category.restaurants': 'المطاعم',
@@ -867,13 +863,12 @@ const ar: MessageCatalog = {
   'coreFinance.manual.localSave':
     'تعذر حفظ المسودة على هذا الجهاز. لم يُرسل طلب مالي. حاول الحفظ مجددًا.',
   'coreFinance.manual.editLocalSave':
-    'تعذر حفظ التعديل على هذا الجهاز. ما أدخلته محفوظ في النموذج ولم يُرسل طلب مالي. حاول مجددًا.',
+    'تعذّر الحفظ. بيانات النموذج باقية؛ حاول مجددًا.',
   'coreFinance.manual.offlineEdit':
-    'يمكن دون اتصال تعديل المبلغ والوصف والتاجر والملاحظة والتاريخ للمصروفات والإيرادات المسجلة. أبقِ النوع والحساب والعملة والتصنيف والوجهة والرسوم كما هي، أو اتصل لتعديلها.',
-  'coreFinance.manual.offlineCreate':
-    'يمكن دون اتصال إضافة المصروفات والإيرادات. اتصل بالإنترنت لحفظ هذا النوع من المعاملات.',
+    'دون اتصال: عدّل المبلغ والتفاصيل والتاريخ فقط.',
+  'coreFinance.manual.offlineCreate': 'دون اتصال: أضف مصروفًا أو إيرادًا فقط.',
   'coreFinance.manual.localCreateEdit':
-    'تعديل المعاملات التي أُضيفت دون اتصال غير مدعوم حاليًا. معاملتك المحفوظة باقية على الجهاز.',
+    'اتصل بالإنترنت لتعديل المعاملة المحفوظة دون اتصال.',
   'coreFinance.manual.savedRefresh':
     'تم الحفظ. أعد المحاولة لتحديث القائمة وإكمال التنظيف.',
   'coreFinance.manual.reconcile':
@@ -1090,7 +1085,7 @@ const ar: MessageCatalog = {
   'coreFinance.accounts.setup.lastFour': 'آخر 4 أرقام من البطاقة (اختياري)',
   'coreFinance.accounts.setup.educationTitle': `لماذا نحتاج ${glossary.lastFourDigits}؟`,
   'coreFinance.accounts.setup.educationBody':
-    'قد تحتوي رسائل البنك على آخر أربعة أرقام، ما يساعد مصاريفي وراتبي على مطابقة المعاملة بهذا الحساب تلقائيًا عند تفعيل التتبع.',
+    'آخر أربعة أرقام تساعد على مطابقة معاملات البنك بحسابك.',
   'coreFinance.accounts.setup.nameExample.bank': `مثال: مصرف الراجحي، حساب ${glossary.salary}`,
   'coreFinance.accounts.setup.nameExample.credit_card':
     'مثال: بطاقة الأهلي الائتمانية، بطاقة المشتريات',
@@ -1258,10 +1253,10 @@ const ar: MessageCatalog = {
   'tracking.source.financialSms': 'الرسائل المالية',
   'tracking.source.smsTracking': 'تتبع الرسائل النصية',
   'tracking.source.smsTrackingDescription':
-    'بموافقتك، يقرأ الرسائل النصية على هذا الجهاز في الخلفية حتى عندما يكون التطبيق مغلقًا أو غير مستخدم. يجري التحليل محليًا، وتُزامَن التفاصيل المالية المستخرجة مع خوادم مصاريفي لتسجيل المعاملات ومراجعتها. يمكنك إيقاف هذا المصدر في أي وقت، ويظل الإدخال اليدوي متاحًا.',
+    'يقرأ الرسائل المالية في الخلفية ويزامن معاملاتها بإذنك.',
   'tracking.source.notificationTracking': 'تتبع إشعارات المعاملات',
   'tracking.source.notificationTrackingDescription':
-    'بموافقتك، يصل إلى إشعارات التطبيقات في الخلفية حتى عندما يكون مصاريفي مغلقًا أو غير مستخدم، لاكتشاف المعاملات المالية. يجري التحليل محليًا، وتُزامَن التفاصيل المالية المستخرجة مع خوادم مصاريفي لتسجيل المعاملات ومراجعتها. يمكنك إيقاف هذا المصدر في أي وقت، ويظل الإدخال اليدوي متاحًا.',
+    'يقرأ الإشعارات المالية في الخلفية ويزامن معاملاتها بإذنك.',
   'tracking.source.enabling': 'جارٍ تفعيل التتبع…',
   'tracking.source.disabling': 'جارٍ إيقاف التتبع…',
   'tracking.sync.scanning': 'جارٍ فحص الرسائل الجديدة…',
@@ -1273,9 +1268,9 @@ const ar: MessageCatalog = {
     'التتبع التلقائي للرسائل غير متاح في هذا الإصدار. يظل الإدخال اليدوي متاحًا.',
   'tracking.howItWorks.title': 'كيف يعمل التتبع التلقائي؟',
   'tracking.howItWorks.detection':
-    'المعاملات الواضحة تتسجّل تلقائيًا، واللي تحتاج تأكيد تلقاها في المراجعة.',
+    'يلتقط الرسائل والإشعارات المالية من المصادر المفعّلة.',
   'tracking.howItWorks.privacy':
-    'يجري تحليل الرسائل النصية والإشعارات محليًا، بما في ذلك في الخلفية. تُزامَن التفاصيل المالية المستخرجة، مثل المرسل والتاجر والمبلغ والعملة والتاريخ، مع خوادم مصاريفي للتسجيل والمراجعة ومزامنة الحساب.',
+    'يحلّلها على جهازك، ويزامن تفاصيل المعاملات.',
   'tracking.howItWorks.background':
     'اسمح لمصاريفي بالعمل في الخلفية عشان يستمر التتبع.',
   'tracking.keywords.sectionTitle': 'الكلمات المفتاحية',
@@ -1407,7 +1402,7 @@ const ar: MessageCatalog = {
   'tracking.duplicate.merge': 'دمج التفاصيل',
   'tracking.keywords.title': 'كلمات التتبع',
   'tracking.keywords.permissionScope':
-    'الكلمات تساعد المطابقة داخل مصاريفي وراتبي بعد الإذن، ولا تضيق إذن النظام نفسه.',
+    'الكلمات ترشّح المعاملات، ولا تغيّر صلاحية النظام.',
   'tracking.senders.title': 'قواعد المرسلين',
   'tracking.senders.search': 'بحث في المرسلين',
   'tracking.senders.empty': 'لا يوجد مرسلون',
@@ -1432,13 +1427,13 @@ const ar: MessageCatalog = {
     'يستخدم مصاريفي وراتبي الميكروفون فقط أثناء تسجيل هذه المعاملة.',
   'voice.permission.request': 'السماح بالميكروفون',
   'voice.permission.settings': 'فتح الإعدادات',
-  'voice.processingConsent.title': 'معالجة الصوت والذكاء الاصطناعي',
+  'voice.processingConsent.title': 'معالجة الصوت بالـ AI',
   'voice.processingConsent.data':
-    'يُرسَل تسجيلك والنص المستخرج والسياق المالي المحدد إلى خوادم مصاريفي. تعالج خدمات ذكاء اصطناعي خارجية عبر OpenRouter ومزوّدي النماذج المحتوى اللازم لاستخراج النص وتحليل المعاملات.',
+    'بإذنك، يحلّل ذكاء اصطناعي خارجي تسجيلك وسياقه المالي.',
   'voice.processingConsent.purpose':
-    'يحوّل ذلك كلامك إلى معاملات مالية. قد تُضاف المعاملات الواضحة تلقائيًا، ويمكنك مراجعة النتائج وتصحيحها.',
+    'يحوّل كلامك إلى معاملات يمكنك مراجعتها وتصحيحها.',
   'voice.processingConsent.choice':
-    'المعالجة الصوتية اختيارية. يمكنك الرفض والمتابعة بالإدخال اليدوي، أو سحب الموافقة من إعدادات الخصوصية لإيقاف التسجيلات المستقبلية على هذا الجهاز. السحب لا يلغي المعالجة المكتملة. يخضع احتفاظ الخوادم والمزوّدين بالبيانات واستخدامها لسياساتهم المعمول بها؛ ولا يوجد ضمان بعدم الاحتفاظ أو عدم الاستخدام للتدريب.',
+    'اختياري؛ يمكنك سحب الموافقة أو استخدام الإدخال اليدوي.',
   'voice.processingConsent.accept': 'أوافق وأتابع',
   'voice.processingConsent.decline': 'المتابعة بالإدخال اليدوي',
   'voice.processingConsent.withdraw': 'سحب الموافقة الصوتية',
@@ -1520,10 +1515,10 @@ const ar: MessageCatalog = {
     'تم حفظ {{count}} معاملة، وتعذّر حفظ بقية التسجيل.',
   'voice.batch.partial': 'تم حفظ {{saved}} معاملة، ولم تُحفظ {{failed}}.',
   'voice.batch.restricted':
-    'اكتمل التسجيل، لكن هذا الحساب غير مُفعّل لخدمة الصوت في نسخة الاختبار. لم تُضَف معاملات.',
+    'الصوت غير مفعّل لهذا الحساب التجريبي. لم تُضف معاملات.',
   'voice.batch.failed': 'تعذر إكمال بعض المعالجة.',
   'voice.batch.rateLimited':
-    'التحليل الصوتي متوقف مؤقتًا بسبب حد الاستخدام. تسجيلك محفوظ وستتم إعادة المحاولة تلقائيًا. لا تُعد تسجيله.',
+    'بلغت حد التحليل. تسجيلك محفوظ؛ سنعيد المحاولة تلقائيًا.',
   'voice.batch.checking': 'جارٍ التحقق من النتيجة…',
   'voice.batch.checkResult': 'التحقق من النتيجة',
   'voice.state.processing': 'جاري تحليل التسجيل...',
@@ -1681,8 +1676,7 @@ const ar: MessageCatalog = {
   'planning.state.empty': 'لا توجد سجلات تخطيط بعد',
   'planning.state.partial': 'بعض بيانات التخطيط غير مكتملة',
   'planning.state.offline': 'تبقى التغييرات على هذا الجهاز دون اتصال',
-  'planning.state.offlineRead':
-    'دون اتصال · نعرض البيانات المحفوظة على هذا الجهاز. قد تكون بعض القيم غير متاحة أو غير محدثة.',
+  'planning.state.offlineRead': 'دون اتصال: نعرض آخر بيانات محفوظة.',
   'planning.state.error': 'التخطيط غير متاح',
   'planning.state.hidden': 'القيم مخفية',
   'planning.reason.missing_data': 'غير متاح حتى إضافة بيانات أكثر',
@@ -1735,7 +1729,7 @@ const ar: MessageCatalog = {
   'planning.salary.account': 'حساب الاستلام',
   'planning.salary.automaticDetection': 'اكتشاف استلام الراتب تلقائيًا',
   'planning.salary.automaticDetectionSubtitle':
-    'يربط دخلًا مؤكدًا بنفس المبلغ والعملة في حساب الاستلام خلال 3 أيام من الموعد، عند وضوح أنه راتب. لا يضيف معاملة جديدة.',
+    'يربط دخلًا مؤكدًا بموعد الراتب، دون إنشاء معاملة.',
   'planning.salary.expectedDate': 'التاريخ المتوقع',
   'planning.salary.receivedDate': 'تاريخ الاستلام',
   'planning.salary.transaction': 'المعاملة المرتبطة',
@@ -2212,9 +2206,8 @@ const ar: MessageCatalog = {
   'notifications.preferences.day.saturday': 'السبت',
   'assistant.consent.title': 'المساعد المالي المخصص',
   'assistant.privacy.transactions':
-    'بموافقتك، تعالج خوادم مصاريفي وخدمات ذكاء اصطناعي خارجية عبر OpenRouter ومزوّدي النماذج أسئلتك والسياق المالي المحدد، بما يشمل المعاملات والحسابات والميزانيات والتقارير ذات الصلة، للإجابة وإعداد الرؤى المالية أو الإجراءات المقترحة.',
-  'assistant.privacy.choice':
-    'هذا اختياري. يمكنك المتابعة بالإدخال اليدوي إذا رفضت، أو سحب الموافقة هنا لإيقاف أسئلة الذكاء الاصطناعي المستقبلية. السحب لا يلغي المعالجة المكتملة. يخضع احتفاظ الخوادم والمزوّدين بالبيانات واستخدامها لسياساتهم المعمول بها؛ ولا يوجد ضمان بعدم الاحتفاظ أو عدم الاستخدام للتدريب.',
+    'بإذنك، يحلّل ذكاء اصطناعي خارجي أسئلتك وسياقك المالي.',
+  'assistant.privacy.choice': 'اختياري؛ يمكنك سحب الموافقة في أي وقت.',
   'assistant.consent.withdraw': 'سحب موافقة المساعد',
   'assistant.state.disabled': 'التخصيص متوقف.',
   'assistant.state.limit': 'وصلت لحد استخدام المساعد. جرّب لاحقًا.',
@@ -2226,24 +2219,26 @@ const ar: MessageCatalog = {
   'assistant.action.enable': 'أوافق وأفعّل المساعد',
   'assistant.consent.enabled': 'تم تفعيل التخصيص الذكي',
   'assistant.hero.title': 'المساعد الذكي',
+  'assistant.hero.heading': 'كيف أقدر أساعدك؟',
+  'assistant.history.empty': 'لسه ما عندك محادثات.',
+  'assistant.history.more': 'عرض المزيد',
   'assistant.hero.subtitle':
-    'مساعدك المالي، يراجع معك مصاريفك ويجاوب على أسئلتك.',
+    'اسألني عن مصاريفك وميزانيتك.',
   'assistant.ask.title': 'وش ودّك تعرف؟',
   'assistant.ask.subtitle': 'اسألني عن مصاريفك وميزانيتك.',
-  'assistant.ask.placeholder': 'اكتب سؤالك هنا...',
+  'assistant.ask.placeholder': 'اكتب سؤالك...',
   'assistant.chat.placeholder': 'اكتب رسالتك هنا...',
   'assistant.suggestions.header': 'اقتراحات سريعة',
   'assistant.unsent.title': 'تبي تتجاهل السؤال اللي ما أرسلته؟',
   'assistant.unsent.message': 'إذا طلعت من هالشاشة، بينحذف نص السؤال.',
   'assistant.unsent.keep': 'متابعة الكتابة',
   'assistant.unsent.discard': 'تجاهل السؤال',
-  'assistant.privacy.note':
-    'قد تخطئ إجابات الذكاء الاصطناعي. راجع التفاصيل المالية قبل الاعتماد على إجابة أو إجراء مقترح. يمكنك إدارة الموافقة في المساعد.',
+  'assistant.privacy.note': 'قد يخطئ المساعد. راجع التفاصيل قبل اعتمادها.',
   'assistant.suggestions.spending': 'كم صرفت هالشهر؟',
   'assistant.suggestions.restaurants': 'كم صرفت على المطاعم هالشهر؟',
-  'assistant.suggestions.highest': 'وش أكثر شي صرفت عليه؟',
-  'assistant.suggestions.weekly': 'وش آخر معاملاتي المؤكدة؟',
-  'assistant.suggestions.budget': 'هل تجاوزت ميزانيتي؟',
+  'assistant.suggestions.highest': 'وين يروح راتبي؟',
+  'assistant.suggestions.weekly': 'آخر معاملاتي',
+  'assistant.suggestions.budget': 'كيف ميزانيتي؟',
   'assistant.capabilities.reports': 'تقارير مخصصة لأموالك',
   'assistant.capabilities.analytics': 'تحليل إنفاقك بذكاء',
   'assistant.capabilities.reminders': 'تذكيرات ذكية للأهداف',
@@ -2327,7 +2322,7 @@ const ar: MessageCatalog = {
   'assistant.actionPreview.state.incomplete':
     'تفاصيل الأثر مو مكتملة. ما تقدر تأكّد الحين؛ حدّث المعاينة.',
   'assistant.actionPreview.state.unknown':
-    'ما تأكدت نتيجة الإجراء. تحقّق من حالته قبل تعيد المحاولة؛ المحاولة تستخدم نفس العملية الأصلية.',
+    'النتيجة غير مؤكدة. تحقّق من الحالة قبل إعادة المحاولة.',
   'assistant.actionPreview.state.completed': 'اكتمل الإجراء.',
   'assistant.actionPreview.state.cancelled': 'انلغى الاقتراح.',
   'assistant.actionPreview.action.checkStatus':
@@ -2339,15 +2334,15 @@ const ar: MessageCatalog = {
   'assistant.actionPreview.scope.createTransaction':
     'يسجّل دخلاً أو مصروفًا في الحساب المحدّد بالتاريخ والوقت المحلي المعروضين.',
   'assistant.actionPreview.scope.createGoal':
-    'ينشئ هدف ادخار بالتقدّم الافتتاحي المسجّل المعروض. لا يحوّل هذا الإجراء أموالاً.',
+    'ينشئ هدف ادخار بالتقدّم المعروض، دون تحويل أموال.',
   'assistant.actionPreview.scope.updateTransaction':
     'يعدّل هذه المعاملة. راجع قيمها الحالية والقيم الناتجة أدناه.',
   'assistant.actionPreview.scope.updateBudget':
     'يعدّل هذه الميزانية فقط. راجع جميع القيم الناتجة، بما فيها الحالة أو الحذف.',
   'assistant.actionPreview.scope.recordPayment':
-    'يوزّع المعاملة المؤكدة الموجودة على الأقساط المحدّدة. لا ينشئ معاملة بنكية أخرى.',
+    'يوزّع المعاملة الموجودة على الأقساط، دون دفع جديد.',
   'assistant.actionPreview.scope.acceptReview':
-    'يعتمد هذه المراجعة ويسجّل معاملتها المستوردة أو يعيد استخدام الموجودة. تقارن القيم قبل وبعد بين الاقتراح الحالي والقيم المعتمدة.',
+    'يعتمد المراجعة ويسجّل المعاملة أو يستخدم الموجودة.',
   'assistant.actionPreview.scope.rejectReview':
     'يرفض هذه المراجعة دون إنشاء معاملة مالية.',
   'assistant.actionPreview.field.scope': 'نطاق الإجراء',
@@ -2546,7 +2541,7 @@ const ar: MessageCatalog = {
   'settings.application.notificationsOwner': 'تفضيلات الإشعارات',
   'settings.application.reportsOwner': 'التقارير',
   'settings.privacy.legalExplanation':
-    'التصدير ينشئ نسخة من بيانات الخادم. الحذف المحلي يزيل بيانات هذا الجهاز فقط، وقد تفقد التعديلات غير المتزامنة. حذف الحساب يمر بفترة الانتظار الموضّحة، ويكتمل بعد تأكيد محو البيانات مع الإفصاح عن أي احتفاظ نظامي.',
+    'التصدير من الخادم، والحذف المحلي لهذا الجهاز، وحذف الحساب مستقل.',
   'settings.privacy.title': 'الخصوصية',
   'settings.privacy.tracking': 'تخصيص التتبع',
   'settings.privacy.assistantPersonalization': 'تخصيص المساعد',
@@ -2851,9 +2846,8 @@ const ar: MessageCatalog = {
   'notifications.validation.undo': 'عرض إشعار تراجع',
   'notifications.validation.expired': 'عرض إشعار تراجع منتهي',
   'recentAuth.signInAgain':
-    'إذا كنت تستخدم Google للدخول، سجّل الخروج ثم ادخل بالحساب نفسه وارجع إلى هذه الصفحة.',
-  'recentAuth.unsupported':
-    'لا تتوفر طريقة تحقق لحسابك داخل التطبيق. سجّل الخروج وادخل مجددًا بالحساب نفسه، ثم ارجع إلى الإجراء.',
+    'سجّل الدخول بالحساب نفسه مجددًا ثم ارجع لهذه الصفحة.',
+  'recentAuth.unsupported': 'سجّل الدخول مجددًا بالحساب نفسه لإكمال التحقق.',
   'recentAuth.useSignIn': 'استخدام تسجيل دخولي الأخير',
   'recentAuth.passkey': 'استخدم مفتاح المرور للتحقق من هذه الجلسة.',
   'recentAuth.title': 'تأكيد هويتك',
@@ -2862,26 +2856,24 @@ const ar: MessageCatalog = {
   'recentAuth.confirm': 'التحقق والمتابعة',
   'recentAuth.cancel': 'إلغاء العملية',
   'recentAuth.retry': 'إعادة محاولة التحقق',
-  'recentAuth.failed':
-    'تعذّر إكمال التحقق. تأكد من الرمز أو كلمة المرور والاتصال. يجب أن يدعم حسابك التحقق بالرمز أو كلمة المرور.',
+  'recentAuth.failed': 'تعذّر التحقق. راجع الرمز أو كلمة المرور والاتصال.',
   'logout.pendingTitle': 'إكمال تسجيل الخروج',
   'logout.progress': 'جارٍ تسجيل الخروج…',
-  'logout.pendingBody':
-    'لم يكتمل تسجيل الخروج. يظل الوصول المحلي متوقفًا حتى يكتمل حذف البيانات بأمان.',
+  'logout.pendingBody': 'جارٍ إكمال الخروج وحذف بيانات الجهاز بأمان.',
   'logout.originalSessionUnavailable':
-    'تعذّر التحقق من الجلسة الأصلية. حُفظت بياناتك. أعد المحاولة عندما تكون الجلسة متاحة.',
+    'تعذّر التحقق من الجلسة. بياناتك محفوظة؛ حاول لاحقًا.',
   'logout.retry': 'إعادة محاولة تسجيل الخروج',
   'logout.retrying': 'جارٍ التحقق من تسجيل الخروج…',
   'logout.retryFailed': 'لا يزال تسجيل الخروج معلقًا. حُفظت بياناتك المحلية.',
   'logout.unsyncedTitle': 'يوجد عمل غير متزامن',
   'logout.unsyncedBody':
-    'بعض التغييرات أو المسودات أو رسائل التتبع أو العمليات الصوتية لم تتزامن، أو تعذّر التحقق من حالتها. ابقَ مسجّلًا لإعادة المحاولة، أو احذف بيانات هذا الجهاز المحلية وسجّل الخروج. لا يمكن استعادة العمل غير المتزامن المحذوف من الخادم.',
+    'تغييرات لم تتزامن. ابقَ لإعادة المحاولة؛ حذفها محليًا يفقدها.',
   'logout.wait': 'البقاء وإعادة المزامنة',
   'logout.remove': 'حذف البيانات المحلية وتسجيل الخروج',
   'logout.failed': 'تعذّر إكمال تسجيل الخروج. حاول مجددًا قبل تبديل الحساب.',
   'storageRecovery.title': 'التخزين المشفّر يحتاج إلى استعادة',
   'storageRecovery.body':
-    'مفتاح التشفير غير متاح. سنحتفظ بالنسخة المشفّرة الأصلية. لا يمكن استعادة التغييرات غير المتزامنة من الخادم. هل تريد إنشاء قاعدة محلية جديدة ثم تسجيل الدخول بالإنترنت لاستعادة البيانات المتزامنة؟',
+    'مفتاح التشفير مفقود. نستعيد المتزامن فقط ونحتفظ بالنسخة الأصلية.',
   'storageRecovery.cancel': 'الاحتفاظ بالبيانات وإلغاء',
   'storageRecovery.confirm': 'حفظ الأصل وبدء الاستعادة',
   'storageRecovery.failed':

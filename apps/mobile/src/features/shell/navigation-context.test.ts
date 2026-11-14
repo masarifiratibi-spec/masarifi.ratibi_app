@@ -40,7 +40,6 @@ describe('navigation context', () => {
       '/profile/privacy',
       '/security/settings',
       '/security/sessions',
-      '/security/events',
       '/support',
       '/support/new',
       '/support/tickets'
@@ -60,6 +59,7 @@ describe('navigation context', () => {
     for (const route of [
       'https://example.com/assistant',
       '/reports/history',
+      '/security/events',
       '/assistant/conversation-1?token=secret',
       '/assistant/conversation/1',
       '/assistant/otp-123',

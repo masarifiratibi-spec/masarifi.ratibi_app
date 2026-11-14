@@ -78,11 +78,6 @@ export function createMockAssistantService({
       operations.clear();
     });
 
-  async function requireEnabled() {
-    if (consent.status === 'not_requested') throw new AssistantServiceError('consent_required');
-    if (consent.status === 'disabled') throw new AssistantServiceError('assistant_disabled');
-  }
-
   async function makeResponse(conversationId: string, question: string, operationId: string): Promise<AssistantResponse> {
     if (offline) throw new AssistantServiceError('offline');
     if (remaining <= 0) throw new AssistantServiceError('limit_reached');
@@ -131,7 +126,7 @@ export function createMockAssistantService({
     },
     async getAvailability() {
       return {
-        status: consent.status === 'disabled' ? 'disabled' : remaining <= 0 ? 'limit_reached' : 'available',
+        status: remaining <= 0 ? 'limit_reached' : 'available',
         remainingQuestions: remaining
       };
     },
@@ -159,7 +154,6 @@ export function createMockAssistantService({
       return { items: active.slice(start, start + pageSize), nextCursor: start + pageSize < active.length ? String(start + pageSize) : null, total: active.length };
     },
     async createConversation(input: { question: string }, operationId: string) {
-      await requireEnabled();
       const replay = operations.get(operationId) as MutationResult<AssistantConversation> | undefined;
       if (replay) return replay;
       const id = `conversation-${conversations.size + 1}`;
@@ -244,7 +238,6 @@ export function createMockAssistantService({
       }
     },
     async ask(conversationId: string, question: string, operationId: string) {
-      await requireEnabled();
       const replay = operations.get(operationId) as MutationResult<AssistantResponse> | undefined;
       if (replay) return replay;
       const conversation = conversations.get(conversationId);

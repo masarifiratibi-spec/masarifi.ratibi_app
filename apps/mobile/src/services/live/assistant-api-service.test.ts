@@ -20,6 +20,8 @@ const json = (value: unknown, status = 200) =>
     status,
     headers: { 'content-type': 'application/json' }
   });
+const mockedFetch = (handler: (url: string, init: RequestInit) => Promise<Response>) =>
+  jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>().mockImplementation((input, init) => handler(String(input), init ?? {}));
 const conversation = {
   id: id(1),
   title: 'Spend?',
@@ -29,6 +31,66 @@ const conversation = {
   createdAt: at,
   updatedAt: '2026-09-03T00:00:02.000Z'
 };
+
+it.each(['success', 'lost-response', 'conflict'])('prepares the legacy server setting on an explicit question (%s) and keeps the same operation', async activation => {
+  let active = false;
+  const request = mockedFetch(async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith('/consent') && init.method === 'GET') return json({ policyVersion: 'assistant-privacy-v1', granted: active, grantedAt: null, revokedAt: null, version: 2 });
+    if (path.endsWith('/consent') && init.method === 'PUT') {
+      expect(JSON.parse(String(init.body))).toEqual({ policyVersion: 'assistant-privacy-v1', accepted: true, expectedVersion: 2 });
+      active = true;
+      if (activation === 'lost-response') throw new TypeError('network');
+      if (activation === 'conflict') return json({ code: 'AI_CONSENT_CONFLICT' }, 409);
+      return json({ policyVersion: 'assistant-privacy-v1', granted: true, grantedAt: at, revokedAt: null, version: 3 });
+    }
+    if (path.endsWith('/conversations')) return active ? json(conversation, 201) : json({ code: 'AI_CONSENT_REQUIRED' }, 403);
+    if (path.endsWith('/messages')) return json({ id: id(2), status: 'completed', replayed: false }, 202);
+    throw Error('Unexpected request');
+  });
+  const service = createLiveAssistantApiService({ baseUrl: 'https://api.test', token: async () => 'owner', request });
+  expect(request).not.toHaveBeenCalled();
+  await expect(service.createConversation({ question: 'How much did I spend?' }, 'default-assistant-question-001')).resolves.toMatchObject({ value: { id: id(1) } });
+  const creates = request.mock.calls.map(([url, init]) => [String(url), init!] as const).filter(([url, init]) => new URL(url).pathname.endsWith('/conversations') && init.method === 'POST');
+  expect(creates).toHaveLength(2);
+  expect(creates[0][1].body).toEqual(creates[1][1].body);
+  expect(creates.map(([, init]) => (init.headers as Record<string,string>)['Idempotency-Key'])).toEqual(['default-assistant-question-001', 'default-assistant-question-001']);
+  expect(request.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1);
+});
+
+it('never prepares another owner when identity changes during default question setup', async () => {
+  let owner = 'owner-A';
+  const request = mockedFetch(async (url) => {
+    if (new URL(url).pathname.endsWith('/consent')) {
+      owner = 'owner-B';
+      return json({ policyVersion: 'assistant-privacy-v1', granted: false, grantedAt: null, revokedAt: null, version: 1 });
+    }
+    return json({ code: 'AI_CONSENT_REQUIRED' }, 403);
+  });
+  const service = createLiveAssistantApiService({ baseUrl: 'https://api.test', request, identity: async () => {
+    const captured = owner;
+    return { userId: captured, token: captured, assertCurrent: async () => { if (captured !== owner) throw Error('owner_changed'); } };
+  } });
+  await expect(service.createConversation({ question: 'Spend?' }, 'default-assistant-owner-fence')).rejects.toThrow('owner_changed');
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(request.mock.calls.some(([url]) => String(url).includes('owner-B'))).toBe(false);
+});
+
+it('does not treat an expired login as a request to prepare the assistant', async () => {
+  const request = jest.fn(async () => json({ code: 'AI_CONSENT_REQUIRED' }, 401));
+  const service = createLiveAssistantApiService({ baseUrl: 'https://api.test', token: async () => 'expired', request });
+  await expect(service.createConversation({ question: 'Spend?' }, 'default-assistant-expired-login')).rejects.toMatchObject({ code: 'session_expired' });
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('does not automatically accept an unknown server policy', async () => {
+  const request = mockedFetch(async (url) => url.endsWith('/consent')
+    ? json({ policyVersion: 'unknown-policy', granted: false, grantedAt: null, revokedAt: null, version: 2 })
+    : json({ code: 'AI_CONSENT_REQUIRED' }, 403));
+  const service = createLiveAssistantApiService({ baseUrl: 'https://api.test', token: async () => 'owner', request });
+  await expect(service.createConversation({ question: 'Spend?' }, 'default-assistant-unknown-policy')).rejects.toMatchObject({ code: 'consent_required' });
+  expect(request).toHaveBeenCalledTimes(2);
+});
 
 it('bounds stalled authentication and ignores its late resolution without sending a question', async () => {
   jest.useFakeTimers();
@@ -161,7 +223,7 @@ it('releases a definitively rejected creation while preserving its failed questi
   const journal = createMemoryAssistantJournal();
   const request = jest
     .fn()
-    .mockResolvedValue(json({ code: 'AI_CONSENT_REQUIRED' }, 403));
+    .mockImplementation(async () => json({ code: 'AI_CONSENT_REQUIRED' }, 403));
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
     token: async () => 'owner',
@@ -187,7 +249,8 @@ it('releases a definitively rejected creation while preserving its failed questi
       'sample-create-key-0002'
     )
   ).resolves.toMatchObject({ phase: 'prepared' });
-  expect(request).toHaveBeenCalledTimes(1);
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(request.mock.calls[1]?.[1]?.method).toBe('GET');
 });
 
 it('explicitly retries an uncertain creation with the original identity and question', async () => {

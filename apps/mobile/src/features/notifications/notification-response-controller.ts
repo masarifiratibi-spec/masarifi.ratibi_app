@@ -216,7 +216,7 @@ function routeForTarget(
   if (target.kind === 'report') return '/reports';
   if (target.kind === 'assistant')
     return assistantConversationDestination(target.conversationId);
-  if (target.kind === 'security') return '/security/events';
+  if (target.kind === 'security') return '/security/settings';
   if (target.key === 'notifications') return '/notifications/preferences';
   if (target.key === 'security') return '/security/settings';
   return '/profile/privacy';

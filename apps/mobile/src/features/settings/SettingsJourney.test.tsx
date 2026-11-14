@@ -175,6 +175,7 @@ test('profile preserves an empty optional email when saving fresh profile fields
 test('application settings renders language, weekStart, currency, monthStart and defaultAccount controls', () => {
   renderWithProviders(<ApplicationSettingsScreen />);
 
+  expect(screen.queryByText(t('app-update.check'))).toBeNull();
   expect(screen.getAllByText(t('settings.application.title'))).toHaveLength(1);
   expect(
     screen.getByLabelText(

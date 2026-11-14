@@ -14,7 +14,7 @@ describe('message catalog parity', () => {
     expect(ar).toMatchObject({
       'assistant.suggestions.spending': 'كم صرفت هالشهر؟',
       'assistant.suggestions.restaurants': 'كم صرفت على المطاعم هالشهر؟',
-      'assistant.suggestions.highest': 'وش أكثر شي صرفت عليه؟',
+      'assistant.suggestions.highest': 'وين يروح راتبي؟',
       'assistant.state.error': 'المساعد مو متاح الحين. جرّب مرّة ثانية.',
       'assistant.state.offline':
         'المساعد يحتاج اتصال بالإنترنت. تقدر ترجع لمحادثاتك المحفوظة.',
@@ -22,7 +22,7 @@ describe('message catalog parity', () => {
       'assistant.operation.state.unknown':
         'ما تأكدت نتيجة السؤال. تحقّق من حالته قبل ترسل سؤال ثاني.',
       'assistant.actionPreview.state.unknown':
-        'ما تأكدت نتيجة الإجراء. تحقّق من حالته قبل تعيد المحاولة؛ المحاولة تستخدم نفس العملية الأصلية.',
+        'النتيجة غير مؤكدة. تحقّق من الحالة قبل إعادة المحاولة.',
       'assistant.actionPreview.field.amountMinor': 'المبلغ',
       'assistant.actionPreview.field.currency': 'العملة',
       'assistant.actionPreview.confirm.message':

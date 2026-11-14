@@ -1,15 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
-import { AppSheet } from '@/design-system/components/overlays/AppSheet';
-import { ActionButton } from '@/design-system/components/ActionButton';
-import { StyledText } from '@/components/StyledText';
-import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 import { beginVoiceUpdateInteraction } from '@/state/voice-update-interaction';
+import { VoiceProcessingConsentDialog } from './VoiceProcessingConsentDialog';
 
 // This acknowledgement contains no audio or financial data. A new disclosure
 // version requires a new affirmative choice for this owner on this device.
@@ -27,11 +23,17 @@ type Request = {
 };
 
 export function useVoiceProcessingConsent() {
-  const [view, setView] = useState<{ granted: boolean; busy: boolean; failed: boolean } | null>(null);
+  const [view, setView] = useState<{
+    granted: boolean;
+    busy: boolean;
+    failed: boolean;
+  } | null>(null);
   const request = useRef<Request | null>(null);
   const mounted = useRef(true);
-  const isCurrent = (value: Request) => mounted.current &&
-    request.current === value && value.session === useAppShellStore.getState().session &&
+  const isCurrent = (value: Request) =>
+    mounted.current &&
+    request.current === value &&
+    value.session === useAppShellStore.getState().session &&
     value.session?.status === 'authenticated' &&
     useAppShellStore.getState().privacyLock?.appLockStatus !== 'locked';
   const close = (accepted = false) => {
@@ -45,7 +47,11 @@ export function useVoiceProcessingConsent() {
   useEffect(() => {
     mounted.current = true;
     const unsubscribe = useAppShellStore.subscribe((next, previous) => {
-      if (next.session !== previous.session || next.privacyLock?.appLockStatus === 'locked') close();
+      if (
+        next.session !== previous.session ||
+        next.privacyLock?.appLockStatus === 'locked'
+      )
+        close();
     });
     return () => {
       mounted.current = false;
@@ -58,26 +64,41 @@ export function useVoiceProcessingConsent() {
     if (request.current) return Promise.resolve(false);
     const session = useAppShellStore.getState().session;
     const ownerId = session?.userId;
-    if (session?.status !== 'authenticated' || !ownerId ||
-      useAppShellStore.getState().privacyLock?.appLockStatus === 'locked') return Promise.resolve(false);
-    return new Promise(resolve => {
-      const value: Request = { session, key: consentKey(ownerId), resolve, finishInteraction: beginVoiceUpdateInteraction() };
+    if (
+      session?.status !== 'authenticated' ||
+      !ownerId ||
+      useAppShellStore.getState().privacyLock?.appLockStatus === 'locked'
+    )
+      return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const value: Request = {
+        session,
+        key: consentKey(ownerId),
+        resolve,
+        finishInteraction: beginVoiceUpdateInteraction()
+      };
       request.current = value;
-      void AsyncStorage.getItem(value.key).then(stored => {
-        if (!isCurrent(value)) return;
-        const granted = stored === disclosureVersion && !withdrawn.has(value.key);
-        if (granted && !review) close(true);
-        else setView({ granted, busy: false, failed: false });
-      }).catch(() => {
-        if (isCurrent(value)) setView({ granted: false, busy: false, failed: true });
-      });
+      void AsyncStorage.getItem(value.key)
+        .then((stored) => {
+          if (!isCurrent(value)) return;
+          const granted =
+            stored === disclosureVersion && !withdrawn.has(value.key);
+          if (granted && !review) close(true);
+          else setView({ granted, busy: false, failed: false });
+        })
+        .catch(() => {
+          if (isCurrent(value))
+            setView({ granted: false, busy: false, failed: true });
+        });
     });
   };
 
   const save = async (granted: boolean, onWithdraw: () => Promise<void>) => {
     const value = request.current;
     if (!value || !isCurrent(value) || view?.busy) return;
-    setView(previous => previous && { ...previous, busy: true, failed: false });
+    setView(
+      (previous) => previous && { ...previous, busy: true, failed: false }
+    );
     try {
       if (!granted) {
         withdrawn.add(value.key);
@@ -86,37 +107,37 @@ export function useVoiceProcessingConsent() {
       }
       // Persist before any microphone access. A failed write keeps the modal
       // open, so recording cannot continue on an unrecorded acknowledgement.
-      await AsyncStorage.setItem(value.key, granted ? disclosureVersion : 'withdrawn');
+      await AsyncStorage.setItem(
+        value.key,
+        granted ? disclosureVersion : 'withdrawn'
+      );
       if (!isCurrent(value)) return;
       if (granted) withdrawn.delete(value.key);
       if (isCurrent(value)) close(granted);
     } catch {
-      if (isCurrent(value)) setView(previous => previous && { ...previous, busy: false, failed: true });
+      if (isCurrent(value))
+        setView(
+          (previous) => previous && { ...previous, busy: false, failed: true }
+        );
     }
   };
 
   return {
     ensure: () => ensure(),
-    review: () => { void ensure(true); },
-    render: (onWithdraw: () => Promise<void>) => view ? (
-      <AppSheet title={translate('voice.processingConsent.title')} visible
-        onDismiss={() => { if (!view.busy) close(); }}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <StyledText>{translate('voice.processingConsent.data')}</StyledText>
-          <StyledText>{translate('voice.processingConsent.purpose')}</StyledText>
-          <StyledText>{translate('voice.processingConsent.choice')}</StyledText>
-          {view.failed ? <StyledText accessibilityRole="alert">voice.processingConsent.error</StyledText> : null}
-          <ActionButton label={view.granted ? 'voice.processingConsent.withdraw' : 'voice.processingConsent.accept'}
-            loading={view.busy} onPress={() => void save(!view.granted, onWithdraw)} />
-          <ActionButton label="voice.processingConsent.decline" variant="secondary" disabled={view.busy}
-            onPress={() => {
-              close();
-              router.replace('/(tabs)/add');
-            }} />
-        </ScrollView>
-      </AppSheet>
-    ) : null
+    review: () => {
+      void ensure(true);
+    },
+    render: (onWithdraw: () => Promise<void>) =>
+      view ? (
+        <VoiceProcessingConsentDialog
+          {...view}
+          onDismiss={() => close()}
+          onConfirm={() => void save(!view.granted, onWithdraw)}
+          onManual={() => {
+            close();
+            router.replace('/(tabs)/add');
+          }}
+        />
+      ) : null
   };
 }
-
-const styles = StyleSheet.create({ content: { gap: 16, paddingBottom: 16 } });

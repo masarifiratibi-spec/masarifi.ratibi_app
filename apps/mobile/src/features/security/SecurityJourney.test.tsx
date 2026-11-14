@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AppState, Text } from 'react-native';
+import { Alert, AppState, Platform, Text } from 'react-native';
 import {
   act,
   fireEvent,
@@ -73,11 +73,20 @@ beforeEach(() => {
 });
 
 describe('security journey', () => {
-  it('opens the existing Privacy screen without starting an export or deletion', () => {
-    renderWithProviders(<SecuritySettingsRoute />);
-    fireEvent.press(screen.getByRole('button', { name: translate('settings.privacy.title') }));
-    expect(router.push).toHaveBeenCalledWith('/profile/privacy');
-    expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
+  it('keeps balance visibility and update checks without a Privacy entry in security settings', () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      renderWithProviders(<SecuritySettingsRoute />);
+      expect(screen.queryByText(translate('settings.privacy.title'))).toBeNull();
+      expect(screen.queryByLabelText(translate('appShell.security.sections.privacy'))).toBeNull();
+      expect(screen.getByText(translate('appShell.security.hideBalances'))).toBeTruthy();
+      expect(router.push).not.toHaveBeenCalled();
+      fireEvent.press(screen.getByRole('button', { name: translate('app-update.check') }));
+      expect(router.push).toHaveBeenCalledWith('/app-update');
+      expect(mockRequestAccountDeletion).not.toHaveBeenCalled();
+    } finally {
+      platform.restore();
+    }
   });
   it('hides Security Events and Active Sessions in live settings', () => {
     const fixtureMode = jest.spyOn(demoMode, 'isFixtureModeEnabled').mockReturnValue(false);

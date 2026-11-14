@@ -366,7 +366,7 @@ function routeForTarget(target: NotificationTarget | null): string | null {
   if (target.kind === 'report') return '/reports';
   if (target.kind === 'assistant')
     return path('/assistant', target.conversationId);
-  if (target.kind === 'security') return '/security/events';
+  if (target.kind === 'security') return '/security/settings';
   if (target.kind === 'settings') {
     if (target.key === 'notifications') return '/notifications/preferences';
     if (target.key === 'security') return '/security/settings';
