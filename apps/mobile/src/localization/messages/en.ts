@@ -1330,7 +1330,6 @@ const en = {
   'tracking.setup.alerts.title': 'Transaction alerts',
   'tracking.setup.alerts.description': 'Enable Masarifi notifications to receive saved alerts.',
   'tracking.setup.footer': 'One source is enough. Capture starts when you enable it.',
-  'tracking.setup.privacy': 'Analysis happens on your device; transaction details are synced.',
   'tracking.setup.sms.sheetTitle': 'Enable text message tracking',
   'tracking.setup.sms.step1': 'Tap “Enable SMS tracking” below.',
   'tracking.setup.sms.step2': 'In app info: Permissions → Messages → Allow.',

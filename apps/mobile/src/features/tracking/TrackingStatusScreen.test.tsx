@@ -706,9 +706,7 @@ describe('TrackingStatusScreen', () => {
         name: translate('tracking.setup.alertSettings')
       })
     ).toBeOnTheScreen();
-    expect(
-      screen.getByText(translate('tracking.setup.privacy'))
-    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('tracking-setup-privacy')).toBeNull();
     expect(
       screen.getByTestId('tracking-setup-toggle')
     ).toHaveAccessibilityState({ expanded: false });

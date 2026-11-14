@@ -1279,7 +1279,6 @@ const ar: MessageCatalog = {
   'tracking.setup.alerts.title': 'تنبيهات المعاملات',
   'tracking.setup.alerts.description': 'فعّل عرض إشعارات مصاريفي ليصلك تنبيه الحفظ.',
   'tracking.setup.footer': 'يكفي تفعيل مصدر واحد. يبدأ الالتقاط من وقت تفعيله.',
-  'tracking.setup.privacy': 'التحليل على جهازك، وتُزامن تفاصيل المعاملات.',
   'tracking.setup.sms.sheetTitle': 'تفعيل الرسائل النصية',
   'tracking.setup.sms.step1': 'اضغط «تفعيل تتبع الرسائل» أدناه.',
   'tracking.setup.sms.step2': 'في معلومات التطبيق: الأذونات ← الرسائل ← سماح.',

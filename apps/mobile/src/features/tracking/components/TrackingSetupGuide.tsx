@@ -285,13 +285,6 @@ export function TrackingSetupGuide({
           </View>
         ) : null}
       </SurfaceCard>
-      <StyledText
-        testID="tracking-setup-privacy"
-        style={[styles.privacy, { color: colors.content.secondary }, text]}
-      >
-        {translate('tracking.setup.privacy')}
-      </StyledText>
-
       {selected ? (
         <AppSheet
           title={translate(`tracking.setup.${selected}.sheetTitle`)}
@@ -456,7 +449,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline'
   },
-  privacy: { fontSize: 12, lineHeight: 21, paddingHorizontal: spacing.xs },
   sheetScroll: { flexShrink: 1 },
   sheetContent: { gap: spacing.md, paddingBottom: spacing.sm },
   sheetStep: { gap: spacing.sm, alignItems: 'flex-start' },
