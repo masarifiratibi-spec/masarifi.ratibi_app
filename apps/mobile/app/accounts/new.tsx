@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import type { AccountType } from '@/domain/core-finance';
-import { AccountForm } from '@/features/accounts/AccountForm';
 import { AccountTypeSelectionScreen } from '@/features/accounts/AccountTypeSelectionScreen';
 
 export default function NewAccountRoute() {
@@ -20,6 +19,9 @@ export default function NewAccountRoute() {
     );
   }
 
+  const { AccountForm } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/accounts/AccountForm') as typeof import('@/features/accounts/AccountForm');
   return (
     <AccountForm
       initialType={selectedType}

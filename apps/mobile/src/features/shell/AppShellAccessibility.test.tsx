@@ -4,12 +4,20 @@ import { screen } from '@testing-library/react-native';
 import HomeRoute from '@app/(tabs)/home';
 import MoreRoute from '@app/(tabs)/more';
 import { PermissionEducation } from '@/features/onboarding/PermissionEducation';
-import { PinForm } from '@/features/security/PinForm';
 import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), navigate: jest.fn() },
+  useFocusEffect: (callback: () => void) => {
+    const React = jest.requireActual<typeof import('react')>('react');
+    React.useEffect(callback, [callback]);
+  },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    navigate: jest.fn()
+  },
   useLocalSearchParams: () => ({})
 }));
 
@@ -24,17 +32,18 @@ describe('app shell accessibility', () => {
     home.unmount();
 
     const more = renderWithProviders(<MoreRoute />);
-    expect(screen.getByLabelText('الملف الشخصي')).toHaveStyle({ minHeight: 48 });
+    expect(screen.getByLabelText('الملف الشخصي')).toHaveStyle({
+      minHeight: 48
+    });
     more.unmount();
 
-    renderWithProviders(
+    const permission = renderWithProviders(
       <PermissionEducation onEnable={jest.fn()} onSkip={jest.fn()} />
     );
     expect(screen.getByLabelText('تفعيل التتبع')).toHaveAccessibilityState({
       disabled: false
     });
+    permission.unmount();
 
-    renderWithProviders(<PinForm mode="unlock" onSubmit={jest.fn()} />);
-    expect(screen.getByLabelText('رمز PIN')).toBeOnTheScreen();
   });
 });

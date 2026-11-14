@@ -6,6 +6,20 @@ import type { AuthResult } from '@/services/contracts/app-shell-service';
 import { renderWithProviders } from '@/test-utils/render';
 
 describe('GoogleAccountSelector', () => {
+  it('recovers from a rejected Google operation without rendering provider secrets or staying busy', async () => {
+    renderSelector(async () => {
+      throw new Error('sensitive-callback-test-value');
+    }, jest.fn());
+    fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('اختر حساب جوجل')).toHaveAccessibilityState({
+        busy: false,
+        disabled: false
+      })
+    );
+    expect(screen.queryByText(/sensitive-callback-test-value/)).toBeNull();
+    expect(screen.getByRole('alert')).toBeOnTheScreen();
+  });
   it.each([
     [{ status: 'cancelled' } as AuthResult, 'تم إلغاء تسجيل الدخول بجوجل.'],
     [
@@ -25,7 +39,9 @@ describe('GoogleAccountSelector', () => {
 
     fireEvent.press(screen.getByLabelText('اختر حساب جوجل'));
 
-    await waitFor(() => expect(screen.getByText(expectedText)).toBeOnTheScreen());
+    await waitFor(() =>
+      expect(screen.getByText(expectedText)).toBeOnTheScreen()
+    );
   });
 
   it('emits a successful authentication result', async () => {

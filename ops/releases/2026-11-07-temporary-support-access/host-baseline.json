@@ -1,0 +1,108 @@
+{
+  "observedDate": "2026-11-07",
+  "method": "Read-only commands in existing human Chrome Hostinger root console; no hosted files or services changed",
+  "actualApi": {
+    "name": "masarifi-assistant-reports-api-ledger-scope-20261023-t04-r18-8937ba09",
+    "id": "75c25ce44eaa6fb32558ef5fec7ecf46b091353a926b04f4cd46bd33d751dbc5",
+    "image": "4b70927fcbf19bf015f80fce0110173152b94a21d5c1146c67133c0b9854f95f",
+    "startedAt": "2026-11-01T22:01:43.079546202Z",
+    "configAndHostConfigSha256": "b229ec3fa5f996c9dff87c2667308f258a79aa7b203620ed2a4263a07a417078",
+    "port": 3001,
+    "node": "/nodejs/bin/node",
+    "publicHealthVersion": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+    "runtime": {
+      "user": "65532:65532",
+      "workingDirectory": "/app",
+      "command": [
+        "/nodejs/bin/node",
+        "dist/src/main.js"
+      ],
+      "network": "masarifi-staging_backend",
+      "readonlyRootfs": true,
+      "memoryBytes": 536870912,
+      "nanoCpus": 1000000000,
+      "containerPort": 3000,
+      "mounts": [
+        {
+          "source": "/etc/masarifi/supabase-ca.crt",
+          "target": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true
+        }
+      ]
+    }
+  },
+  "admin": {
+    "name": "masarifi-admin-reflow-97ad2551-20261107",
+    "id": "8f000b29231bdcf163c7e93a9fb134133a9086e21724c5875beb7de966d943d6",
+    "image": "53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "startedAt": "2026-11-07T10:53:47.852112704Z",
+    "configAndHostConfigSha256": "ec58dc67067faa253f78aa077d443e34cedf292bd8117427951b1ee3562a917a",
+    "hostPort": 3041,
+    "containerPort": 3040,
+    "source": "97ad25515ca283083057f010366516d4cd5931d4",
+    "runtime": {
+      "user": "1000:1000",
+      "workingDirectory": "/workspace/apps/admin-web",
+      "command": [
+        "/nodejs/bin/node",
+        "node_modules/next/dist/bin/next",
+        "start",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "3040"
+      ],
+      "network": "bridge",
+      "readonlyRootfs": true,
+      "memoryBytes": 536870912,
+      "nanoCpus": 500000000,
+      "rootMount": "/opt/masarifi/admin-releases/dashboard-reflow-97ad25515ca2-20261107/runtime",
+      "writableMount": "/workspace/apps/admin-web/.next/cache"
+    }
+  },
+  "protectedPrimaryApi": {
+    "name": "masarifi-production-core-api-20261105-97e66588",
+    "id": "fd3d7a212d3e4186d2ee1e1a8f2913e6d8476512897064843c14897de41178b7",
+    "image": "6b37edccc8ca2ae65364743f690b965af2c06f76ee657ddf8a7662cadebf42c0",
+    "startedAt": "2026-11-07T12:50:38.773431103Z"
+  },
+  "protectedLegacyApi3000": {
+    "name": "masarifi-staging-api-1",
+    "image": "a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383",
+    "port": 3000,
+    "configAndHostConfigSha256": "10c7823d59a3803e53b0c6f8d35cda4179588cd5717b90acc34484ab94d0e8de"
+  },
+  "routing": {
+    "path": "/etc/nginx/sites-available/masarifi-staging",
+    "link": "/etc/nginx/sites-enabled/masarifi-staging",
+    "sha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "apiDefault": "http://127.0.0.1:3001",
+    "adminDefault": "http://127.0.0.1:3041",
+    "primaryPath": "/etc/nginx/sites-available/masarifi-production-core-20261105.conf",
+    "primarySha256": "840cd5e73175983deffaf81e3819558c3337b9dc196f0d7b739c68ac49646391",
+    "primaryLink": "/etc/nginx/sites-enabled/masarifi-production-core-20261105.conf"
+  },
+  "runningContainerIdsSortedSha256": "b6b80feb724114ead0c50afc74b0f11dff2f6f8410cf93a46263b5b045488d24",
+  "candidatePortsFree": [
+    3042,
+    3043
+  ],
+  "constraintReadOnly": "CHECK (((NOT customer_approval_required) OR (status = 'pending'::text) OR (customer_approved_at IS NOT NULL)))",
+  "databaseReadOptions": "default_transaction_read_only=on;statement_timeout=5000",
+  "noHostedActivation": true,
+  "noSshFirewallChange": true,
+  "humanConsolePreserved": true,
+  "note": "Hash algorithm for Config/HostConfig is exact docker inspect format output, including one separating space and LF. Re-admission is required if any serving identity or routing fingerprint changes.",
+  "database": {
+    "projectRef": "qcffvfbpzvpwcwxwjyro",
+    "name": "Masarifi Staging",
+    "identityMatchedActualApi": true,
+    "schemaReadOnly": true,
+    "ledgerCount": 177,
+    "latestVersion": "20261107140000",
+    "deniedWithoutConsent": 0,
+    "newMigrationApplied": false,
+    "fullReplayForbidden": true
+  },
+  "consoleState": "Session expired after the recorded read-only inspection; fresh readmission required"
+}

@@ -10,35 +10,44 @@ import {
   PageHeader,
   SeverityBadge,
 } from "@/components/admin/ui";
+import { mocksEnabled } from "@/core/api/client";
 import { useSimulatedRole } from "@/core/auth/use-simulated-role";
 import { useLocale } from "@/core/localization/provider";
 import { hasPermission } from "@/core/permissions/role-map";
-import { ImportOverviewAnalytics } from "@/features/imports/ImportsViews";
+import { ImportOverviewAnalytics, OperationalListView } from "@/features/imports/ImportsViews";
 import { useImports, useRetryImport } from "@/features/imports/hooks";
 import { importsCopy } from "@/features/imports/importsCopy";
 import { formatDate } from "@/lib/admin-utils";
 import type { ImportRecord } from "@/types/admin";
 
 export default function ImportsPage() {
+  return mocksEnabled() ? <DemoImportsPage /> : <OperationalListView resource="sessions" showOverview />;
+}
+
+function DemoImportsPage() {
   const role = useSimulatedRole();
   const { locale } = useLocale();
   const copy = importsCopy[locale];
   const canRetry = hasPermission(role, "imports.failures.manage");
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("");
+  const [page, setPage] = useState(1);
   const [active, setActive] = useState<ImportRecord | null>(null);
   const [retry, setRetry] = useState<ImportRecord | null>(null);
   const [message, setMessage] = useState("");
   const imports = useImports({
     query,
     source: source || undefined,
-    page: 1,
+    page,
     pageSize: 25,
   });
   const retryImport = useRetryImport();
   const importItems = imports.data?.items;
   const sources = useMemo(
-    () => [...new Set((importItems ?? []).map((item) => item.source))],
+    () =>
+      mocksEnabled()
+        ? [...new Set((importItems ?? []).map((item) => item.source))]
+        : ["sms", "file", "manual", "provider"],
     [importItems],
   );
   if (imports.isPending)
@@ -214,14 +223,20 @@ export default function ImportsPage() {
               <input
                 className="input"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
                 placeholder={copy.failedImports.searchPlaceholder}
               />
             </label>
             <select
               className="select"
               value={source}
-              onChange={(event) => setSource(event.target.value)}
+              onChange={(event) => {
+                setSource(event.target.value);
+                setPage(1);
+              }}
               aria-label={copy.failedImports.columns.source}
             >
               <option value="">{copy.failedImports.allSources}</option>
@@ -235,6 +250,7 @@ export default function ImportsPage() {
                 onClick={() => {
                   setQuery("");
                   setSource("");
+                  setPage(1);
                 }}
               >
                 <FilterX size={16} /> {copy.failedImports.clearFilter}
@@ -331,6 +347,25 @@ export default function ImportsPage() {
           </div>
         </div>
       </section>
+      <nav className="toolbar" aria-label="Import pagination">
+        <button
+          className="button"
+          disabled={page <= 1 || imports.isFetching}
+          onClick={() => setPage(page - 1)}
+        >
+          {locale === "ar" ? "السابق" : "Previous"}
+        </button>
+        <span>
+          {locale === "ar" ? "الصفحة" : "Page"} {page}
+        </span>
+        <button
+          className="button"
+          disabled={page >= imports.data.totalPages || imports.isFetching}
+          onClick={() => setPage(page + 1)}
+        >
+          {locale === "ar" ? "التالي" : "Next"}
+        </button>
+      </nav>
       <Drawer
         open={Boolean(active)}
         onClose={() => setActive(null)}

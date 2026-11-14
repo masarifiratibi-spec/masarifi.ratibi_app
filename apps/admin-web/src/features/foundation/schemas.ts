@@ -64,7 +64,7 @@ export const navigationItemSchema = z.object({
   labelKey: z.string().min(1),
   route: routeSchema.nullable().optional(),
   iconKey: z.string().min(1),
-  permission: permissionKeySchema.nullable().optional(),
+  permission: z.union([permissionKeySchema, z.literal("operations.settings.read")]).nullable().optional(),
   availability: z.enum(["active", "planned", "denied"]),
   attentionCount: z.number().int().nonnegative().optional(),
 }).strict();

@@ -1,0 +1,33 @@
+# Production APK readiness — approved design
+
+Approved for implementation by the user on 4 November 2026 in this conversation. The Arabic plan supplied by the user is the authority. This document records its implementation contracts in English; it does not approve hosted changes, production activation or an actual signing transition.
+
+## Outcome and continuity
+
+Prepare an Android customer APK, retaining the existing accounts, data, Clerk instance, keys, sessions and pending work. APK delivery precedes Google Play. Work only in `D:/Masarifi-integration-2026-10-10`, branch `codex/voice-promoted-operating-2026-10-13`. Starting source is `fa13cc0f245ac81710d0973bc593135cb09b8206`; its ordinary Staging APK resumes the correct Google session and reaches Home on Redmi, including process-cold restoration. Tracking is intentionally isolated. Remote and delivery still need reconciliation; no Production readiness is claimed.
+
+Preserve protected Metro PID25876, device reverses, approved UI/Accounts changes, all unrelated dirty documents and private evidence. No clear, uninstall, sign-out, arbitrary identity adoption, paid-provider cohort, performance comparison or replay of Voice001. Existing billing/payment/subscription deferrals, Android-only acceptance and accepted PIN/TalkBack dispositions remain. Normal owner-authorized reads/writes must work; identity, consent and data protection remain effective.
+
+## Tracking ownership
+
+Use new owner-scoped JS/native contexts, queues, presentations and source preferences. Keep all legacy v2/native and unscoped storage bytes and keys untouched unless a same-owner, matching-generation migration is explicitly proven. Foreign/malformed/unattributed records are never adopted, decrypted, replayed, acknowledged or deleted by another owner. Same-owner migration retains operation IDs and validates committed destination before admission; interrupted migration cannot activate native intake.
+
+Native transition protocol: suspend intake, persist a JS prepare intent so the selected generation survives a crash, prepare a durable native owner/generation record, commit the corresponding JS owner context, acknowledge that exact prepared native record, then expose an admitted lease. The prepare intent is not admission. A crash before acknowledgment remains suspended; retry reconciles the same generation. Every native read/ack/configure/reset/purge and async/headless path is fenced by owner and generation. A valid current account can use its fresh independent namespace without erasing or unlocking retained foreign data. Fresh source consent is disabled; enabling starts at the observed activation boundary, never a historical inbox backfill.
+
+Production enrollment uses `PUT /api/v1/tracking/installations/:deviceId`, idempotent create/update with expectedVersion (0 for create), explicit source consents, activation boundaries and existing device registration. Owner derives from Clerk principal; device must be registered Android and bound to that session. Read authoritative server preferences/mode in the same command. Return installation version and the existing rule snapshot. GET/screen mount cannot enroll. Disable revokes intake/version; re-enable uses a fresh boundary/generation. Stale submissions remain preserved rather than silently retried against revoked admission. Already accepted operations keep their IDs and existing idempotent completion. Store production consent separately; do not rewrite DEV installations/cohorts or enable mobile development automation.
+
+## Functional and server acceptance
+
+Reconcile the existing 69-reference/88-unit and separate 62-client crosswalks against current code/evidence. Verify current app journeys and named reversible synthetic writes while retaining real records. A failing behavior requires a specific reproduction, RED regression, minimal repair and applicable actual-device acceptance. Reconcile Voice001 read-only; unresolved voice operation/acceptance remains an explicit blocker, never replay it.
+
+Before canonical callers or workers replace current services, qualify exact current-live database restore, additive compatibility corrections, owner ACL/RLS/leases, backup and rollback. Preserve immutable migration history and hosted-only changes. Three helpers are still absent in the current hosted catalog. Do not run the strict migration runner against non-prefix hosted history or stamp unapplied migrations. Inventory/restrict reachable legacy development writes when promoting the same data plane, without losing pending work or required consumers. Prepare exact deployment/DNS/TLS/API/worker/public privacy/deletion changes for final approval; do not execute hosted changes yet.
+
+Keep the current production-type Clerk instance and domain to preserve identity/session continuity. Production build binding must accept only the explicitly verified instance/domain and matching API issuer/JWKS/Google/Firebase configuration, not a general Staging override. Customer build: live mode, app lock on, demo/Benchmark/development automation/temporary diagnostics off.
+
+## Signing, release and proof
+
+Qualify existing original-development signer to existing EAS production signer; generate no key. Test a migration-only API33+ bridge and a subsequent API24+ final APK signed only with production key, including Android signing-history continuity and SecureStore/SQLCipher/session/UID/first-install/pending-work preservation. Prepare a higher-version production-signed rollback compatible with the new durable formats. API24–32 debug-signed upgrades require their own disposition; Redmi proof is not universal. Qualification is authorized; actual primary signing transition requires proof and review of the concrete result first.
+
+Default first customer version is 1.0.0; choose build counters above every used number, with separate bridge/final/rollback counters. Final exact-candidate qualification includes mobile/API/Admin/SQL/secrets/native/signature/16KB, current feature matrix, actual Redmi capture-to-Ledger-to-confirmation and offline/restart/permission/dedup cases. Fresh Google OAuth uses a separate clean authorized target; never sign out Redmi to obtain it. Automated passes do not replace device evidence.
+
+After proof, update delivery identity/APK, prove installed/delivered/source equality, and push relevant code/docs to the same branch without merge/main/store publication. English sanitized evidence, Arabic user communication. Hosted execution/production activation are separately approved final steps after concrete backup/rollback/artifacts are reviewable. Production status remains NOT READY until deployment, functional acceptance and monitoring pass.

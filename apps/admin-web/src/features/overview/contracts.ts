@@ -2,7 +2,13 @@ import { z } from "zod";
 
 export const platformFilterSchema = z.enum(["all", "ios", "android"]);
 export const reportingPeriodSchema = z.enum(["7d", "30d", "90d"]);
-export const platformScopeSchema = z.enum(["all", "ios", "android", "global", "unknown"]);
+export const platformScopeSchema = z.enum([
+  "all",
+  "ios",
+  "android",
+  "global",
+  "unknown",
+]);
 export const metricKindSchema = z.enum([
   "unique-customers",
   "devices",
@@ -13,7 +19,12 @@ export const metricKindSchema = z.enum([
   "tickets",
   "currency",
 ]);
-export const freshnessStateSchema = z.enum(["fresh", "stale", "partial", "unavailable"]);
+export const freshnessStateSchema = z.enum([
+  "fresh",
+  "stale",
+  "partial",
+  "unavailable",
+]);
 export const regionAvailabilitySchema = z.enum([
   "available",
   "empty",
@@ -22,7 +33,13 @@ export const regionAvailabilitySchema = z.enum([
   "unavailable",
   "forbidden",
 ]);
-export const severitySchema = z.enum(["info", "low", "medium", "high", "critical"]);
+export const severitySchema = z.enum([
+  "info",
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
 export const overviewRegionNameSchema = z.enum([
   "metrics",
   "customers",
@@ -35,7 +52,13 @@ export const overviewRegionNameSchema = z.enum([
   "activity",
 ]);
 export const currencySchema = z.enum(["SAR", "AED"]);
-export const metricToneSchema = z.enum(["neutral", "positive", "negative", "warning", "premium"]);
+export const metricToneSchema = z.enum([
+  "neutral",
+  "positive",
+  "negative",
+  "warning",
+  "premium",
+]);
 export const localeSchema = z.enum(["ar", "en"]);
 
 export const scenarioSchema = z.string().trim().min(1).max(50);
@@ -51,7 +74,8 @@ export const dataFreshnessSchema = z
     if (value.state !== "unavailable" && value.asOf === undefined) {
       ctx.addIssue({
         code: "custom",
-        message: "asOf timestamp is required unless the freshness state is unavailable.",
+        message:
+          "asOf timestamp is required unless the freshness state is unavailable.",
         path: ["asOf"],
       });
     }
@@ -83,7 +107,10 @@ export const overviewRegionStateSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (value.availability === "stale" && value.lastSuccessfulAt === undefined) {
+    if (
+      value.availability === "stale" &&
+      value.lastSuccessfulAt === undefined
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "Stale region state requires a lastSuccessfulAt timestamp.",
@@ -92,16 +119,27 @@ export const overviewRegionStateSchema = z
     }
   });
 
+export const observationSchema = z
+  .object({
+    timezone: z.string().min(1),
+    start: z.iso.datetime({ offset: true }).nullable(),
+    end: z.iso.datetime({ offset: true }).nullable(),
+    observedAt: z.iso.datetime({ offset: true }).nullable(),
+    collectionStartedAt: z.iso.datetime({ offset: true }).nullable(),
+  })
+  .strict();
+
 export const overviewMetricSchema = z
   .object({
     id: z.string().trim().min(1).max(100),
     label: z.string().trim().min(1).max(120),
-    numericValue: z.number().min(0),
+    numericValue: z.number().min(0).nullable(),
     formattedValue: z.string().trim().min(1).max(80),
     kind: metricKindSchema,
     platformScope: platformScopeSchema,
     period: reportingPeriodSchema,
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
     change: z.number().finite().optional(),
     tone: metricToneSchema,
     note: z.string().trim().max(240).optional(),
@@ -121,7 +159,7 @@ export const moneyMetricSchema = z
 export const trendPointSchema = z
   .object({
     timestamp: z.iso.datetime({ offset: true }),
-    value: z.number().finite(),
+    value: z.number().finite().nullable(),
     comparisonValue: z.number().finite().optional(),
   })
   .strict();
@@ -134,7 +172,9 @@ export const trendSeriesSchema = z
     unit: z.string().trim().min(1).max(40),
     period: reportingPeriodSchema,
     platformScope: platformScopeSchema,
-    points: z.array(trendPointSchema).min(1).max(100),
+    points: z.array(trendPointSchema).max(100),
+    freshness: dataFreshnessSchema.optional(),
+    observation: observationSchema.optional(),
     summary: z.string().trim().min(1).max(500),
   })
   .strict()
@@ -142,7 +182,11 @@ export const trendSeriesSchema = z
     for (let index = 1; index < value.points.length; index += 1) {
       const previous = value.points[index - 1]?.timestamp;
       const current = value.points[index]?.timestamp;
-      if (previous && current && new Date(current).getTime() < new Date(previous).getTime()) {
+      if (
+        previous &&
+        current &&
+        new Date(current).getTime() < new Date(previous).getTime()
+      ) {
         ctx.addIssue({
           code: "custom",
           message: "Trend points must be chronological.",
@@ -166,20 +210,36 @@ export const trendSeriesSchema = z
 
 export const customerPlatformBreakdownSchema = z
   .object({
+    unknownPlatformCustomers: z.number().int().nonnegative().optional(),
+    newMultiPlatformCustomers: z
+      .number()
+      .int()
+      .nonnegative()
+      .nullable()
+      .optional(),
+    newUnknownPlatformCustomers: z
+      .number()
+      .int()
+      .nonnegative()
+      .nullable()
+      .optional(),
+    platformScope: platformScopeSchema.optional(),
+    activityFreshness: dataFreshnessSchema.optional(),
     uniqueCustomersTotal: z.number().int().nonnegative(),
     iosCustomers: z.number().int().nonnegative(),
     androidCustomers: z.number().int().nonnegative(),
     iosOnlyCustomers: z.number().int().nonnegative(),
     androidOnlyCustomers: z.number().int().nonnegative(),
     multiPlatformCustomers: z.number().int().nonnegative(),
-    activeCustomersTotal: z.number().int().nonnegative(),
-    activeIosCustomers: z.number().int().nonnegative(),
-    activeAndroidCustomers: z.number().int().nonnegative(),
+    activeCustomersTotal: z.number().int().nonnegative().nullable(),
+    activeIosCustomers: z.number().int().nonnegative().nullable(),
+    activeAndroidCustomers: z.number().int().nonnegative().nullable(),
     newCustomersTotal: z.number().int().nonnegative(),
-    newIosCustomers: z.number().int().nonnegative(),
-    newAndroidCustomers: z.number().int().nonnegative(),
+    newIosCustomers: z.number().int().nonnegative().nullable(),
+    newAndroidCustomers: z.number().int().nonnegative().nullable(),
     period: reportingPeriodSchema,
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -198,38 +258,62 @@ export const customerPlatformBreakdownSchema = z
       newAndroidCustomers,
     } = value;
 
-    if (iosOnlyCustomers + androidOnlyCustomers + multiPlatformCustomers !== uniqueCustomersTotal) {
+    if (
+      iosOnlyCustomers +
+        androidOnlyCustomers +
+        multiPlatformCustomers +
+        (value.unknownPlatformCustomers ?? 0) !==
+      uniqueCustomersTotal
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "iOS-only + Android-only + multi-platform must equal the unique customer total.",
+        message:
+          "iOS-only + Android-only + multi-platform must equal the unique customer total.",
         path: ["uniqueCustomersTotal"],
       });
     }
     if (iosOnlyCustomers + multiPlatformCustomers !== iosCustomers) {
       ctx.addIssue({
         code: "custom",
-        message: "iOS customers must equal iOS-only + multi-platform customers.",
+        message:
+          "iOS customers must equal iOS-only + multi-platform customers.",
         path: ["iosCustomers"],
       });
     }
     if (androidOnlyCustomers + multiPlatformCustomers !== androidCustomers) {
       ctx.addIssue({
         code: "custom",
-        message: "Android customers must equal Android-only + multi-platform customers.",
+        message:
+          "Android customers must equal Android-only + multi-platform customers.",
         path: ["androidCustomers"],
       });
     }
-    if (activeCustomersTotal > activeIosCustomers + activeAndroidCustomers) {
+    if (
+      activeCustomersTotal !== null &&
+      activeIosCustomers !== null &&
+      activeAndroidCustomers !== null &&
+      activeCustomersTotal > activeIosCustomers + activeAndroidCustomers
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "Authoritative active total cannot exceed the sum of overlapping active audiences.",
+        message:
+          "Authoritative active total cannot exceed the sum of overlapping active audiences.",
         path: ["activeCustomersTotal"],
       });
     }
-    if (newIosCustomers + newAndroidCustomers !== newCustomersTotal) {
+    if (
+      newIosCustomers !== null &&
+      newAndroidCustomers !== null &&
+      newIosCustomers +
+        newAndroidCustomers -
+        (value.newMultiPlatformCustomers ?? 0) +
+        (value.newUnknownPlatformCustomers ?? 0) !==
+        newCustomersTotal
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "New customer total must equal the sum of mutually exclusive platform new customers.",
+        message:
+          "New customer total must equal the sum of mutually exclusive platform new customers.",
         path: ["newCustomersTotal"],
       });
     }
@@ -245,13 +329,14 @@ export const subscriptionDistributionItemSchema = z
 
 export const subscriptionRevenueSummarySchema = z
   .object({
-    paidCustomers: z.number().int().nonnegative(),
-    freeCustomers: z.number().int().nonnegative(),
-    recurringRevenue: z.number().min(0),
-    currency: currencySchema,
-    distribution: z.array(subscriptionDistributionItemSchema).min(1).max(10),
+    paidCustomers: z.number().int().nonnegative().nullable(),
+    freeCustomers: z.number().int().nonnegative().nullable(),
+    recurringRevenue: z.number().min(0).nullable(),
+    currency: currencySchema.nullable(),
+    distribution: z.array(subscriptionDistributionItemSchema).max(10),
     revenueTrend: trendSeriesSchema,
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -275,19 +360,28 @@ export const platformOperationalMetricSchema = z
     rate: z.number().min(0).max(1).optional(),
     period: reportingPeriodSchema,
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
     if (value.successful !== undefined && value.successful > value.total) {
-      ctx.addIssue({ code: "custom", message: "successful cannot exceed total.", path: ["successful"] });
+      ctx.addIssue({
+        code: "custom",
+        message: "successful cannot exceed total.",
+        path: ["successful"],
+      });
     }
     if (value.failed !== undefined && value.failed > value.total) {
-      ctx.addIssue({ code: "custom", message: "failed cannot exceed total.", path: ["failed"] });
+      ctx.addIssue({
+        code: "custom",
+        message: "failed cannot exceed total.",
+        path: ["failed"],
+      });
     }
     if (
-      value.successful !== undefined
-      && value.failed !== undefined
-      && value.successful + value.failed > value.total
+      value.successful !== undefined &&
+      value.failed !== undefined &&
+      value.successful + value.failed > value.total
     ) {
       ctx.addIssue({
         code: "custom",
@@ -309,13 +403,20 @@ export const serviceHealthSummarySchema = z
       "ai-provider",
       "push-notification",
     ]),
-    status: z.enum(["operational", "degraded", "partial-outage", "major-outage", "maintenance"]),
+    status: z.enum([
+      "operational",
+      "degraded",
+      "partial-outage",
+      "major-outage",
+      "maintenance",
+    ]),
     platformScope: z.literal("global"),
     uptime: z.number().min(0).max(1),
     latencyMs: z.number().min(0),
     errorRate: z.number().min(0).max(1),
     lastCheckedAt: z.iso.datetime({ offset: true }),
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
   })
   .strict();
 
@@ -328,6 +429,7 @@ export const overviewSummaryResponseSchema = z
     serviceHealth: z.array(serviceHealthSummarySchema).max(20),
     regions: z.array(overviewRegionStateSchema).max(20),
     freshness: dataFreshnessSchema,
+    observation: observationSchema.optional(),
   })
   .strict();
 
@@ -335,7 +437,12 @@ export const appVersionDistributionItemSchema = z
   .object({
     platform: z.enum(["ios", "android", "unknown"]),
     version: z.string().trim().min(1).max(40),
-    supportState: z.enum(["current", "supported-older", "unsupported", "unknown"]),
+    supportState: z.enum([
+      "current",
+      "supported-older",
+      "unsupported",
+      "unknown",
+    ]),
     customerCount: z.number().int().nonnegative().optional(),
     deviceCount: z.number().int().nonnegative(),
     share: z.number().min(0).max(1),
@@ -346,7 +453,12 @@ export const appVersionDistributionItemSchema = z
 export const capabilityAdoptionMetricSchema = z
   .object({
     platform: z.enum(["ios", "android"]),
-    capability: z.enum(["shortcut", "share-extension", "sms-tracking", "notification-listener"]),
+    capability: z.enum([
+      "shortcut",
+      "share-extension",
+      "sms-tracking",
+      "notification-listener",
+    ]),
     eligiblePopulation: z.number().int().nonnegative(),
     enabledPopulation: z.number().int().nonnegative(),
     rate: z.number().min(0).max(1),
@@ -378,7 +490,8 @@ export const capabilityAdoptionMetricSchema = z
       if (Math.abs(expected - value.rate) > 0.0001) {
         ctx.addIssue({
           code: "custom",
-          message: "rate must equal enabledPopulation / eligiblePopulation when eligible > 0.",
+          message:
+            "rate must equal enabledPopulation / eligiblePopulation when eligible > 0.",
           path: ["rate"],
         });
       }
@@ -450,6 +563,11 @@ export const overviewActivityItemSchema = z
       "admin-role-change",
       "support-access-approval",
       "account-deletion-completed",
+      "account-deletion-requested",
+      "account-deletion-cancelled",
+      "support-access-requested",
+      "support-access-decision",
+      "support-access-revoked",
     ]),
     summary: z.string().trim().min(1).max(240),
     occurredAt: z.iso.datetime({ offset: true }),
@@ -463,7 +581,12 @@ export const overviewActivityItemSchema = z
       "attention.read",
     ]),
     destination: z
-      .enum(["/admin", "/admin/users", "/admin/imports", "/admin/system-health"])
+      .enum([
+        "/admin",
+        "/admin/users",
+        "/admin/imports",
+        "/admin/system-health",
+      ])
       .optional(),
   })
   .strict();
@@ -481,7 +604,9 @@ export function paginatedResponseSchema<T extends z.ZodType>(item: T) {
     .strict();
 }
 
-export const overviewActivityResponseSchema = paginatedResponseSchema(overviewActivityItemSchema);
+export const overviewActivityResponseSchema = paginatedResponseSchema(
+  overviewActivityItemSchema,
+);
 
 export type PlatformFilter = z.infer<typeof platformFilterSchema>;
 export type ReportingPeriod = z.infer<typeof reportingPeriodSchema>;
@@ -497,17 +622,36 @@ export type OverviewMetric = z.infer<typeof overviewMetricSchema>;
 export type MoneyMetric = z.infer<typeof moneyMetricSchema>;
 export type TrendPoint = z.infer<typeof trendPointSchema>;
 export type TrendSeries = z.infer<typeof trendSeriesSchema>;
-export type CustomerPlatformBreakdown = z.infer<typeof customerPlatformBreakdownSchema>;
-export type SubscriptionDistributionItem = z.infer<typeof subscriptionDistributionItemSchema>;
-export type SubscriptionRevenueSummary = z.infer<typeof subscriptionRevenueSummarySchema>;
-export type PlatformOperationalMetric = z.infer<typeof platformOperationalMetricSchema>;
+export type CustomerPlatformBreakdown = z.infer<
+  typeof customerPlatformBreakdownSchema
+>;
+export type SubscriptionDistributionItem = z.infer<
+  typeof subscriptionDistributionItemSchema
+>;
+export type SubscriptionRevenueSummary = z.infer<
+  typeof subscriptionRevenueSummarySchema
+>;
+export type PlatformOperationalMetric = z.infer<
+  typeof platformOperationalMetricSchema
+>;
 export type ServiceHealthSummary = z.infer<typeof serviceHealthSummarySchema>;
-export type OverviewSummaryResponse = z.infer<typeof overviewSummaryResponseSchema>;
-export type AppVersionDistributionItem = z.infer<typeof appVersionDistributionItemSchema>;
-export type CapabilityAdoptionMetric = z.infer<typeof capabilityAdoptionMetricSchema>;
-export type DeviceDistributionItem = z.infer<typeof deviceDistributionItemSchema>;
-export type PlatformAnalyticsResponse = z.infer<typeof platformAnalyticsResponseSchema>;
+export type OverviewSummaryResponse = z.infer<
+  typeof overviewSummaryResponseSchema
+>;
+export type AppVersionDistributionItem = z.infer<
+  typeof appVersionDistributionItemSchema
+>;
+export type CapabilityAdoptionMetric = z.infer<
+  typeof capabilityAdoptionMetricSchema
+>;
+export type DeviceDistributionItem = z.infer<
+  typeof deviceDistributionItemSchema
+>;
+export type PlatformAnalyticsResponse = z.infer<
+  typeof platformAnalyticsResponseSchema
+>;
 export type OverviewActivityQuery = z.input<typeof overviewActivityQuerySchema>;
 export type OverviewActivityItem = z.infer<typeof overviewActivityItemSchema>;
-export type OverviewActivityResponse = z.infer<typeof overviewActivityResponseSchema>;
-
+export type OverviewActivityResponse = z.infer<
+  typeof overviewActivityResponseSchema
+>;

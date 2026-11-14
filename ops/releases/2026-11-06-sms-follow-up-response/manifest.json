@@ -1,0 +1,143 @@
+{
+  "status": "prepared-not-installed-physical-acceptance-open",
+  "applicationSourceCommit": "88d7c5cf81a52874c6efd5a3f1bb93b61e1f0639",
+  "buildSourceCommit": "88d7c5cf81a52874c6efd5a3f1bb93b61e1f0639",
+  "retainedTrackingSourceCommit": "12ee32ed129d9ff6695860ddf59e8b002bfea71b",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 114,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkPath": "C:\\mrc1105\\artifacts\\task22-customer-114-native.apk",
+  "candidateApkSha256": "df1d3058ad2dfa26a635c401c64c4a34de9221678b5e709248a70c31a7242498",
+  "candidateApkBytes": 49508934,
+  "candidateHermesSha256": "a19daa3900ab9d68566ab473046f9ccc800881bf0f74c2d4a4f9f59331a929d1",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "currentInstalledVersion": 113,
+  "currentInstalledApkSha256": "25212615e2c6750830fe3f85d229e8e2643ac88474ba41926a8044ac8c98904e",
+  "canonicalDeliveredVersion": 111,
+  "canonicalDeliveredApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "sameOwnerSdkSessionDataKeysAndExistingQaRequired": true,
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "hostedMutationRequired": false,
+  "changedSource": [
+    {
+      "path": "apps/mobile/src/features/tracking/offline-tracking-snapshots.test.tsx",
+      "sha256": "90a68253cda9f0eb67432e295f4ea59c854cefa2b5a97090d0e09ee474b5c04b"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.test.ts",
+      "sha256": "151e95f7985bfa8c804f3357621f4ac20467053d6459fb5616c74e243273f9fd"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.ts",
+      "sha256": "01b7e717fc52fa5ff73e78c1d724b48531bb29cbc9a57b9819b805cc2c09d2f5"
+    }
+  ],
+  "retainedTrackingSource": [
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+      "sha256": "a902e0af1aa6fde1747154c61699b333cda1644d59f0f2bfbb26f915d8fdb157"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.test.tsx",
+      "sha256": "7ec8cb928d3d2c3ed5c38ebda9545adaad28b3184c930cb0565a4276ac0debab"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.tsx",
+      "sha256": "6e2ff6e33147cb5fabdec94b8c011285cdb2e0b76ca1b60a28a185819f929ec7"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "cd1576b6cbeccc81fde20281e608a73ab03f97626120ec3c4710dbc3f2494411"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "9a93c68c0f0db4daa18b9cdc279fbc54a3ea9735aa38d00d5f16e8b14b1ec907"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.test.ts",
+      "sha256": "d366bbcb7079b6792031d5ef427fe64d4560326ccd58682f8d7057ee3952703f"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.ts",
+      "sha256": "57a303c7bda249e7b8b41d15180ae96a2ea94c184da8975c32ffc82fd83dee8f"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "cb9aa697706da69b3eac7092a4c7f294abdfea34ccf36a304d2ead12a3f5fd06"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "d44f158ffc195220387d7bfd4fcb6868ffc72ae65dbc3b33e2845f7f4d4efa40"
+    }
+  ],
+  "focusedUniqueTestsPassed": 234,
+  "focusedUniqueSuites": 9,
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "formatExitCode": 0,
+  "strictSourceAndIndexSecretFindings": 0,
+  "verifiedSignerApis": [24, 28, 32, 33, 35, 36],
+  "nativeLibraryCount": 23,
+  "nativeBuildIdNoteOnlyDifferences": 0,
+  "allNativeExecutableAndDataSectionsUnchanged": true,
+  "alignment16Kb": true,
+  "r8RecordRetained": true,
+  "actualDexNotificationConstructorQualified": true,
+  "native88ReusedUnchanged": true,
+  "unchangedWholeSuiteEvidenceReused": true,
+  "reportsUiVisibleWhileFirstReadPending": true,
+  "unknownAmountsRemainNullUntilLoaded": true,
+  "noFalseZeroEmptyActivityOrBudgetHintWhilePending": true,
+  "reportErrorsRetryPrivacyAssistantAndPdfRetained": true,
+  "reportQueriesCacheServicesAndCalculationsUnchanged": true,
+  "sameRequestFreshSdkIdentityReused": true,
+  "beforeAndAfterCurrentSdkOwnerAdmissionChecksRetained": true,
+  "lighterDecorativeKeywordSymbols": true,
+  "allOriginalKeywordRegressionCasesRetained": true,
+  "approvedGulfTrackingCopyIncluded": true,
+  "parserFinancialNativePermissionAndVoiceBehaviorUnchanged": true,
+  "qaTransactionsBeforeFreshFixture": 30,
+  "qaNetMinorBeforeFreshFixture": 0,
+  "freshSmsOnlyFixtureProposedMinor": 343,
+  "freshSmsReference": "QA114SMSA20261106",
+  "freshVoiceFixtureRequired": false,
+  "newFinancialSpeedOrInstantNavigationClaimed": false,
+  "installed": false,
+  "productionReady": false,
+  "retainedReportsSourceCommit": "7ee42065adb5e273e1b025d1f98dc0980b210d42",
+  "retainedReportsSource": [
+    {
+      "path": "apps/mobile/src/features/reports/ReportsAccessibility.test.tsx",
+      "sha256": "f6ebd51412779b628f1672263505d3c8b68dd908d08c2bd5b5b6dff118ea91ac"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsJourney.test.tsx",
+      "sha256": "cf3fe616198497670c88eda268105934b2f7545a1a5b4b26e331465f32836126"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsScreen.tsx",
+      "sha256": "1228c57e7bf54ef2df6ce0053a5d83bab96a2a0d763f211a7847537e4a1adf5b"
+    }
+  ],
+  "reusedReportsTests": 45,
+  "reusedReportsSuites": 6,
+  "unchangedReportsFirstOpenAndTrackingUiPhysicalEvidenceReusedFrom113": true,
+  "nativeLibrariesByteIdenticalTo113": 23,
+  "locallyEnabledSourcePrerequisitesOverlapStatus": true,
+  "ruleSnapshotCaptureAndSubmissionStillWaitForAuthority": true,
+  "offlineAccountFallbackPreservedAfterFailedStatus": true,
+  "sharedNewImportExtraReadsMaximum": 4,
+  "newImportExtraObservationWindowMs": 2000,
+  "extraReadGapMs": 200,
+  "durableFollowUpMs": 3000,
+  "retainedReceiptObservationPolicyUnchanged": true,
+  "noNewTokenCacheOrSdkIdentityChange": true,
+  "offlineSnapshotTestFreshPermissionActivationGuardPreserved": true,
+  "physical114AcceptanceQualified": false,
+  "prior113SmsLatencyFailedAcceptance": true
+}

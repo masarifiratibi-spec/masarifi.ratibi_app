@@ -5,7 +5,22 @@ import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey, hashNormalizedCommand } from '../ledger/idempotency';
 import { PoolService } from '../platform/database/pool.service';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import {
+  configuredAndroidUpdate,
+  needsAndroidUpdate,
+  sameAndroidRelease,
+  type AndroidRelease,
+} from '../platform/meta/android-update-policy';
+import { parseAudience } from './campaign.service';
+import { evaluateDelivery, type QuietHours } from './notification.policy';
 import type { ReminderCandidate } from './engagement.reminders';
+import {
+  readSupportWorkload,
+  SUPPORT_ADMIN_REFERENCE,
+  SUPPORT_TICKET_VALUE,
+  supportFilter,
+  supportFilterValues,
+} from './support-admin.reads';
 
 export interface EngagementCommand {
   operation: string;
@@ -46,7 +61,27 @@ export interface NotificationDeliveryClaim extends QueryResultRow {
   token_ciphertext: string | null;
   token_device_id: string | null;
   token_provider: 'expo' | 'apns' | 'fcm' | null;
+  campaign_update?: unknown;
 }
+
+type PushTarget = Pick<
+  NotificationDeliveryClaim,
+  'token_ciphertext' | 'token_device_id' | 'token_provider'
+>;
+type AndroidUpdateDelivery =
+  | { outcome: 'deliver'; target: PushTarget }
+  | { outcome: 'defer'; until: Date }
+  | { outcome: 'suppress'; reason: string };
+
+// u and r are fixed query aliases. CASE guards each numeric cast for legacy device strings.
+const androidVersion = '(0|[1-9][0-9]{0,8})[.](0|[1-9][0-9]{0,8})[.](0|[1-9][0-9]{0,8})';
+const androidVersionEligible = `case
+  when char_length(u.app_version)>32 then false
+  when u.app_version ~ '^${androidVersion}[+][1-9][0-9]{0,9}$' then
+    split_part(u.app_version,'+',2)::bigint<=2100000000 and split_part(u.app_version,'+',2)::bigint<r.version_code
+  when u.app_version ~ '^${androidVersion}$' then
+    string_to_array(u.app_version,'.')::integer[]<string_to_array(r.version,'.')::integer[]
+  else false end`;
 
 export interface AttachmentScanClaim extends QueryResultRow {
   id: string;
@@ -94,6 +129,8 @@ export interface PreparedDelivery {
 }
 
 const READS = new Set([
+  'adminSupportOverview',
+  'adminDownloadSupportAttachment',
   'listNotifications',
   'getNotification',
   'getNotificationPreferences',
@@ -156,7 +193,7 @@ function cursorPage(rows: CursorRow[], limit: number): Record<string, unknown> {
     nextCursor: last
       ? Buffer.from(
           JSON.stringify({
-            at: new Date(last.sort_at).toISOString(),
+            at: typeof last.sort_at === 'string' ? last.sort_at : last.sort_at.toISOString(),
             id: last.sort_id,
           } satisfies EngagementCursor),
         ).toString('base64url')
@@ -257,6 +294,26 @@ export class EngagementRepository {
     });
   }
 
+  async claimTrackingSourceEvents(limit: number): Promise<SourceNotificationClaim[]> {
+    return this.worker(async (client) => {
+      const result = await client.query<SourceNotificationClaim>(
+        'select * from private.tracking_confirmation_sources($1)',
+        [limit],
+      );
+      return result.rows;
+    });
+  }
+
+  async claimVoiceSourceEvents(epoch: string, limit: number): Promise<SourceNotificationClaim[]> {
+    return this.worker(async (client) => {
+      const result = await client.query<SourceNotificationClaim>(
+        'select * from private.voice_confirmation_sources($1::uuid,$2)',
+        [epoch, limit],
+      );
+      return result.rows;
+    });
+  }
+
   async listReminderCandidates(limit: number): Promise<ReminderCandidate[]> {
     return this.worker(async (client) => {
       const result = await client.query<{
@@ -301,24 +358,38 @@ export class EngagementRepository {
   ): Promise<boolean> {
     if (!deliveries.some((item) => item.channel === 'in_app')) return false;
     return this.worker(async (client) => {
+      // Source selection and rendering can finish after an owner reset. The profile lock
+      // keeps the cutoff check and the notification/delivery inserts in one generation.
+      if (!source.event_type.startsWith('reminder.app_inactive.')) {
+        const allowed = await client.query<{ allowed: boolean }>(
+          'select private.allow_financial_notification($1,$2::timestamptz) allowed',
+          [source.user_id, source.occurred_at],
+        );
+        if (!allowed.rows[0]?.allowed) return false;
+      }
+      const quiet = await client.query<{ quiet: boolean }>(
+        "select ($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed','balance.changed') and private.is_tracking_notification_capture($1,$2)) quiet",
+        [source.user_id, source.source_id, source.event_type],
+      );
+      if (quiet.rows[0]?.quiet) return false;
       const inApp = deliveries.find((item) => item.channel === 'in_app');
       const inserted = await client.query<{ id: string }>(
         `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
-         values($1,$2,$3,$4,$5,jsonb_build_object(
-           'route','notification_detail','sourceEventId',$1::text,'actions',
+         values($1::uuid,$2::text,$3::text,$4::text,$5::text,jsonb_build_object(
+             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and private.is_tracking_notification_capture($2::text,$8::text)),'actions',
            case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
              jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
              jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
            ) else jsonb_build_array(jsonb_build_object('key','view','expiresAt',null)) end,
-           'targetKind',coalesce($9,case
+           'targetKind',coalesce($9::text,case
              when $3 like 'transaction.%' or $3 like 'transfer.%' then 'transaction'
              when $3 like 'planning.obligation_%' then 'obligation'
              when $3='account.credit_card_payment_due' then 'account'
              when $3 like 'planning.savings_%' then 'goal'
              when $3 like 'tracking.review.%' then 'review'
              else 'settings' end),
-           'targetId',case when $9 is null then coalesce($8,'notifications') end,
-           'cycleBaseline',$10
+           'targetId',case when $9::text is null then coalesce($8::text,'notifications') end,
+           'cycleBaseline',$10::text
          ),$6,$7)
          on conflict(source_event_id) do nothing returning id`,
         [
@@ -362,20 +433,154 @@ export class EngagementRepository {
     limit: number,
   ): Promise<NotificationDeliveryClaim[]> {
     return this.worker(async (client) => {
-      const claims = await client.query<NotificationDeliveryClaim>(
-        `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
+      return this.readNotificationDeliveryClaims(
+        client,
+        'private.claim_notification_deliveries($1,$2,60)',
+        [workerId, limit],
+      );
+    });
+  }
+
+  async claimVoiceNotificationDeliveries(
+    epoch: string,
+    workerId: string,
+    limit: number,
+  ): Promise<NotificationDeliveryClaim[]> {
+    return this.worker((client) =>
+      this.readNotificationDeliveryClaims(
+        client,
+        'private.claim_voice_notification_deliveries($1::uuid,$2,$3,60)',
+        [epoch, workerId, limit],
+      ),
+    );
+  }
+
+  private async readNotificationDeliveryClaims(
+    client: PoolClient,
+    claim:
+      | 'private.claim_notification_deliveries($1,$2,60)'
+      | 'private.claim_voice_notification_deliveries($1::uuid,$2,$3,60)',
+    values: readonly unknown[],
+  ): Promise<NotificationDeliveryClaim[]> {
+    const claims = await client.query<NotificationDeliveryClaim>(
+      `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
           coalesce(d.rendered_title,e.title,t.subject,'Masarifi') title,coalesce(d.rendered_body,e.body_safe,t.body) body_safe,
-          coalesce(d.rendered_data,e.data,jsonb_build_object('route','notification_detail')) data,
-          p.token_ciphertext,p.device_id token_device_id,p.provider token_provider
-         from private.claim_notification_deliveries($1,$2,60) d
+           coalesce(e.data,'{}'::jsonb)||coalesce(d.rendered_data,jsonb_build_object('route','notification_detail')) data,
+          p.token_ciphertext,p.device_id token_device_id,p.provider token_provider,c.audience_definition->'appUpdate' campaign_update
+         from ${claim} d
          left join public.notification_events e on e.id=d.event_id
          left join public.notification_campaigns c on c.id=d.campaign_id
          left join public.notification_templates t on t.id=c.template_id and t.status='published'
          left join lateral (select token_ciphertext,device_id,provider from public.push_tokens
            where user_id=d.user_id and revoked_at is null order by updated_at desc limit 1) p on d.channel='push'`,
-        [workerId, limit],
+      [...values],
+    );
+    return claims.rows;
+  }
+
+  async prepareAndroidUpdateDelivery(
+    claim: NotificationDeliveryClaim,
+    release: AndroidRelease,
+  ): Promise<AndroidUpdateDelivery> {
+    if (!sameAndroidRelease(configuredAndroidUpdate(this.config), release))
+      return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+    return this.worker(async (client) => {
+      const lifecycle = (
+        await client.query<{ status: string; audience_definition: unknown }>(
+          `select c.status,c.audience_definition from private.notification_deliveries d
+         join public.notification_campaigns c on c.id=d.campaign_id
+         join public.notification_templates t on t.id=c.template_id and t.status='published'
+         join public.profiles owner on owner.id=d.user_id and owner.status='active'
+         where d.id=$1 and d.claim_token=$2 and d.user_id=$3 and d.channel='push' and d.status='sending'
+         for share of c`,
+          [claim.id, claim.claim_token, claim.user_id],
+        )
+      ).rows[0];
+      if (!lifecycle) return { outcome: 'suppress', reason: 'APP_UPDATE_INELIGIBLE' };
+      try {
+        const stored = parseAudience(lifecycle.audience_definition).appUpdate;
+        if (
+          !sameAndroidRelease(configuredAndroidUpdate(this.config), stored) ||
+          stored?.version !== release.version ||
+          stored.versionCode !== release.versionCode
+        )
+          return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      } catch {
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      }
+      if (lifecycle.status === 'paused')
+        return { outcome: 'defer', until: new Date(Date.now() + 60_000) };
+      if (!['running', 'completed'].includes(lifecycle.status))
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      const result = await client.query<
+        PushTarget & {
+          app_version: string;
+          audience_definition: unknown;
+          preference_enabled: boolean;
+          quiet_hours: Record<string, unknown>;
+        }
+      >(
+        `select p.token_ciphertext,p.device_id token_device_id,p.provider token_provider,u.app_version,
+          c.audience_definition,not exists(select 1 from public.notification_preferences disabled
+            where disabled.user_id=d.user_id and disabled.channel='push' and not disabled.enabled) preference_enabled,
+          coalesce(pref.quiet_hours,(select shared.quiet_hours from public.notification_preferences shared
+            where shared.user_id=d.user_id and shared.channel='push' and shared.quiet_hours->>'enabled'='true'
+            order by shared.updated_at desc,shared.id desc limit 1),'{}'::jsonb) quiet_hours
+         from private.notification_deliveries d
+         join public.notification_campaigns c on c.id=d.campaign_id
+         join public.notification_templates t on t.id=c.template_id and t.status='published'
+         join public.profiles owner on owner.id=d.user_id and owner.status='active'
+         join public.push_tokens p on p.user_id=d.user_id and p.revoked_at is null and p.provider in ('expo','fcm')
+         join public.user_devices u on u.user_id=p.user_id and u.id=p.device_id
+           and u.platform='android' and u.revoked_at is null
+         left join public.notification_preferences pref on pref.user_id=d.user_id and pref.channel='push' and pref.event_type=t.key
+         where d.id=$1 and d.claim_token=$2 and d.user_id=$3 and d.channel='push' and d.status='sending'
+           and c.status in ('running','completed')
+         order by p.updated_at desc,p.id desc`,
+        [claim.id, claim.claim_token, claim.user_id],
       );
-      return claims.rows;
+      const candidate = result.rows.find((row) => needsAndroidUpdate(row.app_version, release));
+      if (!candidate) return { outcome: 'suppress', reason: 'APP_UPDATE_INELIGIBLE' };
+      try {
+        const audience = parseAudience(candidate.audience_definition);
+        if (
+          !sameAndroidRelease(configuredAndroidUpdate(this.config), audience.appUpdate) ||
+          audience.appUpdate?.version !== release.version ||
+          audience.appUpdate.versionCode !== release.versionCode
+        )
+          return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+        const quiet = candidate.quiet_hours;
+        const decision = evaluateDelivery({
+          channel: 'push',
+          enabled: candidate.preference_enabled,
+          now: new Date(),
+          ...(quiet.enabled === true ? { quietHours: quiet as unknown as QuietHours } : {}),
+        });
+        if (decision.outcome === 'defer') return decision;
+        if (decision.outcome === 'suppress')
+          return { outcome: 'suppress', reason: `PREFERENCE_${decision.reason.toUpperCase()}` };
+        return {
+          outcome: 'deliver',
+          target: {
+            token_ciphertext: candidate.token_ciphertext,
+            token_device_id: candidate.token_device_id,
+            token_provider: candidate.token_provider,
+          },
+        };
+      } catch {
+        return { outcome: 'suppress', reason: 'APP_UPDATE_STALE' };
+      }
+    });
+  }
+
+  async deferNotificationDelivery(id: string, claimToken: string, until: Date): Promise<void> {
+    await this.worker(async (client) => {
+      await client.query(
+        `update private.notification_deliveries set status='queued',next_attempt_at=$3,
+          attempt_count=greatest(0,attempt_count-1),claim_token=null,claimed_by=null,lease_until=null
+         where id=$1 and claim_token=$2 and status='sending'`,
+        [id, claimToken, until],
+      );
     });
   }
 
@@ -519,23 +724,56 @@ export class EngagementRepository {
         )
       ).rows[0];
       if (!campaign) return 0;
+      let update: AndroidRelease | undefined;
+      if (campaign.audience_definition.appUpdate !== undefined) {
+        try {
+          update = parseAudience(campaign.audience_definition).appUpdate;
+          if (
+            campaign.channel !== 'push' ||
+            !sameAndroidRelease(configuredAndroidUpdate(this.config), update)
+          )
+            throw new Error('APP_UPDATE_STALE');
+        } catch {
+          await client.query(
+            `update public.notification_campaigns set status='cancelled' where id=$1`,
+            [campaign.id],
+          );
+          await client.query(
+            `update private.notification_deliveries set status='suppressed',error_code='APP_UPDATE_STALE',next_attempt_at=null
+            where campaign_id=$1 and status in ('queued','failed')`,
+            [campaign.id],
+          );
+          return 0;
+        }
+      }
+      if (update) {
+        // Serialize all campaigns for this release before checking prior owner deliveries.
+        await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [
+          `android-update:${update.version}:${String(update.versionCode)}`,
+        ]);
+      }
       await client.query(
         `update public.notification_campaigns set status='running' where id=$1 and status='scheduled'`,
         [campaign.id],
       );
       const inserted = await client.query(
         `insert into private.notification_deliveries(campaign_id,user_id,channel,provider,rendered_title,rendered_body,rendered_data,next_attempt_at)
-         select $1,p.id,$2,case $2 when 'push' then 'push' when 'email' then 'smtp' else 'database' end,$8,$9,jsonb_build_object('route','notification_detail'),clock_timestamp()
-         from public.profiles p where p.status='active'
+         select $1,p.id,$2,case $2 when 'push' then 'push' when 'email' then 'smtp' else 'database' end,$8,$9,$12::jsonb,clock_timestamp()
+         from public.profiles p cross join (select $10::text version,$11::bigint version_code) r where p.status='active'
            and p.id>coalesce((select max(existing.user_id) from private.notification_deliveries existing where existing.campaign_id=$1),'')
            and (coalesce(cardinality($4::text[]),0)=0 or p.locale=any($4::text[]))
            and ($5='all' or ($5='active' and p.last_seen_at>=clock_timestamp()-interval '30 days')
              or ($5='inactive' and (p.last_seen_at is null or p.last_seen_at<clock_timestamp()-interval '30 days')))
            and (coalesce(cardinality($6::text[]),0)=0 or exists(
              select 1 from public.user_devices u where u.user_id=p.id and u.revoked_at is null and u.platform=any($6::text[])))
+           and (r.version is null or exists(select 1 from public.user_devices u
+             where u.user_id=p.id and u.revoked_at is null and u.platform='android' and (${androidVersionEligible})))
            and (not ('salary_users'=any($7::text[])) or exists(select 1 from public.salary_profiles s where s.user_id=p.id and s.deleted_at is null))
            and not exists(select 1 from public.notification_preferences pref where pref.user_id=p.id and pref.channel=$2 and not pref.enabled)
            and not exists(select 1 from private.notification_deliveries d where d.campaign_id=$1 and d.user_id=p.id and d.channel=$2)
+           and (r.version is null or not exists(select 1 from private.notification_deliveries prior
+             where prior.user_id=p.id and prior.channel='push' and prior.rendered_data->>'route'='app_update'
+               and prior.rendered_data->'appUpdate'=($12::jsonb)->'appUpdate'))
          order by p.id limit $3 on conflict do nothing`,
         [
           campaign.id,
@@ -547,6 +785,11 @@ export class EngagementRepository {
           campaign.audience_definition.segmentKeys ?? [],
           campaign.subject ?? 'Masarifi',
           campaign.body,
+          update?.version ?? null,
+          update?.versionCode ?? null,
+          JSON.stringify(
+            update ? { route: 'app_update', appUpdate: update } : { route: 'notification_detail' },
+          ),
         ],
       );
       if ((inserted.rowCount ?? 0) < limit) {
@@ -561,7 +804,11 @@ export class EngagementRepository {
 
   private async read(principal: ClerkPrincipal, command: EngagementCommand): Promise<unknown> {
     return this.pool.withClient(async (client) => {
-      await client.query('begin isolation level repeatable read read only');
+      await client.query(
+        command.operation === 'adminDownloadSupportAttachment'
+          ? 'begin'
+          : 'begin isolation level repeatable read read only',
+      );
       try {
         await this.setContext(client, principal);
         const value = await this.readOperation(client, principal.userId, command);
@@ -587,6 +834,30 @@ export class EngagementRepository {
     );
     const cursor = decodeCursor(query.cursor);
     switch (command.operation) {
+      case 'adminSupportOverview':
+        return readSupportWorkload(client, query);
+      case 'adminDownloadSupportAttachment':
+        return this.one(
+          client,
+          'select private.support_admin_attachment($1::uuid,$2::uuid,$3) value',
+          [command.params?.ticketId, command.params?.attachmentId, command.requestId],
+        );
+      case 'adminListSupportTickets': {
+        await client.query("select private.assert_admin_permission('support.tickets.read')");
+        const values = supportFilterValues(query);
+        const rows = await client.query<CursorRow>(
+          `select ${SUPPORT_TICKET_VALUE}||${SUPPORT_ADMIN_REFERENCE} value,t.last_message_at::text sort_at,t.id::text sort_id
+           from public.support_tickets t where ${supportFilter}
+           and ($8::timestamptz is null or (t.last_message_at,t.id)<($8::timestamptz,$9::uuid))
+           order by t.last_message_at desc,t.id desc limit $10`,
+          [...values, cursor?.at ?? null, cursor?.id ?? null, limit + 1],
+        );
+        const count = await client.query<{ count: number }>(
+          `select count(*)::int count from public.support_tickets t where ${supportFilter}`,
+          values,
+        );
+        return { ...cursorPage(rows.rows, limit), totalItems: count.rows[0]?.count ?? 0 };
+      }
       case 'listNotifications': {
         const rows = (
           await client.query<CursorRow>(
@@ -639,30 +910,26 @@ export class EngagementRepository {
             )
           ).rows.map((row: ValueRow) => row.value),
         );
-      case 'listSupportTickets':
-      case 'adminListSupportTickets': {
-        const admin = command.operation.startsWith('admin');
+      case 'listSupportTickets': {
         const rows = await client.query<CursorRow>(
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at sort_at,id::text sort_id
+          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value,last_message_at::text sort_at,id::text sort_id
            from public.support_tickets where ($1::text is null or user_id=$1)
            and ($2::timestamptz is null or (last_message_at,id)<($2::timestamptz,$3::uuid))
            and ($4::text is null or status=$4) order by last_message_at desc,id desc limit $5`,
-          [
-            admin ? null : userId,
-            cursor?.at ?? null,
-            cursor?.id ?? null,
-            query.status ?? null,
-            limit + 1,
-          ],
+          [userId, cursor?.at ?? null, cursor?.id ?? null, query.status ?? null, limit + 1],
         );
         return cursorPage(rows.rows, limit);
       }
       case 'getSupportTicket':
       case 'adminGetSupportTicket': {
         const admin = command.operation.startsWith('admin');
+        if (admin)
+          await client.query(
+            "select private.assert_admin_permission('support.tickets.detail.read')",
+          );
         const ticket = await this.one(
           client,
-          `select jsonb_build_object('id',id,'categoryId',category_id,'subject',subject,'status',status,'priority',priority,'lastMessageAt',last_message_at,'closedAt',closed_at,'version',version,'createdAt',created_at) value from public.support_tickets where id=$1 ${admin ? '' : 'and user_id=$2'}`,
+          `select ${SUPPORT_TICKET_VALUE}${admin ? `||${SUPPORT_ADMIN_REFERENCE}` : ''} value from public.support_tickets t where t.id=$1 ${admin ? '' : 'and t.user_id=$2'}`,
           admin ? [id] : [id, userId],
         );
         const messageRows = (
@@ -670,7 +937,7 @@ export class EngagementRepository {
             `select jsonb_build_object('id',m.id,'senderType',m.sender_type,'body',m.body,'attachments',coalesce((
                select jsonb_agg(jsonb_build_object('id',a.id,'filename',a.filename_safe,'contentType',a.content_type,'sizeBytes',a.size_bytes,'status',a.scan_status) order by a.id)
                from private.support_attachments a where a.message_id=m.id and ${admin ? "a.scan_status<>'uploading'" : "a.scan_status='clean'"}
-             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at sort_at,m.id::text sort_id
+             ),'[]'::jsonb),'createdAt',m.created_at) value,m.created_at::text sort_at,m.id::text sort_id
              from public.support_messages m where m.ticket_id=$1
              and ($2::timestamptz is null or (m.created_at,m.id)>($2::timestamptz,$3::uuid))
              order by m.created_at,m.id limit $4`,
@@ -798,16 +1065,16 @@ export class EngagementRepository {
       await client.query('begin');
       try {
         await this.setContext(client, principal);
-        const scope = `engagement.${command.operation}`;
+        const scope = `engagement.${command.operation.toLowerCase()}`;
         const keyHash = hashIdempotencyKey(command.idempotencyKey ?? '');
         const requestHash = hashNormalizedCommand({
           operation: command.operation,
-          body: command.body,
-          params: command.params,
+          body: command.body ?? {},
+          params: { ...command.params },
         });
         const claim = (
           await client.query<Claim>(
-            'select * from private.claim_idempotency_key($1,$2,$3,$4,$5::interval)',
+            'select * from private.claim_engagement_key($1,$2,$3,$4,$5::interval)',
             [principal.userId, scope, keyHash, requestHash, '2 minutes'],
           )
         ).rows[0];
@@ -821,7 +1088,7 @@ export class EngagementRepository {
           return claim.response_body;
         }
         const value = await this.mutationOperation(client, principal, command);
-        await client.query('select private.complete_idempotency_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
+        await client.query('select private.complete_engagement_key($1,$2,$3,$4,$5,$6::jsonb,$7)', [
           principal.userId,
           scope,
           keyHash,
@@ -849,6 +1116,33 @@ export class EngagementRepository {
     const input = commandBody(command);
     const databaseInput = databaseCommandBody(command);
     const id = Object.values(command.params ?? {})[0] ?? null;
+    let updateAudience: ReturnType<typeof parseAudience> | undefined;
+    if (
+      command.operation === 'adminPreviewNotificationAudience' ||
+      command.operation === 'adminCreateNotificationCampaign'
+    ) {
+      updateAudience = this.validateUpdateAudience(
+        command.operation === 'adminPreviewNotificationAudience' ? input : input.audience,
+      );
+      if (updateAudience?.appUpdate && command.operation === 'adminCreateNotificationCampaign') {
+        const template = await client.query<{ channel: string }>(
+          `select channel from public.notification_templates where id=$1 and status='published'`,
+          [input.templateId],
+        );
+        if (template.rows[0]?.channel !== 'push')
+          throw new HttpException({ code: 'APP_UPDATE_PUSH_REQUIRED' }, 400);
+      }
+    }
+    if (
+      command.operation === 'adminActOnNotificationCampaign' &&
+      ['approve', 'schedule', 'send_now', 'resume'].includes(String(input.action))
+    ) {
+      const campaign = await client.query<{ audience_definition: unknown }>(
+        'select audience_definition from public.notification_campaigns where id=$1',
+        [id],
+      );
+      if (campaign.rows[0]) this.validateUpdateAudience(campaign.rows[0].audience_definition);
+    }
     let sql: string;
     let values: unknown[];
     switch (command.operation) {
@@ -894,7 +1188,7 @@ export class EngagementRepository {
           command.operation,
           id,
           JSON.stringify(databaseInput),
-          principal.mfaAgeSeconds ?? principal.factorAgeSeconds,
+          principal.factorAgeSeconds,
           command.requestId,
           this.config.getRequired('MASARIFI_CAMPAIGN_APPROVAL_THRESHOLD'),
           this.config.getRequired('MASARIFI_SUPPORT_REOPEN_HOURS'),
@@ -911,6 +1205,19 @@ export class EngagementRepository {
           requestId: command.requestId,
         }
       : { ...(result as Record<string, unknown>), requestId: command.requestId };
+  }
+
+  private validateUpdateAudience(input: unknown): ReturnType<typeof parseAudience> | undefined {
+    if (!input || typeof input !== 'object' || !('appUpdate' in input)) return undefined;
+    let audience: ReturnType<typeof parseAudience>;
+    try {
+      audience = parseAudience(input);
+    } catch {
+      throw new HttpException({ code: 'APP_UPDATE_UNAVAILABLE' }, 409);
+    }
+    if (!sameAndroidRelease(configuredAndroidUpdate(this.config), audience.appUpdate))
+      throw new HttpException({ code: 'APP_UPDATE_UNAVAILABLE' }, 409);
+    return audience;
   }
 
   private async one(client: PoolClient, sql: string, values: unknown[]): Promise<unknown> {
@@ -961,6 +1268,9 @@ export class EngagementRepository {
   }
 
   private async setContext(client: PoolClient, principal: ClerkPrincipal): Promise<void> {
+    await client.query("select set_config('masarifi.dev_reminders_access',$1,true)", [
+      this.config.getRequired('MASARIFI_MOBILE_AUTOMATION_ENABLED') ? 'on' : 'off',
+    ]);
     await client.query("select set_config('request.jwt.claims',$1,true)", [
       JSON.stringify({ role: 'authenticated', sub: principal.userId, sid: principal.sessionId }),
     ]);

@@ -3,7 +3,11 @@ import { Module } from '@nestjs/common';
 import { IdentityModule, IdentityWorkerModule } from '../identity/identity.module';
 import { DatabaseModule } from '../platform/database/database.module';
 import { SecurityModule } from '../security/security.module';
-import { EngagementAdminController, EngagementController } from './engagement.controller';
+import {
+  EngagementAdminController,
+  EngagementController,
+  DevEngagementController,
+} from './engagement.controller';
 import { EngagementRepository } from './engagement.repository';
 import { EngagementService } from './engagement.service';
 import { SupportStorage } from './support.storage';
@@ -12,7 +16,7 @@ import { EngagementObservability } from './engagement.observability';
 
 @Module({
   imports: [DatabaseModule, IdentityModule, SecurityModule],
-  controllers: [EngagementController, EngagementAdminController],
+  controllers: [EngagementController, EngagementAdminController, DevEngagementController],
   providers: [
     EngagementRepository,
     EngagementService,

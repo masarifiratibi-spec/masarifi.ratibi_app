@@ -1,7 +1,105 @@
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CURRENCY = /^[A-Z]{3}$/;
+import { validateClassification, type Classification } from '@masarifi/transaction-parser';
 
 type JsonObject = Record<string, unknown>;
+
+export function normalizeTrackingInstallationConsent(deviceId: unknown, value: unknown) {
+  const input = object(value);
+  keys(input, ['expectedVersion', 'deviceRegistration', 'sources']);
+  if (
+    !Number.isSafeInteger(input.expectedVersion) ||
+    Number(input.expectedVersion) < 0 ||
+    Number(input.expectedVersion) >= 2147483647
+  )
+    invalid();
+  const sources = object(input.sources);
+  keys(sources, [
+    'smsEnabled',
+    'notificationEnabled',
+    'smsActivatedAt',
+    'smsActivationId',
+    'notificationActivatedAt',
+  ]);
+  if (typeof sources.smsEnabled !== 'boolean' || typeof sources.notificationEnabled !== 'boolean')
+    invalid();
+  if (
+    !sources.smsEnabled &&
+    [sources.smsActivatedAt, sources.smsActivationId].some((value) => value != null)
+  )
+    invalid();
+  if (!sources.notificationEnabled && sources.notificationActivatedAt != null) invalid();
+  const smsActivationId = sources.smsEnabled ? text(sources.smsActivationId, 1, 19) : null;
+  if (
+    smsActivationId !== null &&
+    (!/^[0-9]{1,19}$/.test(smsActivationId) || BigInt(smsActivationId) > 9223372036854775807n)
+  )
+    invalid();
+  return {
+    deviceId: normalizeTrackingId(deviceId),
+    expectedVersion: input.expectedVersion as number,
+    deviceRegistration: normalizeAndroidTrackingRegistration(input.deviceRegistration),
+    sources: {
+      smsEnabled: sources.smsEnabled,
+      notificationEnabled: sources.notificationEnabled,
+      smsActivatedAt: sources.smsEnabled ? instant(sources.smsActivatedAt) : null,
+      smsActivationId: smsActivationId === null ? null : BigInt(smsActivationId).toString(),
+      notificationActivatedAt: sources.notificationEnabled
+        ? instant(sources.notificationActivatedAt)
+        : null,
+    },
+  };
+}
+
+function normalizeAndroidTrackingRegistration(value: unknown) {
+  const registration = object(value);
+  keys(registration, ['deviceFingerprint', 'platform', 'appVersion']);
+  const appVersion = text(registration.appVersion, 1, 32);
+  if (registration.platform !== 'android' || !/^[A-Za-z0-9._+-]+$/.test(appVersion)) invalid();
+  return {
+    deviceFingerprint: text(registration.deviceFingerprint, 16, 512),
+    platform: 'android' as const,
+    appVersion,
+  };
+}
+
+export type NormalizedTrackingInstallationConsent = ReturnType<
+  typeof normalizeTrackingInstallationConsent
+>;
+
+export function normalizeTrackingInstallationEnrollment(value: unknown) {
+  const input = object(value);
+  keys(input, [
+    'deviceId',
+    'smsActivationId',
+    'deviceRegistration',
+    'remindersEnabled',
+    'foreground',
+    'reminderLocale',
+    'reminderTimeZone',
+  ]);
+  const registration = normalizeAndroidTrackingRegistration(input.deviceRegistration);
+  const smsActivationId = text(input.smsActivationId, 1, 19);
+  const reminderTimeZone = text(input.reminderTimeZone, 1, 64);
+  new Intl.DateTimeFormat('en', { timeZone: reminderTimeZone });
+  if (
+    !/^[0-9]{1,19}$/.test(smsActivationId) ||
+    BigInt(smsActivationId) > 9223372036854775807n ||
+    typeof input.remindersEnabled !== 'boolean' ||
+    typeof input.foreground !== 'boolean' ||
+    (input.reminderLocale !== 'ar' && input.reminderLocale !== 'en')
+  )
+    invalid();
+  return {
+    deviceId: normalizeTrackingId(input.deviceId),
+    smsActivationId,
+    deviceRegistration: registration,
+    remindersEnabled: input.remindersEnabled,
+    foreground: input.foreground,
+    reminderLocale: input.reminderLocale,
+    reminderTimeZone,
+  } as const;
+}
 
 export interface TrackingCursor {
   at: string;
@@ -9,6 +107,9 @@ export interface TrackingCursor {
 }
 
 export interface NormalizedTrackingEvent {
+  accountingPolicy?: 'default_account_nominal_v1';
+  sourceAmountDecimal?: string;
+  activatedAt?: string;
   sourceItemKey: string;
   sender?: string;
   body?: string;
@@ -20,11 +121,23 @@ export interface NormalizedTrackingEvent {
   metadata?: Record<string, string | number | boolean | null>;
   kind?: 'income' | 'expense' | 'transfer' | 'refund' | 'fee';
   accountId?: string;
+  destinationAccountId?: string;
   categoryId?: string;
+  classification?: Omit<Classification, 'providerReference'>;
+  transport?: {
+    deviceId: string;
+    channel: 'android_sms' | 'android_notification';
+    nativeIdDigest: string;
+    revisionDigest: string;
+    installationGeneration?: string;
+    installationVersion?: number;
+  };
+  providerReferenceDigest?: string;
+  originalProviderReferenceDigest?: string;
 }
 
 export interface NormalizedImport {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2 | 3;
   sourceType: 'sms' | 'provider' | 'manual';
   sourceChannel?:
     | 'android_sms'
@@ -96,9 +209,20 @@ export function normalizeVersion(value: unknown): number {
   return value as number;
 }
 
+function cursorInstant(value: unknown): string {
+  const normalized = instant(value);
+  const fraction = String(value).match(/\.(\d+)(?=[zZ]|[+-]\d\d:\d\d$)/)?.[1];
+  if (fraction && fraction.length > 6) invalid();
+  // PostgreSQL sorts timestamps at microsecond precision. Date.toISOString()
+  // truncates the cursor and skips rows seeded in the same database instant.
+  return fraction && fraction.length > 3
+    ? normalized.replace(/\.\d{3}Z$/, `.${fraction}Z`)
+    : normalized;
+}
+
 export function encodeTrackingCursor(cursor: TrackingCursor): string {
   return Buffer.from(
-    JSON.stringify({ at: instant(cursor.at), id: normalizeTrackingId(cursor.id) }),
+    JSON.stringify({ at: cursorInstant(cursor.at), id: normalizeTrackingId(cursor.id) }),
   ).toString('base64url');
 }
 
@@ -107,7 +231,7 @@ export function decodeTrackingCursor(value: unknown): TrackingCursor {
     if (typeof value !== 'string' || value.length > 512) invalid();
     const parsed = object(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown);
     keys(parsed, ['at', 'id']);
-    return { at: instant(parsed.at), id: normalizeTrackingId(parsed.id) };
+    return { at: cursorInstant(parsed.at), id: normalizeTrackingId(parsed.id) };
   } catch {
     invalid();
   }
@@ -203,19 +327,43 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     'metadata',
     'kind',
     'accountId',
+    'destinationAccountId',
     'categoryId',
+    'classification',
+    'transport',
+    'providerReferenceDigest',
+    'originalProviderReferenceDigest',
+    'accountingPolicy',
+    'sourceAmountDecimal',
+    'activatedAt',
   ]);
   const result: NormalizedTrackingEvent = {
     sourceItemKey: text(input.sourceItemKey, 1, 160),
     receivedAt: instant(input.receivedAt),
   };
+  if (input.accountingPolicy !== undefined) {
+    if (input.accountingPolicy !== 'default_account_nominal_v1') invalid();
+    result.accountingPolicy = input.accountingPolicy;
+    const amount = text(input.sourceAmountDecimal, 1, 20);
+    if (!/^(?:0|[1-9]\d{0,15})(?:\.\d{1,3})?$/.test(amount) || Number(amount) <= 0) invalid();
+    result.sourceAmountDecimal = amount;
+    result.activatedAt = instant(input.activatedAt);
+    if (Date.parse(result.activatedAt) > Date.parse(result.receivedAt)) invalid();
+    if (
+      input.accountId !== undefined ||
+      input.destinationAccountId !== undefined ||
+      input.categoryId !== undefined ||
+      input.kind !== undefined
+    )
+      invalid();
+  } else if (input.sourceAmountDecimal !== undefined || input.activatedAt !== undefined) invalid();
   if (input.sender != null) result.sender = text(input.sender, 1, 200);
   if (input.body != null) result.body = text(input.body, 1, 2000);
   if (input.amountMinor != null) {
     if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor === 0) invalid();
     result.amountMinor = input.amountMinor as number;
   }
-  if (!result.body && result.amountMinor == null) invalid();
+  if (!result.body && result.amountMinor == null && !input.classification) invalid();
   if (input.currency != null) {
     const currency = text(input.currency, 3, 3);
     if (!CURRENCY.test(currency)) invalid();
@@ -233,7 +381,59 @@ function normalizeEvent(value: unknown): NormalizedTrackingEvent {
     result.kind = input.kind as NormalizedTrackingEvent['kind'];
   }
   if (input.accountId != null) result.accountId = normalizeTrackingId(input.accountId);
+  if (input.destinationAccountId != null)
+    result.destinationAccountId = normalizeTrackingId(input.destinationAccountId);
   if (input.categoryId != null) result.categoryId = normalizeTrackingId(input.categoryId);
+  if (input.classification != null) {
+    result.classification = validateClassification(input.classification);
+    if (
+      result.classification.amountMinor !== null &&
+      Math.abs(result.amountMinor ?? 0) !== result.classification.amountMinor
+    )
+      invalid();
+    if (result.classification.currency !== (result.currency ?? null)) invalid();
+  }
+  if (input.transport != null) {
+    const transport = object(input.transport);
+    keys(transport, [
+      'deviceId',
+      'channel',
+      'nativeIdDigest',
+      'revisionDigest',
+      'installationGeneration',
+      'installationVersion',
+    ]);
+    if (!['android_sms', 'android_notification'].includes(String(transport.channel))) invalid();
+    const nativeIdDigest = text(transport.nativeIdDigest, 64, 64),
+      revisionDigest = text(transport.revisionDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(nativeIdDigest) || !/^[a-f0-9]{64}$/.test(revisionDigest)) invalid();
+    result.transport = {
+      deviceId: text(transport.deviceId, 16, 80),
+      channel: transport.channel as 'android_sms' | 'android_notification',
+      nativeIdDigest,
+      revisionDigest,
+    };
+    if (
+      Object.prototype.hasOwnProperty.call(transport, 'installationGeneration') ||
+      Object.prototype.hasOwnProperty.call(transport, 'installationVersion')
+    ) {
+      result.transport.deviceId = normalizeTrackingId(transport.deviceId);
+      result.transport.installationGeneration = normalizeTrackingId(
+        transport.installationGeneration,
+      );
+      const version = normalizeVersion(transport.installationVersion);
+      if (version > 2147483647) invalid();
+      result.transport.installationVersion = version;
+    }
+  }
+  if (input.providerReferenceDigest != null) {
+    result.providerReferenceDigest = text(input.providerReferenceDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(result.providerReferenceDigest)) invalid();
+  }
+  if (input.originalProviderReferenceDigest != null) {
+    result.originalProviderReferenceDigest = text(input.originalProviderReferenceDigest, 64, 64);
+    if (!/^[a-f0-9]{64}$/.test(result.originalProviderReferenceDigest)) invalid();
+  }
   return result;
 }
 
@@ -241,7 +441,8 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   const input = object(value);
   keys(input, ['schemaVersion', 'sourceType', 'sourceChannel', 'events']);
   if (
-    input.schemaVersion !== 1 ||
+    ![1, 2, 3].includes(Number(input.schemaVersion)) ||
+    typeof input.schemaVersion !== 'number' ||
     typeof input.sourceType !== 'string' ||
     !['sms', 'provider', 'manual'].includes(input.sourceType)
   )
@@ -269,13 +470,46 @@ export function normalizeNormalizedImport(value: unknown): NormalizedImport {
   if (!Array.isArray(input.events) || input.events.length < 1 || input.events.length > 100)
     invalid();
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 512 * 1024) invalid();
+  const events = input.events.map(normalizeEvent);
+  if (
+    input.schemaVersion !== 1 &&
+    events.some(
+      (event) =>
+        !event.transport ||
+        !event.classification ||
+        event.transport.channel !== input.sourceChannel,
+    )
+  )
+    invalid();
+  if (
+    events.some((event) =>
+      input.schemaVersion === 3 ? !event.accountingPolicy : event.accountingPolicy !== undefined,
+    )
+  )
+    invalid();
+  if (
+    input.schemaVersion === 3 &&
+    !['android_sms', 'android_notification'].includes(String(input.sourceChannel))
+  )
+    invalid();
+  if (
+    input.schemaVersion === 1 &&
+    events.some(
+      (event) =>
+        event.transport ||
+        event.classification ||
+        event.providerReferenceDigest ||
+        event.originalProviderReferenceDigest,
+    )
+  )
+    invalid();
   return {
-    schemaVersion: 1,
+    schemaVersion: input.schemaVersion as NormalizedImport['schemaVersion'],
     sourceType: input.sourceType as 'sms' | 'provider' | 'manual',
     ...(input.sourceChannel == null
       ? {}
       : { sourceChannel: input.sourceChannel as NormalizedImport['sourceChannel'] }),
-    events: input.events.map(normalizeEvent),
+    events,
   };
 }
 

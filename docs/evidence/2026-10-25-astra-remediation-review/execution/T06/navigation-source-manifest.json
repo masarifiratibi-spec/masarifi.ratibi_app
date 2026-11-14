@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-28T09:34:51.2084221Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "files": [
+    {
+      "path": "apps/mobile/app/security/settings.tsx",
+      "sha256": "6C6D08E31DD695FE64F68345A4126ED967E6E78316DD05D04E90F43B8E2374E8"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionListScreen.tsx",
+      "sha256": "46E4857850378DEB8C3B17E6E1083AAAAFF211AF1264C55338D10168029E68D6"
+    },
+    {
+      "path": "apps/mobile/src/features/security/SecurityJourney.test.tsx",
+      "sha256": "B2B7D9470016288387958748EF74733C2E607A2BF6D5F1EA7B64B27BC25F9133"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx",
+      "sha256": "ECEBF7D30116D2335B4DD2BFE4914A4D0B3078F1C6308A043CF7D34D76341783"
+    }
+  ]
+}

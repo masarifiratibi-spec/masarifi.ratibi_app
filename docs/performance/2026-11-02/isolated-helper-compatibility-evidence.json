@@ -1,0 +1,73 @@
+{
+  "status": "PASS_BOUNDED_ISOLATED_HELPER_PROOF_NOT_PRODUCTION_READINESS",
+  "sourceCommit": "2236b1bb83c737ebe9695b518f5f3724f404a7e2",
+  "postgresVersion": "17.6",
+  "cloneOrigin": "historical_20261101_protected_restore",
+  "frozenPrerequisiteQuerySha256": "9e49005779a95dd5452b8ccc1c0b9ae9364de4bdbdecb4d4299fc1ed3290556e",
+  "strictFrozenPrerequisiteParityBeforeHelperAdditions": true,
+  "ownerAclMaterialization": {
+    "commitAcknowledged": true,
+    "effectiveAllRolesEightPrivilegesAndGrantOptionsUnchanged": true,
+    "userRelationPhysicalFileContentsSha256BeforeAndAfter": "e9d81a2d892805daa7a55ab3d49617df594d83d707b3c6324416b1d0fc7a2b7a",
+    "reviewedProgramSha256": "3310000eef4a2ccb477c6ecbf19699d07d705e44625720b0ac5c6182e2d6a4db",
+    "triggerDisabled": false
+  },
+  "helperArtifactSha256": "8544f0d66e294ccaea96ef53739895ed2e594c6c1891804a5ea9a4db2db56e6a",
+  "helperHarnessSha256": "045d00c5e8b7c9f818a6571d85739aabc01b6ec430d0b8c4f47ccdac6bd2456a",
+  "helperSignatures": [
+    "private.set_tracking_worker_context(text,uuid,uuid)",
+    "private.list_due_account_upload_erasure_owners(integer)",
+    "private.reminder_baseline(text)"
+  ],
+  "helperBodyMd5Lf": {
+    "list_due_account_upload_erasure_owners": "460a75d9af94289bded68700135c4409",
+    "reminder_baseline": "ab481ccf741b0b9cbad2b4c9ce281b9a",
+    "set_tracking_worker_context": "89f3fe1f4b2d7cadee50d479ad039cc0"
+  },
+  "syntheticTests": {
+    "parserCases": 45,
+    "trackingLeaseRejections": 9,
+    "workerAndOwnerRls": true,
+    "selectorLimitOrderDistinctAndExclusions": true,
+    "deletionPendingSelector": true,
+    "injectedFailureRollback": true,
+    "repeatApplyRejected": true,
+    "concurrentWorkerContexts": 2,
+    "concurrentOverlapSeconds": 1.0004069805145264,
+    "freshConnectionClaimsEmpty": true,
+    "lockTimeoutSqlstate": "55P03",
+    "statementTimeoutSqlstate": "57014",
+    "realNonsuperOperatorSessionUser": true,
+    "absentAndDisabledOwnGrantRestoration": true
+  },
+  "unrelatedCatalogAndMembershipFingerprintsUnchanged": true,
+  "logicalWitnessScope": {
+    "applicationRelations": 5,
+    "migrationHistoryRelations": 1,
+    "beforeAfterEqual": true,
+    "historicalCloneHistoryRows": 171,
+    "hostedHistoryRowsFromPriorCapture": 174,
+    "fullHistoryParityClaimed": false
+  },
+  "ownedCloneFinalState": {
+    "stoppedCleanly": true,
+    "threeReviewedHelperAdditionsRetained": true,
+    "syntheticFixturesRetained": false,
+    "temporaryOperatorOrGrantRetained": false,
+    "protectedOriginalIdentitiesUnchanged": true
+  },
+  "hostedDatabaseModified": false,
+  "hostedHistoryModified": false,
+  "existingConsumersReplaced": false,
+  "fullCurrentLiveRestoreQualified": false,
+  "fullFixture067Qualified": false,
+  "reminderConsumersQualified": false,
+  "canonicalCutoverPerformed": false,
+  "productionReadiness": "NOT READY",
+  "limitations": [
+    "Bounded metadata parity on a historical clone is not a full current-live restore or portable recovery proof.",
+    "Five application-relation logical hashes plus history do not establish full-database logical equality.",
+    "Physical relation-file equality applies only to the earlier ACL-only operation, not rolled-back synthetic fixture writes.",
+    "Three helper additions do not qualify containing historical migrations, finalizer/reminder consumers, or ordered history."
+  ]
+}

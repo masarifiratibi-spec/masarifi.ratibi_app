@@ -10,54 +10,449 @@ import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { File } from 'expo-file-system';
-import { resolveClientMode } from '@/config/client-runtime';
+import {
+  isDevPrivacyDeletionEnabled,
+  resolveClientMode
+} from '@/config/client-runtime';
+import { isDeletionOwnerFenced } from './deletion-completion-journal';
+import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 13;
+const CURRENT_SCHEMA_VERSION = 17;
 const LEGACY_OWNER_KEY = 'masarifi.database.legacyOwnerHash';
 const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
+const DATABASE_PURGE_PREFIX = 'masarifi.database.purge.';
+const QUARANTINE_STATE_PREFIX = 'masarifi.database.quarantineState.';
+const QUARANTINE_KEY_PREFIX = 'masarifi.database.quarantineKey.';
+const purgeInspectionClosures = new Map<string, Promise<void>>();
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let databaseClosePromise: Promise<void> | null = null;
 let databaseLifecycleQueue: Promise<void> = Promise.resolve();
 let activeDatabase: SQLite.SQLiteDatabase | null = null;
 let databaseName = DATABASE_NAME;
 let databaseOwnerHash: string | null = null;
+let databaseOwnerId: string | null = null;
+let recoveryListener: ((ownerId: string) => void) | undefined;
+
+export function configureDatabaseRecoveryListener(
+  listener?: (ownerId: string) => void
+): void {
+  recoveryListener = listener;
+}
+
+/** Explicit recovery preserves the unreadable encrypted original and its sidecars. */
+export async function quarantineUnrecoverableDatabase(
+  ownerId: string,
+  confirmation: 'PRESERVE_ENCRYPTED_ORIGINAL'
+): Promise<void> {
+  if (confirmation !== 'PRESERVE_ENCRYPTED_ORIGINAL')
+    throw new Error('recovery confirmation required');
+  await withTransactionDraftWrite(() =>
+    enqueueDatabaseLifecycle(async () => {
+      assertDatabaseOwner(ownerId);
+      const hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (hash !== databaseOwnerHash) throw new Error('stale database owner');
+      await closeActiveDatabase();
+      const metadataKey = `masarifi.database.quarantine.${hash}`;
+      const saved = await quarantinedDatabaseName(hash);
+      const name = ownerDatabaseName(hash);
+      const backup = saved ?? `${name}.unrecoverable-${Date.now()}`;
+      const state = await quarantineState(hash, saved);
+      const storageKey = `${DATABASE_KEY_PREFIX}${hash}`;
+      const originalKey = await SecureStore.getItemAsync(storageKey);
+      if (state?.phase === 'complete') {
+        if (databaseFilesExist(name) || originalKey !== null)
+          throw new Error('recovery backup already retained');
+        return;
+      }
+      // Check every destination before moving anything. A retry may resume a
+      // partial move, but may never replace a previously preserved artifact.
+      for (const suffix of ['', '-wal', '-shm']) {
+        if (
+          databaseFile(`${name}${suffix}`).exists &&
+          databaseFile(`${backup}${suffix}`).exists
+        )
+          throw new Error('recovery backup already retained');
+      }
+      await SecureStore.setItemAsync(metadataKey, backup);
+      if ((await SecureStore.getItemAsync(metadataKey)) !== backup)
+        throw new Error('recovery record unavailable');
+      await saveQuarantineState(hash, backup, 'prepared');
+      const backupKey = `${QUARANTINE_KEY_PREFIX}${hash}`;
+      const retainedKey = await SecureStore.getItemAsync(backupKey);
+      if (originalKey !== null) {
+        if (retainedKey !== null && retainedKey !== originalKey)
+          throw new Error('recovery key conflict');
+        await SecureStore.setItemAsync(backupKey, originalKey);
+        if ((await SecureStore.getItemAsync(backupKey)) !== originalKey)
+          throw new Error('recovery key unavailable');
+      }
+      for (const suffix of ['', '-wal', '-shm']) {
+        const source = databaseFile(`${name}${suffix}`);
+        if (source.exists) source.move(databaseFile(`${backup}${suffix}`));
+      }
+      if (databaseFilesExist(name))
+        throw new Error('database quarantine incomplete');
+      if ((await SecureStore.getItemAsync(storageKey)) !== originalKey)
+        throw new Error('recovery key changed');
+      await SecureStore.deleteItemAsync(storageKey);
+      if ((await SecureStore.getItemAsync(storageKey)) !== null)
+        throw new Error('recovery key remains');
+      await saveQuarantineState(hash, backup, 'complete');
+    })
+  );
+}
+
+async function quarantineState(
+  ownerHash: string,
+  backup: string | null
+): Promise<{ phase: 'prepared' | 'complete' } | null> {
+  const raw = await SecureStore.getItemAsync(
+    `${QUARANTINE_STATE_PREFIX}${ownerHash}`
+  );
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error();
+    const state = parsed as Record<string, unknown>;
+    if (
+      Object.keys(state).sort().join(',') !==
+        'backup,ownerHash,phase,version' ||
+      state.version !== 1 ||
+      state.ownerHash !== ownerHash ||
+      !backup ||
+      state.backup !== backup ||
+      (state.phase !== 'prepared' && state.phase !== 'complete')
+    )
+      throw new Error();
+    return { phase: state.phase };
+  } catch {
+    throw new Error('invalid recovery record');
+  }
+}
+
+async function saveQuarantineState(
+  ownerHash: string,
+  backup: string,
+  phase: 'prepared' | 'complete'
+): Promise<void> {
+  const key = `${QUARANTINE_STATE_PREFIX}${ownerHash}`;
+  const raw = JSON.stringify({ version: 1, ownerHash, backup, phase });
+  await SecureStore.setItemAsync(key, raw);
+  if ((await SecureStore.getItemAsync(key)) !== raw)
+    throw new Error('recovery record unavailable');
+}
+
+async function quarantinedDatabaseName(
+  ownerHash: string
+): Promise<string | null> {
+  const saved = await SecureStore.getItemAsync(
+    `masarifi.database.quarantine.${ownerHash}`
+  );
+  if (
+    saved !== null &&
+    (!saved.startsWith(`${ownerDatabaseName(ownerHash)}.unrecoverable-`) ||
+      !/^[a-zA-Z0-9.-]+$/.test(saved))
+  )
+    throw new Error('invalid recovery record');
+  return saved;
+}
+
+export async function hasQuarantinedOwnerDatabase(
+  ownerId: string
+): Promise<boolean> {
+  assertDatabaseOwner(ownerId);
+  const hash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    ownerId
+  );
+  return (await quarantinedDatabaseName(hash)) !== null;
+}
 
 export async function configureDatabaseOwner(userId: string): Promise<void> {
-  if (!userId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(userId))
-    throw new Error('invalid database owner');
-  await enqueueDatabaseLifecycle(async () => {
-    const ownerHash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      userId
-    );
-    if (ownerHash === databaseOwnerHash) return;
-    await closeActiveDatabase();
-    databaseOwnerHash = ownerHash;
-    databaseName = `masarifi-${ownerHash.slice(0, 24)}.db`;
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(userId);
+    await enqueueDatabaseLifecycle(async () => {
+      if (
+        isDevPrivacyDeletionEnabled() &&
+        (await isDeletionOwnerFenced(userId))
+      )
+        throw new Error('deleted database owner');
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        userId
+      );
+      if (ownerHash === databaseOwnerHash) return;
+      await closeActiveDatabase();
+      databaseOwnerHash = ownerHash;
+      databaseOwnerId = userId;
+      databaseName = ownerDatabaseName(ownerHash);
+    });
   });
 }
 
-/** Explicit sign-out discards ephemeral imports before releasing the owner. */
-export async function clearDatabaseOwner(discardSmsQueueFor?: string): Promise<void> {
-  await enqueueDatabaseLifecycle(async () => {
-    if (discardSmsQueueFor !== undefined &&
-      (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, discardSmsQueueFor)) !== databaseOwnerHash)
-      throw new Error('stale database owner');
-    try {
-      if (discardSmsQueueFor !== undefined) {
-        databasePromise ??= createAndMigrate();
-        activeDatabase = await databasePromise;
-        await activeDatabase.withExclusiveTransactionAsync(async (transaction) => {
-          await transaction.runAsync('DELETE FROM sms_import_queue');
-        });
+/** Only after confirmed server erasure or sync-first logout with explicit unsynced-data removal. */
+export async function purgeAccountDatabase(ownerId: string): Promise<void> {
+  return withTransactionDraftWrite(async () => {
+    assertDatabaseOwner(ownerId);
+    await enqueueDatabaseLifecycle(async () => {
+      const ownerHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        ownerId
+      );
+      if (databaseOwnerHash === ownerHash) {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseOwnerId = null;
+        databaseName = DATABASE_NAME;
       }
-    } finally {
-      await closeActiveDatabase();
-      databaseOwnerHash = null;
-      databaseName = DATABASE_NAME;
+      const quarantined = await quarantinedDatabaseName(ownerHash);
+      await quarantineState(ownerHash, quarantined);
+      const ownerFilename = ownerDatabaseName(ownerHash);
+      const targets = await prepareDatabasePurge(
+        ownerId,
+        ownerHash,
+        quarantined
+      );
+      removeDatabaseFiles(ownerFilename);
+      if (databaseFilesExist(ownerFilename))
+        throw new Error('database files remain');
+      for (const retained of targets.filter(
+        (name) => name !== ownerFilename && name !== DATABASE_NAME
+      )) {
+        removeDatabaseFiles(retained);
+        if (databaseFilesExist(retained))
+          throw new Error('quarantined database files remain');
+      }
+      if (
+        targets.includes(DATABASE_NAME) &&
+        (await SecureStore.getItemAsync(LEGACY_OWNER_KEY)) === ownerHash
+      ) {
+        removeDatabaseFiles(DATABASE_NAME);
+        if (databaseFilesExist(DATABASE_NAME))
+          throw new Error('legacy database files remain');
+        await SecureStore.deleteItemAsync(LEGACY_OWNER_KEY);
+      }
+      const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
+      await SecureStore.deleteItemAsync(storageKey);
+      if ((await SecureStore.getItemAsync(storageKey)) !== null)
+        throw new Error('database key remains');
+      for (const prefix of [QUARANTINE_KEY_PREFIX, QUARANTINE_STATE_PREFIX]) {
+        const key = `${prefix}${ownerHash}`;
+        await SecureStore.deleteItemAsync(key);
+        if ((await SecureStore.getItemAsync(key)) !== null)
+          throw new Error('database recovery metadata remains');
+      }
+      const quarantineKey = `masarifi.database.quarantine.${ownerHash}`;
+      await SecureStore.deleteItemAsync(quarantineKey);
+      if ((await SecureStore.getItemAsync(quarantineKey)) !== null)
+        throw new Error('database recovery metadata remains');
+      const purgeKey = `${DATABASE_PURGE_PREFIX}${ownerHash}`;
+      await SecureStore.deleteItemAsync(purgeKey);
+      if ((await SecureStore.getItemAsync(purgeKey)) !== null)
+        throw new Error('database purge receipt remains');
+    });
+  });
+}
+
+async function prepareDatabasePurge(
+  ownerId: string,
+  ownerHash: string,
+  quarantined: string | null
+): Promise<string[]> {
+  const key = `${DATABASE_PURGE_PREFIX}${ownerHash}`;
+  const existing = await SecureStore.getItemAsync(key);
+  const targets = [
+    ownerDatabaseName(ownerHash),
+    ...(quarantined ? [quarantined] : [])
+  ];
+  if ((await SecureStore.getItemAsync(LEGACY_OWNER_KEY)) === ownerHash)
+    targets.push(DATABASE_NAME);
+  if (existing !== null) {
+    // A partial filesystem removal cannot be inspected again. Its previously
+    // verified target list survives until every file and key has been removed.
+    try {
+      const value: unknown = JSON.parse(existing);
+      if (!value || typeof value !== 'object' || Array.isArray(value))
+        throw new Error();
+      const record = value as Record<string, unknown>;
+      if (
+        Object.keys(record).sort().join(',') !== 'ownerHash,targets,version' ||
+        record.version !== 1 ||
+        record.ownerHash !== ownerHash ||
+        !Array.isArray(record.targets) ||
+        record.targets.length < 1 ||
+        record.targets.length > 3
+      )
+        throw new Error();
+      const saved = record.targets;
+      if (
+        saved.some(
+          (name) =>
+            typeof name !== 'string' ||
+            !(
+              name === DATABASE_NAME ||
+              name === ownerDatabaseName(ownerHash) ||
+              (name.startsWith(
+                `${ownerDatabaseName(ownerHash)}.unrecoverable-`
+              ) &&
+                /^[a-zA-Z0-9.-]+$/.test(name))
+            )
+        ) ||
+        new Set(saved).size !== saved.length ||
+        targets.some((name) => !saved.includes(name))
+      )
+        throw new Error();
+      return saved as string[];
+    } catch {
+      throw new Error('database purge attribution unavailable');
     }
+  }
+  for (const name of targets)
+    await assertDatabaseTrackingOwnership(
+      name,
+      ownerId,
+      ownerHash,
+      name !== DATABASE_NAME,
+      name === quarantined
+    );
+  const raw = JSON.stringify({ version: 1, ownerHash, targets });
+  await SecureStore.setItemAsync(key, raw);
+  if ((await SecureStore.getItemAsync(key)) !== raw)
+    throw new Error('database purge receipt unavailable');
+  return targets;
+}
+
+async function assertDatabaseTrackingOwnership(
+  name: string,
+  ownerId: string,
+  ownerHash: string,
+  encrypted: boolean,
+  quarantined: boolean
+): Promise<void> {
+  const pendingClose = purgeInspectionClosures.get(name);
+  if (pendingClose) await pendingClose;
+  if (!databaseFile(name).exists) {
+    if (databaseFilesExist(name))
+      throw new Error('database purge attribution unavailable');
+    return;
+  }
+  const key = encrypted
+    ? await SecureStore.getItemAsync(
+        `${quarantined ? QUARANTINE_KEY_PREFIX : DATABASE_KEY_PREFIX}${ownerHash}`
+      )
+    : null;
+  if (encrypted && (!key || !/^[a-f0-9]{64}$/i.test(key)))
+    throw new Error('database purge attribution unavailable');
+  // Inspect only the existing file, with its retained key and an independent
+  // connection. Never migrate, regenerate keys or replace another active owner.
+  const db = await SQLite.openDatabaseAsync(name, { useNewConnection: true });
+  try {
+    if (key) {
+      await db.execAsync(`PRAGMA key = "x'${key}'";`);
+      const cipher = await db.getFirstAsync<{ cipher_version: string }>(
+        'PRAGMA cipher_version'
+      );
+      if (!cipher?.cipher_version)
+        throw new Error('database purge attribution unavailable');
+    }
+    await db.execAsync('PRAGMA query_only = ON;');
+    const tables = await db.getAllAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','sms_import_queue','sms_import_queue_v3')"
+    );
+    if (tables.some((table) => table.name === 'schema_migrations')) {
+      const schema = await db.getFirstAsync<{ version: number | null }>(
+        'SELECT MAX(version) AS version FROM schema_migrations'
+      );
+      if (
+        !schema ||
+        typeof schema.version !== 'number' ||
+        schema.version > CURRENT_SCHEMA_VERSION
+      )
+        throw new Error('database purge attribution unavailable');
+    }
+    for (const table of ['sms_import_queue', 'sms_import_queue_v3']) {
+      if (!tables.some((entry) => entry.name === table)) continue;
+      // Only attribution leaves SQLite; foreign message/operation payloads are not decoded.
+      const rows = await db.getAllAsync<{
+        id: string;
+        valid: number;
+        owner_id: unknown;
+        version: unknown;
+      }>(
+        `SELECT id,json_valid(payload) AS valid,
+          CASE WHEN json_valid(payload) THEN json_extract(payload,'$.ownerId') END AS owner_id,
+          CASE WHEN json_valid(payload) THEN json_extract(payload,'$.version') END AS version FROM ${table}`
+      );
+      if (
+        rows.some(
+          (row) =>
+            row.id !== 'singleton' ||
+            row.valid !== 1 ||
+            row.owner_id !== ownerId ||
+            row.version !== 1
+        )
+      )
+        throw new Error('database contains retained tracking work');
+    }
+  } finally {
+    const closing = db.closeAsync();
+    purgeInspectionClosures.set(name, closing);
+    await closing;
+    purgeInspectionClosures.delete(name);
+  }
+}
+
+function assertDatabaseOwner(ownerId: string): void {
+  if (!ownerId || /^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(ownerId))
+    throw new Error('invalid database owner');
+}
+
+function ownerDatabaseName(ownerHash: string): string {
+  return `masarifi-${ownerHash.slice(0, 24)}.db`;
+}
+
+/** Explicit sign-out discards ephemeral imports before releasing the owner. */
+export async function clearDatabaseOwner(
+  discardSmsQueueFor?: string,
+  options: { preservePendingWork?: boolean } = {}
+): Promise<void> {
+  return withTransactionDraftWrite(async () => {
+    await enqueueDatabaseLifecycle(async () => {
+      if (databaseClosePromise) await databaseClosePromise;
+      if (
+        discardSmsQueueFor !== undefined &&
+        (await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          discardSmsQueueFor
+        )) !== databaseOwnerHash
+      )
+        throw new Error('stale database owner');
+      try {
+        if (discardSmsQueueFor !== undefined && !options.preservePendingWork) {
+          databasePromise ??= createAndMigrate();
+          activeDatabase = await databasePromise;
+          await withKeyedTransaction(
+            activeDatabase,
+            databaseOwnerHash,
+            async (transaction) => {
+              await transaction.runAsync('DELETE FROM sms_import_queue');
+            }
+          );
+        }
+      } finally {
+        await closeActiveDatabase();
+        databaseOwnerHash = null;
+        databaseOwnerId = null;
+        databaseName = DATABASE_NAME;
+      }
+    });
   });
 }
 
@@ -65,6 +460,7 @@ export async function openDatabase(
   expectedUserId?: string
 ): Promise<SQLite.SQLiteDatabase> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (
       expectedUserId !== undefined &&
       (await Crypto.digestStringAsync(
@@ -92,8 +488,10 @@ export async function openDatabase(
  */
 export function resetDatabaseForTests(): void {
   databasePromise = null;
+  databaseClosePromise = null;
   databaseLifecycleQueue = Promise.resolve();
   activeDatabase = null;
+  purgeInspectionClosures.clear();
 }
 
 export function runExclusiveDatabaseTransaction(
@@ -101,20 +499,54 @@ export function runExclusiveDatabaseTransaction(
   operation: (transaction: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   return enqueueDatabaseLifecycle(async () => {
+    if (databaseClosePromise) await databaseClosePromise;
     if (resolveClientMode() === 'live' && database !== activeDatabase)
       throw new Error('stale database owner');
-    await database.withExclusiveTransactionAsync(operation);
+    await withKeyedTransaction(database, databaseOwnerHash, operation);
+  });
+}
+
+async function withKeyedTransaction(
+  database: SQLite.SQLiteDatabase,
+  ownerHash: string | null,
+  operation: (transaction: SQLite.SQLiteDatabase) => Promise<void>
+): Promise<void> {
+  const key = ownerHash ? await databaseKey(ownerHash) : null;
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    // Expo's exclusive transaction has its own connection and SQLCipher key.
+    if (key) await transaction.execAsync(`PRAGMA key = "x'${key}'";`);
+    await operation(transaction);
   });
 }
 
 async function createAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const ownerHash = databaseOwnerHash;
+  if (ownerHash) {
+    if (
+      (await SecureStore.getItemAsync(
+        `${DATABASE_PURGE_PREFIX}${ownerHash}`
+      )) !== null
+    )
+      throw new Error('database purge incomplete');
+    const backup = await quarantinedDatabaseName(ownerHash);
+    const state = await quarantineState(ownerHash, backup);
+    if (
+      state?.phase === 'prepared' ||
+      (backup &&
+        !state &&
+        !databaseFile(databaseName).exists &&
+        databaseFilesExist(databaseName))
+    )
+      throw new Error('database quarantine incomplete');
+  }
   const targetExisted = ownerHash ? databaseFile(databaseName).exists : false;
   let removeLegacyAfterMigration = false;
+  const key = ownerHash
+    ? await databaseKey(ownerHash, !databaseFilesExist(databaseName))
+    : null;
   const db = await SQLite.openDatabaseAsync(databaseName);
   try {
     if (ownerHash) {
-      const key = await databaseKey(ownerHash);
       await db.execAsync(`PRAGMA key = "x'${key}'";`);
       const cipher = await db.getFirstAsync<{ cipher_version: string }>(
         'PRAGMA cipher_version'
@@ -125,7 +557,7 @@ async function createAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         : await verifyLegacyMigration(db, ownerHash);
       await db.getFirstAsync('SELECT count(*) AS count FROM sqlite_master');
     }
-    await runMigrations(db);
+    await runMigrations(db, ownerHash);
   } catch (error) {
     await db.closeAsync();
     if (ownerHash && !targetExisted && !removeLegacyAfterMigration)
@@ -168,9 +600,25 @@ async function verifyLegacyMigration(
 
 async function closeActiveDatabase(): Promise<void> {
   const active = databasePromise;
+  if (active) {
+    // Expo evicts native handles before closing; a failed close needs a restart,
+    // because repeating closeAsync can resolve without closing the old handle.
+    let database: SQLite.SQLiteDatabase;
+    try {
+      database = await active;
+    } catch (failure) {
+      if (databasePromise === active) {
+        databasePromise = null;
+        activeDatabase = null;
+      }
+      throw failure;
+    }
+    databaseClosePromise ??= database.closeAsync();
+    await databaseClosePromise;
+  }
   databasePromise = null;
+  databaseClosePromise = null;
   activeDatabase = null;
-  if (active) await (await active).closeAsync();
 }
 
 function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
@@ -182,10 +630,17 @@ function enqueueDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
   return result;
 }
 
-async function databaseKey(ownerHash: string): Promise<string> {
+async function databaseKey(
+  ownerHash: string,
+  allowCreate = false
+): Promise<string> {
   const storageKey = `${DATABASE_KEY_PREFIX}${ownerHash}`;
   const stored = await SecureStore.getItemAsync(storageKey);
   if (stored && /^[0-9a-f]{64}$/i.test(stored)) return stored.toLowerCase();
+  if (!allowCreate && databaseFilesExist(ownerDatabaseName(ownerHash))) {
+    if (databaseOwnerId) recoveryListener?.(databaseOwnerId);
+    throw new Error('DATABASE_KEY_RECOVERY_REQUIRED');
+  }
   const bytes = await Crypto.getRandomBytesAsync(32);
   const key = Array.from(bytes, (byte) =>
     byte.toString(16).padStart(2, '0')
@@ -216,7 +671,7 @@ async function migrateLegacyDatabase(
   } finally {
     await db.execAsync('DETACH DATABASE legacy;');
   }
-  await db.withExclusiveTransactionAsync(async (transaction) => {
+  await withKeyedTransaction(db, ownerHash, async (transaction) => {
     await transaction.execAsync(`
       CREATE TABLE IF NOT EXISTS ${LEGACY_MIGRATION_TABLE} (
         key TEXT PRIMARY KEY NOT NULL,
@@ -269,15 +724,22 @@ async function tableCounts(
 }
 
 function databaseFile(name: string): File {
-  return new File(SQLite.defaultDatabaseDirectory, name);
+  const directory = SQLite.defaultDatabaseDirectory;
+  return new File(
+    directory.startsWith('/') ? `file://${directory}` : directory,
+    name
+  );
 }
 
-async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+async function runMigrations(
+  db: SQLite.SQLiteDatabase,
+  ownerHash: string | null
+): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
   `);
-  await db.withExclusiveTransactionAsync(async (transaction) => {
+  await withKeyedTransaction(db, ownerHash, async (transaction) => {
     await transaction.execAsync(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
@@ -286,6 +748,22 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     `);
 
     const migrations = parseMigrations(`
+    -- migration:17
+    CREATE TABLE IF NOT EXISTS sms_import_queue_v3 (
+      id TEXT PRIMARY KEY CHECK (id = 'singleton'),
+      payload TEXT NOT NULL
+    );
+
+    -- migration:16
+    CREATE TABLE IF NOT EXISTS query_read_cache (
+      query_key TEXT NOT NULL,
+      locale TEXT NOT NULL,
+      schema_version INTEGER NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(query_key, locale)
+    );
+
     -- migration:10
     CREATE TABLE IF NOT EXISTS sync_state (
       domain TEXT PRIMARY KEY,
@@ -916,6 +1394,19 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS sms_import_queue (
       id TEXT PRIMARY KEY CHECK (id = 'singleton'),
       payload TEXT NOT NULL
+    );
+
+    -- migration:14
+    CREATE TABLE IF NOT EXISTS voice_operation_journal (
+      id TEXT PRIMARY KEY CHECK (id = 'singleton'),
+      attempt_id TEXT NOT NULL,
+      revision INTEGER NOT NULL CHECK (revision >= 0),
+      payload TEXT NOT NULL
+    );
+
+    -- migration:15
+    CREATE TABLE IF NOT EXISTS voice_batch_operations (
+      id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision >= 0), payload TEXT NOT NULL
     );
 
   `);

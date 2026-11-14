@@ -1,8 +1,26 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
-import { RegionState } from "./ui";
+import { ErrorState, RegionState } from "./ui";
 
 describe("regional overview states", () => {
+  test("explains intentionally unavailable data with caller-owned copy without exposing upstream detail", () => {
+    const markup = renderToStaticMarkup(
+      <RegionState isPending={false} isError={false}
+        region={{ availability: "unavailable", message: "unsafe upstream detail" }}
+        unavailableMessage="Billing service is not connected.">
+        protected content
+      </RegionState>,
+    );
+    expect(markup).toContain("Billing service is not connected.");
+    expect(markup).not.toContain("unsafe upstream detail");
+    expect(markup).not.toContain("protected content");
+  });
+  test("asks a stale Admin login to sign in again without displaying raw errors", () => {
+    const markup = renderToStaticMarkup(<ErrorState error={{ code: "recent_auth_required", message: "private-provider-detail" }} />);
+    expect(markup).toContain("سجّل الدخول مرة أخرى");
+    expect(markup).not.toContain("private-provider-detail");
+    expect(markup).not.toMatch(/MFA/);
+  });
   test("renders loading, empty, warning, forbidden, and retryable errors independently", () => {
     expect(renderToStaticMarkup(<RegionState isPending isError={false}>content</RegionState>)).toContain("role=\"status\"");
 

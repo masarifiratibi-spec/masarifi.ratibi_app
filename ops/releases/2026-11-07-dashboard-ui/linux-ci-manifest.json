@@ -1,0 +1,22 @@
+{
+  "sourceSha": "f865131a4cfdcd8ef4b88c3287f125f4d33112e4",
+  "adminGitTree": "b4078f3c8e41d9b47f43a405d53403c2bde236ff",
+  "sourceArchiveSha256": "71b994e03040524cc542ec593fb3061fdc41f36c14c215afdb8fdb63f15aba6b",
+  "sourceArchivePaths": [
+    "apps/admin-web",
+    "apps/api/src/reports/reports.admin.ts",
+    "apps/api/src/reports/reports.admin-types.ts"
+  ],
+  "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+  "node": "v24.16.0",
+  "npm": "11.17.0",
+  "buildId": "scy8yMJdAowpPKpkffiaW",
+  "publicConfigurationSha256": {
+    "NEXT_PUBLIC_API_URL": "6b7b580e69f5bf597cf7f8356951e8fb495959b567c87bd68cfc7ee13fc749c9",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475",
+    "NEXT_PUBLIC_CLIENT_MODE": "247610f4dedd4ab7247d07dbda19c81ca9817f85820742cad49d407ffae9e4ed",
+    "NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT": "e919a75364398a449f860aeadddc57fa0502145a4e63959ddb33c417a48dc0da",
+    "NEXT_PUBLIC_ENABLE_MOCKS": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+  },
+  "runtimeSecretsIncluded": false
+}

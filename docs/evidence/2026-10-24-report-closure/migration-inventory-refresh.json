@@ -1,0 +1,704 @@
+{
+  "reviewedRegisteredAdditions": [
+    {
+      "kind": "tables",
+      "name": "private.account_deletion_receipts",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016170001_deletion_completion_receipts.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.account_erasure_context",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql",
+        "20261020131349_account_idempotency_erasure_guard.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.account_erasure_resources",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.account_upload_erasure_tombstones",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql",
+        "20261024003511_report_closure_upload_cleanup.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.ai_platform_collection",
+      "migrations": [
+        "20261023173549_admin_ai_import_recovery.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.customer_session_commands",
+      "migrations": [
+        "20261023182551_admin_customer_lifecycle.sql",
+        "20261023190842_admin_customer_revocation_status.sql",
+        "20261023191024_admin_customer_revocation_indexes.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.deletion_completion_rate_buckets",
+      "migrations": [
+        "20261016170001_deletion_completion_receipts.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.dev_mobile_installations",
+      "migrations": [
+        "20261021053422_dev_permanent_mobile_capture.sql",
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.dev_reminder_deliveries",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.mobile_activity_buckets",
+      "migrations": [
+        "20261023095047_admin_report_measurements.sql",
+        "20261023182551_admin_customer_lifecycle.sql",
+        "20261023190245_admin_customer_primary_platform.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.mobile_activity_collection",
+      "migrations": [
+        "20261023095047_admin_report_measurements.sql"
+      ]
+    },
+    {
+      "kind": "tables",
+      "name": "private.security_provider_outcomes",
+      "migrations": [
+        "20261023111444_admin_security_provider_outcome_receipts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "account_erasure_permits_delete",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "add_support_message_phase11",
+      "migrations": [
+        "20261023193859_admin_support_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "admin_ai_matches",
+      "migrations": [
+        "20261023173549_admin_ai_import_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "allocate_obligation_payment_core",
+      "migrations": [
+        "20261018145544_planning_payment_version_salary_date_corrections.sql",
+        "20261019063248_staging_dev_planning_receipt_scope.sql",
+        "20261022191918_shared_planning_payment_salary_reconciliation.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "assert_account_erasure_request",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql",
+        "20261020131349_account_idempotency_erasure_guard.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "assert_security_replay_actor",
+      "migrations": [
+        "20261023110600_admin_security_replay_operations_recovery.sql",
+        "20261023111444_admin_security_provider_outcome_receipts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "assert_staging_dev_planning",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "begin_account_erasure",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "bind_dev_push_installation",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "capture_ai_event_platform",
+      "migrations": [
+        "20261023173549_admin_ai_import_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "claim_account_upload_erasure",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "claim_dev_reminder",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "claim_engagement_key",
+      "migrations": [
+        "20261023194128_engagement_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "claim_next_assistant_agent_job",
+      "migrations": [
+        "20261022100632_promote_semantic_assistant_queue.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "claim_security_idempotency",
+      "migrations": [
+        "20261023110600_admin_security_replay_operations_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "clear_account_erasure_context_at_commit",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "complete_account_upload_erasure",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "complete_engagement_key",
+      "migrations": [
+        "20261023194128_engagement_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "complete_security_idempotency",
+      "migrations": [
+        "20261023110600_admin_security_replay_operations_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "create_obligation_payment",
+      "migrations": [
+        "20261017144514_atomic_obligation_payment_create.sql",
+        "20261018145544_planning_payment_version_salary_date_corrections.sql",
+        "20261019063248_staging_dev_planning_receipt_scope.sql",
+        "20261022191918_shared_planning_payment_salary_reconciliation.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "customer_admin",
+      "migrations": [
+        "20261023182551_admin_customer_lifecycle.sql",
+        "20261023190245_admin_customer_primary_platform.sql",
+        "20261023190842_admin_customer_revocation_status.sql",
+        "20261023191927_admin_customer_read_boundaries.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "customer_admin_internal",
+      "migrations": [
+        "20261023191927_admin_customer_read_boundaries.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "customer_admin_projection",
+      "migrations": [
+        "20261023182551_admin_customer_lifecycle.sql",
+        "20261023190245_admin_customer_primary_platform.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "customer_admin_revocation_status",
+      "migrations": [
+        "20261023190842_admin_customer_revocation_status.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "detect_salary_receipts",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql",
+        "20261018145544_planning_payment_version_salary_date_corrections.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "dev_notification_visible",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "dev_reminder_candidate",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "dev_reminder_delivery_candidate",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "dev_reminder_zone_valid",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "enqueue_dev_reminder_test",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "enqueue_dev_reminders",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "enroll_dev_mobile_installation",
+      "migrations": [
+        "20261021053422_dev_permanent_mobile_capture.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "erase_account_owner_payload",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261016201500_owner_outbox_erasure_lookup.sql",
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "execute_engagement_command_phase11",
+      "migrations": [
+        "20261023193859_admin_support_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "execute_operating_voice_event",
+      "migrations": [
+        "20261018195431_voice_operating_worker_identity.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "expire_dev_reminder_submissions",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "fail_operating_voice_event",
+      "migrations": [
+        "20261018195748_voice_operating_failure_policy.sql",
+        "20261018200758_voice_operating_owner_fence.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "fence_frozen_owner_payload",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql",
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finalize_import_session_before_currency_accounts",
+      "migrations": [
+        "20261020233000_tracking_source_currency_accounts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finalize_import_session_before_date_review",
+      "migrations": [
+        "20261022114825_tracking_deferred_date_review.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finalize_import_session_before_notification_destination",
+      "migrations": [
+        "20261020225500_notification_capture_destination.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finalize_import_session_before_owner_context",
+      "migrations": [
+        "20261024080700_report_closure_tracking_worker_context.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finish_dev_reminder",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "finish_security_provider_outcome",
+      "migrations": [
+        "20261023111444_admin_security_provider_outcome_receipts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "freeze_account_deletion_owner",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "get_tracking_device_rule_snapshot_before_currency_accounts",
+      "migrations": [
+        "20261020233000_tracking_source_currency_accounts.sql",
+        "20261021053422_dev_permanent_mobile_capture.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "guard_evaluated_ai_corpus",
+      "migrations": [
+        "20261023173549_admin_ai_import_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "initialize_salary_detection",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "list_due_account_upload_erasure_owners",
+      "migrations": [
+        "20261024003511_report_closure_upload_cleanup.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "lock_account_erasure_objects",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "pending_dev_receipts",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "prepare_account_owner_erasure",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "prepare_dev_reminder",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "prune_mobile_activity",
+      "migrations": [
+        "20261023095047_admin_report_measurements.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "queue_salary_detection",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_admin_ai_filtered",
+      "migrations": [
+        "20261023173549_admin_ai_import_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_admin_overview_activity_at",
+      "migrations": [
+        "20261023104253_admin_export_observation_bounds.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_admin_report_measurements",
+      "migrations": [
+        "20261023095047_admin_report_measurements.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_security_provider_outcome",
+      "migrations": [
+        "20261023111444_admin_security_provider_outcome_receipts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_social_media_links",
+      "migrations": [
+        "20261021120000_mobile_social_media.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "read_supported_financial_report_relative",
+      "migrations": [
+        "20261023104253_admin_export_observation_bounds.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "reconcile_salary_receipts",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql",
+        "20261022191918_shared_planning_payment_salary_reconciliation.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "record_mobile_activity",
+      "migrations": [
+        "20261023095047_admin_report_measurements.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "redact_frozen_owner_webhook",
+      "migrations": [
+        "20261016101500_account_owner_payload_erasure.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "release_dev_push_token",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "release_operating_voice_finalization",
+      "migrations": [
+        "20261018200758_voice_operating_owner_fence.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "reminder_baseline",
+      "migrations": [
+        "20261020220455_normalize_reminder_cycle_baseline.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "run_salary_detection_jobs",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "salary_detection_candidates",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql",
+        "20261018145544_planning_payment_version_salary_date_corrections.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "salary_income_is_clear",
+      "migrations": [
+        "20261017140043_automatic_salary_detection.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "set_tracking_worker_context",
+      "migrations": [
+        "20261024081800_report_closure_tracking_claim_context.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "sign_out_dev_installation",
+      "migrations": [
+        "20261021053557_dev_reminder_delivery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "staging_dev_allocate_obligation_payment",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "staging_dev_allocate_obligation_payment_core",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "staging_dev_create_obligation_payment",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "staging_dev_reconcile_salary_receipts",
+      "migrations": [
+        "20261019063248_staging_dev_planning_receipt_scope.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "start_security_provider_outcome",
+      "migrations": [
+        "20261023111444_admin_security_provider_outcome_receipts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "support_admin_attachment",
+      "migrations": [
+        "20261023193859_admin_support_recovery.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "support_admin_workload",
+      "migrations": [
+        "20261023193859_admin_support_recovery.sql",
+        "20261023195606_support_utc_boundaries.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "tracking_currency_destination",
+      "migrations": [
+        "20261020233000_tracking_source_currency_accounts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "tracking_nominal_exception_before_currency_accounts",
+      "migrations": [
+        "20261020233000_tracking_source_currency_accounts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "tracking_nominal_exception_before_notification_destination",
+      "migrations": [
+        "20261020225500_notification_capture_destination.sql",
+        "20261020233000_tracking_source_currency_accounts.sql"
+      ]
+    },
+    {
+      "kind": "functions",
+      "name": "validate_social_media_links",
+      "migrations": [
+        "20261021120000_mobile_social_media.sql"
+      ]
+    }
+  ],
+  "scope": "exact inventory; no wildcard or changed production grants"
+}

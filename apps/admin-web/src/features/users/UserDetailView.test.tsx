@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { UserDetailView } from "./UserDetailView";
+import { getPhase2MockState } from "@/mocks/phase2-state";
 
 const roots: Root[] = [];
 
@@ -40,6 +41,14 @@ afterEach(async () => {
 });
 
 describe("UserDetailView", () => {
+  test("shows failed provider revocation explicitly without claiming completion", async () => {
+    mockServer.use(http.get('/api/v1/admin/users/USR-10482',()=>HttpResponse.json({
+      ...getPhase2MockState().profiles.find(profile=>profile.id==='USR-10482'),providerRevocationStatus:'failed',
+    })));
+    const host=await renderDetail();
+    await waitForText(host,'تعذرت المحاولة؛ إعادة المحاولة مجدولة');
+    expect(host.textContent).not.toContain('اكتملت الطلبات السابقة');
+  });
   test("renders a masked aggregate-only overview", async () => {
     const host = await renderDetail();
     await waitForText(host, "n***@example.test");

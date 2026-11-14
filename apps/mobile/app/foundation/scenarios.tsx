@@ -1,12 +1,10 @@
 import React from 'react';
 
-import {
-  FrontendQualityScenarioScreen,
-  FrontendQualityScenarioUnavailableScreen
-} from '@/features/foundation/FrontendQualityScenarioScreen';
-
 export default function FrontendQualityScenarioRoute() {
+  // Route discovery must not construct the large disposable scenario fixtures.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  const screens = require('@/features/foundation/FrontendQualityScenarioScreen') as typeof import('@/features/foundation/FrontendQualityScenarioScreen');
   return __DEV__
-    ? <FrontendQualityScenarioScreen />
-    : <FrontendQualityScenarioUnavailableScreen />;
+    ? <screens.FrontendQualityScenarioScreen />
+    : <screens.FrontendQualityScenarioUnavailableScreen />;
 }

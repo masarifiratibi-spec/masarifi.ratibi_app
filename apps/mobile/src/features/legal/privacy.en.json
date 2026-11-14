@@ -1,0 +1,132 @@
+{
+  "title": "Privacy Policy",
+  "sections": [
+    {
+      "id": "controller",
+      "title": "1. Who is responsible and how to contact us",
+      "paragraphs": [
+        "This policy describes handling of user data in مصاريفي وراتبي (Masarifi & Ratibi). For privacy or support enquiries, contact masarifi.ratibi@gmail.com.",
+        "Send only the information needed to explain your request, without passwords, authentication codes or unnecessary financial documents. You can also use in-app support where available."
+      ]
+    },
+    {
+      "id": "scope",
+      "title": "2. Scope and sources of information",
+      "paragraphs": [
+        "Data can come from information you enter, Google/Clerk authentication, financial activity you import or authorize the application to detect, your use of enabled features, your device and responses from service providers. Only features available in your build and enabled for your account apply. Hidden or deferred functionality is not activated by this policy.",
+        "Required core data, optional permissions and feature-specific choices must be distinguished. Declining an optional tracking or AI feature can limit that feature without itself authorizing unrelated collection. Do not include unnecessary information about other people in financial notes, recordings, prompts, imports or support messages."
+      ]
+    },
+    {
+      "id": "identity",
+      "title": "3. Account, profile and device information",
+      "paragraphs": [
+        "Authentication can involve your Google account identifiers and profile details, Clerk user and session identifiers, authentication tokens and session status. Masarifi's backend maintains an owner profile and device/session records. Profile and preference fields can include name, email or masked contact information, optional phone, optional birthday or gender where supplied, language, timezone, country, currency and application settings. Not every field is required or remotely stored in the same way.",
+        "Device registration, notification delivery and security may involve application-generated device identifiers, platform/app version, device label, push token, permission state, timestamps and security or operational events. Service infrastructure may also process network metadata such as IP addresses. The exact production log inventory, access permissions and retention schedule require confirmation. Google authentication is not permission to read your Gmail inbox."
+      ]
+    },
+    {
+      "id": "finance",
+      "title": "4. Financial records and planning data",
+      "paragraphs": [
+        "Records can include account names and types, institution labels, last four digits supplied for recognition, currencies, opening balances, card limits and payment terms, transaction amounts and dates, merchants, descriptions, categories, transfers, refunds, obligations, recurring records, salary information, budgets and savings goals. The application also maintains record versions, synchronization status, operation identifiers, conflicts and duplicate-review information to reconcile changes safely.",
+        "Financial overviews, calculations, trends and reports derive from these records using the selected accounts, periods, currencies and filters. Local pending information is different from server-confirmed data. Ordinary record entry does not require banking passwords or card security codes; do not add them to free-text fields."
+      ]
+    },
+    {
+      "id": "tracking",
+      "title": "5. SMS, notification access and imported content",
+      "paragraphs": [
+        "When separately enabled on supported Android devices, SMS access can read message text, sender and time, and notification access can receive notification title/text, source application, identifiers and time. Android grants broad technical access; financial-source and content filters reduce which information is admitted for tracking but are not a guarantee that unrelated text is never encountered during classification.",
+        "Native queues and application records can retain admitted content and processing metadata while offline. Financial content, extracted fields, source references and, in supported import flows, original JSON/CSV payloads can be sent to the backend and stored for processing or review. The backend has storage and deletion paths for tracking imports. It would be inaccurate to describe all tracking as remaining only on the device.",
+        "Tracking is used to identify financial activity, match it to authorized accounts, detect duplicates and present uncertain items for review. Change source settings or revoke SMS/notification access in the device settings to stop future permitted capture. That does not automatically erase prior records. A general legal checkbox does not replace prominent source-specific disclosure and permission."
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "6. Voice and AI processing",
+      "paragraphs": [
+        "If you use voice entry, microphone audio, uploaded recordings, transcripts, extracted fields, proposed transactions and processing status may be handled by the application, backend storage and an external AI provider. The microphone is needed for a recording you initiate; do not record others without the required authority.",
+        "Assistant questions, conversation history and authorized financial context may be sent through the AI gateway to enabled service providers to produce an answer. The processing provider and location may vary with the service used.",
+        "The gateway requests restricted provider routing with data-collection denial and zero-retention parameters. Request parameters alone do not verify all provider behavior or create an absolute no-training/no-retention guarantee. Gateway metadata, optional account logging, legal/safety exceptions and provider-specific terms require review. Do not assume AI data stays in the same country as the application database. Masarifi itself can retain conversation and voice-processing records until its applicable deletion or retention process completes.",
+        "AI may make errors. A response is not professional advice or a completed action. Feature-specific consent, current authorization, preview and confirmation controls remain separate from registration consent. New AI processing needs connectivity; saved history is only a record of an earlier exchange."
+      ]
+    },
+    {
+      "id": "purposes",
+      "title": "7. Purposes and legal grounds",
+      "paragraphs": [
+        "Processing supports authentication and account access; storing and synchronizing your records; calculations and planning; optional financial tracking; requested AI/voice processing; reports and exports; support and feedback; notification delivery; security, duplicate prevention, recovery and legal obligations. Optional analytics settings exist, and some application event helpers exclude sensitive fields. This does not establish that every infrastructure or third-party log is anonymous or that the analytics switch controls necessary security logging.",
+        "Processing purposes are subject to the lawful grounds and permissions required by applicable law. Optional permissions, AI processing and any marketing choice remain separate from a general acknowledgement of the terms."
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "8. Storage, security and offline copies",
+      "paragraphs": [
+        "The mobile implementation uses an owner-specific encrypted SQLite database for local financial and workflow records, with encryption keys stored through the operating system's secure-storage mechanism. It also uses secure storage, preferences, temporary files and owner-bound native tracking queues. Saved display projections reuse the existing owner database and retain their original update timestamps. This architecture is designed to avoid displaying one owner's saved data to another owner.",
+        "Server data and files are stored in PostgreSQL and private file storage on the project Hostinger VPS. Server authorization and temporary links protect private files. The authorized backend can process data; this is not end-to-end encryption.",
+        "Device/app lock, hidden balances, encryption and access checks provide different protections. No system guarantees absolute security. Notifications, screenshots, downloaded files, device backups, compromised devices and copies opened in another app need separate consideration. The production backup configuration, all processing locations, staff access and incident-response arrangements require operational verification."
+      ]
+    },
+    {
+      "id": "providers",
+      "title": "9. Service providers and other recipients",
+      "paragraphs": [
+        "Services include Google and Clerk for authentication, Hostinger for the database, files and application hosting, OpenRouter and model providers for enabled AI processing, and Expo and native notifications where configured and permitted. Availability varies by platform and feature.",
+        "Authorized support or administrative personnel may process support messages, attachments, account status and permitted diagnostic information for their work, subject to access controls. Downloads and sharing go to the destination or recipient you choose. Legally required disclosures and necessary security investigations need a valid basis and appropriate limits. Any business transfer and its safeguards must be legally reviewed before related processing occurs.",
+        "Viewing this policy does not authorize sale, advertising, training or unrelated secondary use of data. Service-provider processing is subject to its purposes, controls and applicable terms."
+      ]
+    },
+    {
+      "id": "transfers",
+      "title": "10. Processing locations and international transfers",
+      "paragraphs": [
+        "Processing locations may differ across the database, hosting, authentication, AI, notifications, backups and support. The database location alone does not mean all information stays in the same country.",
+        "International transfers are subject to applicable legal restrictions and safeguards. General consent or a provider compliance statement alone does not authorize every international transfer."
+      ]
+    },
+    {
+      "id": "retention",
+      "title": "11. Retention and deletion limits",
+      "paragraphs": [
+        "Retention requirements vary by data category, processing purpose and legal obligations, including financial and profile records, tracking, audio, conversations, support, reports, security logs and backups. Cache limits do not establish a fixed retention period.",
+        "Deletion completion may be affected by legal holds, failed tasks, provider processing or backup cycles. A deletion mechanism does not mean every copy is removed immediately.",
+        "Deleting a transaction, clearing local data, deleting an account and uninstalling the application are different operations. Exported PDFs and recipient copies outside Masarifi may remain beyond its control. A time-limited download link expiring does not necessarily mean the underlying file has already been erased."
+      ]
+    },
+    {
+      "id": "rights",
+      "title": "12. Your choices, rights and requests",
+      "paragraphs": [
+        "Depending on applicable law, you may have rights to information, access and a copy of your personal data, correction, deletion, restriction or objection, portability where required, and withdrawal of consent for processing based on consent. Rights, legal exceptions and response periods must be assessed for the applicable jurisdiction. Withdrawal does not itself undo processing that was lawful before withdrawal.",
+        "Use enabled profile and preference controls for supported corrections and permissions. The application includes data-export and account-deletion request flows with verification and status reporting; these require online services and current authorization. A submitted or pending request is not confirmation that all processing or deletion has completed. The backend deletion design includes revoking sessions, removing or anonymizing domain records and deleting the Clerk identity, with recovery for failures.",
+        "For privacy requests or complaints, including inability to sign in, contact masarifi.ratibi@gmail.com with only necessary information. Proportionate identity verification may be required. You retain any applicable right to complain to the competent supervisory authority."
+      ]
+    },
+    {
+      "id": "permissions",
+      "title": "13. Managing permissions and notifications",
+      "paragraphs": [
+        "Use application and operating-system controls for SMS access, notification-listener access, microphone recording, push notifications and biometric/device authentication. Denying a permission can prevent the associated feature. System authentication returns an authentication outcome to the application; the reviewed application does not collect fingerprint images or biometric templates through that interface.",
+        "Optional notification and personalization settings do not erase existing records. Necessary account and security messages may differ from optional reminders under applicable law. An operating-system permission alone does not authorize every upload or optional use of content."
+      ]
+    },
+    {
+      "id": "children",
+      "title": "14. Minors and automated outputs",
+      "paragraphs": [
+        "Use by minors and processing of their data are subject to legally required safeguards and consent, including verifiable caregiver consent where required. A Google account or birthday field alone does not establish eligibility or caregiver consent.",
+        "Age-appropriate data and features, caregiver authority, consent withdrawal, privacy settings, safety reporting and applicable restrictions on tracking, audio and AI must be considered.",
+        "Automated categorization, duplicate detection, tracking and AI analysis can affect records and presentation, and errors need review and correction. These features do not establish a credit approval, insurance decision or entitlement to a regulated financial product. Any future decision producing legal or similarly significant effects requires a separate assessment."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "15. Policy changes",
+      "paragraphs": [
+        "Material policy changes should be communicated appropriately. New optional purposes may require a separate choice or renewed consent. Changes do not establish consent retroactively."
+      ]
+    }
+  ]
+}

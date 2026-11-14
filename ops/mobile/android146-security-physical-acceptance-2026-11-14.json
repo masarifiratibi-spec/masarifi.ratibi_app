@@ -1,0 +1,49 @@
+{
+  "recordedAtUtc": "2026-11-14T07:45:11.244175+00:00",
+  "versionCode": 146,
+  "versionName": "1.0.1",
+  "apkSha256": "5b6018e3d1ad4e869e1e0227cc0085464c7ac25f5c5dd12dd406bf36ff12ba44",
+  "versionEvidence": "E:\\Masarifi-security-events-hidden-146-20261114\\installed146.json",
+  "verificationMethod": "Physical Android screenshots and UIAutomator hierarchy via ADB; earlier 144/145 inspection used Computer Use through scrcpy. Windows window activation failed twice on 146, so no further Windows UI actions were used.",
+  "scope": "Security Events screen retirement, update-entry relocation, Privacy-entry removal, retained session and home balance",
+  "checks": {
+    "securityEventsComponentExcludedFromHermes": true,
+    "securityNotificationTargetsMappedToSecuritySettingsInLocalTests": true,
+    "oldEventsRouteRejectedAsReturnDestinationInLocalTests": true,
+    "coldLegacyEventsLinkEndedAtHomeWithoutEvents": true,
+    "warmLegacyEventsLinkRedirectedToSecuritySettings": true,
+    "privacyEntryAbsent": true,
+    "updatesEntryVisibleInSecuritySettings": true,
+    "updatesEntryAbsentFromApplicationSettingsTopAndBottom": true,
+    "signedInSessionRetained": true,
+    "homeBalanceBeforeAndAfter": "200.00 SAR",
+    "activeAccountCountBeforeAndAfter": 1
+  },
+  "dataPreservation": {
+    "uidPreserved": true,
+    "bothProfilesDataInodesPreserved": true,
+    "firstInstallTimesPreserved": true
+  },
+  "screenshots": {
+    "homeAfterColdLegacyLink": "E:\\Masarifi-security-events-hidden-146-20261114\\146-legacy-events-redirect.png",
+    "warmLegacyRedirect": "E:\\Masarifi-security-events-hidden-146-20261114\\146-legacy-events-warm.png",
+    "applicationSettingsTop": "E:\\Masarifi-security-events-hidden-146-20261114\\146-app-settings-top.png",
+    "applicationSettingsBottom": "E:\\Masarifi-security-events-hidden-146-20261114\\146-app-settings-bottom.png",
+    "finalSecuritySettings": "E:\\Masarifi-security-events-hidden-146-20261114\\146-security-final.png"
+  },
+  "finalObservedScreen": "Security Settings, light mode",
+  "constraints": {
+    "dataCleared": false,
+    "uninstalled": false,
+    "permissionsGranted": false,
+    "settingsChanged": false,
+    "serverDeploymentPerformed": false,
+    "emailsSent": false,
+    "storePublicationPerformed": false
+  },
+  "limitations": [
+    "Scoped UI acceptance only; no new SMS/notification capture, real voice or full report-cycle acceptance.",
+    "No physical security notification was sent; notification destinations were verified by local tests.",
+    "Google Play readiness remains false and no AAB146 was built."
+  ]
+}

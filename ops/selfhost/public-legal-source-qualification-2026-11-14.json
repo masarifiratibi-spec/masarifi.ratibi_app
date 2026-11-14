@@ -1,0 +1,74 @@
+{
+  "canonicalSourceCommit": "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718",
+  "sourceCommit": "3d100174125468ef566f34288708b403a48ec6c4",
+  "adapterCommit": "3d100174125468ef566f34288708b403a48ec6c4",
+  "adapterTracked": true,
+  "adapterGitMatched": true,
+  "adapterClean": true,
+  "previewOnly": false,
+  "releaseAdmitted": true,
+  "checks": [
+    "six-full-language-responses-and-canonical-paragraph-parity",
+    "both-stylesheets-served-and-no-resource-imports",
+    "fourteen-nonpublic-paths-and-four-mutations-rejected",
+    "strict-language-fallback-matches-nginx-maps",
+    "hostile-document-content-escaped-through-full-renderer",
+    "real-git-descendant-release-admission-and-adapter-canonical-tamper-rejection"
+  ],
+  "responses": [
+    {
+      "path": "/privacy?lang=ar",
+      "status": 200,
+      "bytes": 23828,
+      "sha256": "adfbdddb48bc1a2648b5708b59bd9cf24fbc097a2e2005f0ebeb44fee80ba79f",
+      "direction": "rtl",
+      "fullCanonicalDocument": true
+    },
+    {
+      "path": "/privacy?lang=en",
+      "status": 200,
+      "bytes": 17121,
+      "sha256": "1a344fb545f2095e280089696c8c61206e90025e6e2e4d7a59d5cf8e9af6b1c4",
+      "direction": "ltr",
+      "fullCanonicalDocument": true
+    },
+    {
+      "path": "/terms?lang=ar",
+      "status": 200,
+      "bytes": 19997,
+      "sha256": "bf55c77fc15081373ad9df514cb0d2a2c589c294e3507092aab51831a4b9d099",
+      "direction": "rtl",
+      "fullCanonicalDocument": true
+    },
+    {
+      "path": "/terms?lang=en",
+      "status": 200,
+      "bytes": 14381,
+      "sha256": "f07234457dfd6ea4a18c78577cb963cbd20b0149e880918c5c12a52466c98a2f",
+      "direction": "ltr",
+      "fullCanonicalDocument": true
+    },
+    {
+      "path": "/delete-account?lang=ar",
+      "status": 200,
+      "bytes": 2812,
+      "sha256": "479c4a2d7ce0bd1814e04ce37a4278e54684f48a7f00045a659dbc39e0e1654f",
+      "direction": "rtl",
+      "fullCanonicalDocument": false
+    },
+    {
+      "path": "/delete-account?lang=en",
+      "status": 200,
+      "bytes": 2273,
+      "sha256": "c5741a5e2a507305e6d24e38d53d19b5af246ace729fc0d3df97402463912700",
+      "direction": "ltr",
+      "fullCanonicalDocument": false
+    }
+  ],
+  "payloadFileCount": 8,
+  "staticOnly": true,
+  "automatedDeletion": false,
+  "externalRequestsNeeded": false,
+  "liveDeploymentAcceptance": false,
+  "ownerLegalContactRetentionAdoption": "pending"
+}

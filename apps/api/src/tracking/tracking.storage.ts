@@ -1,5 +1,10 @@
+import {
+  correlatedStorageFetch,
+  storageConfiguration,
+} from '../platform/storage/storage-configuration';
 import { Injectable, Optional } from '@nestjs/common';
 
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 
 const KEY = /^tracking\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/;
@@ -13,8 +18,10 @@ export class TrackingStorage {
     config: PlatformConfigService,
     @Optional() private readonly fetcher: typeof fetch = fetch,
   ) {
-    this.origin = new URL(config.getRequired('SUPABASE_URL'));
-    this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
+    this.fetcher = correlatedStorageFetch(this.fetcher);
+    const storage = storageConfiguration(config);
+    this.origin = storage.origin;
+    this.credential = storage.credential;
   }
 
   async upload(
@@ -56,7 +63,7 @@ export class TrackingStorage {
       if (
         !response.ok &&
         !(input.method === 'PUT' && response.status === 409) &&
-        !(input.method === 'DELETE' && response.status === 404)
+        !(input.method === 'DELETE' && (await isMissingStorageObject(response, controller.signal)))
       )
         throw new Error('TRACKING_STORAGE_UNAVAILABLE');
       return response.status;

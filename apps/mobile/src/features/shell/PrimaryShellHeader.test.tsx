@@ -8,10 +8,9 @@ import { settingsKeys } from '@/features/settings/settings-queries';
 import { changeLocale, translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithQueryData } from '@/test-utils/render';
-import {
-  PrimaryShellHeader,
-  profileInitials
-} from './PrimaryShellHeader';
+import { useAppShellStore } from '@/state/app-shell';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
+import { PrimaryShellHeader, profileInitials } from './PrimaryShellHeader';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
@@ -29,16 +28,28 @@ const profile = {
 };
 
 beforeEach(() => {
+  useAppShellStore.setState({ session: authenticatedSession });
   jest.clearAllMocks();
   changeLocale('en');
   usePreferenceStore.setState({ locale: 'en', direction: 'ltr' });
 });
 
+it('does not retain a previous profile avatar when there is no authenticated owner', () => {
+  useAppShellStore.setState({ session: null });
+  renderWithQueryData(
+    <PrimaryShellHeader origin="/(tabs)/home">
+      <Text>Center</Text>
+    </PrimaryShellHeader>,
+    [[settingsKeys.profile(), profile]]
+  );
+  expect(screen.queryByText('AZ')).toBeNull();
+  expect(screen.getByText('MU')).toBeOnTheScreen();
+});
+
 it('derives compact initials from the best available identity', () => {
-  expect(profileInitials('Abdullah Zordok', null, null)).toBe('AZ');
-  expect(profileInitials('Abdullah', null, null)).toBe('AB');
-  expect(profileInitials(null, 'dana@example.com', null)).toBe('DA');
-  expect(profileInitials(null, null, 'user-demo')).toBe('UD');
+  expect(profileInitials('Abdullah Zordok')).toBe('AZ');
+  expect(profileInitials('Abdullah')).toBe('AB');
+  expect(profileInitials(null)).toBe('M');
 });
 
 it('renders real profile initials in the existing accessible More action', () => {

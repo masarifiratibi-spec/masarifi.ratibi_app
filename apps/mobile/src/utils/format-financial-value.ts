@@ -9,6 +9,7 @@
  */
 
 import type { Locale } from '@/domain/foundation';
+import { getDateFormatter, getNumberFormatter } from './intl-formatters';
 import {
   getCurrencyMinorUnitScale,
   minorToMajorAmountText
@@ -46,7 +47,7 @@ export function formatAmount(
   currencyCode: string,
   locale: Locale
 ): string {
-  const numberPart = new Intl.NumberFormat(LATIN_NUMERAL_LOCALES[locale], {
+  const numberPart = getNumberFormatter(LATIN_NUMERAL_LOCALES[locale], {
     minimumFractionDigits: getCurrencyMinorUnitScale(currencyCode),
     maximumFractionDigits: getCurrencyMinorUnitScale(currencyCode)
   }).format(value);
@@ -63,7 +64,7 @@ export function formatMinorAmount(
   const [whole, fraction] = (negative ? exactAmount.slice(1) : exactAmount).split(
     '.'
   );
-  const formatter = new Intl.NumberFormat(LATIN_NUMERAL_LOCALES[locale]);
+  const formatter = getNumberFormatter(LATIN_NUMERAL_LOCALES[locale]);
   const numberPart = formatter.format(Number(whole) * (negative ? -1 : 1));
   const displayFraction = (fraction ?? '').padEnd(
     getCurrencyMinorUnitScale(currencyCode),
@@ -115,16 +116,17 @@ export function formatFinancialDisplayValue({
   return { text, accessibilityLabel: text };
 }
 
-export function formatDate(timestamp: number, locale: Locale): string {
-  return new Intl.DateTimeFormat(LATIN_NUMERAL_LOCALES[locale], {
+export function formatDate(timestamp: number, locale: Locale, timeZone?: string): string {
+  return getDateFormatter(LATIN_NUMERAL_LOCALES[locale], {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone
   }).format(new Date(timestamp));
 }
 
 export function formatDateTime(timestamp: number, locale: Locale): string {
-  return new Intl.DateTimeFormat(LATIN_NUMERAL_LOCALES[locale], {
+  return getDateFormatter(LATIN_NUMERAL_LOCALES[locale], {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

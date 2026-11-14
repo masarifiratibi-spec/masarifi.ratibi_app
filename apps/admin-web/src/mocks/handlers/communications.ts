@@ -136,6 +136,8 @@ function initialTicket() {
     id: ids.ticket,
     categoryId: ids.category,
     subject: "Card transfer is missing",
+    assignedAdminId: null as string | null,
+    customerReference: "CUS-0000000000000001",
     status: "waiting_support" as TicketState,
     priority: "high" as "low" | "normal" | "high" | "urgent",
     lastMessageAt: at,
@@ -279,11 +281,12 @@ function page(
   request: Request,
   permission: PermissionKey,
   items: unknown[],
+  totalItems?: number,
 ): Response {
   return (
     denied(request, permission) ??
     validatePage(request) ??
-    HttpResponse.json({ items, nextCursor: null, hasMore: false })
+    HttpResponse.json({ items, nextCursor: null, hasMore: false, ...(totalItems === undefined ? {} : { totalItems }) })
   );
 }
 function notFound(): Response {
@@ -330,8 +333,15 @@ async function versionedAction(
 }
 
 export const communicationsHandlers: RequestHandler[] = [
+  http.get(`${base}/support/overview`, ({ request }) => {
+    const unavailable = denied(request, "support.overview.read") ?? validatePage(request);
+    if (unavailable) return unavailable;
+    const byStatus = { open: 0, waiting_customer: 0, waiting_support: 0, resolved: 0, closed: 0 };
+    byStatus[ticket.status] = 1;
+    return HttpResponse.json({ total: 1, unassigned: ticket.assignedAdminId === null ? 1 : 0, byStatus });
+  }),
   http.get(`${base}/support/tickets`, ({ request }) =>
-    page(request, "support.tickets.read", [ticket]),
+    page(request, "support.tickets.read", [ticket], 1),
   ),
   http.get(`${base}/support/tickets/:ticketId`, ({ request, params }) => {
     const permissionError = denied(request, "support.tickets.detail.read");

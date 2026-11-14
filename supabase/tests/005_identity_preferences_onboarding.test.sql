@@ -41,10 +41,13 @@ select ok(exists(select 1 from pg_policies where schemaname = 'public' and table
 insert into public.profiles (id, status) values
   ('pref_owner_1', 'active'),
   ('pref_owner_2', 'active'),
-  ('pref_inactive', 'suspended'),
+  ('pref_inactive', 'active'),
   ('bad_privacy_key', 'active');
 insert into public.user_preferences (user_id) values
   ('pref_owner_1'), ('pref_owner_2'), ('pref_inactive');
+
+-- Suspend after seeding: frozen-owner payload writes are intentionally forbidden.
+update public.profiles set status='suspended' where id='pref_inactive';
 
 select is((select default_currency::text from public.user_preferences where user_id = 'pref_owner_1'), 'SAR', 'currency defaults to SAR');
 select is((select language from public.user_preferences where user_id = 'pref_owner_1'), 'ar', 'language defaults to ar');
@@ -123,9 +126,11 @@ select ok(exists(select 1 from pg_policies where schemaname = 'public' and table
 insert into public.profiles (id, status) values
   ('onboard_owner_1', 'active'),
   ('onboard_owner_2', 'active'),
-  ('onboard_inactive', 'suspended');
+  ('onboard_inactive', 'active');
 insert into public.onboarding_progress (user_id) values
   ('onboard_owner_1'), ('onboard_owner_2'), ('onboard_inactive');
+
+update public.profiles set status='suspended' where id='onboard_inactive';
 
 select is((select step from public.onboarding_progress where user_id = 'onboard_owner_1'), 'welcome', 'onboarding defaults to welcome');
 select is((select completed_steps from public.onboarding_progress where user_id = 'onboard_owner_1'), array[]::text[], 'completed steps default empty');

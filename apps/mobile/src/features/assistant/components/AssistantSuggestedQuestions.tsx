@@ -1,10 +1,22 @@
 import React from 'react';
-import { PixelRatio, View, Pressable, StyleSheet, Text } from 'react-native';
-import { BarChartIcon, PieChartIcon, CalendarIcon, WalletIcon } from './AssistantIcons';
+import { useTheme } from '@/state/theme-context';
+import {
+  PixelRatio,
+  View,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions
+} from 'react-native';
+import {
+  BarChartIcon,
+  PieChartIcon,
+  CalendarIcon,
+  WalletIcon
+} from './AssistantIcons';
 import { StyledText } from '@/components/StyledText';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 import type { AssistantQuestionIntent } from '@/services/contracts/assistant-notifications-service';
 
 export interface AssistantSuggestedQuestionsProps {
@@ -16,42 +28,38 @@ export function AssistantSuggestedQuestions({
   onSelectQuestion,
   disabled = false
 }: AssistantSuggestedQuestionsProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const largeText = PixelRatio.getFontScale() >= 1.5;
+  const { width } = useWindowDimensions();
+  const stacked = largeText || width < 350;
 
   const cards = [
     {
       id: 'spending',
       intent: 'spending_summary' as const,
       label: translate('assistant.suggestions.spending'),
-      renderIcon: () => <BarChartIcon size={18} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <BarChartIcon size={18} color={colors.content.link} />
     },
     {
       id: 'highest',
       intent: 'category_breakdown' as const,
       label: translate('assistant.suggestions.highest'),
-      renderIcon: () => <PieChartIcon size={18} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <PieChartIcon size={18} color={colors.content.link} />
     },
     {
       id: 'weekly',
       intent: 'recent_transactions' as const,
       label: translate('assistant.suggestions.weekly'),
-      renderIcon: () => <CalendarIcon size={17} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <CalendarIcon size={17} color={colors.content.link} />
     },
     {
       id: 'budget',
       intent: 'budget_status' as const,
       label: translate('assistant.suggestions.budget'),
-      renderIcon: () => <WalletIcon size={17} color={colorTokens.teal['700']} />,
-      badgeBg: colorTokens.teal['50'],
-      badgeBorder: colorTokens.teal['100']
+      renderIcon: () => <WalletIcon size={17} color={colors.content.link} />
     }
   ];
 
@@ -63,47 +71,30 @@ export function AssistantSuggestedQuestions({
       disabled={disabled}
       style={({ pressed }) => [
         styles.card,
+        stacked && styles.stackedCard,
+        disabled && styles.cardDisabled,
         pressed && styles.cardPressed
       ]}
       accessibilityRole="button"
       accessibilityLabel={item.label}
+      accessibilityState={{ disabled }}
     >
       {isRtl ? (
         <>
           <StyledText
             numberOfLines={largeText ? undefined : 2}
-            style={[
-              styles.questionText,
-              styles.questionTextRtl
-            ]}
+            style={[styles.questionText, styles.questionTextRtl]}
           >
             {item.label}
           </StyledText>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: item.badgeBg, borderColor: item.badgeBorder }
-            ]}
-          >
-            {item.renderIcon()}
-          </View>
+          <View style={styles.iconCircle}>{item.renderIcon()}</View>
         </>
       ) : (
         <>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: item.badgeBg, borderColor: item.badgeBorder }
-            ]}
-          >
-            {item.renderIcon()}
-          </View>
+          <View style={styles.iconCircle}>{item.renderIcon()}</View>
           <StyledText
             numberOfLines={largeText ? undefined : 2}
-            style={[
-              styles.questionText,
-              styles.questionTextLtr
-            ]}
+            style={[styles.questionText, styles.questionTextLtr]}
           >
             {item.label}
           </StyledText>
@@ -114,34 +105,8 @@ export function AssistantSuggestedQuestions({
 
   return (
     <View testID="assistant-suggested-questions" style={styles.container}>
-      {/* Section header */}
-      <View
-        style={[
-          styles.headerRow,
-          { justifyContent: isRtl ? 'flex-end' : 'flex-start' }
-        ]}
-      >
-        <View style={styles.headerContent}>
-          {isRtl ? (
-            <>
-              <StyledText variant="subtitle" style={styles.headerTitle}>
-                {translate('assistant.suggestions.header')}
-              </StyledText>
-              <Text style={styles.headerSparkle}>✨</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.headerSparkle}>✨</Text>
-              <StyledText variant="subtitle" style={styles.headerTitle}>
-                {translate('assistant.suggestions.header')}
-              </StyledText>
-            </>
-          )}
-        </View>
-      </View>
-
       {/* Row 1 */}
-      <View style={styles.row}>
+      <View style={[styles.row, stacked && styles.stackedRow]}>
         {isRtl ? (
           <>
             {renderCard(cards[1])}
@@ -156,7 +121,7 @@ export function AssistantSuggestedQuestions({
       </View>
 
       {/* Row 2 */}
-      <View style={styles.row}>
+      <View style={[styles.row, stacked && styles.stackedRow]}>
         {isRtl ? (
           <>
             {renderCard(cards[3])}
@@ -173,78 +138,59 @@ export function AssistantSuggestedQuestions({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: 2
-  },
-  headerContent: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6
-  },
-  headerTitle: {
-    color: colorTokens.ink['900'],
-    fontSize: 14,
-    fontWeight: '700'
-  },
-  headerSparkle: {
-    fontSize: 14
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.sm
-  },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-    minHeight: 64,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    shadowColor: colorTokens.teal['950'],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1
-  },
-  cardPressed: {
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['500']
-  },
-  questionText: {
-    color: colorTokens.ink['900'],
-    flex: 1,
-    fontSize: 12.5,
-    fontWeight: '600',
-    lineHeight: 17
-  },
-  questionTextRtl: {
-    textAlign: 'right',
-    writingDirection: 'rtl'
-  },
-  questionTextLtr: {
-    textAlign: 'left',
-    writingDirection: 'ltr'
-  },
-  iconCircle: {
-    alignItems: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexShrink: 0,
-    height: 34,
-    justifyContent: 'center',
-    width: 34
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      gap: 10
+    },
+    row: {
+      flexDirection: 'row',
+      direction: 'ltr',
+      gap: spacing.sm
+    },
+    stackedRow: { flexDirection: 'column' },
+    stackedCard: { flex: 0 },
+    cardDisabled: { opacity: 0.5 },
+    card: {
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flex: 1,
+      flexDirection: 'row',
+      direction: 'ltr',
+      gap: 6,
+      justifyContent: 'space-between',
+      minHeight: 52,
+      paddingHorizontal: 10,
+      paddingVertical: 8
+    },
+    cardPressed: {
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.focus
+    },
+    questionText: {
+      color: colors.content.primary,
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 20
+    },
+    questionTextRtl: {
+      textAlign: 'right',
+      writingDirection: 'rtl'
+    },
+    questionTextLtr: {
+      textAlign: 'left',
+      writingDirection: 'ltr'
+    },
+    iconCircle: {
+      backgroundColor: colors.surfaces.brandSubtle,
+      alignItems: 'center',
+      borderRadius: radius.pill,
+      flexShrink: 0,
+      height: 30,
+      justifyContent: 'center',
+      width: 30
+    }
+  });

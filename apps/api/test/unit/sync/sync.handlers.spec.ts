@@ -1,8 +1,165 @@
 import { SyncHandlers } from '../../../src/sync/sync.handlers';
+import { normalizeRevision } from '../../../src/ledger/ledger.dto';
+import type { SyncMutation } from '../../../src/sync/sync.types';
 
 const principal = { userId: 'owner', sessionId: 'session' } as never;
 
 describe('SyncHandlers', () => {
+  it('maps only the exact legacy transaction update to the ordinary edit reason without changing raw identity', async () => {
+    const payload = Object.freeze({
+      title: 'Coffee',
+      merchant: null,
+      note: 'Legacy note',
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      amountMinor: 2000,
+    });
+    const mutation: SyncMutation = Object.freeze({
+      operationId: '63000000-0000-4000-8000-000000000002',
+      domain: 'transactions',
+      resourceType: 'transaction',
+      schemaVersion: 1,
+      dependsOn: [],
+      operation: 'update',
+      resourceId: '63000000-0000-4000-8000-000000000003',
+      baseVersion: 1,
+      payload,
+    });
+    const ledger = {
+      reviseTransaction: jest.fn((input: { body: unknown }) =>
+        Promise.resolve(normalizeRevision(input.body)),
+      ),
+    };
+    const result = await new SyncHandlers({} as never, ledger as never).dispatch(
+      principal,
+      mutation,
+      'original-request',
+    );
+    expect(result).toMatchObject({
+      expectedVersion: 1,
+      reason: 'Mobile edit',
+      patch: { note: 'Legacy note' },
+    });
+    expect(ledger.reviseTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal,
+        idempotencyKey: mutation.operationId,
+        requestId: 'original-request',
+        transactionId: mutation.resourceId,
+      }),
+    );
+    expect(mutation.payload).toBe(payload);
+    expect(payload).not.toHaveProperty('reason');
+  });
+  it.each([null, '', '  '])(
+    'preserves present invalid reason %p for normal validation rather than replacing it',
+    async (reason) => {
+      const payload = {
+        title: 'Coffee',
+        merchant: null,
+        note: 'Note',
+        occurredAt: '2026-01-01T00:00:00.000Z',
+        amountMinor: 2000,
+        reason,
+      };
+      const ledger = {
+        reviseTransaction: jest.fn((input: { body: unknown }) =>
+          Promise.resolve(normalizeRevision(input.body)),
+        ),
+      };
+      await expect(
+        new SyncHandlers({} as never, ledger as never).dispatch(
+          principal,
+          {
+            operationId: '63000000-0000-4000-8000-000000000002',
+            domain: 'transactions',
+            resourceType: 'transaction',
+            schemaVersion: 1,
+            dependsOn: [],
+            operation: 'update',
+            resourceId: '63000000-0000-4000-8000-000000000003',
+            baseVersion: 1,
+            payload,
+          },
+          'request',
+        ),
+      ).rejects.toThrow('VALIDATION_FAILED');
+      expect(payload.reason).toBe(reason);
+    },
+  );
+  it('does not supply a reason for unknown or incomplete legacy payload shapes', async () => {
+    for (const payload of [
+      { note: 'Note' },
+      {
+        title: 'Coffee',
+        merchant: null,
+        note: 'Note',
+        occurredAt: '2026-01-01T00:00:00.000Z',
+        amountMinor: 2000,
+        unknown: 'extra',
+      },
+    ]) {
+      const ledger = {
+        reviseTransaction: jest.fn((input: { body: unknown }) =>
+          Promise.resolve(normalizeRevision(input.body)),
+        ),
+      };
+      await expect(
+        new SyncHandlers({} as never, ledger as never).dispatch(
+          principal,
+          {
+            operationId: '63000000-0000-4000-8000-000000000002',
+            domain: 'transactions',
+            resourceType: 'transaction',
+            schemaVersion: 1,
+            dependsOn: [],
+            operation: 'update',
+            resourceId: '63000000-0000-4000-8000-000000000003',
+            baseVersion: 1,
+            payload,
+          },
+          'request',
+        ),
+      ).rejects.toThrow('VALIDATION_FAILED');
+    }
+  });
+  it('does not apply legacy mapping to another schema or resource type and preserves explicit reasons', async () => {
+    const payload = {
+      title: 'Coffee',
+      merchant: null,
+      note: 'Note',
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      amountMinor: 2000,
+    };
+    const mutation = {
+      operationId: '63000000-0000-4000-8000-000000000002',
+      domain: 'transactions',
+      resourceType: 'transaction',
+      schemaVersion: 1,
+      dependsOn: [],
+      operation: 'update',
+      resourceId: '63000000-0000-4000-8000-000000000003',
+      baseVersion: 1,
+      payload,
+    };
+    const ledger = {
+      reviseTransaction: jest.fn((input: { body: unknown }) =>
+        Promise.resolve(normalizeRevision(input.body)),
+      ),
+    };
+    const handlers = new SyncHandlers({} as never, ledger as never);
+    for (const patch of [{ schemaVersion: 2 }, { resourceType: 'account' }])
+      await expect(
+        handlers.dispatch(principal, { ...mutation, ...patch } as SyncMutation, 'request'),
+      ).rejects.toThrow('VALIDATION_FAILED');
+    await handlers.dispatch(
+      principal,
+      { ...mutation, payload: { ...payload, reason: 'Keep exact reason' } } as SyncMutation,
+      'request',
+    );
+    expect(ledger.reviseTransaction.mock.calls.at(-1)?.[0].body).toMatchObject({
+      reason: 'Keep exact reason',
+    });
+  });
   it('routes supported mutations through existing finance services', async () => {
     const reference = { execute: jest.fn().mockResolvedValue({ id: 'account' }) };
     let revisedInput: unknown;

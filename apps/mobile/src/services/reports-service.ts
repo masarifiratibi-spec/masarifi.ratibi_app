@@ -1,7 +1,6 @@
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import type { CapabilityProviderHandle } from './contracts/capability-contract';
 import type { ReportsService } from './contracts/reports-service';
-import { getLiveClerkToken } from './live/auth-service';
 import { createLiveReportsService } from './live/reports-service';
 import { reportsService as fixtureReportsService } from './mocks/reports-service';
 import { ReportsRepository } from '@/storage/reports-repository';
@@ -16,7 +15,6 @@ export function selectReportsService(
 export const reportsService = selectReportsService(
   isFixtureModeEnabled(),
   createLiveReportsService({
-    token: getLiveClerkToken,
     repository: new ReportsRepository(true)
   })
 );

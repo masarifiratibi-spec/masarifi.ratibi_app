@@ -1,138 +1,101 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import type { BiometricService } from '@/services/contracts/app-shell-service';
-import { PinForm } from './PinForm';
-import {
-  createPinCredential,
-  isLegacyPinCredential,
-  verifyPin
-} from './privacy-lock';
+import { useTheme } from '@/state/theme-context';
 
 interface UnlockScreenProps {
-  expectedHash?: string;
-  biometricEnabled?: boolean;
-  biometricService?: BiometricService;
-  lockedUntil?: number | null;
-  now?: () => number;
-  onForgotPin?: () => void;
-  onInvalidPin?: () => void;
-  onCredentialUpgrade?: (hash: string) => void | Promise<void>;
+  biometricService: BiometricService;
   onUnlock?: () => void | Promise<void>;
   sessionExpired?: boolean;
 }
 
-export function UnlockScreen({
-  biometricEnabled = false,
-  biometricService,
-  expectedHash = '',
-  lockedUntil = null,
-  now = Date.now,
-  onForgotPin,
-  onInvalidPin,
-  onCredentialUpgrade,
-  onUnlock,
-  sessionExpired = false
-}: UnlockScreenProps) {
+export function UnlockScreen({ biometricService, onUnlock, sessionExpired = false }: UnlockScreenProps) {
+  const theme = useTheme();
   const [status, setStatus] = useState<string | null>(null);
-  const [, refreshLockState] = useState(false);
-  const temporarilyLocked = lockedUntil !== null && lockedUntil > now();
+  const [pending, setPending] = useState(true);
+  const mounted = useRef(false);
+  const active = useRef(false);
+  const attempt = useRef(0);
+  const expired = useRef(sessionExpired);
+  expired.current = sessionExpired;
+  const startPrompt = useRef(unlockWithDevice);
+  useLayoutEffect(() => {
+    startPrompt.current = unlockWithDevice;
+  });
 
   useEffect(() => {
-    if (lockedUntil === null) return;
-    const remainingMs = lockedUntil - now();
-    if (remainingMs <= 0) return;
-    const timeout = setTimeout(
-      () => refreshLockState((current) => !current),
-      remainingMs
-    );
-    return () => clearTimeout(timeout);
-  }, [lockedUntil, now]);
-
-  useEffect(() => {
-    if (!biometricEnabled || !biometricService) return;
-    if (sessionExpired || temporarilyLocked) return;
-    void unlockWithBiometric();
-    // The automatic prompt is a mount-time behavior: re-running it on later
-    // renders would surprise users who already dismissed the prompt.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    mounted.current = true;
+    let prompted = false;
+    const promptWhenActive = (state: AppStateStatus) => {
+      if (state !== 'active' || prompted || expired.current) return;
+      prompted = true;
+      void startPrompt.current();
+    };
+    const subscription = AppState.addEventListener('change', promptWhenActive);
+    promptWhenActive(AppState.currentState);
+    return () => {
+      subscription.remove();
+      mounted.current = false;
+      attempt.current += 1;
+    };
+    // A single automatic OS prompt belongs to this mounted owner-scoped screen.
   }, []);
 
-  async function unlockWithBiometric() {
-    const result = await biometricService?.authenticate();
-    const messageByStatus = {
-      authenticated: 'appShell.security.biometricUnlocked',
-      cancelled: 'appShell.security.biometricCancelled',
-      failed: 'appShell.security.biometricFailed',
-      locked_out: 'appShell.security.biometricLocked',
-      unavailable: 'appShell.security.biometricUnavailable'
-    } as const;
-    setStatus(
-      result
-        ? translate(messageByStatus[result.status])
-        : translate('appShell.security.biometricUnavailable')
-    );
-    if (result?.status === 'authenticated') onUnlock?.();
+  async function unlockWithDevice() {
+    if (active.current || expired.current) return;
+    active.current = true;
+    const currentAttempt = ++attempt.current;
+    const current = () => mounted.current && currentAttempt === attempt.current && !expired.current;
+    setPending(true);
+    setStatus(null);
+    try {
+      const result = await biometricService.authenticate();
+      if (!current()) return;
+      if (result.status === 'authenticated') {
+        await onUnlock?.();
+        return;
+      }
+      if (result.status === 'cancelled') return;
+      const messages = {
+        failed: 'appShell.security.biometricFailed',
+        locked_out: 'appShell.security.biometricLocked',
+        unavailable: 'appShell.security.biometricUnavailable'
+      } as const;
+      setStatus(translate(messages[result.status]));
+    } catch {
+      if (current()) setStatus(translate('appShell.security.biometricUnavailable'));
+    } finally {
+      active.current = false;
+      if (current()) setPending(false);
+    }
   }
 
-  if (sessionExpired) {
-    return (
-      <StyledText>{translate('appShell.navigation.authRequired')}</StyledText>
-    );
-  }
-
+  if (sessionExpired) return <StyledText>{translate('appShell.navigation.authRequired')}</StyledText>;
   return (
-    <View style={styles.stack}>
-      <StyledText variant="title">
-        {translate('appShell.security.unlockTitle')}
-      </StyledText>
-      <PinForm
-        disabled={temporarilyLocked}
-        errorMessage={status ?? undefined}
-        mode="unlock"
-        onSubmit={async (pin) => {
-          if (await verifyPin(pin, expectedHash)) {
-            if (isLegacyPinCredential(expectedHash) && onCredentialUpgrade) {
-              const credential = await createPinCredential(pin, pin);
-              if (credential.hash) await onCredentialUpgrade(credential.hash);
-            }
-            setStatus(null);
-            await onUnlock?.();
-            return;
-          }
-          setStatus(translate('appShell.security.invalidPin'));
-          onInvalidPin?.();
-        }}
-      />
-      {biometricService ? (
-        <ActionButton
-          label={translate('appShell.security.biometricUnlock')}
-          onPress={unlockWithBiometric}
-          variant="secondary"
-        />
-      ) : null}
-      {temporarilyLocked ? (
-        <StyledText accessibilityRole="alert">
-          {translate('appShell.security.pin.retryIn')}
+    <ScrollView style={{ backgroundColor: theme.colors.surfaces.page }} contentContainerStyle={styles.cover}>
+      <View style={styles.recovery}>
+        <Image source={require('../../../assets/brand-mark.png')} accessible={false} style={styles.logo} />
+        <StyledText accessibilityRole="header" variant="headline" style={styles.center}>
+          {translate('appShell.security.nativeUnlock')}
         </StyledText>
-      ) : null}
-      {onForgotPin ? (
-        <ActionButton
-          label={translate('appShell.security.forgotPin')}
-          onPress={onForgotPin}
-          variant="quiet"
-        />
-      ) : null}
-    </View>
+        <StyledText accessibilityRole={status ? 'alert' : undefined} style={[styles.center, { color: theme.colors.textSecondary }]}>
+          {status ?? translate('appShell.security.unlockHint')}
+        </StyledText>
+        {!pending ? (
+          <ActionButton label="appShell.security.biometricUnlock" onPress={() => void unlockWithDevice()} style={styles.retry} />
+        ) : null}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: 12,
-    padding: 16
-  }
+  cover: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  recovery: { width: '100%', maxWidth: 340, alignItems: 'center', gap: 12 },
+  logo: { width: 72, height: 72, marginBottom: 8 },
+  center: { textAlign: 'center' },
+  retry: { alignSelf: 'stretch', marginTop: 12 }
 });

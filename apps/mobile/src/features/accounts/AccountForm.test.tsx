@@ -19,8 +19,13 @@ import {
   createLiveCoreFinanceService
 } from '@/services/mocks/core-finance-service';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
+}));
+
+
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn(), replace: jest.fn() },
+  router: { back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
   useLocalSearchParams: () => ({ id: 'closed-edit-account' })
 }));
 
@@ -217,6 +222,18 @@ describe('AccountForm', () => {
     );
     fireEvent.changeText(
       screen.getByLabelText(
+        translate('coreFinance.accounts.setup.availableBalance')
+      ),
+      '1000'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
+        translate('coreFinance.accounts.setup.creditLimit')
+      ),
+      '1000'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
         translate('coreFinance.accounts.setup.statementDay')
       ),
       '7'
@@ -381,7 +398,7 @@ describe('AccountForm', () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  it('does not show the discard alert after a new account is saved', async () => {
+  it('returns to the existing account list after saving without a discard alert', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     const dispatch = jest.fn();
     jest.mocked(useNavigation).mockReturnValue({ dispatch } as never);
@@ -397,16 +414,56 @@ describe('AccountForm', () => {
     );
     const preventRemove = jest.mocked(usePreventRemove).mock.calls.at(-1)?.[1];
     jest
-      .mocked(router.replace)
+      .mocked(router.dismissTo)
       .mockImplementation(() =>
-        preventRemove?.({ data: { action: { type: 'REPLACE' } } })
+        preventRemove?.({ data: { action: { type: 'POP_TO' } } })
       );
     fireEvent.press(screen.getByText(translate('coreFinance.accounts.create')));
 
     await waitFor(() =>
-      expect(router.replace).toHaveBeenCalledWith('/accounts')
+      expect(router.dismissTo).toHaveBeenCalledWith('/accounts')
     );
     expect(alert).not.toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith({ type: 'REPLACE' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'POP_TO' });
   });
+});
+
+
+it.each([['٢٥', '٢٨', '١٥٠'], ['۲۵', '۲۸', '۱۵۰']])('submits localized card days and rate without changing stored units: %s/%s/%s', async (statement, due, rate) => {
+  const create = jest.spyOn(coreFinanceService, 'createAccount').mockResolvedValue({ value: { ...fixtureAccounts[3], id: 'localized-card' }, affectedScopes: [] });
+  renderWithProviders(<AccountForm initialType="credit_card" />);
+  for (const [key, value] of [
+    ['coreFinance.accounts.name', 'Localized card'],
+    ['coreFinance.accounts.setup.availableBalance', '1000'],
+    ['coreFinance.accounts.setup.creditLimit', '1000'],
+    ['coreFinance.accounts.setup.statementDay', statement],
+    ['coreFinance.accounts.setup.dueDay', due],
+    ['coreFinance.accounts.setup.monthlyInterestBasisPoints', rate]
+  ] as const) fireEvent.changeText(screen.getByLabelText(translate(key)), value);
+  fireEvent.press(screen.getByText(translate('coreFinance.accounts.create')));
+  await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ statementDay: 25, paymentDueDay: 28, monthlyInterestRateBasisPoints: 150, openingBalanceMinor: 0 })));
+});
+
+
+it.each([
+  ['coreFinance.accounts.setup.statementDay', '٢٩'],
+  ['coreFinance.accounts.setup.dueDay', '۲۹'],
+  ['coreFinance.accounts.setup.monthlyInterestBasisPoints', '١٫٥'],
+  ['coreFinance.accounts.setup.monthlyInterestBasisPoints', '١٠٠٠١'],
+  ['coreFinance.accounts.setup.monthlyInterestBasisPoints', '٩٠٠٧١٩٩٢٥٤٧٤٠٩٩٢']
+] as const)('rejects invalid localized card term without a write: %s=%s', async (invalidKey, invalidValue) => {
+  const create = jest.spyOn(coreFinanceService, 'createAccount');
+  renderWithProviders(<AccountForm initialType="credit_card" />);
+  for (const [key, value] of [
+    ['coreFinance.accounts.name', 'Invalid terms'],
+    ['coreFinance.accounts.setup.availableBalance', '1000'],
+    ['coreFinance.accounts.setup.creditLimit', '1000'],
+    ['coreFinance.accounts.setup.statementDay', '25'],
+    ['coreFinance.accounts.setup.dueDay', '28'],
+    ['coreFinance.accounts.setup.monthlyInterestBasisPoints', '150']
+  ] as const) fireEvent.changeText(screen.getByLabelText(translate(key)), value);
+  fireEvent.changeText(screen.getByLabelText(translate(invalidKey)), invalidValue);
+  fireEvent.press(screen.getByText(translate('coreFinance.accounts.create')));
+  expect(await screen.findAllByText(translate('coreFinance.validation.invalid'))).not.toHaveLength(0);
+  expect(create).not.toHaveBeenCalled();
 });

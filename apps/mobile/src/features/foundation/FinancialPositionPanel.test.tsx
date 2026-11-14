@@ -44,7 +44,7 @@ describe('FinancialPositionPanel', () => {
     const { getByText, queryByText } = renderWithProviders(
       <FinancialPositionPanel summary={emptySummary} />
     );
-    expect(getByText('Welcome to Masarifi')).toBeTruthy();
+    expect(getByText('Welcome to Masarifi & Ratibi')).toBeTruthy();
     expect(getByText('Add your first transaction')).toBeTruthy();
     expect(queryByText('Current balance')).toBeNull();
   });

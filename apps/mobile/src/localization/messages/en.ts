@@ -8,8 +8,348 @@
  */
 
 const en = {
+  'privacy.details': 'Privacy details',
+  'app-update.title': 'An update is available',
+  'app-update.page': 'App update',
+  'app-update.check': 'Check for updates',
+  'app-update.update': 'Update now',
+  'app-update.later': 'Later',
+  'app-update.retry': 'Try again',
+  'app-update.body': 'Version {{version}} is ready. Update now or later.',
+  'app-update.checking': 'Checking for updates…',
+  'app-update.current':
+    'No newer published update is available for your version.',
+  'app-update.unavailable':
+    'Could not check for updates. Check your connection and try again.',
+  'app-update.storeError': 'Could not open Google Play. Try again.',
+  'app-update.unsupported':
+    'Google Play updates are available on Android only.',
+  'financialReset.sessionExpired':
+    'Your session expired. Reopen the app and try again.',
+  'financialReset.reviewChanged':
+    'Your data was reset on another device. Confirm before starting a new reset.',
+  'financialReset.stale':
+    'The previous request belongs to older data. Return to confirmation to start a new request.',
+  'financialReset.reviewAgain': 'Back to confirmation',
+  'financialReset.title': 'Reset financial data',
+  'financialReset.subtitle': 'Start again with zero balances.',
+  'financialReset.confirmTitle': 'Ready for a fresh start?',
+  'financialReset.confirmMessage':
+    'Erases financial history and plans, and resets balances on all devices. Cannot be undone.',
+  'financialReset.external':
+    'Files you downloaded outside the app will stay with you.',
+  'financialReset.submit': 'Reset data',
+  'financialReset.checking': 'Preparing your request…',
+  'financialReset.processing':
+    'Resetting your data… You can close this dialog and return to check progress.',
+  'financialReset.complete':
+    'Your financial data has been reset. Your accounts now have zero balances and are ready for a fresh start.',
+  'financialReset.done': 'Done',
+  'financialReset.close': 'Close',
+  'financialReset.error':
+    'Couldn’t confirm the request status. Check your connection and try again.',
+  'financialReset.retryNotice':
+    'The previous attempt has no confirmed receipt. Select Reset data to retry the same request.',
+  'financialReset.checkStatus': 'Refresh status',
+  'tracking.unverified.title':
+    'Tracking is unavailable until your account is verified',
+  'tracking.unverified.message': 'Connect to verify access to tracking.',
+  'tracking.isolated.title': 'Tracking is paused to protect saved data',
+  'tracking.isolated.message':
+    'Tracking belongs to another account and is protected. Contact support.',
+  'assistant.response.up': 'increase',
+  'assistant.response.down': 'decrease',
+  'assistant.response.flat': 'unchanged',
+  'assistant.response.previous': 'Previous period',
+  'assistant.response.explanation': 'What changed?',
+  'assistant.response.saving': 'A saving step',
+  'assistant.response.target': 'Conditional saving target',
+  'assistant.response.details': 'More details',
+  'assistant.response.less': 'Hide details',
+  'reports.local.basedOn':
+    'Offline · Based on financial data saved on this device',
+  'reports.local.empty':
+    'No financial activity is saved locally for this period.',
+  'reports.local.pending': 'Locally saved records awaiting sync',
+  'reports.local.excluded': 'Excluded records needing review or confirmation',
+  'reports.local.missingRates':
+    'Totals requiring unavailable exchange rates are not shown.',
+  'reports.pdf.internet':
+    'Reports work offline. Connect to the internet to email a PDF.',
+  'reports.pdf.policyPending':
+    'PDF email delivery needs the approved server update.',
+  'reports.pdf.download': 'Email report PDF',
+  'reports.pdf.emailWaitTitle': 'This may take some time',
+  'reports.pdf.emailPreparing':
+    'Requesting your report as a PDF attachment to your account email.',
+  'reports.pdf.emailQueued':
+    'Your request was accepted. The PDF will be emailed to your account when it is ready.',
+  'reports.pdf.emailFailure': 'Report request failed',
+  'reports.pdf.emailMissing':
+    'A verified primary account email is required to send the report.',
+  'reports.pdf.emailUnavailable':
+    'Report email delivery is unavailable. Try again later.',
+  'reports.pdf.generating': 'Preparing your PDF…',
+  'reports.pdf.saving': 'Downloading PDF. Choose a folder to save it.',
+  'reports.pdf.success': 'PDF saved',
+  'reports.pdf.open': 'Open PDF',
+  'reports.pdf.share': 'Share PDF',
+  'reports.pdf.retry': 'Retry',
+  'reports.pdf.failure':
+    'Could not request the report email. Your filters were kept. Retry to continue.',
+  'reports.pdf.accountUnsupported':
+    'This account filter cannot be exported. Your filters were kept.',
+  'reports.pdf.periodUnsupported':
+    'Could not apply the period or time zone. Selection saved.',
+  'reports.pdf.authentication':
+    'Verify your session to email this private report, then retry.',
+  'reports.pdf.cancelled':
+    'PDF was not saved because folder selection was cancelled.',
+  'reports.pdf.nativeUpdate':
+    'Update to open or share PDFs. Your saved file remains.',
+  'reports.pdf.processing':
+    'The report is still processing. Retry to check the same request.',
+  'reports.export.title': 'Export Data',
+  'reports.export.format':
+    'ZIP archive · Account data. Report filters do not limit this export.',
+  'reports.export.empty': 'No export requested yet',
+  'reports.export.loading': 'Checking your export…',
+  'reports.export.signIn': 'Sign in to export your account data.',
+  'reports.export.share': 'Share download link',
+  'reports.export.sharePrivacy':
+    'Anyone with this link can download until it expires.',
+  'reports.export.opened.download': 'Download opened',
+  'reports.export.opened.share': 'Sharing options opened',
+  'reports.action.more': 'Load more',
+  'reports.schedule.liveSettings':
+    'Sent at 08:00 on the first day of each period, in your time zone and profile currency.',
+  'settings.privacy.exportExplanation':
+    'Request a copy of server data. The download link expires.',
+  'settings.privacy.exportFailure':
+    'Could not complete the export action. Your request is retained; retry or refresh its status.',
+  'settings.privacy.exportDownload': 'Download export',
+  'settings.privacy.exportNew': 'Request a new export',
+  'settings.privacy.exportState.requested': 'Export requested',
+  'settings.privacy.exportState.verified': 'Export queued for processing',
+  'settings.privacy.exportState.processing': 'Preparing your export',
+  'settings.privacy.exportState.ready': 'Export ready to download',
+  'settings.privacy.exportState.expired': 'Export expired; request a new copy',
+  'settings.privacy.exportState.failed': 'Export failed; request a new copy',
+
+  'settings.securityEvent.admin.role_assigned': 'Administrator role assigned',
+  'settings.securityEvent.admin.role_revoked': 'Administrator role revoked',
+  'settings.securityEvent.support_access.requested': 'Support access requested',
+  'settings.securityEvent.support_access.granted': 'Support access approved',
+  'settings.securityEvent.support_access.revoked': 'Support access revoked',
+  'settings.securityEvent.security.incident_opened': 'Security incident opened',
+  'settings.securityEvent.privacy.export_ready': 'Data export ready',
+  'settings.securityEvent.privacy.export_expired': 'Data export expired',
+  'settings.securityEvent.privacy.deletion_requested':
+    'Account deletion requested',
+  'settings.securityEvent.privacy.deletion_completed':
+    'Account deletion completed',
+  'settings.securityEvents.empty': 'No security events yet',
+
+  'appShell.networkNotice.title': "You're offline",
+  'appShell.networkNotice.message':
+    'Showing saved data. Reconnect to sync your changes.',
+  'appShell.networkNotice.stale':
+    'Displayed balances and transactions may be out of date.',
+  'appShell.networkNotice.retry': 'Try again',
+  'appShell.networkNotice.dismiss': 'Dismiss',
+  'settings.socialMedia.openError':
+    'Could not open this account. Please try again.',
+  'reminders.control.label': 'Enable notifications',
+  'reminders.control.description':
+    'Setup and review reminders. You can turn them off.',
+  'reminders.guest.label': 'Remind me to finish setup',
+  'reminders.guest.description':
+    'Send one reminder tomorrow if I haven’t created an account.',
+  'reminders.onboarding.title': 'Finish setting up your account',
+  'reminders.onboarding.body':
+    'You’re one step away from tracking your spending.',
+  'reminders.permission.denied':
+    'Notifications are unavailable. Allow them in your phone settings, then try again.',
+  'reminders.permission.allow': 'Allow notifications',
+  'assistant.report.scope':
+    'From {{start}} to {{end}}; {{currency}}; account scope: {{account}}. Analysis only.',
+  'reports.preview.accountScopeUnavailable':
+    'Select All accounts to export a file.',
+  'settings.deletion.dev.description':
+    'Permanently deletes your account and its data. Cannot be undone.',
+  'settings.deletion.dev.confirmation':
+    'Permanently delete your account and all its data? Cannot be undone.',
+  'settings.deletion.dev.deleting':
+    'Deleting your account… Keep the app open. Completion has not been confirmed yet.',
+  'settings.deletion.dev.completed':
+    'Your account and its stored data have been deleted.',
+  'settings.deletion.dev.loadingTitle': 'Deleting account…',
+  'settings.deletion.dev.loadingDescription':
+    'Deleting your account securely\nPlease wait until the process is complete',
+  'settings.deletion.dev.localRetry':
+    'Account deleted. Retry to finish cleaning this device.',
+  'settings.deletion.dev.notAllowed':
+    'Deletion is disabled for this test account. Nothing was deleted.',
+  'settings.deletion.retentionNotice':
+    'Deletes identity, assistant, tracking and support data. Financial records remain.',
+  'settings.deletion.verificationUnavailable':
+    'Verification unavailable. Sign in again, then retry deletion.',
+  'settings.deletion.verificationError':
+    'Verification could not be completed. Check the code or send a new code and retry.',
+  'settings.deletion.pending': 'Contacting the account service…',
+  'settings.deletion.error':
+    'The request could not be confirmed. Check your connection and retry. No deletion completion has been confirmed.',
+  'settings.deletion.processingRetry':
+    'Deletion request saved. The server will retry automatically.',
+  'settings.deletion.rateLimited':
+    'Too many attempts. Wait and try again. This does not confirm deletion or cancellation.',
+  'settings.deletion.sessionExpired':
+    'Your session is unavailable. Sign in again to check the deletion status.',
+  'settings.deletion.recentAuth':
+    'Verify your identity again to continue this confirmed deletion request.',
+  'settings.deletion.reverify': 'Send verification code',
+  'settings.deletion.continue': 'Continue deletion',
+  'settings.deletion.continueConfirmed':
+    'Your confirmed deletion request is saved. Continue to finish it.',
+  'settings.deletion.retry': 'Try again',
+  'settings.deletion.popup.title': 'Couldn’t finish the request',
+  'settings.deletion.popup.body': 'Please try again in a moment.',
+  'settings.deletion.dev.sessionRetry':
+    'Deletion could not finish with the current session. Try again; the account has not been deleted.',
+  'settings.deletion.code': 'Verification code',
+  'settings.deletion.verify': 'Verify and continue',
+  'settings.deletion.codeSent': 'Enter the code sent to {{destination}}.',
+  'settings.deletion.refresh': 'Refresh deletion status',
+  'settings.deletion.cancel': 'Cancel deletion request',
+  'settings.deletion.cancelConfirmation':
+    'Keep your account and cancel this scheduled deletion?',
+  'settings.deletion.deadline':
+    'Cooling-off ends: {{date}}. You can cancel before this time.',
+  'settings.deletion.retained':
+    'Retained under the applicable policy: {{categories}}',
+  'settings.deletion.status.requested':
+    'Deletion requested; awaiting verification.',
+  'settings.deletion.status.verified':
+    'Deletion scheduled. Your account has not been deleted yet.',
+  'settings.deletion.status.processing':
+    'Deletion is processing. Completion has not been confirmed.',
+  'settings.deletion.status.completed':
+    'Account deletion completed. Signing out…',
+  'settings.deletion.status.cancelled':
+    'Deletion request cancelled. Your account is kept.',
+  'settings.deletion.status.failed':
+    'Deletion failed. Refresh the status or try again.',
+  'appShell.connectionUnavailable.title': 'Connection unavailable',
+  'appShell.connectionUnavailable.message':
+    'Cannot connect. Check your internet and retry.',
+  'assistant.messageStatus.pending': 'Pending',
+  'assistant.messageStatus.failed': 'Failed',
+  'assistant.messageStatus.unknown': 'Unconfirmed',
+  'assistant.operation.checkFailed':
+    'Could not check. Your question is saved; check before sending another.',
+  'assistant.history.title': 'Conversation history',
+  'assistant.history.hiddenTitle': 'Hidden conversation — open to review',
+  'assistant.history.loadMore': 'Load more conversations',
+  'assistant.history.loadOlder': 'Load older questions',
+  'assistant.action.revealFinancial': 'Show financial details',
+  'assistant.feedback.notHelpful': 'Not helpful',
+  'assistant.operation.title': 'Question status',
+  'assistant.operation.state.pending':
+    'Question accepted. Waiting for the result.',
+  'assistant.operation.state.failed':
+    'This question failed. You can send a new question.',
+  'assistant.operation.state.unknown':
+    'The outcome is unknown. Check the original question before sending another.',
+  'assistant.operation.state.completed': 'Question completed.',
+  'assistant.operation.check': 'Check question status',
+  'assistant.operation.open': 'Open this conversation',
+  'assistant.operation.retrySame': 'Retry the original operation',
+  'assistant.operation.retryExplanation':
+    'Retry keeps the original question and operation key. It does not create a replacement question.',
+  'assistant.capability.title': 'Assistant capabilities',
+  'assistant.capability.directRead': 'Verified financial reads',
+  'assistant.capability.provider': 'Provider advice',
+  'assistant.capability.actions': 'Financial actions',
+  'assistant.capability.state.available': 'Available',
+  'assistant.capability.state.disabled': 'Unavailable',
+  'assistant.capability.state.limit_reached': 'Quota reached',
+  'assistant.capability.state.unknown': 'Readiness has not been verified',
+  'assistant.capability.state.loading': 'Checking capability',
+  'assistant.capability.provider.available': 'Provider advice is available',
+  'assistant.capability.provider.disabled':
+    'Provider advice is unavailable. Financial reads are a separate capability.',
+  'assistant.capability.provider.limit_reached':
+    'Provider advice quota has been reached',
+  'assistant.capability.provider.unknown':
+    'Provider readiness has not been verified',
+  'assistant.scope.title': 'Supported scope',
+  'assistant.scope.excluded':
+    'Some installment, planning and search features are unavailable.',
+  'assistant.evidence.title': 'Answer evidence',
+  'assistant.evidence.period': 'Requested period',
+  'assistant.evidence.timezone': 'Time zone',
+  'assistant.evidence.currencies': 'Currencies',
+  'assistant.evidence.asOf': 'Data as of',
+  'assistant.evidence.source': 'Source',
+  'assistant.evidence.version': 'Version',
+  'assistant.evidence.unavailable': 'Not supplied — do not assume completeness',
+  'assistant.evidence.sourceTimeUnavailable': 'Source timestamp not supplied',
+  'assistant.evidence.kind.transaction': 'Transaction evidence',
+  'assistant.evidence.kind.budget': 'Budget evidence',
+  'assistant.evidence.kind.obligation': 'Obligation evidence',
+  'assistant.evidence.kind.goal': 'Savings goal evidence',
+  'assistant.evidence.kind.report': 'Report evidence',
+  'assistant.evidence.kind.ledger': 'Ledger evidence',
+  'assistant.limitation.next_installment_only':
+    'This answer covers the next installment only.',
+  'assistant.limitation.total_outstanding':
+    'This is total outstanding obligations, not a due-in-period schedule total.',
+  'assistant.limitation.data_incomplete':
+    'Verified data is incomplete. Do not treat missing information as zero.',
+  'assistant.limitation.answer_metadata_unavailable':
+    'This older answer has no verified period/currency metadata.',
+  'assistant.limitation.source_time_unavailable':
+    'Some sources have no timestamp. Freshness has not been verified.',
+  'assistant.limitation.liquidity_incomplete':
+    'Affordability is unsupported: complete spendable funds are unavailable.',
+  'assistant.limitation.planning_period_unsupported':
+    'This Planning period is not supported.',
+  'assistant.limitation.historical_state_unavailable':
+    'Verified historical Planning data is unavailable.',
+  'assistant.limitation.transaction_scope_required':
+    'This transaction search or currency scope is not supported.',
+  'assistant.limitation.comparison_period_required':
+    'Specify a supported comparison period.',
+  'assistant.limitation.entity_required':
+    'Select the exact financial record; no first-record fallback is used.',
+  'assistant.limitation.no_data':
+    'There are no verified records for this scope.',
+  'assistant.limitation.salary_missing':
+    'Verified salary information is unavailable.',
+  'assistant.limitation.salary_currency_missing':
+    'The salary currency is unavailable.',
+  'assistant.limitation.due_schedule_incomplete':
+    'The installment schedule is incomplete.',
+  'assistant.limitation.period_required':
+    'Specify one supported period. Daily or conflicting periods are not supported.',
+  'assistant.limitation.currency_required':
+    'Specify one currency; currencies are never added together.',
+  'assistant.limitation.price_required':
+    'Specify an exact purchase price and currency.',
+  'assistant.limitation.scope_required': 'Specify a supported financial scope.',
+  'googleAuth.brand': 'Masarifi & Ratibi',
+  'googleAuth.incomplete':
+    'This Google account needs more details. Try another account or contact support.',
+  'googleAuth.welcome': 'Welcome to\nMasarifi & Ratibi',
+  'googleAuth.supporting':
+    'Your finances, together in one place.\nContinue with Google to get started.',
+  'googleAuth.continue': 'Continue with Google',
+  'googleAuth.footer':
+    'Use the same Google account to return to your finances.',
+  'appShell.security.stagingDisabled':
+    'App Lock prompts are disabled in this development build.',
   // App shell
-  'app.title': 'Masarifi',
+  'app.title': 'Masarifi & Ratibi',
   'app.foundationTitle': 'Foundation Validation Harness',
   'app.foundationIntro':
     'Temporary validation screen. Production screens are built in later specs.',
@@ -39,7 +379,7 @@ const en = {
   'position.spending': 'Recent spending',
   'position.nextObligation': 'Next obligation',
   'position.reviewItems': 'Needs your attention',
-  'position.empty.title': 'Welcome to Masarifi',
+  'position.empty.title': 'Welcome to Masarifi & Ratibi',
   'position.empty.action': 'Add your first transaction',
   'position.partial.title': 'Some information is incomplete',
   'position.partial.action': 'Review missing data',
@@ -51,7 +391,7 @@ const en = {
   'capture.sms.title': 'SMS tracking (Android)',
   'capture.sms.purpose': 'Detect transactions from bank SMS automatically',
   'capture.sms.dataUse':
-    'Messages are analyzed on your device to add transactions',
+    'Analyzes SMS on your device and syncs transactions to Masarifi servers.',
   'capture.sms.continue': 'Continue',
   'capture.sms.skip': 'Skip for now',
   'capture.manual': 'Add manually',
@@ -224,16 +564,17 @@ const en = {
     'This temporary screen is waiting for the Clerk sign-in connection.',
   'appShell.auth.pending.preview': 'Continue preview',
   'profileSetup.title': 'What should we call you?',
-  'profileSetup.supporting': 'We use it to personalize Masarifi.',
+  'profileSetup.supporting': 'We use it to personalize Masarifi & Ratibi.',
   'profileSetup.nameLabel': 'Name',
   'profileSetup.nameHelper': 'From your account. You can edit it anytime.',
   'profileSetup.nameRequired': 'Enter your name to continue.',
   'profileSetup.currencyLabel': 'Base currency',
+  'profileSetup.currencyChoose': 'Select your currency',
   'profileSetup.currencyHelper': 'Choose the currency you use most.',
   'profileSetup.continue': 'Continue',
   'profileSetup.retry': 'Try again',
   'profileSetup.saveError': "We couldn't save your details. Try again.",
-  'appShell.public.welcome.title': 'Masarifi',
+  'appShell.public.welcome.title': 'Masarifi & Ratibi',
   'appShell.public.welcome.body':
     'Track money clearly with manual and automatic capture.',
   'appShell.public.welcome.signIn': 'Sign in',
@@ -241,15 +582,15 @@ const en = {
   'appShell.public.legal': 'Privacy and terms',
   'appShell.public.privacyTitle': 'Privacy',
   'appShell.public.privacyBody':
-    'This development build stores financial records locally on this device. You can hide sensitive values and remove local records from their owning screens.',
+    'Demo records stay on this device. Manage them in Settings.',
   'appShell.public.termsTitle': 'Terms for this build',
   'appShell.public.termsBody':
-    'This build demonstrates personal finance workflows and does not provide banking, investment, tax, or legal advice.',
+    'For personal money management; does not provide professional advice.',
   'appShell.auth.method.phone': 'Phone number',
   'appShell.auth.method.google': 'Google',
   'appShell.auth.signIn.title': 'Sign in securely',
   'appShell.auth.required.message':
-    'Sign in to continue to this protected Masarifi area.',
+    'Sign in to continue to this protected Masarifi & Ratibi area.',
   'appShell.auth.required.saveFailed': 'Could not prepare sign in. Try again.',
   'appShell.auth.signUp.title': 'Create your account',
   'appShell.auth.phone.countryCode': 'Country code',
@@ -286,16 +627,16 @@ const en = {
     'Android can help detect clear financial messages after you approve access.',
   'appShell.onboarding.permission.title': 'Allow message tracking',
   'appShell.onboarding.permission.purpose':
-    'Masarifi checks financial messages on this device only.',
+    'With permission, reads financial SMS in the background, even when closed.',
   'appShell.onboarding.permission.dataUse':
-    'Codes, marketing, and unclear messages are not added silently.',
+    'Analyzes on your device and syncs transaction details to Masarifi servers.',
   'appShell.onboarding.permission.benefit':
     'Clear transactions can appear with edit and undo controls.',
   'appShell.onboarding.permission.denial':
     'If you decline, manual and voice capture still work.',
   'appShell.onboarding.ios.title': 'Capture on iOS',
   'appShell.onboarding.ios.body':
-    'Use manual, voice, and approved automation options. Direct SMS tracking is not available.',
+    'Use manual or voice entry. SMS tracking is unavailable here.',
   'appShell.onboarding.conservative.title': 'Choose a capture method',
   'appShell.onboarding.complete.title': 'Ready to continue',
   'appShell.onboarding.complete.destinations':
@@ -303,6 +644,9 @@ const en = {
   'appShell.onboarding.complete.openHome': 'Open Home',
   'appShell.permission.enable': 'Enable tracking',
   'appShell.permission.retry': 'Try permission again',
+  'appShell.permission.settingsHelp':
+    'Allow SMS in device settings, then return to the app.',
+  'appShell.permission.requestAgain': 'Request permission again',
   'appShell.permission.openSettings': 'Open settings',
   'appShell.permission.manualFallback': 'Continue with manual entry',
   'appShell.permission.status.notRequested': 'Permission not requested',
@@ -335,33 +679,28 @@ const en = {
   'appShell.more.services': 'Services',
   'appShell.more.accountSettings': 'Account and Settings',
   'appShell.more.profileSummary': 'Profile and account summary',
-  'appShell.more.defaultUserName': 'Masarifi User',
-  'appShell.more.defaultUserEmail': 'user@masarifi.app',
+  'appShell.more.defaultUserName': 'Masarifi & Ratibi User',
+  'appShell.more.defaultUserEmail': 'Masarifi & Ratibi account',
   'appShell.more.planBasic': 'Basic',
   'appShell.more.planPro': 'Pro',
   'appShell.shell.noMockFinancialData':
     'This section is not available in the current build.',
-  'appShell.security.pinLabel': 'PIN',
-  'appShell.security.pinError': 'Enter 6 digits',
-  'appShell.security.savePin': 'Save PIN',
-  'appShell.security.unlock': 'Unlock',
-  'appShell.security.unlockTitle': 'Unlock app',
-  'appShell.security.biometricUnlock': 'Unlock with biometrics',
-  'appShell.security.biometricUnlocked': 'Unlocked with biometrics',
-  'appShell.security.biometricUnavailable': 'Biometrics unavailable',
+  'appShell.security.biometricUnlock': 'Try again',
+  'appShell.security.biometricUnavailable': 'Device authentication unavailable',
   'appShell.security.biometricCancelled':
-    'Biometric unlock was cancelled. Use your PIN.',
-  'appShell.security.biometricFailed': 'Biometric unlock failed. Use your PIN.',
+    'Device authentication was cancelled. You can try again.',
+  'appShell.security.biometricFailed':
+    'Device authentication failed. Try again.',
   'appShell.security.biometricLocked':
-    'Biometrics are temporarily locked. Use your PIN.',
-  'appShell.security.invalidPin': 'The PIN is not correct.',
-  'appShell.security.pinMismatch': 'The PINs do not match. Try again.',
-  'appShell.security.reauthenticate':
-    'Sign in to your account before resetting the device PIN.',
+    'Device authentication is temporarily locked by your device.',
   'appShell.security.protectedContent': 'Content protected',
+  'appShell.security.nativeUnlock': 'Unlock Masarifi',
+  'appShell.security.unlockHint':
+    'Use biometrics or your device passcode to continue.',
+  'appShell.security.nativeLock': 'Use device authentication',
+  'appShell.security.nativeLockSubtitle':
+    'Fingerprint, passcode or pattern managed by your device.',
   'appShell.security.settingsTitle': 'Security settings',
-  'appShell.security.changePin': 'Change PIN',
-  'appShell.security.forgotPin': 'Forgot PIN',
   'appShell.security.mockSignOutAll': 'Sign out everywhere',
   'appShell.profile.name': 'Name',
   'appShell.profile.firstAccount': 'First account',
@@ -408,25 +747,25 @@ const en = {
   'appShell.navigation.back': 'Back',
   'appShell.navigation.close': 'Close',
   'appShell.navigation.authRequired': 'Sign in to continue',
-  'appShell.security.unlock.title': 'Unlock Masarifi',
-  'appShell.security.pin.create': 'Create PIN',
-  'appShell.security.pin.confirm': 'Confirm PIN',
-  'appShell.security.pin.change': 'Change PIN',
-  'appShell.security.pin.forgot': 'Forgot PIN',
-  'appShell.security.pin.retryIn': 'Try again soon',
   'appShell.security.biometric.enable': 'Enable biometrics',
   'appShell.security.biometric.disable': 'Disable biometrics',
-  'appShell.security.biometric.usePin': 'Use PIN instead',
+  'appShell.security.biometric.authenticated': 'Biometrics enabled',
+  'appShell.security.biometric.cancelled':
+    'Biometric verification was cancelled',
+  'appShell.security.biometric.failed': 'Biometric verification failed',
+  'appShell.security.biometric.locked_out':
+    'Biometrics are temporarily locked by your device',
+  'appShell.security.biometric.unavailable':
+    'Biometrics are currently unavailable',
   'appShell.security.biometric.face': 'Face ID',
   'appShell.security.biometric.fingerprint': 'Fingerprint',
   'appShell.security.biometric.subtitle':
-    'Unlock the app with biometrics instead of your PIN',
-  'appShell.security.biometric.requiresPin':
-    'Create a PIN first to enable biometrics',
+    'Protect the app with your fingerprint or face',
   'appShell.security.biometric.notEnrolled':
-    'Enroll a biometric in your device settings first',
+    'Set up a device screen lock or biometrics in your device settings first',
   'appShell.security.sections.appLock': 'App Lock',
   'appShell.security.sections.privacy': 'Privacy',
+  'appShell.security.sections.activity': 'Account activity',
   'appShell.security.autoLock.title': 'Auto-Lock',
   'appShell.security.autoLock.immediate': 'Lock immediately',
   'appShell.security.autoLock.one_minute': 'Lock after 1 minute',
@@ -437,6 +776,8 @@ const en = {
   'appShell.security.sessions': 'Active sessions',
   'appShell.security.events': 'Security events',
   'appShell.security.deleteAccount': 'Delete account',
+  'appShell.security.deleteAccount.description':
+    'Deleting your account starts a permanent data-removal request.',
   'appShell.security.deleteAccount.confirmation':
     'Are you sure you want to delete your account?',
   'appShell.progressive.title': 'Finish setup when ready',
@@ -449,6 +790,7 @@ const en = {
   'appShell.progressive.obligation': 'Add obligation',
   'appShell.progressive.savings': 'Create savings goal',
   'appShell.state.loading': 'Loading',
+  'appShell.startup.preparing': 'Preparing your data…',
   'appShell.state.empty': 'Nothing to show yet',
   'appShell.state.error': 'Something went wrong',
   'appShell.state.offline': 'You are offline',
@@ -458,7 +800,6 @@ const en = {
   'appShell.recovery.restart': 'Start again',
   'appShell.recovery.wait': 'Wait and retry',
   'appShell.recovery.changeMethod': 'Use another method',
-  'appShell.recovery.usePin': 'Use PIN',
   'appShell.error.offline': 'Connection is unavailable.',
   'appShell.error.cancelled': 'The action was cancelled.',
   'appShell.error.expired': 'This step expired.',
@@ -522,12 +863,15 @@ const en = {
   'coreFinance.home.accountScope.title': 'Choose account',
   'coreFinance.home.balance': 'Balance',
   'coreFinance.home.accountsNeedAttention': 'Accounts needing attention',
-  'coreFinance.home.recentExpenses': 'Recent expenses',
-  'coreFinance.home.recentIncome': 'Recent income',
+  'coreFinance.home.recentExpenses': "Today's expenses",
+  'coreFinance.home.recentIncome': "Today's income",
+  'coreFinance.home.todayEmpty': 'No transactions today',
+  'coreFinance.home.firstVoicePrompt':
+    'Record your first transaction by voice.',
   'coreFinance.home.manageAccounts': 'Manage accounts',
   'coreFinance.home.howBalancesWork': 'How balances work',
   'coreFinance.home.balanceExplanation':
-    'Your total combines active accounts using available exchange rates. Accounts without a current rate may be excluded.',
+    'Total of active accounts using available exchange rates.',
   'coreFinance.category.housing': 'Housing',
   'coreFinance.category.food': 'Food',
   'coreFinance.category.restaurants': 'Restaurants',
@@ -547,11 +891,46 @@ const en = {
   'coreFinance.category.otherIncome': 'Other income',
   'coreFinance.category.transfers': 'Transfers',
   'coreFinance.category.obligations': 'Obligations',
+  'coreFinance.state.refreshingSnapshot':
+    'Showing last received data. Updating…',
+  'coreFinance.state.refreshFailedSnapshot':
+    'Could not refresh. Showing last received data.',
   'coreFinance.state.loading': 'Loading financial data',
   'coreFinance.state.error': 'Could not load financial data',
+  'assistant.draft.restoreFailed': 'Could not restore your draft. Try again.',
+  'assistant.draft.saveFailed':
+    'Could not save your draft. Try again before leaving.',
   'coreFinance.action.retry': 'Try again',
   'coreFinance.action.expense': 'Add expense',
   'coreFinance.action.income': 'Add income',
+  'coreFinance.manual.uncertain':
+    'The save outcome is unknown. Retry to check the same submission.',
+  'coreFinance.manual.localSave':
+    'Could not save the draft on this device. No financial request was sent. Try saving again.',
+  'coreFinance.manual.editLocalSave':
+    'Could not save. Your form is preserved. Retry.',
+  'coreFinance.manual.offlineEdit':
+    'Offline: edit the amount, details and date only.',
+  'coreFinance.manual.offlineCreate': 'Offline: add expenses or income only.',
+  'coreFinance.manual.localCreateEdit':
+    'Connect to edit a transaction created offline.',
+  'coreFinance.manual.savedRefresh':
+    'Saved. Retry to refresh the list and finish cleanup.',
+  'coreFinance.manual.reconcile':
+    'This saved draft needs reconciliation before another submission.',
+  'coreFinance.manual.category':
+    'Choose an active category matching Expense or Income.',
+  'coreFinance.manual.account':
+    'Choose an active account with the transaction currency.',
+  'coreFinance.manual.auth': 'Sign in again before saving.',
+  'coreFinance.manual.rateLimit': 'Too many attempts. Try again later.',
+  'coreFinance.validation.amount':
+    'Enter a positive amount with valid grouping and currency precision.',
+  'coreFinance.manual.title':
+    'Use a description of at most 160 characters without control characters.',
+  'coreFinance.manual.note':
+    'Use a note of at most 500 characters without control characters.',
+  'coreFinance.manual.date': 'Choose a valid date on or before today.',
   'coreFinance.action.transfer': 'Transfer',
   'coreFinance.action.voice': 'Voice entry',
   'coreFinance.action.obligation': 'Pay obligation',
@@ -680,6 +1059,8 @@ const en = {
   'coreFinance.form.save': 'Save transaction',
   'coreFinance.validation.required': 'Enter the required transaction details',
   'coreFinance.validation.invalid': 'Review the transaction details',
+  'coreFinance.validation.refundFloor':
+    'The expense cannot be less than the total already refunded',
   'coreFinance.validation.refund':
     'Enter an amount within the eligible remaining refund',
   'coreFinance.undo': 'Undo',
@@ -754,7 +1135,7 @@ const en = {
   'coreFinance.accounts.setup.educationTitle':
     'Why do we need the last 4 digits?',
   'coreFinance.accounts.setup.educationBody':
-    'Banks include the last 4 digits in SMS alerts. This helps Masarifi match transactions to this account automatically.',
+    'The last four digits help match bank transactions to this account.',
   'coreFinance.accounts.setup.nameExample.bank':
     'e.g. Salary Account, Main Checking',
   'coreFinance.accounts.setup.nameExample.credit_card':
@@ -779,7 +1160,7 @@ const en = {
   'coreFinance.accounts.restore': 'Restore account',
   'coreFinance.accounts.typeSelect.title': 'What are you adding?',
   'coreFinance.accounts.typeSelect.subtitle':
-    'This determines how Masarifi will track the account.',
+    'This determines how Masarifi & Ratibi will track the account.',
   'coreFinance.accounts.typeSelect.bank': 'Debit Card / Bank Account',
   'coreFinance.accounts.typeSelect.bank.desc':
     'Regular bank account or debit card for transfers.',
@@ -898,14 +1279,17 @@ const en = {
   'tracking.home.summary':
     '{{detected}} detected this month, {{review}} need review.',
   'tracking.home.onboardingHeading': "Let's get started.",
+  'tracking.home.smsBody': 'Track transactions from financial SMS.',
+  'tracking.home.notificationTitle': 'Notification tracking',
+  'tracking.home.notificationBody':
+    'Detect transactions from bank and wallet alerts.',
   'tracking.home.enableTitle': 'Track your spending automatically',
   'tracking.home.enableBody':
-    'Let Masarifi detect supported transactions automatically.',
+    'Let Masarifi & Ratibi detect supported transactions automatically.',
   'tracking.home.enableAction': 'Enable automatic tracking',
   'tracking.home.dismissAction': 'Dismiss automatic tracking suggestion',
   'notifications.home.enableTitle': 'Turn on notifications',
-  'notifications.home.enableBody':
-    'Get transaction alerts and reminders from Masarifi.',
+  'notifications.home.enableBody': 'Get transaction alerts and reminders.',
   'notifications.home.enableAction': 'Enable notifications',
   'notifications.home.dismissAction': 'Dismiss notification suggestion',
   'notifications.home.enableFailed':
@@ -917,6 +1301,17 @@ const en = {
   'tracking.status.unavailable': 'Unavailable',
   'tracking.source.bankNotifications': 'Bank notifications',
   'tracking.source.financialSms': 'Financial SMS',
+  'tracking.source.smsTracking': 'SMS tracking',
+  'tracking.source.smsTrackingDescription':
+    'With permission, reads financial SMS in the background and syncs transactions.',
+  'tracking.source.notificationTracking': 'Transaction notification tracking',
+  'tracking.source.notificationTrackingDescription':
+    'With permission, reads financial notifications in the background and syncs transactions.',
+  'tracking.source.enabling': 'Enabling tracking…',
+  'tracking.source.disabling': 'Pausing tracking…',
+  'tracking.sync.scanning': 'Checking new messages…',
+  'tracking.sync.processing': 'Processing transactions…',
+  'tracking.sync.error': 'Could not sync. Try again.',
   'tracking.status.demo': 'Demo tracking — not production data',
   'tracking.permission.warning':
     'Message permissions not granted. Tap to enable.',
@@ -924,16 +1319,14 @@ const en = {
     'Automatic message tracking is unavailable in this version. Manual entry remains available.',
   'tracking.howItWorks.title': 'How automatic tracking works',
   'tracking.howItWorks.detection':
-    'Automatically reads supported bank messages containing your specified keywords and records expenses in your account.',
+    'Captures financial messages and notifications from enabled sources.',
   'tracking.howItWorks.privacy':
-    'Your messages are never stored. Only expense transaction data is preserved.',
+    'Analyzes them on your device and syncs transaction details.',
   'tracking.howItWorks.background':
-    'Ensure the app is allowed to run in the background via phone settings > Apps > Masarifi > Battery.',
-  'tracking.howItWorks.deviceWarning':
-    'Some devices (Xiaomi, Samsung, Huawei, etc.) restrict background apps. Tap here to learn how to adjust this for your device.',
+    'Allow background activity to keep tracking running.',
   'tracking.keywords.sectionTitle': 'Keywords',
   'tracking.keywords.explanation':
-    'Only messages containing these keywords will be processed',
+    'Phrases help detect transactions; safety checks still apply.',
   'tracking.keywords.addTitle': 'Add keyword',
   'tracking.keywords.filterAll': 'All',
   'tracking.status.title': 'Tracking status',
@@ -960,6 +1353,8 @@ const en = {
   'tracking.service.unavailable': 'Unavailable',
   'tracking.state.loading': 'Loading tracking',
   'tracking.state.error': 'Tracking is unavailable',
+  'tracking.sources.pendingConsent':
+    'Tracking sources are stopped while their settings await confirmation. Try again when connected.',
   'tracking.recovery.message':
     'Manual entry stays available while tracking is recovered.',
   'tracking.action.openTracking': 'Open tracking',
@@ -1017,6 +1412,33 @@ const en = {
   'tracking.reason.duplicate': 'Possible duplicate transaction',
   'tracking.reason.rule_conflict': 'Tracking rules conflict',
   'tracking.reason.ambiguous_account': 'Funding account is uncertain',
+  'tracking.reason.source_proof_required': 'The source has not been verified',
+  'tracking.reason.source_blocked': 'This source is disabled',
+  'tracking.reason.account_proof_required':
+    'The affected account has not been identified',
+  'tracking.reason.lifecycle_not_completed':
+    'Completion has not been confirmed',
+  'tracking.reason.configuration_stale':
+    'Tracking rules changed; review this event',
+  'tracking.reason.cash_destination_required':
+    'The receiving cash account is needed',
+  'tracking.reason.transfer_counterparty_required':
+    'The other side of the transfer is unclear',
+  'tracking.reason.original_transaction_required':
+    'The original transaction is needed',
+  'tracking.reason.credit_origin_required':
+    'The source of this credit is unclear',
+  'tracking.reason.fee_components_required':
+    'The separate fee needs accounting details',
+  'tracking.reason.unsupported_accounting_operation':
+    'This operation needs accounting details',
+  'tracking.reason.amount_missing': 'The transaction amount is missing',
+  'tracking.reason.amount_invalid': 'The transaction amount is invalid',
+  'tracking.reason.unsupported_currency': 'This currency is not supported',
+  'tracking.reason.date_ambiguous': 'The transaction date is unclear',
+  'tracking.reason.conflicting_direction':
+    'Incoming and outgoing details conflict',
+  'tracking.reason.action_unknown': 'The transaction type is unclear',
   'tracking.reason.ambiguous_lifecycle': 'Transaction status is uncertain',
   'tracking.reason.multiple_obligations': 'More than one obligation may match',
   'tracking.reason.invalid_input': 'Some transaction details are invalid',
@@ -1036,12 +1458,16 @@ const en = {
   'tracking.duplicate.merge': 'Merge details',
   'tracking.keywords.title': 'Tracking keywords',
   'tracking.keywords.permissionScope':
-    'Keywords guide matching inside Masarifi after permission. They do not narrow system permission.',
+    'Keywords filter transactions; they do not change system permissions.',
   'tracking.senders.title': 'Sender rules',
   'tracking.senders.search': 'Search senders',
   'tracking.senders.empty': 'No senders found',
   'tracking.senders.enabled': 'Enabled',
   'tracking.senders.disabled': 'Disabled',
+  'tracking.saved.expense': 'Expense recorded',
+  'tracking.saved.income': 'Income recorded',
+  'tracking.notice.payment': 'Payment',
+  'tracking.notice.deposit': 'Deposit',
   'tracking.ios.title': 'Capture on iOS',
   'tracking.ios.limitation': 'Direct message tracking is not available on iOS.',
   'tracking.ios.alternatives':
@@ -1056,9 +1482,22 @@ const en = {
   'voice.demoNotice': 'Voice analysis is simulated in this frontend build.',
   'voice.permission.title': 'Allow microphone access',
   'voice.permission.body':
-    'Masarifi uses the microphone only while you record this transaction.',
+    'Masarifi & Ratibi uses the microphone only while you record this transaction.',
   'voice.permission.request': 'Allow microphone',
   'voice.permission.settings': 'Open settings',
+  'voice.processingConsent.title': 'AI voice processing',
+  'voice.processingConsent.data':
+    'Masarifi and external AI providers process your recording and financial context.',
+  'voice.processingConsent.purpose':
+    'Turns speech into transactions you can review and correct.',
+  'voice.processingConsent.choice':
+    'Optional. Withdraw consent or use manual entry anytime.',
+  'voice.processingConsent.accept': 'Agree and continue',
+  'voice.processingConsent.decline': 'Continue with manual entry',
+  'voice.processingConsent.withdraw': 'Withdraw voice consent',
+  'voice.processingConsent.manage': 'Manage voice processing consent',
+  'voice.processingConsent.error':
+    'Your choice could not be saved. Retry, or continue without voice processing.',
   'voice.record.start': 'Start recording',
   'voice.record.stop': 'Stop recording',
   'voice.record.cancel': 'Cancel recording',
@@ -1103,7 +1542,47 @@ const en = {
   'voice.recurring.new': 'Create new obligation',
   'voice.action.manual': 'Use manual entry',
   'voice.action.retry': 'Try again',
+  'voice.action.checkResult': 'Check confirmation result',
   'voice.action.cancel': 'Cancel',
+  'voice.batch.added': 'Added {{count}} transactions.',
+  'voice.batch.event.result': 'Event {{number}}: {{result}}',
+  'voice.batch.event.committed': 'Saved',
+  'voice.batch.event.eligible': 'Waiting to finish',
+  'voice.batch.event.cancelled': 'Cancelled — not added',
+  'voice.batch.event.execution_failed': 'Could not finish — not added',
+  'voice.batch.event.reason.missing_amount':
+    'Not added — the amount was unclear.',
+  'voice.batch.event.reason.ambiguous_account':
+    'Not added — the account could not be identified.',
+  'voice.batch.event.reason.invalid_category':
+    'Not added — the category was unavailable.',
+  'voice.batch.event.reason.invalid_date': 'Not added — the date was unclear.',
+  'voice.batch.event.reason.currency_mismatch':
+    'Not added — the account currency did not match.',
+  'voice.batch.event.reason.unsupported_event':
+    'Not added — this event type is not supported.',
+  'voice.batch.event.reason.authorization_required':
+    'Not added — authorization was required.',
+  'voice.batch.event.reason.invalid_event':
+    'Not added — the event could not be resolved safely.',
+  'voice.analysis.unsaved': 'Analyzed — not saved',
+  'voice.analysis.noPosting':
+    'Staging analysis only. No transactions saved; balances unchanged.',
+  'voice.analysis.expense': 'Expense',
+  'voice.analysis.income': 'Income',
+  'voice.batch.empty': 'No transactions were added.',
+  'voice.batch.saved': 'Saved {{count}} transaction(s).',
+  'voice.batch.partialUnknown':
+    'Saved {{count}} transaction(s); the rest of the recording could not be saved.',
+  'voice.batch.partial':
+    'Saved {{saved}} transaction(s); {{failed}} were not saved.',
+  'voice.batch.restricted':
+    'Voice is disabled for this test account. No transactions added.',
+  'voice.batch.failed': 'Some processing could not finish.',
+  'voice.batch.rateLimited':
+    'Analysis limit reached. Recording saved; retrying automatically.',
+  'voice.batch.checking': 'Checking the result…',
+  'voice.batch.checkResult': 'Check result',
   'voice.state.processing': 'Analyzing recording...',
   'voice.state.saving': 'Saving transactions',
   'voice.state.saved': 'Voice transaction saved',
@@ -1131,8 +1610,16 @@ const en = {
     'The recording could not be analyzed. Try again or edit it manually.',
   'voice.error.provider_unavailable':
     'Voice analysis is not configured or is temporarily unavailable.',
+  'voice.error.auth_unavailable':
+    'Sign-in verification is temporarily unavailable. Try again later.',
   'voice.error.quota_exhausted':
     'Voice analysis has reached its current usage limit. Try again later.',
+  'voice.error.operation_cancelled':
+    'Voice was paused. Check the existing operation before recording again.',
+  'voice.error.re_record_required':
+    'The interrupted recording could not be recovered. Please record again.',
+  'voice.error.recovery_required':
+    'Check the existing Voice result before starting another operation.',
   'voice.error.processing_timed_out':
     'Voice analysis took too long. Try again or enter the transaction manually.',
   'voice.error.session_expired':
@@ -1175,6 +1662,11 @@ const en = {
   'planning.salary.editSettings': 'Edit salary settings',
   'planning.salary.setup': 'Salary setup',
   'planning.salary.review': 'Salary receipt review',
+  'planning.salary.selectRecordedIncome':
+    'Choose a recorded income to confirm salary receipt.',
+  'planning.salary.loadMoreIncome': 'Show older income',
+  'planning.salary.noExpectedReceipt':
+    'There is no expected salary receipt to review. Check your salary setup first.',
   'planning.salary.remaining': 'Remaining salary',
   'planning.salary.untilNext': '{{count}} days until the next salary',
   'planning.salary.details': 'Salary details',
@@ -1191,6 +1683,20 @@ const en = {
   'planning.obligations.payment': 'Record payment',
   'planning.obligations.match': 'Review payment match',
   'planning.savings.title': 'Savings goals',
+  'planning.savings.totalSaved': 'Total saved',
+  'planning.savings.remainingAll': 'Remaining for goals',
+  'planning.savings.yourGoals': 'Your goals',
+  'planning.savings.filterAll': 'All',
+  'planning.savings.filterActive': 'Active',
+  'planning.savings.filterCompleted': 'Completed',
+  'planning.savings.emptyFilter': 'No goals in this view.',
+  'planning.savings.setupSubtitle':
+    'Set your goal and start tracking your progress.',
+  'planning.savings.optionalDetails': 'Optional details',
+  'planning.savings.saveGoal': 'Save goal',
+  'planning.savings.savedSoFar': 'Saved so far',
+  'planning.savings.progressOf': '{{current}} of {{target}}',
+  'planning.savings.moreActions': 'More actions',
   'planning.savings.activeGoals': 'Active goals',
   'planning.savings.new': 'New savings goal',
   'planning.savings.edit': 'Edit savings goal',
@@ -1236,6 +1742,7 @@ const en = {
   'planning.state.empty': 'No planning records yet',
   'planning.state.partial': 'Some planning data is incomplete',
   'planning.state.offline': 'Offline changes stay on this device',
+  'planning.state.offlineRead': 'Offline: showing the last saved data.',
   'planning.state.error': 'Planning is unavailable',
   'planning.state.hidden': 'Values are hidden',
   'planning.reason.missing_data': 'Unavailable until more data is added',
@@ -1249,6 +1756,9 @@ const en = {
   'planning.action.edit': 'Edit',
   'planning.action.save': 'Save',
   'planning.action.next': 'Next',
+  'planning.budget.savedDraftOnly':
+    'Saved draft. Connect to verify this budget before saving.',
+  'planning.action.resumeDraft': 'Resume saved draft',
   'planning.action.retry': 'Retry',
   'planning.action.undo': 'Undo',
   'planning.action.keepLocal': 'Keep this device version',
@@ -1287,7 +1797,7 @@ const en = {
   'planning.salary.account': 'Receiving account',
   'planning.salary.automaticDetection': 'Detect salary receipts automatically',
   'planning.salary.automaticDetectionSubtitle':
-    'We will detect salary deposits automatically in the selected account.',
+    'Matches confirmed income to payday without creating a transaction.',
   'planning.salary.expectedDate': 'Expected date',
   'planning.salary.receivedDate': 'Received date',
   'planning.salary.transaction': 'Linked transaction',
@@ -1361,6 +1871,46 @@ const en = {
   'planning.obligation.schedule.open_ended': 'Open-ended balance',
   'planning.obligation.schedule.irregular': 'Irregular payments',
   'planning.obligation.title': 'Title',
+  'planning.obligation.form.name': 'Obligation name',
+  'planning.obligation.form.title': 'Add obligation',
+  'planning.obligation.form.namePlaceholder': 'For example: home rent',
+  'planning.obligation.form.subtitle':
+    'Add your obligation and choose when to pay',
+  'planning.obligation.form.paymentMethod': 'Payment method',
+  'planning.obligation.form.kind.once': 'One payment',
+  'planning.obligation.form.kind.installments': 'Installments',
+  'planning.obligation.form.kind.recurring': 'Recurring',
+  'planning.obligation.form.kind.irregular': 'Irregular payments',
+  'planning.obligation.form.amount': 'Amount',
+  'planning.obligation.form.amountPlaceholder': 'Enter the amount',
+  'planning.obligation.form.paymentAmount': 'Payment amount',
+  'planning.obligation.form.monthlyInstallment': 'Monthly installment',
+  'planning.obligation.form.installmentHint':
+    'The number of payments and the final payment are calculated automatically.',
+  'planning.obligation.form.calculatedPlan':
+    '{{count}} payments · final payment {{amount}}',
+  'planning.obligation.form.dueDate': 'Payment date',
+  'planning.obligation.form.repeat': 'Repeat',
+  'planning.obligation.form.frequency.monthly': 'Monthly',
+  'planning.obligation.form.frequency.yearly': 'Yearly',
+  'planning.obligation.form.frequency.weekly': 'Weekly',
+  'planning.obligation.form.frequency.biweekly': 'Every two weeks',
+  'planning.obligation.form.frequency.quarterly': 'Every three months',
+  'planning.obligation.form.frequency.custom': 'Existing custom interval',
+  'planning.obligation.form.frequency.irregular': 'Irregular',
+  'planning.obligation.form.optional': 'Optional details',
+  'planning.obligation.form.noAccount': 'No default payment account',
+  'planning.obligation.form.save': 'Save obligation',
+  'planning.obligation.form.nameRequired': 'Enter the obligation name.',
+  'planning.obligation.form.amountRequired':
+    'Enter a valid amount greater than zero.',
+  'planning.obligation.form.amountAlreadyPaid':
+    'The total must exceed the amount already paid.',
+  'planning.obligation.form.planTooLong':
+    'The payment plan must not exceed 1,200 installments.',
+  'planning.obligation.form.installmentInvalid':
+    'Enter an installment no greater than the remaining balance.',
+  'planning.obligation.form.dateRequired': 'Choose a valid payment date.',
   'planning.obligation.provider': 'Provider or person',
   'planning.obligation.total': 'Contracted total',
   'planning.obligation.installment': 'Installment amount',
@@ -1405,6 +1955,14 @@ const en = {
   'planning.obligation.installmentNumber': 'Installment {{count}}',
   'planning.obligation.showAll': 'Show all',
   'planning.obligation.moreActions': 'More actions',
+  'planning.obligation.detail.details': 'Obligation details',
+  'planning.obligation.detail.installments': 'Installments · {{period}}',
+  'planning.obligation.detail.paid': 'Paid {{amount}}',
+  'planning.obligation.detail.plan': '{{count}} installments × {{amount}}',
+  'planning.obligation.detail.schedulePending':
+    'Installment schedule is not ready',
+  'planning.obligation.detail.irregular':
+    'Payments are recorded without a fixed schedule',
   'planning.obligation.scheduleStatus.upcoming': 'Upcoming',
   'planning.obligation.scheduleStatus.partial': 'Partially paid',
   'planning.obligation.scheduleStatus.paid': 'Paid',
@@ -1435,17 +1993,25 @@ const en = {
   'planning.obligation.allocations': 'Installments affected',
   'planning.obligation.lastPayment': 'Last payment',
   'planning.obligation.paymentHistory': 'Payment history',
+  'planning.obligation.paymentStatus.pending': 'Pending',
+  'planning.obligation.paymentStatus.reversed': 'Reversed',
+  'planning.obligation.paymentStatus.undone': 'Undone',
+  'planning.obligation.paymentStatus.conflict': 'Needs review',
   'planning.obligation.noPayments': 'No payments yet',
-  'planning.validation.currencyMismatch': 'The account and payment currencies must match.',
+  'planning.validation.currencyMismatch':
+    'The account and payment currencies must match.',
   'planning.paymentMatch.transaction': 'Detected transaction',
   'planning.paymentMatch.suggestedObligation': 'Suggested obligation',
   'planning.paymentMatch.confidenceStrong': 'Strong match',
   'planning.paymentMatch.confidenceReview': 'Review this match',
-  'planning.paymentMatch.reason.amount_match': 'The amount is close to the expected installment.',
-  'planning.paymentMatch.reason.keyword_match': 'The transaction description matches the provider.',
+  'planning.paymentMatch.reason.amount_match':
+    'The amount is close to the expected installment.',
+  'planning.paymentMatch.reason.keyword_match':
+    'The transaction description matches the provider.',
   'planning.paymentMatch.remainingBefore': 'Remaining now',
   'planning.paymentMatch.remainingAfter': 'After matching',
-  'planning.paymentMatch.refreshRequired': 'The match details changed or are incomplete. Refresh before confirming.',
+  'planning.paymentMatch.refreshRequired':
+    'The match details changed or are incomplete. Refresh before confirming.',
   'planning.paymentMatch.confirm': 'Match payment',
   'planning.paymentMatch.ignore': 'Ignore match',
   'planning.paymentMatch.status.clear': 'Clear match',
@@ -1455,6 +2021,11 @@ const en = {
 
   // Reports
   'reports.title': 'Reports',
+  'reports.period.chooseMonth': 'Choose monthly period',
+  'reports.period.otherMonth': 'Another monthly period',
+  'reports.period.monthlyHint':
+    'Reports use complete monthly periods. Choose a date within the period you want.',
+  'reports.period.month': 'Date within monthly period',
   'reports.analytics.title': 'Analytics',
   'reports.analytics.netWorth': 'Net worth',
   'reports.analytics.cashFlow': 'Cash flow',
@@ -1558,7 +2129,6 @@ const en = {
   'reports.schedule.resume': 'Resume schedule',
   'reports.schedule.disable': 'Disable schedule',
   'reports.schedule.nextDelivery': 'Next delivery',
-  'reports.schedule.lastDelivery': 'Last successful delivery',
   'reports.schedule.noDelivery': 'None yet',
   'reports.schedule.status.verification_required':
     'Email verification required',
@@ -1582,8 +2152,6 @@ const en = {
   'reports.preview.privacyWarning': 'Privacy warning',
   'reports.preview.emailWarning':
     'Report content leaves the app for email delivery.',
-  'reports.preview.history': 'Output history',
-  'reports.preview.noHistory': 'No output attempts yet',
   'reports.preview.mockNotice':
     'Send, download, and share actions are deterministic simulations.',
   'reports.dimension.category': 'Categories',
@@ -1642,11 +2210,14 @@ const en = {
     'Review \u2068SAR 25.00\u2069 before continuing.',
   'notifications.center.unreadLabel': 'Unread notifications',
   'notifications.fallback.title': 'Financial update',
-  'notifications.fallback.body': 'Open Masarifi to review the latest update.',
+  'notifications.fallback.body':
+    'Open Masarifi & Ratibi to review the latest update.',
   'notifications.center.markAllRead': 'Mark all read',
   'notifications.center.countSuffix': 'notifications',
   'notifications.center.loading': 'Loading notifications',
   'notifications.center.offline': 'Notifications are unavailable offline',
+  'notifications.center.actionUnavailable':
+    'This action could not be confirmed. Reconnect and refresh before trying again.',
   'notifications.center.retry': 'Retry',
   'notifications.center.empty': 'No notifications',
   'notifications.center.deleteTitle': 'Delete notification',
@@ -1671,6 +2242,8 @@ const en = {
   'notifications.center.openPrefix': 'Open',
   'notifications.center.deletePrefix': 'Delete',
   'notifications.preferences.loading': 'Loading notification preferences',
+  'notifications.preferences.loadError':
+    'Could not load notification preferences. Try again.',
   'notifications.preferences.offline':
     'Notification preferences are unavailable offline',
   'notifications.preferences.retry': 'Retry',
@@ -1714,7 +2287,7 @@ const en = {
   'notifications.preferences.save': 'Save notification preferences',
   'notifications.preferences.requestTitle': 'Request notification permission',
   'notifications.preferences.requestMessage':
-    'Masarifi will ask the device for notification permission next.',
+    'Masarifi & Ratibi will ask the device for notification permission next.',
   'notifications.preferences.requestConfirm': 'Request permission',
   'notifications.actions.view': 'View',
   'notifications.actions.edit': 'Edit',
@@ -1738,7 +2311,9 @@ const en = {
   'notifications.preferences.day.saturday': 'Saturday',
   'assistant.consent.title': 'Personalized financial assistant',
   'assistant.privacy.transactions':
-    'Uses confirmed financial records only after your consent.',
+    'Masarifi and external AI providers process your questions and financial context.',
+  'assistant.privacy.choice': 'Optional. You can withdraw consent anytime.',
+  'assistant.consent.withdraw': 'Withdraw assistant consent',
   'assistant.state.disabled': 'Personalization is disabled.',
   'assistant.state.limit': 'Assistant usage limit reached.',
   'assistant.state.offline':
@@ -1747,24 +2322,31 @@ const en = {
   'assistant.state.error': 'Assistant is temporarily unavailable.',
   'assistant.backendUnavailable':
     'Assistant service is not configured for production.',
-  'assistant.action.enable': 'Enable personalization',
+  'assistant.action.enable': 'Agree and enable assistant',
   'assistant.consent.enabled': 'Smart personalization is active',
   'assistant.hero.title': 'AI Assistant',
+  'assistant.hero.heading': 'How can I help?',
+  'assistant.history.empty': 'No conversations yet.',
+  'assistant.history.more': 'Show more',
   'assistant.hero.subtitle':
-    'Your smart financial assistant to answer your questions quickly.',
+    'Ask about your spending and budget.',
   'assistant.ask.title': 'Ask the Assistant',
   'assistant.ask.subtitle':
     'You can ask anything about your spending and budget.',
-  'assistant.ask.placeholder': 'Type your question here...',
+  'assistant.ask.placeholder': 'Type your question...',
   'assistant.chat.placeholder': 'Ask about your money...',
   'assistant.suggestions.header': 'Quick Suggestions',
+  'assistant.unsent.title': 'Discard this question?',
+  'assistant.unsent.message': 'Your unsent question will be lost if you leave.',
+  'assistant.unsent.keep': 'Keep editing',
+  'assistant.unsent.discard': 'Discard question',
   'assistant.privacy.note':
-    'Your privacy is a priority. Your data is secure and only used with your consent.',
+    'AI can make mistakes. Review details before accepting them.',
   'assistant.suggestions.spending': 'How much did I spend this month?',
   'assistant.suggestions.restaurants': 'How much spent on dining this month?',
-  'assistant.suggestions.highest': 'What are my biggest expenses?',
-  'assistant.suggestions.weekly': 'My recent confirmed transactions',
-  'assistant.suggestions.budget': 'Did I exceed my budget?',
+  'assistant.suggestions.highest': 'Where does my money go?',
+  'assistant.suggestions.weekly': 'Recent transactions',
+  'assistant.suggestions.budget': 'How is my budget?',
   'assistant.capabilities.reports': 'Custom financial reports',
   'assistant.capabilities.analytics': 'Smart spending analysis',
   'assistant.capabilities.reminders': 'Smart goal reminders',
@@ -1819,6 +2401,8 @@ const en = {
   'assistant.answer.safe_redirect.estimate':
     'The available context is estimated; review the linked area.',
   'assistant.label.fact': 'Confirmed fact',
+  'assistant.label.scope': 'Assistant scope',
+  'assistant.label.clarification': 'More details needed',
   'assistant.label.estimate': 'Estimate',
   'assistant.label.suggestion': 'Suggestion',
   'assistant.actionPreview.destination.budget': 'Budget',
@@ -1840,13 +2424,136 @@ const en = {
     'This preview changed. Review a new preview.',
   'assistant.actionPreview.state.expired': 'This preview expired.',
   'assistant.actionPreview.state.failed': 'The action was not completed.',
-  'assistant.actionPreview.state.pending': 'Completing representative action…',
+  'assistant.actionPreview.state.pending': 'Completing action…',
   'assistant.actionPreview.action.saveEdit': 'Save preview change',
   'assistant.actionPreview.action.confirm': 'Review and confirm',
+  'assistant.transactionReview.confirm': 'Confirm',
+  'assistant.transactionReview.cancel': 'Cancel',
+  'assistant.transactionReview.added': 'Added {{kind}} {{amount}}',
+  'assistant.transactionReview.cancelled': 'Cancelled',
+  'assistant.transactionReview.accountUnavailable':
+    'Account details unavailable',
   'assistant.actionPreview.action.cancel': 'Cancel proposal',
   'assistant.actionPreview.action.back': 'Back',
   'assistant.actionPreview.action.confirmNow': 'Confirm action',
   'assistant.actionPreview.confirm.title': 'Confirm this action?',
+  'assistant.actionPreview.state.incomplete':
+    'Required effect details are missing. Confirmation is disabled; refresh the preview.',
+  'assistant.actionPreview.state.unknown':
+    'Outcome unknown. Check the status before retrying.',
+  'assistant.actionPreview.state.completed': 'The action is completed.',
+  'assistant.actionPreview.state.cancelled': 'The proposal was cancelled.',
+  'assistant.actionPreview.action.checkStatus':
+    'Check status / refresh preview',
+  'assistant.actionPreview.action.revealEffects':
+    'Show these effects to review safely',
+  'assistant.actionPreview.scope.unavailable':
+    'The full effect cannot be verified yet.',
+  'assistant.actionPreview.scope.createTransaction':
+    'Records income or an expense on the selected account at the date and local time shown.',
+  'assistant.actionPreview.scope.createGoal':
+    'Creates a savings goal with the shown progress. Does not transfer money.',
+  'assistant.actionPreview.scope.updateTransaction':
+    'Revises this transaction. Review its current values and resulting values below.',
+  'assistant.actionPreview.scope.updateBudget':
+    'Updates this budget only. Review every resulting field, including status or deletion.',
+  'assistant.actionPreview.scope.recordPayment':
+    'Allocates an existing transaction to installments. Does not make a new payment.',
+  'assistant.actionPreview.scope.acceptReview':
+    'Accepts this review and saves the transaction or reuses the existing one.',
+  'assistant.actionPreview.scope.rejectReview':
+    'Rejects this review without creating a financial transaction.',
+  'assistant.actionPreview.field.scope': 'Action scope',
+  'assistant.actionPreview.field.before': 'Before',
+  'assistant.actionPreview.field.after': 'After',
+  'assistant.actionPreview.field.previewVersion': 'Preview version',
+  'assistant.actionPreview.field.expiresAt': 'Preview expiry',
+  'assistant.actionPreview.field.kind': 'Transaction type',
+  'assistant.actionPreview.field.amountMinor': 'Amount',
+  'assistant.actionPreview.field.feeMinor': 'Fee',
+  'assistant.actionPreview.field.currency': 'Currency',
+  'assistant.actionPreview.field.currencyCode': 'Currency',
+  'assistant.actionPreview.field.accountId': 'Account record',
+  'assistant.actionPreview.field.destinationAccountId':
+    'Destination account record',
+  'assistant.actionPreview.field.categoryId': 'Category record',
+  'assistant.actionPreview.field.date': 'Date',
+  'assistant.actionPreview.field.timezone': 'Original timezone',
+  'assistant.actionPreview.field.time': 'Local time',
+  'assistant.actionPreview.field.merchant': 'Merchant',
+  'assistant.actionPreview.field.note': 'Note',
+  'assistant.actionPreview.field.title': 'Transaction title',
+  'assistant.actionPreview.field.paymentMethod': 'Payment method',
+  'assistant.actionPreview.field.source': 'Source',
+  'assistant.actionPreview.field.name': 'Name',
+  'assistant.actionPreview.field.targetMinor': 'Target amount',
+  'assistant.actionPreview.field.openingTrackedMinor':
+    'Opening tracked progress',
+  'assistant.actionPreview.field.targetDate': 'Target date',
+  'assistant.actionPreview.field.linkedAccountId': 'Linked account record',
+  'assistant.actionPreview.field.iconKey': 'Stored icon identifier',
+  'assistant.actionPreview.field.emergencyFund': 'Emergency fund',
+  'assistant.actionPreview.field.budgetId': 'Budget record',
+  'assistant.actionPreview.field.transactionId': 'Transaction record',
+  'assistant.actionPreview.field.expectedVersion': 'Current record version',
+  'assistant.actionPreview.field.reason': 'Revision reason',
+  'assistant.actionPreview.field.periodStart': 'Period start',
+  'assistant.actionPreview.field.periodEnd': 'Period end',
+  'assistant.actionPreview.field.totalMinor': 'Budget total',
+  'assistant.actionPreview.field.incomeTargetMinor': 'Income target',
+  'assistant.actionPreview.field.savingsTargetMinor': 'Savings target',
+  'assistant.actionPreview.field.rolloverEnabled': 'Rollover enabled',
+  'assistant.actionPreview.field.rolloverMinor': 'Rollover amount',
+  'assistant.actionPreview.field.status': 'Status',
+  'assistant.actionPreview.field.occurredAt': 'Transaction date and time',
+  'assistant.actionPreview.field.obligationId': 'Obligation record',
+  'assistant.actionPreview.field.direction': 'Obligation direction',
+  'assistant.actionPreview.field.paymentCase': 'Payment case',
+  'assistant.actionPreview.field.allocationIntent': 'Allocation scope',
+  'assistant.actionPreview.field.scheduleItemId': 'Installment record',
+  'assistant.actionPreview.field.dueAt': 'Installment due date',
+  'assistant.actionPreview.field.paidMinor': 'Installment paid amount',
+  'assistant.actionPreview.field.reviewId': 'Review record',
+  'assistant.actionPreview.field.decision': 'Review decision',
+  'assistant.actionPreview.field.transactionEffect':
+    'Financial transaction effect',
+  'assistant.actionPreview.value.none': 'None',
+  'assistant.actionPreview.value.true': 'Yes',
+  'assistant.actionPreview.value.false': 'No',
+  'assistant.actionPreview.value.income': 'Income',
+  'assistant.actionPreview.value.expense': 'Expense',
+  'assistant.actionPreview.value.transfer': 'Transfer',
+  'assistant.actionPreview.value.platform_assisted': 'Assistant assisted',
+  'assistant.actionPreview.value.tracking-import': 'Tracking import',
+  'assistant.actionPreview.value.manual': 'Manual',
+  'assistant.actionPreview.value.automatic': 'Automatic',
+  'assistant.actionPreview.value.voice': 'Voice',
+  'assistant.actionPreview.value.accept': 'Accept',
+  'assistant.actionPreview.value.reject': 'Reject',
+  'assistant.actionPreview.value.edit_accept': 'Edit and accept',
+  'assistant.actionPreview.value.current': 'Current installment',
+  'assistant.actionPreview.value.later_installments': 'Later installments',
+  'assistant.actionPreview.value.principal': 'Principal',
+  'assistant.actionPreview.value.correction': 'Correction',
+  'assistant.actionPreview.value.settlement': 'Settlement',
+  'assistant.actionPreview.value.prepayment': 'Prepayment',
+  'assistant.actionPreview.value.partial': 'Partial',
+  'assistant.actionPreview.value.full': 'Full',
+  'assistant.actionPreview.value.over': 'Overpayment',
+  'assistant.actionPreview.value.early': 'Early payment',
+  'assistant.actionPreview.value.active': 'Active',
+  'assistant.actionPreview.value.draft': 'Draft',
+  'assistant.actionPreview.value.paused': 'Paused',
+  'assistant.actionPreview.value.closed': 'Closed',
+  'assistant.actionPreview.value.deleted': 'Deleted',
+  'assistant.actionPreview.value.pending': 'Pending',
+  'assistant.actionPreview.value.paid': 'Paid',
+  'assistant.actionPreview.value.overdue': 'Overdue',
+  'assistant.actionPreview.value.accepted': 'Accepted',
+  'assistant.actionPreview.value.edited': 'Edited',
+  'assistant.actionPreview.value.rejected': 'Rejected',
+  'assistant.actionPreview.value.payable': 'Payable',
+  'assistant.actionPreview.value.receivable': 'Receivable',
   'assistant.actionPreview.confirm.message':
     'The change occurs only after confirmation.',
   'subscriptions.state.loading': 'Loading subscription',
@@ -1929,6 +2636,7 @@ const en = {
   'settings.profile.title': 'Profile',
   'settings.profile.name': 'Name',
   'settings.profile.email': 'Email',
+  'settings.profile.saved': 'Profile saved.',
   'settings.profile.save': 'Save profile',
   'settings.profile.validation.email': 'Enter a valid email address.',
   'settings.profile.phone': 'Phone Number',
@@ -1948,9 +2656,10 @@ const en = {
   'settings.profile.details': 'Details',
   'settings.profile.planFree': 'Free Plan',
   'settings.profile.planDesc':
-    'Unlock everything Masarifi can do: automatic tracking & smart insights',
+    'Unlock everything Masarifi & Ratibi can do: automatic tracking & smart insights',
   'settings.profile.goPro': 'Upgrade to Pro 💎',
-  'settings.profile.activity': 'Smart expense tracking with Masarifi ✨',
+  'settings.profile.activity':
+    'Smart expense tracking with Masarifi & Ratibi ✨',
   'settings.profile.avatar.default': 'Default profile image',
   'settings.profile.phone.notSet': 'Phone number not set',
   'settings.profile.google.notLinked': 'Google account not linked',
@@ -1998,7 +2707,7 @@ const en = {
   'settings.application.notificationsOwner': 'Notification preferences',
   'settings.application.reportsOwner': 'Reports',
   'settings.privacy.legalExplanation':
-    'Control personalization and requests without exposing financial details.',
+    'Export copies server data. Local deletion affects this device. Account deletion is separate.',
   'settings.privacy.title': 'Privacy',
   'settings.privacy.tracking': 'Tracking personalization',
   'settings.privacy.assistantPersonalization': 'Assistant personalization',
@@ -2013,6 +2722,8 @@ const en = {
     'Assistant personalization is disabled.',
   'settings.privacy.assistantPersonalization.consequence':
     'The assistant will not use personalized financial context.',
+  'settings.privacy.exportRequest': 'Request data export',
+  'settings.privacy.exportRefresh': 'Refresh export status',
   'settings.privacy.exportReview': 'Review data export request',
   'settings.privacy.accountDeletionReview': 'Review account deletion request',
   'settings.privacy.localDelete': 'Delete local data',
@@ -2039,16 +2750,29 @@ const en = {
   'settings.securityEvents.title': 'Security events',
   'settings.securityEvents.error': 'Security events are unavailable.',
   'settings.securityEvents.new_session': 'New session',
+  'settings.securityEvents.session_revocation': 'Session revoked',
+  'settings.securityEvents.other': 'Account activity',
   'settings.securityEvents.access_protection_change':
     'Access protection changed',
   'settings.securityEvents.recover.security': 'Review security settings',
   'settings.securityEvents.recover.settings': 'Review privacy settings',
   'support.home.title': 'Help and support',
-  'support.home.version': 'Masarifi app version',
+  'support.home.version': 'Masarifi & Ratibi app version',
   'support.home.articles': 'Help articles',
   'support.search.input': 'Search help',
   'support.search.noResultsCreateTicket': 'Create a support ticket',
   'support.home.ticketHistory': 'Ticket history',
+  'support.feedback.history': 'Feedback history',
+  'support.feedback.refresh': 'Refresh feedback',
+  'support.feedback.loadMore': 'Load more feedback',
+  'support.feedback.loading': 'Loading feedback',
+  'support.feedback.error': 'Unable to load feedback. Try refreshing again.',
+  'support.feedback.empty': 'No feedback submitted yet',
+  'support.feedback.status.new': 'New',
+  'support.feedback.status.reviewing': 'Reviewing',
+  'support.feedback.status.planned': 'Planned',
+  'support.feedback.status.resolved': 'Resolved',
+  'support.feedback.status.closed': 'Closed',
   'support.home.feedback': 'Send feedback',
   'support.article.faq.subscription.title': 'Subscription questions',
   'support.article.faq.subscription.body':
@@ -2065,10 +2789,18 @@ const en = {
   'support.form.failure.offline': 'Saved locally. Submit when you are online.',
   'support.form.failure.representative_failure':
     'Unable to save draft temporarily.',
+  'support.form.sessionFailure':
+    'Check your account session and try sending again.',
+  'support.form.rateLimited': 'Too many requests. Wait a moment and try again.',
+  'support.form.submitFailure':
+    'Unable to submit. Your text is kept for retry.',
   'support.report.assistant': 'Report assistant response to support',
   'support.report.transaction': 'Report transaction to support',
   'support.form.title': 'Contact support',
-  'support.form.subtitle': 'We are here to help you',
+  'support.form.subtitle': 'Tell us what happened so we can help.',
+  'support.form.sentTitle': 'Message sent',
+  'support.form.sentDescription': 'Your message has been received.',
+  'support.form.done': 'Done',
   'support.form.category': 'Category',
   'support.category.billing': 'Billing',
   'support.category.technical': 'Technical',
@@ -2095,7 +2827,13 @@ const en = {
   'support.ticket.reply': 'Reply',
   'support.ticket.sendReply': 'Send reply',
   'support.ticket.replyFailed': 'Reply failed. Your text is preserved.',
+  'support.ticket.refresh': 'Refresh ticket',
+  'support.ticket.replyUnavailable':
+    'Replies are unavailable for this ticket status.',
   'support.ticket.status.open': 'Open',
+  'support.ticket.status.submitted': 'Submitted',
+  'support.ticket.status.waiting_user': 'Waiting for your reply',
+  'support.ticket.status.waiting_support': 'Waiting for support',
   'support.ticket.status.in_progress': 'In progress',
   'support.ticket.status.resolved': 'Resolved',
   'support.ticket.status.closed': 'Closed',
@@ -2224,7 +2962,44 @@ const en = {
   'frontendQuality.selector.failure': 'Reset failed: {{code}}',
   'frontendQuality.selector.routeLinks': 'Seeded route links',
   'frontendQuality.selector.unavailable':
-    'Scenario selector is only available in development builds.'
+    'Scenario selector is only available in development builds.',
+  'recentAuth.signInAgain':
+    'Sign in again with the same account, then return here.',
+  'recentAuth.unsupported': 'Sign in again with the same account to verify.',
+  'recentAuth.useSignIn': 'Use my recent sign-in',
+  'recentAuth.passkey': 'Use your passkey to verify this session.',
+  'recentAuth.title': 'Verify your identity',
+  'recentAuth.code':
+    'Enter the verification code sent to your registered phone or email.',
+  'recentAuth.password': 'Enter your account password.',
+  'recentAuth.confirm': 'Verify and continue',
+  'recentAuth.cancel': 'Cancel action',
+  'recentAuth.retry': 'Try verification again',
+  'recentAuth.failed':
+    'Verification failed. Check your code or password and connection.',
+  'logout.pendingTitle': 'Finish signing out',
+  'logout.progress': 'Signing out…',
+  'logout.pendingBody': 'Finishing sign-out and safely clearing device data.',
+  'logout.originalSessionUnavailable':
+    'Cannot verify the session. Data saved; retry later.',
+  'logout.retry': 'Retry sign-out',
+  'logout.retrying': 'Checking sign-out…',
+  'logout.retryFailed':
+    'Sign-out is still pending. Your local data has been kept.',
+  'logout.unsyncedTitle': 'Unsynced work remains',
+  'logout.unsyncedBody':
+    'Some changes are unsynced. Stay to retry; deleting local data loses them.',
+  'logout.wait': 'Stay and retry sync',
+  'logout.remove': 'Remove local data and sign out',
+  'logout.failed':
+    'Sign out could not finish. Retry before switching accounts.',
+  'storageRecovery.title': 'Encrypted storage needs recovery',
+  'storageRecovery.body':
+    'Encryption key unavailable. Only synced data can be restored; the original copy is kept.',
+  'storageRecovery.cancel': 'Keep data and cancel',
+  'storageRecovery.confirm': 'Preserve original and recover',
+  'storageRecovery.failed':
+    'Recovery could not finish. Your encrypted original is preserved. Try again.'
 } as const;
 
 export type MessageKey = keyof typeof en;

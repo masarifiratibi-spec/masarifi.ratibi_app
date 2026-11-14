@@ -9,6 +9,7 @@ import {
   Text,
   View
 } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/state/theme-context';
 import { StyledText } from '@/components/StyledText';
@@ -31,6 +32,7 @@ export function AppSheet({
   children: ReactNode;
 }) {
   const theme = useTheme();
+  const insets = React.useContext(SafeAreaInsetsContext);
   const direction = usePreferenceStore((state) => state.direction);
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const translateY = useRef(new Animated.Value(0)).current;
@@ -94,7 +96,8 @@ export function AppSheet({
             {
               backgroundColor: menu ? theme.colors.horizon.sheet : theme.colors.surface,
               borderColor: menu ? theme.colors.horizon.sheetBorder : theme.colors.border,
-              direction
+              direction,
+              paddingBottom: Math.max(spacing.xl, (insets?.bottom ?? 0) + spacing.md)
             },
             menu && { transform: [{ translateY }] }
           ]}

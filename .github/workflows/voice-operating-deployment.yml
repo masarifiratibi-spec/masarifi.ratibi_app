@@ -1,0 +1,61 @@
+name: Voice Operating Deployment Qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    paths:
+      - scripts/staging-voice/promoted-operating-deploy.py
+      - scripts/staging-voice/promoted-operating-deploy.test.py
+      - scripts/staging-voice/qualify-operating-bootstrap.py
+      - .github/workflows/voice-operating-deployment.yml
+permissions:
+  contents: read
+jobs:
+  disposable-deployment:
+    if: github.repository == 'masarifiratibi-spec/masarifi.ratibi_app' && github.ref == 'refs/heads/codex/voice-promoted-operating-2026-10-13'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Qualify exact one-shot transport and disposable installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee "$RUNNER_TEMP/operating-deployment-python.log") 2>&1
+          python3 scripts/staging-voice/promoted-operating-deploy.test.py
+          python3 -O scripts/staging-voice/promoted-operating-deploy.test.py
+      - name: Qualify generated bootstrap with actual disposable systemd
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo -n --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,GITHUB_REF,RUNNER_TEMP python3 -B scripts/staging-voice/qualify-operating-bootstrap.py | tee "$RUNNER_TEMP/operating-deployment-systemd.json"
+      - name: Retain exact deployment qualification source
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          paths=[pathlib.Path(p) for p in ['scripts/staging-voice/promoted-operating-deploy.py',
+                 'scripts/staging-voice/promoted-operating-deploy.test.py',
+                 'scripts/staging-voice/qualify-operating-bootstrap.py',
+                 '.github/workflows/voice-operating-deployment.yml']]
+          evidence=[pathlib.Path(os.environ['RUNNER_TEMP'])/name for name in
+                    ['operating-deployment-python.log','operating-deployment-systemd.json']]
+          receipt={'sourceSha':os.environ['GITHUB_SHA'],'runId':int(os.environ['GITHUB_RUN_ID']),
+                   'workflowName':os.environ['GITHUB_WORKFLOW'],'disposableOnly':True,
+                   'stagingDeployment':False,'physicalDeviceOperations':False,
+                   'missingFiles':[str(p) for p in paths if not p.is_file()],
+                   'evidenceFiles':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in evidence if p.is_file()},
+                   'files':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.is_file()}}
+          pathlib.Path(os.environ['RUNNER_TEMP'],'operating-deployment-source.json').write_text(json.dumps(receipt,sort_keys=True))
+          if receipt['missingFiles']:raise SystemExit('REQUIRED_DEPLOYMENT_QUALIFICATION_SOURCE_MISSING')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: operating-deployment-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/operating-deployment-python.log
+            ${{ runner.temp }}/operating-deployment-systemd.json
+            ${{ runner.temp }}/operating-deployment-source.json
+          if-no-files-found: error

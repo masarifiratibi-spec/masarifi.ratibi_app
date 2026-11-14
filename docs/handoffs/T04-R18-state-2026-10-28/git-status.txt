@@ -1,0 +1,217 @@
+ M .dockerignore
+ M .github/workflows/mobile-preservation-qualification.yml
+ M apps/api/src/operations/operations.repository.ts
+ M apps/api/src/operations/operations.worker.ts
+ M apps/api/src/platform/config/environment.schema.ts
+ M apps/api/src/platform/config/environment.types.ts
+ M apps/api/src/sync/sync.handlers.ts
+ M apps/api/src/sync/sync.module.ts
+ M apps/api/src/sync/sync.repository.ts
+ M apps/api/src/sync/sync.worker.ts
+ M apps/api/test/integration/tracking/tracking-nominal.integration.spec.ts
+ M apps/api/test/unit/config/environment.schema.spec.ts
+ M apps/api/test/unit/operations/operations-worker.spec.ts
+ M apps/api/test/unit/sync/sync.handlers.spec.ts
+ M apps/api/test/unit/sync/sync.worker.spec.ts
+ M apps/mobile/app/(tabs)/transactions.tsx
+ M apps/mobile/app/security/settings.tsx
+ M apps/mobile/src/config/client-runtime.test.ts
+ M apps/mobile/src/config/client-runtime.ts
+ M apps/mobile/src/domain/core-finance.ts
+ M apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx
+ M apps/mobile/src/features/accounts/AccountDetailScreen.tsx
+ M apps/mobile/src/features/auth/GoogleAuthScreen.tsx
+ M apps/mobile/src/features/auth/session-controller.test.ts
+ M apps/mobile/src/features/auth/session-controller.ts
+ M apps/mobile/src/features/home/HomeScreen.test.tsx
+ M apps/mobile/src/features/security/SecurityJourney.test.tsx
+ M apps/mobile/src/features/shell/NavigationJourney.test.tsx
+ M apps/mobile/src/features/shell/NetworkConnectionNotice.test.tsx
+ M apps/mobile/src/features/shell/NetworkConnectionNotice.tsx
+ M apps/mobile/src/features/shell/ProtectedNavigation.test.tsx
+ M apps/mobile/src/features/shell/ProtectedRouteGate.tsx
+ M apps/mobile/src/features/shell/navigation-context.test.ts
+ M apps/mobile/src/features/shell/navigation-context.ts
+ M apps/mobile/src/features/shell/resolve-entry-route.test.ts
+ M apps/mobile/src/features/transactions/TransactionCard.tsx
+ M apps/mobile/src/features/transactions/TransactionForm.test.tsx
+ M apps/mobile/src/features/transactions/TransactionForm.tsx
+ M apps/mobile/src/features/transactions/TransactionListScreen.test.tsx
+ M apps/mobile/src/features/transactions/TransactionListScreen.tsx
+ M apps/mobile/src/features/transactions/TransactionsRoute.test.tsx
+ M apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx
+ M apps/mobile/src/features/voice/useVoiceCapture.test.tsx
+ M apps/mobile/src/localization/messages/ar.ts
+ M apps/mobile/src/localization/messages/en.ts
+ M apps/mobile/src/services/core-finance-runtime.ts
+ M apps/mobile/src/services/live/auth-service.test.ts
+ M apps/mobile/src/services/live/auth-service.ts
+ M apps/mobile/src/services/live/clerk-provider.tsx
+ M apps/mobile/src/services/live/core-finance-service.test.ts
+ M apps/mobile/src/services/live/core-finance-service.ts
+ M apps/mobile/src/services/live/reports-service.test.ts
+ M apps/mobile/src/services/live/reports-service.ts
+ M apps/mobile/src/services/mocks/core-finance-selector.test.ts
+ M apps/mobile/src/services/owner-lifecycle.ts
+ M apps/mobile/src/services/sync-first-logout.test.ts
+ M apps/mobile/src/services/sync-first-logout.ts
+ M apps/mobile/src/state/app-shell.ts
+ M apps/mobile/src/storage/app-shell-storage.test.ts
+ M apps/mobile/src/storage/app-shell-storage.ts
+ M apps/mobile/src/storage/core-finance-draft-storage.ts
+ M apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts
+ M apps/mobile/src/storage/core-finance-persistence.test.ts
+ M apps/mobile/src/storage/core-finance-repository.ts
+ M apps/mobile/src/storage/core-finance-sync-adapter.ts
+ M apps/mobile/src/storage/sync-repository.ts
+ M apps/mobile/src/storage/transaction-draft-snapshots.ts
+ M supabase/migration-checksums.sha256
+?? apps/api/src/sync/claimed-mutation.executor.ts
+?? apps/api/src/sync/claimed-mutation.runtime.ts
+?? apps/api/src/sync/sync-command.runtime.ts
+?? apps/api/test/integration/operations/scoped-claim.pg17.test.cjs
+?? apps/api/test/unit/platform/backend-build-context.spec.ts
+?? apps/api/test/unit/sync/claimed-mutation.executor.spec.ts
+?? apps/api/test/unit/sync/sync-worker-composition.spec.ts
+?? apps/mobile/src/features/auth/LogoutRecoveryPanel.test.tsx
+?? apps/mobile/src/features/auth/LogoutRecoveryPanel.tsx
+?? apps/mobile/src/services/owner-lifecycle.test.ts
+?? apps/mobile/src/storage/offline-creation-sqlite.test.ts
+?? apps/mobile/src/storage/transaction-edit-journal.ts
+?? docs/evidence/2026-10-25-astra-remediation-review/baseline-preflight.json
+?? docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.json
+?? docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T01/admission.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T01/astra-review.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T02/astra-review.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T02/evidence.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-1.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-2.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-3.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest-legacy-update.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest-reconnect-receipt.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/check-results.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/evidence.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/preservation-audit.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/root-staging-diagnostics.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/astra-core-review-round-1.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/checks.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-local-authorization.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-startup-closure.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-static-review-final.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/hosted-read-only-diagnosis.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/pg17-qualification.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/preservation.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/source-manifest.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/staging-one-shot-proposal.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T03/summary.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T04/evidence.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T04/hosted-reauth-results-2026-10-28.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T04/tracking-retry-repair-2026-10-28.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/expanded-navigation-audit.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/expanded-navigation-source-manifest.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-audit-inventory.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-audit-inventory.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-exception-results.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-source-manifest.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/online-recovery-report-fix-2026-10-28.md
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/online-recovery-report-fix-receipt.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/T06/reports-assistant-device-continuation.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/access-restoration.json
+?? docs/evidence/2026-10-25-astra-remediation-review/execution/user-scope-revisions.json
+?? docs/evidence/2026-10-25-astra-remediation-review/github-baseline-run.json
+?? docs/evidence/2026-10-25-astra-remediation-review/github-pr9-checks.json
+?? docs/evidence/2026-10-25-astra-remediation-review/plan-review.json
+?? docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.json
+?? docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.md
+?? docs/evidence/2026-10-25-astra-remediation-review/review.md
+?? docs/evidence/2026-10-25-astra-remediation-review/task-evidence-template.json
+?? docs/evidence/2026-10-25-astra-remediation-review/verification.json
+?? docs/evidence/2026-10-25-device-checklist/final-review-and-remaining-checklist.en.md
+?? docs/evidence/2026-10-25-device-checklist/open-device-issues.md
+?? docs/evidence/2026-10-25-device-checklist/pin-latency-fix.md
+?? docs/handoffs/T03-continuation-handoff.md
+?? docs/handoffs/T04-R18-continuation-handoff-2026-10-28.md
+?? docs/handoffs/T04-R18-state-2026-10-28/continuation-prompt.txt
+?? docs/handoffs/T04-R18-state-2026-10-28/existing-isolated-cursor-key-metadata.json
+?? docs/handoffs/T04-R18-state-2026-10-28/git-snapshot.json
+?? docs/handoffs/T04-R18-state-2026-10-28/git-status.txt
+?? docs/handoffs/T04-R18-state-2026-10-28/handoff-manifest.json
+?? docs/handoffs/T04-R18-state-2026-10-28/hosted-database.json
+?? docs/handoffs/T04-R18-state-2026-10-28/hosted-financial-metadata.json
+?? docs/handoffs/T04-R18-state-2026-10-28/local-runtime-device.json
+?? docs/handoffs/T04-R18-state-2026-10-28/r18-artifact-inventory.json
+?? docs/handoffs/T04-R18-state-2026-10-28/source-preservation.json
+?? docs/handoffs/T04-R18-state-2026-10-28/staging-runtime.json
+?? docs/handoffs/T04-R18-state-2026-10-28/xiaomi-queue-cursors.json
+?? docs/handoffs/T04-continuation-handoff-2026-10-27.md
+?? docs/handoffs/T04-continuation-supplement-2026-10-27T0718Z.md
+?? docs/handoffs/T04-model-transition-2026-10-27.md
+?? docs/handoffs/T04-post-rollout-checkpoint-2026-10-27.md
+?? docs/handoffs/T04-reauth-complete-R18-checkpoint-2026-10-28.md
+?? docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md
+?? docs/superpowers/plans/2026-10-25-t03-finite-qa-consumer.md
+?? docs/superpowers/plans/2026-10-26-simplified-execution-strategy.md
+?? docs/superpowers/plans/2026-10-28-t04-reauth-device-test-v8.md
+?? docs/superpowers/plans/2026-10-28-t04-reference-free-review-rollout.md
+?? docs/superpowers/plans/2026-10-28-t04-v8-metadata-guard-recovery.md
+?? docs/superpowers/plans/2026-10-28-t05-readonly-dependency-exception-proposal.md
+?? docs/superpowers/plans/2026-10-28-t06-expanded-active-navigation-proposal.md
+?? docs/superpowers/plans/2026-10-28-t06-navigation-dependency-exception-proposal.md
+?? scripts/qa/t03-exact-sync/README.md
+?? scripts/qa/t03-exact-sync/catalog.sql
+?? scripts/qa/t03-exact-sync/fixture-common.ps1
+?? scripts/qa/t03-exact-sync/fixture-iteration.ps1
+?? scripts/qa/t03-exact-sync/fixture-manifest.ps1
+?? scripts/qa/t03-exact-sync/fixture-preflight.test.ps1
+?? scripts/qa/t03-exact-sync/fixture-schema.sql
+?? scripts/qa/t03-exact-sync/fixture-start.ps1
+?? scripts/qa/t03-exact-sync/fixture-stop.ps1
+?? scripts/qa/t03-exact-sync/manifest.cjs
+?? scripts/qa/t03-exact-sync/manifest.template.json
+?? scripts/qa/t03-exact-sync/manifest.test.cjs
+?? scripts/qa/t03-exact-sync/pg17.test.cjs
+?? scripts/qa/t03-exact-sync/runner.cjs
+?? scripts/qa/t03-exact-sync/snapshot.test.cjs
+?? scripts/qa/t03-exact-sync/test-manifest.cjs
+?? scripts/qa/t03-session-consumer/README.md
+?? scripts/qa/t03-session-consumer/adapter.cjs
+?? scripts/qa/t03-session-consumer/adapter.test.cjs
+?? scripts/qa/t03-session-consumer/artifact.cjs
+?? scripts/qa/t03-session-consumer/compact-package.test.cjs
+?? scripts/qa/t03-session-consumer/config-fixture.cjs
+?? scripts/qa/t03-session-consumer/config.cjs
+?? scripts/qa/t03-session-consumer/config.test.cjs
+?? scripts/qa/t03-session-consumer/diagnostic-codes.json
+?? scripts/qa/t03-session-consumer/effective-catalog.cjs
+?? scripts/qa/t03-session-consumer/fixture-role-setup.sql
+?? scripts/qa/t03-session-consumer/host-entry.cjs
+?? scripts/qa/t03-session-consumer/host-entry.test.cjs
+?? scripts/qa/t03-session-consumer/host_broker.py
+?? scripts/qa/t03-session-consumer/host_broker_test.py
+?? scripts/qa/t03-session-consumer/host_reader.py
+?? scripts/qa/t03-session-consumer/host_transport.py
+?? scripts/qa/t03-session-consumer/host_transport_test.py
+?? scripts/qa/t03-session-consumer/inspection-scope.json
+?? scripts/qa/t03-session-consumer/journal.cjs
+?? scripts/qa/t03-session-consumer/journal.test.cjs
+?? scripts/qa/t03-session-consumer/legacy-binding.test.cjs
+?? scripts/qa/t03-session-consumer/package.cjs
+?? scripts/qa/t03-session-consumer/package.test.cjs
+?? scripts/qa/t03-session-consumer/product-fixture.cjs
+?? scripts/qa/t03-session-consumer/product-ledger.pg17.test.cjs
+?? scripts/qa/t03-session-consumer/product-schema.cjs
+?? scripts/qa/t03-session-consumer/product-schema.test.cjs
+?? scripts/qa/t03-session-consumer/reauthentication.pg17.test.cjs
+?? scripts/qa/t03-session-consumer/session-fixture.cjs
+?? scripts/qa/t03-session-consumer/session.cjs
+?? scripts/qa/t03-session-consumer/session.template.json
+?? scripts/qa/t03-session-consumer/session.test.cjs
+?? scripts/qa/t03-session-consumer/successor-fixture.cjs
+?? scripts/qa/t03-session-consumer/successor.cjs
+?? scripts/qa/t03-session-consumer/successor.test.cjs
+?? scripts/qa/t03-session-consumer/transport.cjs
+?? scripts/qa/t03-session-consumer/transport.test.cjs
+?? supabase/migrations/20261023200000_scoped_operations_claims.sql
+?? supabase/migrations/20261028114000_tracking_reference_free_correlation_review.sql

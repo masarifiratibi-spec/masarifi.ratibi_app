@@ -25,15 +25,15 @@ describe('Phase 07 planning contract', () => {
   });
   afterAll(() => app.close());
 
-  it('keeps 21 exact paths, 35 unique operations, resolved schemas, auth, and mutation fences', () => {
+  it('keeps 21 exact paths, 36 unique operations, resolved schemas, auth, and mutation fences', () => {
     expect(Object.keys(contract.paths)).toHaveLength(21);
     const operations = Object.values(contract.paths).flatMap((path) =>
       Object.entries(path)
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
         .map(([, operation]) => operation.operationId),
     );
-    expect(operations).toHaveLength(35);
-    expect(new Set(operations).size).toBe(35);
+    expect(operations).toHaveLength(36);
+    expect(new Set(operations).size).toBe(36);
     expect(JSON.stringify(contract)).toContain('Idempotency-Key');
     expect(JSON.stringify(contract)).toContain('expectedVersion');
     expect(JSON.stringify(contract)).toContain('ClerkBearer');

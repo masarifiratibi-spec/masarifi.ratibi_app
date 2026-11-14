@@ -6,6 +6,7 @@ import { CoreFinanceRepository } from './core-finance-repository';
 import { createDefaultCategories } from '@/domain/core-finance-seeds';
 import { createLiveCategoryLifecycleService } from '@/services/live/category-lifecycle-service';
 import { registerLiveClerkBridge } from '@/services/live/auth-service';
+import type { Category } from '@/domain/core-finance';
 
 type NativeSqlite = {
   close(): void;
@@ -32,7 +33,12 @@ function mobileMigrations(): string[] {
   const migrations = new Map<number, string>();
   for (let index = 1; index < parts.length; index += 2)
     migrations.set(Number(parts[index]), parts[index + 1]!.trim());
-  return Array.from({ length: 11 }, (_, index) => migrations.get(index + 1)!);
+  const ordered = [...migrations.entries()].sort(
+    ([left], [right]) => left - right
+  );
+  if (ordered.some(([version], index) => version !== index + 1))
+    throw new Error('MOBILE_MIGRATION_SEQUENCE_INVALID');
+  return ordered.map(([, sql]) => sql);
 }
 
 class SyncSqlite {
@@ -80,7 +86,272 @@ class SyncSqlite {
   }
 }
 
+describe('bounded category persistence in native SQLite', () => {
+  let database: SyncSqlite;
+  let open: jest.SpyInstance;
+  const category = (index: number): Category => ({
+    ...createDefaultCategories()[0]!,
+    id: `batch-category-${index}`,
+    parentId: null,
+    mergedIntoId: null,
+    labelEn: `Category ${index}`,
+    isFavorite: index % 2 === 0
+  });
+
+  beforeEach(() => {
+    database = new SyncSqlite();
+    database.exec('PRAGMA foreign_keys=ON;');
+    for (const migration of mobileMigrations()) database.exec(migration);
+    open = jest
+      .spyOn(databaseModule, 'openDatabase')
+      .mockResolvedValue(database as never);
+  });
+
+  afterEach(() => {
+    open.mockRestore();
+    database.close();
+  });
+
+  it('writes 207 ordered inputs in three bounded statements while preserving forward references and duplicate updates', async () => {
+    const repository = new CoreFinanceRepository();
+    const categories = Array.from({ length: 205 }, (_, index) =>
+      category(index)
+    );
+    categories[0] = { ...categories[0]!, parentId: categories[204]!.id };
+    categories[1] = {
+      ...categories[1]!,
+      status: 'merged',
+      mergedIntoId: categories[203]!.id
+    };
+    categories.splice(10, 0, { ...categories[2]!, labelEn: 'First duplicate' });
+    categories.splice(103, 0, {
+      ...categories[2]!,
+      labelEn: 'Last duplicate',
+      isFavorite: false
+    });
+    const writes = jest.spyOn(database, 'runAsync');
+
+    await repository.persistCategories(categories);
+
+    const categoryWrites = writes.mock.calls.filter(([sql]) =>
+      sql.startsWith('INSERT INTO finance_categories')
+    );
+    expect(categoryWrites).toHaveLength(3);
+    for (const [, ...bindings] of categoryWrites)
+      expect(bindings.length).toBeLessThanOrEqual(600);
+    const expected = [
+      ...new Map(categories.map((value) => [value.id, value])).values()
+    ];
+    expect(await repository.readPersistedCategories()).toEqual(
+      expect.arrayContaining(expected)
+    );
+    expect(
+      await database.getFirstAsync(
+        'SELECT count(*) count FROM finance_categories'
+      )
+    ).toEqual({
+      count: expected.length
+    });
+    expect(
+      await database.getAllAsync(
+        'SELECT id,parent_id,merged_into_id FROM finance_categories WHERE id IN (?,?) ORDER BY id',
+        categories[0]!.id,
+        categories[1]!.id
+      )
+    ).toEqual([
+      {
+        id: categories[0]!.id,
+        parent_id: 'batch-category-204',
+        merged_into_id: null
+      },
+      {
+        id: categories[1]!.id,
+        parent_id: null,
+        merged_into_id: 'batch-category-203'
+      }
+    ]);
+  });
+
+  it.each(['pending', 'sending', 'conflict'])(
+    'keeps a %s category and its favorite while persisting an unrelated child',
+    async (status) => {
+      const repository = new CoreFinanceRepository();
+      const protectedCategory = category(0);
+      await repository.persistCategory(protectedCategory);
+      await database.runAsync(
+        "INSERT INTO sync_mutation_queue(operation_id,domain,resource_type,operation,resource_id,payload,status,created_at,updated_at) VALUES(?, 'categories', 'category', 'update', ?, '{}', ?, 0, 0)",
+        'protected-category-operation',
+        protectedCategory.id,
+        status
+      );
+      const child = { ...category(1), parentId: protectedCategory.id };
+
+      await repository.persistCategories([
+        {
+          ...protectedCategory,
+          labelEn: 'Remote overwrite',
+          isFavorite: false
+        },
+        child
+      ]);
+
+      expect(await repository.readPersistedCategories()).toEqual(
+        expect.arrayContaining([protectedCategory, child])
+      );
+      expect(
+        await database.getFirstAsync(
+          'SELECT status FROM sync_mutation_queue WHERE operation_id=?',
+          'protected-category-operation'
+        )
+      ).toEqual({ status });
+    }
+  );
+
+  it('rolls back the first chunk and an existing row update when the second chunk fails', async () => {
+    const repository = new CoreFinanceRepository();
+    const original = category(0);
+    await repository.persistCategory(original);
+    database.exec(`CREATE TRIGGER reject_category_batch BEFORE INSERT ON finance_categories
+      WHEN NEW.id='batch-category-100' BEGIN SELECT RAISE(ABORT,'category batch rejected'); END;`);
+    const categories = Array.from({ length: 101 }, (_, index) =>
+      category(index)
+    );
+    categories[0] = { ...original, labelEn: 'Must roll back' };
+    const writes = jest.spyOn(database, 'runAsync');
+
+    await expect(repository.persistCategories(categories)).rejects.toThrow(
+      'category batch rejected'
+    );
+
+    expect(
+      writes.mock.calls.filter(([sql]) =>
+        sql.startsWith('INSERT INTO finance_categories')
+      )
+    ).toHaveLength(2);
+    expect(await repository.readPersistedCategories()).toEqual([original]);
+  });
+
+  it.each(['parentId', 'mergedIntoId'] as const)(
+    'rolls back every chunk when a deferred %s reference is still missing at commit',
+    async (reference) => {
+      const repository = new CoreFinanceRepository();
+      const original = category(0);
+      await repository.persistCategory(original);
+      const categories = Array.from({ length: 101 }, (_, index) =>
+        category(index)
+      );
+      categories[0] = { ...original, labelEn: 'Must roll back' };
+      categories[100] = {
+        ...categories[100]!,
+        [reference]: 'missing-category'
+      };
+
+      await expect(repository.persistCategories(categories)).rejects.toThrow(
+        'FOREIGN KEY constraint failed'
+      );
+
+      expect(await repository.readPersistedCategories()).toEqual([original]);
+    }
+  );
+});
+
 describe('transactional Mobile delta apply', () => {
+  it.each(['bootstrap', 'delta'] as const)(
+    'persists Tracking through real SQLite %s without changing manual or Voice sources',
+    async (mode) => {
+      const database = new SyncSqlite();
+      database.exec('PRAGMA foreign_keys=ON;');
+      for (const migration of mobileMigrations()) database.exec(migration);
+      const adapter = new CoreFinanceSyncAdapter(database as never),
+        timestamp = '2026-10-14T20:00:00Z';
+      try {
+        await adapter.applyBootstrap(
+          'accounts',
+          [
+            {
+              id: 'account-one',
+              version: 1,
+              name: 'Cash',
+              type: 'cash',
+              currency_code: 'SAR',
+              status: 'active',
+              created_at: timestamp,
+              updated_at: timestamp
+            }
+          ],
+          'accounts-cursor',
+          false
+        );
+        const items = ['tracking-import', 'manual', 'voice'].map(
+          (source, index) => ({
+            id: 'source-' + index,
+            version: 1,
+            kind: 'expense',
+            amount_minor: 100,
+            currency_code: 'SAR',
+            title: 'Saved expense',
+            source,
+            status: 'confirmed',
+            postings: [
+              {
+                posting_role: 'source',
+                account_id: 'account-one',
+                amount_minor: -100
+              }
+            ],
+            occurred_at: timestamp,
+            created_at: timestamp,
+            updated_at: timestamp
+          })
+        );
+        if (mode === 'bootstrap')
+          await adapter.applyBootstrap(
+            'transactions',
+            items,
+            'transaction-cursor',
+            false
+          );
+        else {
+          const changes = items.map((snapshot) => ({
+            resourceId: snapshot.id,
+            operation: 'upsert' as const,
+            version: 1,
+            snapshot,
+            deletedAt: null
+          }));
+          await adapter.applyDelta(
+            'transactions',
+            changes,
+            'transaction-cursor',
+            null
+          );
+          await adapter.applyDelta(
+            'transactions',
+            changes,
+            'transaction-cursor',
+            null
+          );
+        }
+        const rows = await database.getAllAsync<{ payload: string }>(
+          'SELECT payload FROM finance_transactions ORDER BY id'
+        );
+        expect(rows.map((row) => JSON.parse(row.payload))).toEqual(
+          ['automatic', 'manual', 'voice'].map((source) =>
+            expect.objectContaining({
+              source,
+              type: 'expense',
+              amountMinor: 100,
+              status: 'posted',
+              syncStatus: 'synced'
+            })
+          )
+        );
+        expect(items[0]!.source).toBe('tracking-import');
+      } finally {
+        database.close();
+      }
+    }
+  );
   it('persists a live child whose remote parent was not previously cached', async () => {
     registerLiveClerkBridge({
       getSession: async () => ({

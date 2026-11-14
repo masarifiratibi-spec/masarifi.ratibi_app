@@ -2,7 +2,7 @@ import { REFERENCE_ROUTES } from '../../../src/reference/reference.controller';
 import { ReferenceService } from '../../../src/reference/reference.service';
 
 describe('Admin reference contract', () => {
-  it('uses typed resources with exact permissions and recent MFA on every write', () => {
+  it('uses typed resources with exact permissions and recent Clerk login on every write', () => {
     const admin = REFERENCE_ROUTES.filter((route) => route.path.includes('/admin/reference/'));
     expect(admin).toHaveLength(8);
     expect(
@@ -13,7 +13,7 @@ describe('Admin reference contract', () => {
     expect(
       admin
         .filter((route) => route.method !== 'GET')
-        .every((route) => route.permission === 'reference.write' && route.recentMfa),
+        .every((route) => route.permission === 'reference.write' && route.recentAuth),
     ).toBe(true);
     expect(admin.some((route) => route.path.includes(':resource'))).toBe(false);
   });

@@ -1,46 +1,56 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useAppShellStore } from '@/state/app-shell';
+import { useTrackingKeywordDraft } from '@/features/tracking/useTrackingKeywordDraft';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
-import type { KeywordRule } from '@/domain/app-shell';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { KeywordEditor } from '@/features/onboarding/KeywordEditor';
 import { translate } from '@/localization/i18n';
-import { createAppShellStorage } from '@/storage/app-shell-storage';
-
-const storage = createAppShellStorage();
+import { StateView } from '@/design-system/components/feedback/StateView';
 
 export default function TrackingKeywordsRoute() {
-  const [rules, setRules] = useState<KeywordRule[]>([]);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    void storage
-      .loadKeywords()
-      .then(setRules)
-      .catch(() => setError(true));
-  }, []);
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <TrackingKeywordsContent key={ownerId} />;
+}
 
-  async function save() {
-    setError(false);
-    try {
-      await storage.saveKeywords(rules);
-    } catch {
-      setError(true);
-    }
-  }
+function TrackingKeywordsContent() {
+  const { query, rules, readable, blocked, saving, error, save, setRules } =
+    useTrackingKeywordDraft();
+  if (!readable)
+    return (
+      <StateView
+        state={query.isLoading ? 'loading' : 'error'}
+        title={translate(
+          query.isLoading ? 'tracking.state.loading' : 'tracking.state.error'
+        )}
+        actionLabel={
+          query.isError ? translate('coreFinance.action.retry') : undefined
+        }
+        onAction={query.isError ? () => void query.refetch() : undefined}
+      />
+    );
+
   return (
     <ScrollView contentContainerStyle={styles.stack}>
       <StyledText variant="title">
         {translate('tracking.keywords.title')}
       </StyledText>
       <StyledText>{translate('tracking.keywords.permissionScope')}</StyledText>
+      <FinancialRefreshStatus query={query} />
       {error ? (
         <StyledText accessibilityRole="alert">
           {translate('appShell.error.persistenceFailed')}
         </StyledText>
       ) : null}
       <KeywordEditor rules={rules} onChange={setRules} />
-      <ActionButton label={translate('tracking.action.save')} onPress={save} />
+      <ActionButton
+        label={translate('tracking.action.save')}
+        onPress={() => void save()}
+        disabled={blocked}
+        loading={saving}
+      />
     </ScrollView>
   );
 }

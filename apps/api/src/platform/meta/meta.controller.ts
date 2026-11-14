@@ -13,6 +13,63 @@ import { MetaService } from './meta.service';
 export class MetaController {
   constructor(private readonly meta: MetaService) {}
 
+  @Get('mobile-update')
+  @ApiOperation({ operationId: 'getMobileUpdatePolicy' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['schemaVersion', 'enabled', 'release', 'storeUrl'],
+      properties: {
+        schemaVersion: { type: 'integer', enum: [1] },
+        enabled: { type: 'boolean' },
+        release: {
+          nullable: true,
+          type: 'object',
+          additionalProperties: false,
+          required: ['version', 'versionCode'],
+          properties: {
+            version: {
+              type: 'string',
+              maxLength: 32,
+              pattern: '^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$',
+            },
+            versionCode: { type: 'integer', minimum: 1, maximum: 2_100_000_000 },
+          },
+        },
+        storeUrl: {
+          type: 'string',
+          enum: ['https://play.google.com/store/apps/details?id=com.masarifi.mobile'],
+        },
+      },
+    },
+  })
+  mobileUpdate(@Res({ passthrough: true }) response: Response) {
+    response.setHeader('Cache-Control', 'public, no-store');
+    return this.meta.getMobileUpdate();
+  }
+
+  @Get('social-media')
+  @UseGuards(MetaAuthGuard)
+  @ApiBearerAuth('ClerkBearer')
+  @ApiOperation({ operationId: 'getSocialMediaLinks' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['instagram', 'tiktok', 'snapchat'],
+      properties: {
+        instagram: { type: 'string', maxLength: 500 },
+        tiktok: { type: 'string', maxLength: 500 },
+        snapchat: { type: 'string', maxLength: 500 },
+      },
+    },
+  })
+  socialMedia(@Res({ passthrough: true }) response: Response) {
+    response.setHeader('Cache-Control', 'private, no-store');
+    return this.meta.getSocialMediaLinks();
+  }
+
   @Get()
   @UseGuards(MetaAuthGuard)
   @ApiBearerAuth('ClerkBearer')

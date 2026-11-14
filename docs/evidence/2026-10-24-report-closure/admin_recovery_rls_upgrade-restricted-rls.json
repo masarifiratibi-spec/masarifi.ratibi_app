@@ -1,0 +1,26 @@
+{
+  "database": "admin_recovery_rls_upgrade",
+  "rolledBack": true,
+  "restrictedFixtureRunner": true,
+  "receipts": [
+    {
+      "file": "062_obligation_initial_schedule.test.sql",
+      "status": "passed",
+      "assertions": 1,
+      "inheritedFailure": false
+    },
+    {
+      "file": "063_obligation_payment_atomic_undo.test.sql",
+      "status": "passed",
+      "assertions": 1,
+      "inheritedFailure": false
+    },
+    {
+      "file": "066_report_closure_upload_cleanup.test.sql",
+      "status": "passed",
+      "assertions": 8,
+      "inheritedFailure": false
+    }
+  ],
+  "unexpectedFailures": []
+}

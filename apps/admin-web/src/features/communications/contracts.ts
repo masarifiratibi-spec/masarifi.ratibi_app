@@ -3,7 +3,10 @@ import { z } from "zod";
 export const sharedIdSchema = z
   .string()
   .regex(/^[A-Z]{2,4}-\d{4,6}-[A-Z0-9]+$/);
-export const routeRecordIdSchema = z.string().regex(/^[A-Z]{3}-\d{4}$/);
+export const routeRecordIdSchema = z.union([
+  z.uuid(),
+  z.string().regex(/^[A-Z]{3}-\d{4}$/),
+]);
 
 export type SharedId = z.infer<typeof sharedIdSchema>;
 export type RouteRecordId = z.infer<typeof routeRecordIdSchema>;
@@ -49,6 +52,16 @@ export const safeTextSchema = z
   });
 
 export type SafeText = z.infer<typeof safeTextSchema>;
+
+const conversationTextSchema = z
+  .string()
+  .transform((value) => value.normalize("NFC"))
+  .refine((value) => !/[\u202A-\u202E\u2066-\u2069]/.test(value), {
+    message: "Contains bidirectional override characters",
+  })
+  .refine((value) => !/[\x00-\x08\x0B-\x1F\x7F-\x9F]/.test(value), {
+    message: "Contains control characters",
+  });
 
 export const searchSchema = z
   .string()
@@ -103,8 +116,10 @@ export const attachmentSchema = z
     id: z.string().min(1).max(128),
     filename: z
       .string()
-      .regex(/^[a-zA-Z0-9._-]+\.(pdf|png|jpeg|txt)$/)
-      .max(255),
+      .min(1)
+      .refine((value) => !/[\\/]/.test(value))
+      .max(255)
+      .pipe(safeTextSchema),
     mediaType: z.enum([
       "application/pdf",
       "image/png",
@@ -173,9 +188,9 @@ export const engagementAdminActionSchema = z
     ]),
     expectedVersion: z.number().int().min(1),
     reason: safeTextSchema.pipe(z.string().min(10).max(500)),
-    assigneeId: z.string().max(128).optional(),
+    assigneeId: z.string().min(1).max(128).nullable().optional(),
     priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
-    message: safeTextSchema.pipe(z.string().max(8192)).optional(),
+    message: conversationTextSchema.pipe(z.string().max(8192)).optional(),
     scheduledAt: z.iso.datetime({ offset: true }).optional(),
     replacementCategoryId: z.string().uuid().optional(),
     translations: z
@@ -339,6 +354,11 @@ export const communicationRecordSchema = z
     maskedReference: maskedReferenceSchema.optional(),
     updatedAt: z.iso.datetime({ offset: true }).nullable(),
     revision: z.number().int().positive(),
+    assignedAdminId: z.string().min(1).max(128).nullable().optional(),
+    customerReference: z
+      .string()
+      .regex(/^CUS-[a-f0-9]{16}$/)
+      .optional(),
     tags: z.array(z.string().max(40)).max(8).default([]),
   })
   .strict();
@@ -376,9 +396,9 @@ export type CommunicationOverview = z.infer<typeof communicationOverviewSchema>;
 
 export const communicationDetailSchema = communicationRecordSchema
   .extend({
-    body: safeTextSchema.pipe(z.string().max(8192)),
+    body: conversationTextSchema.pipe(z.string().max(8192)),
     notes: z
-      .array(safeTextSchema.pipe(z.string().max(8192)))
+      .array(conversationTextSchema.pipe(z.string().max(8192)))
       .max(100)
       .default([]),
     attachments: z.array(attachmentSchema).max(600).default([]),
@@ -388,7 +408,7 @@ export const communicationDetailSchema = communicationRecordSchema
           .object({
             id: z.string().min(1).max(128),
             senderType: z.enum(["customer", "admin", "system"]),
-            body: safeTextSchema.pipe(z.string().max(8192)),
+            body: conversationTextSchema.pipe(z.string().max(8192)),
             attachments: z.array(attachmentSchema).max(6),
             createdAt: z.iso.datetime({ offset: true }),
           })
@@ -401,7 +421,7 @@ export const communicationDetailSchema = communicationRecordSchema
         z
           .object({
             id: z.string().min(1).max(128),
-            body: safeTextSchema.pipe(z.string().max(8192)),
+            body: conversationTextSchema.pipe(z.string().max(8192)),
             createdAt: z.iso.datetime({ offset: true }),
           })
           .strict(),
@@ -420,6 +440,8 @@ export const communicationDetailSchema = communicationRecordSchema
       )
       .max(20)
       .default([]),
+    nextMessageCursor: z.string().max(512).nullable().optional(),
+    hasMoreMessages: z.boolean().optional(),
   })
   .strict();
 

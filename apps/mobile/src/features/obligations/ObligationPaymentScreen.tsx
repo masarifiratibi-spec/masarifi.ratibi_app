@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -10,13 +11,23 @@ import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
-import { parseAmountToMinor, safeMinorSum, type Account } from '@/domain/core-finance';
+import { safeMinorSum, type Account } from '@/domain/core-finance';
+import {
+  localDateInTimeZone,
+  localDateTimeInstant
+} from '@/domain/financial-period';
 import {
   localDateFromTimestamp,
   type LocalDate
 } from '@/domain/financial-planning';
-import { useAccountBalances, useAccounts } from '@/features/core-finance/core-finance-queries';
-import { PlanningScreen, PlanningState } from '@/features/financial-planning/PlanningScaffold';
+import {
+  useAccountBalances,
+  useAccounts
+} from '@/features/core-finance/core-finance-queries';
+import {
+  PlanningScreen,
+  PlanningState
+} from '@/features/financial-planning/PlanningScaffold';
 import { usePlanningFormDraft } from '@/features/financial-planning/usePlanningDraft';
 import { AccountPicker } from '@/features/transactions/AccountPicker';
 import { TransactionDateField } from '@/features/transactions/TransactionDateField';
@@ -25,6 +36,7 @@ import type { ObligationPaymentPreview } from '@/services/contracts/financial-pl
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligation } from './obligation-queries';
@@ -40,15 +52,19 @@ export function ObligationPaymentScreen({
   const accounts = useAccounts();
   const balances = useAccountBalances();
   const theme = useTheme();
+  const timeZone = usePreferenceStore((state) => state.timeZone);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const [amount, setAmount] = useState('');
-  const [paidDate, setPaidDate] = useState(
-    () => new Date().toISOString().slice(0, 10) as LocalDate
+  const [paidDate, setPaidDate] = useState(() =>
+    localDateInTimeZone(Date.now(), timeZone)
   );
   const [accountId, setAccountId] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [preview, setPreview] = useState<ObligationPaymentPreview>();
+  const [previewBalanceBefore, setPreviewBalanceBefore] = useState<
+    number | null
+  >(null);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
@@ -80,17 +96,42 @@ export function ObligationPaymentScreen({
     onError: () => setError(translate('planning.state.error'))
   });
 
+  const eligibleAccounts = accounts.data?.filter(
+    (account) =>
+      account.status === 'active' &&
+      account.currencyCode === obligation.data?.obligation.currencyCode
+  );
+  const defaultAccount =
+    eligibleAccounts?.find(
+      (account) => account.id === obligation.data?.obligation.fundingAccountId
+    ) ??
+    eligibleAccounts?.find((account) => account.isDefault) ??
+    eligibleAccounts?.[0];
+  const selectedAccountId = accountId || defaultAccount?.id;
+  const selectedAccount = accounts.data?.find(
+    (entry) => entry.id === selectedAccountId
+  );
+
   const buildPreview = async () => {
-    const selectedAccount = accountId || accounts.data?.[0]?.id;
     const item = obligation.data?.obligation;
-    const amountMinor = parseAmountToMinor(amount, item?.currencyCode ?? 'SAR');
-    if (!amountMinor || !selectedAccount || !item) {
+    const amountMinor = parseAmountToMinor(
+      normalizeLocalizedNumber(amount),
+      item?.currencyCode ?? 'SAR'
+    );
+    if (!amountMinor || !selectedAccountId || !item) {
       setError(translate('planning.validation.required'));
       return;
     }
-    const account = accounts.data?.find((entry) => entry.id === selectedAccount);
-    const balance = balances.data?.find((entry) => entry.accountId === selectedAccount);
-    if (!account || !balance || account.currencyCode !== item.currencyCode || balance.currencyCode !== item.currencyCode) {
+    const account = selectedAccount;
+    const balance = balances.data?.find(
+      (entry) => entry.accountId === selectedAccountId
+    );
+    if (
+      !account ||
+      !balance ||
+      account.currencyCode !== item.currencyCode ||
+      balance.currencyCode !== item.currencyCode
+    ) {
       setError(translate('planning.validation.currencyMismatch'));
       return;
     }
@@ -110,13 +151,13 @@ export function ObligationPaymentScreen({
               type: 'obligation_payment',
               amountMinor,
               currencyCode: item.currencyCode,
-              accountId: selectedAccount,
+              accountId: selectedAccountId,
               destinationAccountId: null,
               feeMinor: 0,
               categoryId: null,
               title: item.title,
               merchant: item.provider,
-              occurredAt: Date.parse(`${paidDate}T12:00:00Z`),
+              occurredAt: localDateTimeInstant(paidDate, timeZone),
               notes: null,
               originalTransactionId: null,
               obligationId
@@ -124,34 +165,46 @@ export function ObligationPaymentScreen({
           }
         })
       );
+      setPreviewBalanceBefore(balance.balanceMinor);
     } catch {
       setError(translate('planning.state.error'));
     } finally {
       setPreviewing(false);
     }
   };
-  const selectedAccountId = accountId || accounts.data?.[0]?.id;
-  const selectedAccount = accounts.data?.find((entry) => entry.id === selectedAccountId);
-  const selectedBalance = balances.data?.find((entry) => entry.accountId === selectedAccountId);
-  const previewAfter = preview && selectedBalance
-    ? safeMinorSum(selectedBalance.balanceMinor, obligation.data?.obligation.direction === 'payable' ? -preview.amountMinor : preview.amountMinor)
-    : null;
+  const previewAfter =
+    preview && previewBalanceBefore !== null
+      ? safeMinorSum(
+          previewBalanceBefore,
+          obligation.data?.obligation.direction === 'payable'
+            ? -preview.amountMinor
+            : preview.amountMinor
+        )
+      : null;
   const money = (minor: number | null) =>
     minor === null
       ? translate('reports.state.unavailable')
       : hideBalances && !revealed
         ? translate('planning.state.hidden')
-        : formatMinorAmount(minor, obligation.data?.obligation.currencyCode ?? 'SAR', currentLocale());
+        : formatMinorAmount(
+            minor,
+            obligation.data?.obligation.currencyCode ?? 'SAR',
+            currentLocale()
+          );
 
   return (
     <PlanningScreen titleKey="planning.obligations.payment" hideHeader>
       {!obligationId ? (
         <PlanningState state="empty" />
       ) : obligation.isLoading ||
-        accounts.isLoading || balances.isLoading ||
+        accounts.isLoading ||
+        balances.isLoading ||
         (draftEnabled && !draftReady) ? (
         <PlanningState state="loading" />
-      ) : obligation.isError || accounts.isError || balances.isError || !obligation.data ? (
+      ) : obligation.isError ||
+        accounts.isError ||
+        balances.isError ||
+        !obligation.data ? (
         <PlanningState
           state="error"
           onRetry={() => {
@@ -164,25 +217,63 @@ export function ObligationPaymentScreen({
         <>
           <ObligationHeroHeader
             title={translate('planning.obligation.previewPayment')}
-            eyebrow={translate(`planning.obligation.paymentCase.${preview.case}` as MessageKey)}
+            eyebrow={translate(
+              `planning.obligation.paymentCase.${preview.case}` as MessageKey
+            )}
             amount={money(preview.amountMinor)}
             description={obligation.data.obligation.title}
             onBack={() => router.back()}
           />
           <SurfaceCard style={styles.reviewCard}>
-            <PaymentDetail icon="calendar" label={translate('planning.obligation.paymentDate')} value={formatDate(Date.parse(`${paidDate}T00:00:00Z`), currentLocale())} />
-            <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-            <PaymentDetail icon="wallet" label={translate('voice.review.account')} value={selectedAccount?.name ?? translate('reports.state.unavailable')} />
-            <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+            <PaymentDetail
+              icon="calendar"
+              label={translate('planning.obligation.paymentDate')}
+              value={formatDate(
+                Date.parse(`${paidDate}T00:00:00Z`),
+                currentLocale()
+              )}
+            />
+            <View
+              style={[
+                styles.separator,
+                { backgroundColor: theme.colors.border }
+              ]}
+            />
+            <PaymentDetail
+              icon="wallet"
+              label={translate('voice.review.account')}
+              value={
+                selectedAccount?.name ?? translate('reports.state.unavailable')
+              }
+            />
+            <View
+              style={[
+                styles.separator,
+                { backgroundColor: theme.colors.border }
+              ]}
+            />
             <View style={styles.balanceTransition}>
-              <PaymentDetail icon="salary" label={translate('planning.obligation.balanceBefore')} value={money(selectedBalance?.balanceMinor ?? null)} />
-              <DesignIcon name="chevronDown" decorative color={theme.colors.primary} />
-              <PaymentDetail icon="salary" label={translate('planning.obligation.balanceAfter')} value={money(previewAfter)} />
+              <PaymentDetail
+                icon="salary"
+                label={translate('planning.obligation.balanceBefore')}
+                value={money(previewBalanceBefore)}
+              />
+              <DesignIcon
+                name="chevronDown"
+                decorative
+                color={theme.colors.primary}
+              />
+              <PaymentDetail
+                icon="salary"
+                label={translate('planning.obligation.balanceAfter')}
+                value={money(previewAfter)}
+              />
             </View>
           </SurfaceCard>
           <ActionButton
             label={translate('planning.obligation.confirmPayment')}
             loading={confirm.isPending}
+            disabled={saved}
             onPress={() =>
               confirm.mutate(preview, {
                 onSuccess: () => {
@@ -195,6 +286,7 @@ export function ObligationPaymentScreen({
           />
           <ActionButton
             label={translate('planning.action.edit')}
+            disabled={saved || confirm.isPending}
             onPress={() => {
               setPreview(undefined);
               setSaved(false);
@@ -251,6 +343,7 @@ export function ObligationPaymentScreen({
           >
             <AccountPicker
               selectedId={selectedAccountId}
+              currencyCode={obligation.data.obligation.currencyCode}
               onSelect={(account) => {
                 setAccountId(account.id);
                 setAccountPickerOpen(false);
@@ -268,9 +361,25 @@ export function ObligationPaymentScreen({
   );
 }
 
-function PaymentDetail({ icon, label, value }: { icon: 'calendar' | 'wallet' | 'salary'; label: string; value: string }) {
+function PaymentDetail({
+  icon,
+  label,
+  value
+}: {
+  icon: 'calendar' | 'wallet' | 'salary';
+  label: string;
+  value: string;
+}) {
   const theme = useTheme();
-  return <View style={styles.detailRow}><DesignIcon name={icon} decorative color={theme.colors.primary} /><View style={styles.detailCopy}><StyledText variant="caption">{label}</StyledText><StyledText variant="subtitle">{value}</StyledText></View></View>;
+  return (
+    <View style={styles.detailRow}>
+      <DesignIcon name={icon} decorative color={theme.colors.primary} />
+      <View style={styles.detailCopy}>
+        <StyledText variant="caption">{label}</StyledText>
+        <StyledText variant="subtitle">{value}</StyledText>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -6,6 +6,10 @@ import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ClerkClientService } from '../identity/clerk-client.service';
 import { PushTokenCrypto } from '../identity/push-token.crypto';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import {
+  configuredAndroidUpdate,
+  sameAndroidRelease,
+} from '../platform/meta/android-update-policy';
 import { createTlsMailTransport } from '../reports/reports.smtp';
 import { ENGAGEMENT_SOURCE_EVENTS } from './engagement.events';
 import { reminderSource } from './engagement.reminders';
@@ -31,6 +35,7 @@ import { ClamAvAttachmentScanner, DeterministicAttachmentScanner } from './suppo
 import { SupportStorage } from './support.storage';
 
 export type EngagementJob =
+  | 'tracking.confirmation.prepare'
   | 'source.consume'
   | 'notification.dispatch'
   | 'notification.expire'
@@ -84,6 +89,7 @@ export class EngagementWorker implements OnModuleDestroy {
   }
 
   runJob(job: string): Promise<number> {
+    if (job === 'tracking.confirmation.prepare') return this.prepareTrackingConfirmations();
     if (job === 'notification.reminders.evaluate') return this.evaluateReminders();
     if (!(ENGAGEMENT_JOBS as readonly string[]).includes(job))
       return Promise.reject(new Error('ENGAGEMENT_JOB_UNKNOWN'));
@@ -93,6 +99,18 @@ export class EngagementWorker implements OnModuleDestroy {
     if (job === 'notification.campaign.expand') return this.expandCampaigns();
     if (job === 'support-attachment.scan') return this.scanAttachments();
     return this.cleanupAttachments();
+  }
+
+  async processVoiceConfirmations(epoch: string): Promise<void> {
+    // This is invoked by the dedicated operating Voice lifecycle, never its broad scheduler.
+    const sources = await this.repository.claimVoiceSourceEvents(epoch, 1);
+    for (const source of sources) await this.ingest(source);
+    const deliveries = await this.repository.claimVoiceNotificationDeliveries(
+      epoch,
+      this.workerId,
+      1,
+    );
+    for (const delivery of deliveries) await this.deliver(delivery);
   }
 
   private async evaluateReminders(): Promise<number> {
@@ -136,6 +154,14 @@ export class EngagementWorker implements OnModuleDestroy {
       performance.now() - startedAt,
     );
     this.observability?.backlog('source.consume', sources.length);
+    return sources.length;
+  }
+
+  private async prepareTrackingConfirmations(): Promise<number> {
+    const sources = await this.repository.claimTrackingSourceEvents(
+      this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
+    );
+    for (const source of sources) await this.ingest(source);
     return sources.length;
   }
 
@@ -311,6 +337,50 @@ export class EngagementWorker implements OnModuleDestroy {
   private async deliver(claim: NotificationDeliveryClaim): Promise<void> {
     const startedAt = performance.now();
     if (
+      claim.data.route === 'app_update' ||
+      claim.data.appUpdate !== undefined ||
+      claim.campaign_update != null
+    ) {
+      const policy = configuredAndroidUpdate(this.config);
+      if (
+        !policy.release ||
+        claim.channel !== 'push' ||
+        claim.data.route !== 'app_update' ||
+        !sameAndroidRelease(policy, claim.data.appUpdate)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      const release = policy.release;
+      const decision = await this.repository.prepareAndroidUpdateDelivery(claim, release);
+      if (decision.outcome === 'defer') {
+        await this.repository.deferNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          decision.until,
+        );
+        return;
+      }
+      if (
+        decision.outcome === 'suppress' ||
+        !sameAndroidRelease(configuredAndroidUpdate(this.config), release)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          decision.outcome === 'suppress' ? decision.reason : 'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      claim = { ...claim, ...decision.target };
+    }
+    if (
       claim.channel === 'push' &&
       claim.event_id &&
       claim.event_type?.startsWith('reminder.') &&
@@ -433,6 +503,7 @@ export class EngagementWorker implements OnModuleDestroy {
       title: claim.title,
       body: claim.body_safe,
       route: typeof claim.data.route === 'string' ? claim.data.route : 'notification_detail',
+      automaticCapture: claim.data.automaticCapture === true,
     };
   }
 

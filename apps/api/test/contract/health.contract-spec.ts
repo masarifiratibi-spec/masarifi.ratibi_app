@@ -57,6 +57,28 @@ describe('health contracts', () => {
     });
   });
 
+  it('declares cross-feature protocol support without session or financial data', async () => {
+    const server = app.getHttpServer() as Parameters<typeof request>[0];
+    const response = await request(server).get('/health/compatibility').expect(200);
+    expect(response.body).toEqual({
+      schemaVersion: 1,
+      contracts: {
+        voiceSession: 2,
+        voiceBatch: 3,
+        voiceExtraction: 3,
+        voiceWorker: 1,
+        voiceConfirmation: 2,
+        assistantDirect: 2,
+        assistantProvider: 1,
+        manualReceipt: 1,
+      },
+    });
+    expect(Object.keys(response.body as Record<string, unknown>)).toEqual([
+      'schemaVersion',
+      'contracts',
+    ]);
+  });
+
   it('returns safe readiness failure without dependency details', async () => {
     health.ready.mockResolvedValue({
       status: 'not_ready',

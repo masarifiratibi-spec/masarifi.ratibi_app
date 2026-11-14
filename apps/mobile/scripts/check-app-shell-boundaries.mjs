@@ -7,21 +7,27 @@ const findings = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
+  // Policy TODO comments are documentation, not provider dependencies. Preserve line offsets.
+  const executableSource = source.replace(/^[ \t]*\/\/[^\r\n]*/gm, (comment) =>
+    ' '.repeat(comment.length)
+  );
   const normalized = file.replaceAll('\\', '/');
   const isTest = /\.(test|spec)\.(ts|tsx)$/.test(normalized);
-  const isAppShellUi = /^(app\/\((public|onboarding|tabs)\)|app\/(accounts|assistant|modals|security)\/|src\/features\/(auth|onboarding|shell|security)\/)/.test(
-    normalized
-  );
+  const isAppShellUi =
+    /^(app\/\((public|onboarding|tabs)\)|app\/(accounts|assistant|modals|security)\/|src\/features\/(auth|onboarding|shell|security)\/)/.test(
+      normalized
+    );
   const isAndroidSmsBoundary =
     normalized === 'app/(onboarding)/android-sms-permission.tsx' ||
     normalized === 'src/features/tracking/sms-import.ts' ||
     normalized === 'src/services/automatic-tracking-coordinator.ts' ||
+    normalized === 'src/services/tracking-source-preferences.ts' ||
     /^src\/services\/platform\/.*\.android\.ts$/.test(normalized);
 
   if (!isTest) {
     reportMatches(
       file,
-      source,
+      executableSource,
       /(?:openai|stripe|supabase|firebase|@react-native-google-signin|expo-auth-session)/gi,
       'provider SDK or production-provider import'
     );
@@ -40,13 +46,28 @@ for (const file of files) {
   );
 
   if (isAppShellUi && !isTest) {
-    reportMatches(file, source, /#[0-9a-f]{3,8}\b/gi, 'feature-local raw color');
-  }
-
-  if (!isTest && !isAndroidSmsBoundary) {
     reportMatches(
       file,
       source,
+      /#[0-9a-f]{3,8}\b/gi,
+      'feature-local raw color'
+    );
+  }
+
+  if (!isTest && !isAndroidSmsBoundary) {
+    // This shared facade only exposes an optional lookup (null without the
+    // Android module). Ignore its exact re-export, while still checking any
+    // executable SMS behavior added beside it.
+    const smsSource =
+      normalized === 'src/services/platform/tracking-native-runtime.ts'
+        ? source.replace(
+            /^export\s*\{\s*MasarifiSmsInbox\s+as\s+trackingNativeRuntime\s*\}\s*from\s*(['"])\.\.\/\.\.\/\.\.\/modules\/masarifi-sms-inbox\1;?[ \t]*$/gm,
+            (statement) => statement.replace(/[^\r\n]/g, ' ')
+          )
+        : source;
+    reportMatches(
+      file,
+      smsSource,
       /\b(?:READ_SMS|SmsAndroid|Telephony|SMS permission|inbox)\b/g,
       'SMS behavior outside Android boundary'
     );

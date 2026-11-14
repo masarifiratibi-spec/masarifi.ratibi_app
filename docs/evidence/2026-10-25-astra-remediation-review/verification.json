@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-25",
+  "branchUnchanged": true,
+  "preexistingFileHashesPreserved": 12,
+  "sequentialTaskGates": 29,
+  "reportAcceptanceUnits": 88,
+  "clientItems": 62,
+  "allOwnersMapped": true,
+  "jsonValid": true,
+  "localMarkdownLinksResolve": true,
+  "applicationCodeModifiedByThisReview": false,
+  "newDeviceJourneysExecuted": false,
+  "implementationDispatched": false,
+  "planApprovedByIndependentAstraReviewers": 2,
+  "userPlanApproval": "pending"
+}

@@ -1,0 +1,60 @@
+{
+  "kind": "exact-ui-only-canary-apk-compatibility",
+  "version": 1,
+  "referenceAPK": {
+    "sourceSha": "2c7d062f9fdf0ccd1ae55eda2ecb4495b805b172",
+    "apkHash": "507f39111bbc8531ba8bdf8f42b2cdd02a0feeaba1d00aaa1226ee76e5b8e43e"
+  },
+  "installedAPK": {
+    "sourceSha": "bf4d1bf89b10ddbc9df5109bedfef7d25811bd53",
+    "apkHash": "29c401fd25d9ea3979e85b721cab9464e803792c96560aa753d8e778db6f572e"
+  },
+  "worker": {
+    "sourceSha": "d26fd7f28994209d30a23dce1336befc03e08b4b",
+    "imageDigest": "6c00b3773a8f7c30731a45f321e5e64a61a51af46d250fec7a298c5662bebd95"
+  },
+  "changedProductionFiles": [
+    "apps/mobile/src/features/home/HomeSummary.tsx",
+    "apps/mobile/src/features/voice/VoiceBatchStatus.tsx",
+    "apps/mobile/src/features/voice/useVoiceBatches.ts"
+  ],
+  "changedTestFiles": [
+    "apps/mobile/src/features/home/HomeVoiceProgress.test.tsx",
+    "apps/mobile/src/features/voice/VoiceBatchStatus.test.tsx",
+    "apps/mobile/src/features/voice/useVoiceBatches.test.tsx"
+  ],
+  "productionDeltaSha256": "4205ac98175519dfbfe806a3285fe27f3cea9f4768904ee77787d7d77ae65490",
+  "unchangedSourceProjectionSha256": "9405b246ab9b48e003b57b943f979f12097389430083282ecf057721e4512179",
+  "sourceProjectionFiles": 2640,
+  "sourceInputsStillMatch": true,
+  "changedPackagedPayloads": [
+    "assets/index.android.bundle"
+  ],
+  "certificateSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "compiledEnvironmentUnchanged": true,
+  "buildEnvironmentUnchanged": true,
+  "financialSuites": 3,
+  "financialCasesPassed": 162,
+  "fullMobileSuites": 482,
+  "fullMobileCases": 3044,
+  "currentMobileCIRun": 38470433362,
+  "newPhysicalFinancialCanaryPerformed": false,
+  "originalCanaryEvidenceRewritten": false,
+  "evidenceHashes": {
+    "sourceReview": "5d442b8db1b31e04e0a7579349ec84a8e472fcae3ccfe92378b173b16c7b30be",
+    "artifactReview": "6962df98763010f7c1ad289aec8fd3465140dd768e01d337bac0a9008e03c9bd",
+    "clientCI": "77aaf774dc802e822b79348c6b3b237dde6abfefdcfab928c5937cd06b84b5a6",
+    "clientTests": "db10a500a53b205b3990460cc31812ef28e6afe5272af2d7177a92cac7b820ff",
+    "installationReview": "91ae63a5d7b5b274cb90ecc252e618bddf89cce848d9bd9811c270123aedf24c",
+    "installationPreservation": "7981c98960be11deccd4976724943df2390d6e9f394286c738f6dae168c3c9bc",
+    "financialCanaryReview": "1cbbe6f88b122a0d7834ea84526667f2c7eec2e509092afa88804ee942090c9b",
+    "referenceDelivery": "722c8c44fd96e552794b1c528383c872608563113c79894165c2b5ac53184158",
+    "financialRestore": "fd0df6db0d697d730a8cb5b0e0086c46933794396667b8b4449a15833bf14717",
+    "productionDelta": "4205ac98175519dfbfe806a3285fe27f3cea9f4768904ee77787d7d77ae65490"
+  },
+  "limitations": [
+    "Only the exact507f-to29c4 presentation delta is qualified; arbitrary later APKs are excluded.",
+    "No physical Home acceptance or new financial recording is claimed.",
+    "No posting activation, device command, schema or deployed-service change occurred."
+  ]
+}

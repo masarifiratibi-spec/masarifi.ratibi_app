@@ -1,5 +1,5 @@
 import type { TrackingPermissionService } from '@/services/contracts/app-shell-service';
-import { permissionState } from '@/services/mocks/tracking-permission-service';
+import { permissionState } from './permission-state';
 
 export function createTrackingPermissionService(): TrackingPermissionService {
   return {

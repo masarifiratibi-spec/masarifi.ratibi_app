@@ -12,6 +12,7 @@ interface SecurityPageData {
     page: number;
     pageSize: 25 | 50 | 100;
     totalItems: number;
+    totalItemsRelation?: "exact" | "lower-bound";
     totalPages: number;
   };
   region: {
@@ -62,6 +63,15 @@ export function useSecurityList(resource: string, input: ListQuery) {
 export function useSecurityIncident(id: string) {
   const role = useSimulatedRole();
   return useQuery({ queryKey: securityQueryKeys.detail(role, "incident", id), queryFn: () => securityRepository.getSecurityIncident(id), enabled: id.length > 0 });
+}
+
+export function useSecurityIncidents(page: number, enabled: boolean) {
+  const role = useSimulatedRole();
+  return useQuery({
+    queryKey: securityQueryKeys.list(role, "incidents", { page, pageSize: 25 }),
+    queryFn: () => securityRepository.listSecurityIncidents({ page, pageSize: 25 }),
+    enabled,
+  });
 }
 
 export function useAuditEvent(id: string) {

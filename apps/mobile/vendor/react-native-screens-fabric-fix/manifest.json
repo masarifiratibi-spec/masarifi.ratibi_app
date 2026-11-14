@@ -1,0 +1,28 @@
+{
+  "version": "4.23.0",
+  "upstream": "https://github.com/software-mansion/react-native-screens/pull/4413",
+  "revision": "204d36b45f2a718c6f86e00cfc70765cbde06565",
+  "localHardening": "Reject callback installation after proxy invalidation under installMutex_.",
+  "files": [
+    {
+      "path": "android/src/main/cpp/NativeProxy.cpp",
+      "pristine": "b1295187e684e48ea2620f09a35a646129ada4d705caa258694bb1a06bde36a2",
+      "patched": "4a5aeb7b2229214a1e4bbb41bec8ced4c189065a50a3795fb94c5329899227d8"
+    },
+    {
+      "path": "android/src/main/cpp/NativeProxy.h",
+      "pristine": "819ac75f33a7b621c79a5dec27154dc119b4b0c0dc2a561779691d5fad9837b6",
+      "patched": "31fa7da8d2d614a3000f461a51bfa3f120c11cb1909c2e029da72cf1c162edcc"
+    },
+    {
+      "path": "cpp/RNSScreenRemovalListener.cpp",
+      "pristine": "522ce1151eb7a484730ba60360e0c377d2ecd0607c237aef2ebe5ad3dd660b03",
+      "patched": "8fce5565911f4241803f851a94e76ad94547e5f9ad4ed547d82971522c2b4613"
+    },
+    {
+      "path": "cpp/RNSScreenRemovalListener.h",
+      "pristine": "3eb22b7fd1365f6b111b9e065a37b46a3f41d7e5b51c8db3413ddf8a6595cdc8",
+      "patched": "a61f5280c833689328c23d7c99c42b840bd8c8492f0a89996e54f9c7c5f75485"
+    }
+  ]
+}

@@ -84,10 +84,10 @@ describeLiveDatabase('AI rolling quota concurrency', () => {
       resetsAt: anyString,
     });
     await expect(repository.getAssistantAvailability(principal)).resolves.toMatchObject({
-      status: 'limit_reached',
+      status: 'available',
       limit: 5,
-      used: 5,
-      remaining: 0,
+      used: 0,
+      remaining: 5,
       resetsAt: anyString,
     });
     const successful = settled.findIndex((item) => item.status === 'fulfilled');

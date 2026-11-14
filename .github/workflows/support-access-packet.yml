@@ -1,0 +1,32 @@
+name: Support Access Packet
+on:
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    paths:
+      - 'ops/releases/2026-11-07-temporary-support-access/**'
+      - '.github/workflows/support-access-packet.yml'
+permissions:
+  contents: read
+jobs:
+  packet:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: ops/releases/2026-11-07-temporary-support-access
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Exercise packet admission and failure paths
+        run: python3 -B -m unittest discover -p 'test_*.py'
+      - name: Obtain Nginx on this disposable VM
+        run: |
+          if [ ! -x /usr/sbin/nginx ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends nginx
+          fi
+      - name: Prove live trial, rollback and persistence in a private mount namespace
+        run: sudo env GITHUB_ACTIONS=true unshare --mount --propagation private python3 -B qualify_trial.py
+      - name: Prove provisional and accepted Docker restart policies on disposable containers
+        run: python3 -B qualify_restart.py

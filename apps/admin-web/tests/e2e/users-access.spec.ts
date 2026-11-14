@@ -222,10 +222,13 @@ test.describe("profile, actions, and bounded bulk scope", () => {
     await page.getByRole("button", { name: "تأكيد" }).click();
     await expect(page.getByRole("status").last()).toContainText("تم تنفيذ الإجراء");
 
-    await page.getByRole("button", { name: /إلغاء جهاز/ }).first().click();
+    const revokeDevice = page.getByRole("button", { name: /إلغاء جهاز/ }).first();
+    const revokedDeviceLabel = (await revokeDevice.textContent())!;
+    await revokeDevice.click();
     await page.getByRole("dialog").getByLabel("سبب الإجراء").fill("إلغاء جهاز غير موثوق بعد مراجعة الدعم");
     await page.getByRole("button", { name: "تأكيد" }).click();
-    await expect(page.getByText("تم إلغاء الجهاز.")).toBeVisible();
+    await expect(page.getByRole("status").last()).toContainText("تم تنفيذ الإجراء بنجاح.");
+    await expect(page.getByRole("button", { name: revokedDeviceLabel, exact: true })).toHaveCount(0);
 
     await page.evaluate(() => sessionStorage.setItem("admin-mock-scenario", "slow"));
     await page.getByRole("button", { name: /إنهاء جلسة/ }).last().click();

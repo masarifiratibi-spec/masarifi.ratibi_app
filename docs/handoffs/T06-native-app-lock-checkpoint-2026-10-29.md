@@ -1,0 +1,54 @@
+# T06 native App Lock checkpoint — 29 October2026 local
+
+**Current state: T04 PASS; T05 PASS in original current-candidate qualification scope; prior refund return PASS; native App Lock source implemented/automated + DEV Xiaomi verified; native release acceptance PENDING; full T06 BLOCKED; T07+ NOT_STARTED.** The Security Events KEEP_GATE decision remains binding. No prompt or protected execution is waiting in progress.
+
+## Required authority and evidence
+
+1. Read the user's permanent App Lock attachment fully: C:/Users/DELL/.codex/attachments/1501a97d-1ee3-40b8-af95-7ae522622cde/Pasted text.txt, SHA2569f734842b32247434626f8aaef3eb1fdf19db357c8ebcea432f981b52bb2d355, plus the autonomous overnight instruction. Routine technical implementation is authorized; separate protected/security scope still requires specific human authority.
+2. Read [current native report](../evidence/2026-10-25-astra-remediation-review/execution/T06/native-app-lock-continuation-2026-10-29.md), current T06 evidence.json, [native plan](../superpowers/plans/2026-10-29-native-app-lock.md), [design](../superpowers/specs/2026-10-29-native-app-lock-design.md) and current simplified strategy overlay.
+3. Preserve and consult [the accepted T04/T05/refund checkpoint](T04-T05-accepted-T06-checkpoint-2026-10-29.md), original R18 handoff and all referenced accepted evidence. This new handoff supersedes only their current App Lock/phone/native-build/continuation statements. Do not rerun completed operations.
+4. Current private root: D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-10-29-native-app-lock. Read progress.md, FINAL.json, verification-summary.json, native-current-artifacts.json, source-delta-manifest.json, final-preservation.json, final-phone.json and final-security-self-review.json. Before-images and failed attempts are retained.
+
+## Ownership/workspace
+
+Use only D:/Masarifi-integration-2026-10-10, branch codex/voice-promoted-operating-2026-10-13, HEAD e7ad90e8b91c118e6365f57cc6cc542f94873595. Chat CWD differs; pass explicit workdir. Sole responsible gpt-6.1-sol/xhigh; no delegation or other model. Read-only checks confirmed this chat01a1831a-0ffc-7873-9d74-4874f6b21359 was the only active Masarifi Codex chat. Verify exclusive ownership/model/current state again before further work.
+
+Preserve all uncommitted changes, existing processes, authentication, settings, encrypted data and hidden/deferred features. No new branch/worktree/environment/QA infrastructure, stage/commit/push/merge, Production/billing, database/worker policy or unapproved protected Staging action. Original plan SHA dde83afd481bb9d5f1f68e0be12c39eaa1c5b221c33b4ad49caf48f2b95bf189 and62/69/88/29 denominators remain unchanged.
+
+## Completed work to preserve
+
+T04v4 deployment and bounded cursor recovery are accepted. Never replay consumed v2/v3/v4, frozen V7, accepted financial operations or completed reauthentication. T04 FINAL SHA e1ef17ab2645ddf9723f4daec15473f4338f8fabb23e5a0f0838662ced86aca2. Existing dedicated key was reused; no new key. Server/worker/financial controls retain their approved scope.
+
+T05 accepted current176 migration qualification on retained nativePG18; configured Supabase17 current176 fresh/upgrade remains NOT_RUN and hosted169 non-prefix history stays documented. T05 FINAL SHA275163f1ec8aa880df277b3e6017081f2bb67482b63ae425c3a3acf981ddd368. OwnedPG18:55442 andPG17:55473 remain stopped; unrelated5432 is untouched. Do not reset/migrate/replay qualified fixtures.
+
+Refund cancellation remains actual Xiaomi AR/EN Close/AndroidBack PASS; its120 automated cases were not replayed. Preserve TransactionForm.tsx SHA7d24fa789fe11b4e96ba8536a1380782307381a72e8a69dd9f77bf106ab417f6, test SHAd36da0de6afa246d81195d0db0065efe0ee638dd6ea98e9711de250291b82510, hook SHA6a409b88f99250c3d244294c4e0266af2e084bad2b98102a73a79c9f720e1bec.
+
+Existing SSH176.225.13.117/32 rule was applied once under prior approval;30rules/defaults were preserved. No further firewall authorization. For any future SSH timeout, use the existing official Hostinger Web Console before declaring unreachable. A changed source IP rule needs exact new approval. No server work was needed in this native App Lock continuation.
+
+## App Lock implementation and verified scope
+
+Custom app PIN UI/routes/KDF/native module source and active PIN APIs are removed with before-images; shared Clerk OTP and encryption remain. Old secret bytes are read only for safe compatibility/presence, never validated/reset/deleted during hydration. Owner-native preferences use a separate versioned key. Existing explicit owner erasure remains complete but was never invoked.
+
+Optional release App Lock uses existing Expo native authentication with strong biometrics and OS device credential fallback. Strict DEV suppression requires actual DEV/development/live plus exact native package/API/variant pair. It cannot turn off release protection or remote financial/Clerk authorization. DEV launch state is derived unlocked in memory without persistence; cached-only sessions cannot receive remote credentials. Stale settings/lock/unlock callbacks and cross-owner native results are fenced. Optional unlock-screen lazy loading is retained.
+
+Automated final applicable results:22suites372cases plus2suites11follow-up cases;9are reruns, giving374cases across23suites. Parameterized cases with identical names remain separate.12release/runtime Node gates and1204-file app-shell boundary pass. Final typecheck0; lint0errors/20warnings in inherited require/import test layout, with0warnings on the two-file route follow-up; whitespace check0. Review is Sol self-review plus separate tool/device evidence, not independent model review or effective CI.
+
+Actual Xiaomi DEV Arabic/English Settings show the new notice/no custom PIN controls. Normal startup/navigation/background return needed no App Lock prompt; cached balance/draft/transactions remained accessible. Existing DEV APK native bytes were not replaced and still include its unused historical PIN module. Current loaded DEV bundle hash remains UNVERIFIED because read-only CDP never replied; no Runtime.evaluate/app module invocation/credential read was used. Bounded DEV provenance is the sole preserved Metro/current source/normal host navigation/new visible labels/actual behavior. Do not reuse the earlier refund bundle hash as current native-lock provenance.
+
+The existing signed-release guard stopped APK assembly without approved upload credentials. No bypass, debug-signed release, new signing material or install occurred. Guard-permitted Kotlin/Java release compilation, manifest and Hermes JS bundle passed. Current build has DEBUG=false; source map matches all14changed production sources after LF normalization. Generated Expo list includes LocalAuthentication and excludes MasarifiPinCrypto; retired PIN JS sources are absent. Original debug APK SHA5aa443428e94789d870b3d9514459091a6c94071529bd00c61da5dbfbfd011bf stays exact. Generated native outputs are prepackaging evidence only; they do not close APK/AAB/signer/minification/16KB/T20–T22 gates. Preserve the bound outputs before any later build overwrites them.
+
+## Phone/process freeze
+
+At2026-10-28T23:25:25.803Z: f66a40694eca /23076RN8DY /Android15, com.masarifi.mobile.dev PID24113; Arabic /Home /AllAccounts /October2026; Wi-Fi0/data0/airplane0. One original full draft SHA cfcbf7b9a5564853400a2704d86a67f589edcde445ac54da54ef4d77d1600d20. Same12applied sync mutation IDs SHA e1800b313d30d84783a80abf6c298669d3a89d1d627730322a263ad4c126c6d5 (sort IDs and join with commas).0pending,0Voicejournal,0unfinished/audio/request-body Voice work,0SMS; native queues safe and sources/capture disabled. No financial submission occurred. All owned SQLite/Debugger observers are closed. No native/auth/security settings were changed; only locale temporarily switched and restored.
+
+Metro25284/32992 and USB reverse UsbFfs tcp:8081 tcp:8081 remain. No duplicate Metro, reset, process stop or native install. A normal development launcher reopen recovered a transient multifile reload failure without clearing data. All build/test jobs finished; no command is left running. Do not stop unrelated processes.
+
+For later device work, refresh offline/queue/owner/producer guards before any mutation/reconnect. Existing SELECT-only Expo SQLite observer is permitted; do not dump/decrypt/export DB, inspect credentials, invoke native readRecent (it prunes/writes), mutate queues or inspect during private entry. Observer connections go stale across tool calls; bind a fresh socket closure and use one atomic SELECT for the required fingerprints/counts, then close. Do not infer empty queues from UI alone or normalize a mismatch by repinning.
+
+## Remaining boundaries and saved continuation prompt
+
+Native fingerprint/OS-credential hardware success/cancel/retry/background return, fresh sign-in/actual logout and new online API verification are NOT_RUN in this slice. User presence plus a suitable compatible artifact is required for native prompts; do not enter/read credentials or simulate success. Packaging must use existing approved signing infrastructure. First establish artifact hash/package/environment/certificate and a data-preserving install plan; do not uninstall/clear the existing app to overcome signer mismatch. No exact install approval packet is ready until those artifact facts exist.
+
+Security Events source SHA0d893db5005d20d9d6a2307b6cf2f52248696b61e76e6c337ba5f10030b4f9ac remains exact. The declined4c3d81d3fe3d374ed5bf944f07341b838eb03df3862f2c5b61161bc41ca6cbf2 proposal remains inactive. Do not re-ask it, enable Events or claim it waived. Full T06 remains blocked by that live criterion and original conditional coverage; all later tasks require it and remain ineligible. Do not invent unrelated work or reset auth/create records to manufacture coverage.
+
+**Saved continuation prompt:** Read the current authority/report/plan/evidence fully; verify sole Sol/xhigh ownership/current state read-only; preserve T01–T05, accepted refund repair and completed native App Lock source/DEV results. Continue any independently authorized work with satisfied original prerequisites, using normal Xiaomi journeys. Complete native hardware/release requirements only through a suitable artifact, existing approved signing and private human OS interaction. Routine implementation choices need no repeated approval. Protected scope changes still need an exact reviewable human authorization. Keep Events gated and T07+ blocked unless the user explicitly changes that decision/dependency. Maintain the existing three-hour safe-boundary continuation guidance where supported: seal progress, exact source/test/device states, in-flight jobs and blockers before handoff. No automation was created; no claim that unattended work will continue after the chat stops.

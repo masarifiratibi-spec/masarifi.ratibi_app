@@ -101,7 +101,7 @@ export function SmallShieldIcon({ size = 14, color = colorTokens.teal['700'] }: 
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 2L4 5.5V11.5C4 16.5 7.5 21.2 12 22.5C16.5 21.2 20 16.5 20 11.5V5.5L12 2Z"
-        fill={colorTokens.teal['50']}
+        fill="none"
         stroke={color}
         strokeWidth="1.8"
         strokeLinejoin="round"

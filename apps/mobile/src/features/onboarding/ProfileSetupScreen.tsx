@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { rememberAuthenticatedOwner } from '@/services/owner-lifecycle';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +19,7 @@ import { openSelectionSession } from '@/design-system/components/selection/selec
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { elevation, radius, spacing } from '@/design-system/tokens';
-import { getCurrencyDetails } from '@/domain/currencies';
+import { getCurrencyDetails, supportedCurrencies } from '@/domain/currencies';
 import type { ProfileSetupSnapshot } from '@/domain/settings';
 import { translate } from '@/localization/i18n';
 import type { SettingsService } from '@/services/contracts/assistant-notifications-service';
@@ -39,7 +40,7 @@ export function ProfileSetupScreen({
   navigateHome = () => router.replace('/(tabs)/home')
 }: {
   service?: ProfileSetupService;
-  getClerkName?: () => string | null;
+  getClerkName?: (ownerId: string | null | undefined) => string | null;
   navigateHome?: () => void;
 }) {
   const theme = useTheme();
@@ -48,13 +49,18 @@ export function ProfileSetupScreen({
     (state) => state.setBaseCurrencyCode
   );
   const status = useAppShellStore((state) => state.profileSetupStatus);
+  const ownerId = useAppShellStore((state) => state.session?.userId);
   const snapshot = useAppShellStore((state) => state.profileSetupSnapshot);
   const setProfileSetup = useAppShellStore((state) => state.setProfileSetup);
   const initialized = useRef(false);
+  const nameEdited = useRef(false);
   const submittingRef = useRef(false);
   const operationId = useRef(`profile-setup-${Date.now()}`);
-  const [name, setName] = useState(() => getClerkName() ?? '');
-  const [currency, setCurrency] = useState('SAR');
+  const [name, setName] = useState(
+    () => snapshot?.profile.name?.trim() || getClerkName(ownerId) || ''
+  );
+  const [currency, setCurrency] = useState<string | null>(null);
+  const [currencyError, setCurrencyError] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,19 +68,29 @@ export function ProfileSetupScreen({
   useEffect(() => {
     if (!snapshot || initialized.current) return;
     initialized.current = true;
-    setName((current) => current.trim() || snapshot.profile.name || '');
-    setCurrency(snapshot.profile.currency || 'SAR');
+    if (!nameEdited.current)
+      setName((current) => snapshot.profile.name?.trim() || current);
+    setCurrency(
+      snapshot.preferences.currencySelectionRequired === false
+        ? (supportedCurrencies.find(
+            (entry) => entry.code === snapshot.preferences.defaultCurrency
+          )?.code ?? null)
+        : null
+    );
   }, [snapshot]);
 
   async function loadLatest(): Promise<ProfileSetupSnapshot | null> {
-    setProfileSetup('loading');
+    if (useAppShellStore.getState().session?.userId !== ownerId) return null;
+    if (!snapshot) setProfileSetup('loading');
     try {
       const latest = await service.getProfileSetup();
+      if (useAppShellStore.getState().session?.userId !== ownerId) return null;
       setProfileSetup(latest.complete ? 'complete' : 'incomplete', latest);
       if (latest.complete) navigateHome();
       return latest;
     } catch {
-      setProfileSetup('error');
+      if (useAppShellStore.getState().session?.userId === ownerId && !snapshot)
+        setProfileSetup('error');
       return null;
     }
   }
@@ -83,6 +99,10 @@ export function ProfileSetupScreen({
     const trimmedName = name.trim();
     if (!trimmedName) {
       setNameError(true);
+      return;
+    }
+    if (!currency) {
+      setCurrencyError(true);
       return;
     }
     if (!snapshot || submittingRef.current) return;
@@ -96,10 +116,23 @@ export function ProfileSetupScreen({
         snapshot,
         operationId.current
       );
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
+      const session = useAppShellStore.getState().session;
+      if (
+        session?.status === 'authenticated' &&
+        session.userId &&
+        !/^(?:mock|demo|fixture|test)(?:[-_]|$)/i.test(session.userId)
+      )
+        await rememberAuthenticatedOwner(
+          session,
+          () => useAppShellStore.getState().session?.userId === ownerId
+        );
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
       setProfileSetup('complete', result.value);
       setBaseCurrencyCode(result.value.profile.currency);
       navigateHome();
     } catch {
+      if (useAppShellStore.getState().session?.userId !== ownerId) return;
       setSaveError(true);
       await loadLatest();
     } finally {
@@ -108,8 +141,12 @@ export function ProfileSetupScreen({
     }
   }
 
-  const selected = getCurrencyDetails(currency);
-  const currencyName = direction === 'rtl' ? selected.nameAr : selected.nameEn;
+  const selected = currency ? getCurrencyDetails(currency) : null;
+  const currencyName = selected
+    ? direction === 'rtl'
+      ? selected.nameAr
+      : selected.nameEn
+    : translate('profileSetup.currencyChoose');
   const isRtl = direction === 'rtl';
   const directionalText = {
     textAlign: 'auto' as const,
@@ -162,6 +199,7 @@ export function ProfileSetupScreen({
                   label={translate('profileSetup.nameLabel')}
                   labelPlacement="accessibility-only"
                   onChangeText={(value) => {
+                    nameEdited.current = true;
                     setName(value);
                     if (nameError && value.trim()) setNameError(false);
                   }}
@@ -176,13 +214,16 @@ export function ProfileSetupScreen({
                     {translate('profileSetup.currencyLabel')}
                   </StyledText>
                   <Pressable
-                    accessibilityLabel={`${translate('profileSetup.currencyLabel')} ${selected.code} ${currencyName}`}
+                    accessibilityLabel={`${translate('profileSetup.currencyLabel')} ${selected?.code ?? ''} ${currencyName}`}
                     accessibilityRole="button"
                     onPress={() =>
                       openSelectionSession({
                         targetRoute: '/settings/currency',
                         selectedId: currency,
-                        onSelect: setCurrency
+                        onSelect: (value: string) => {
+                          setCurrency(value);
+                          setCurrencyError(false);
+                        }
                       })
                     }
                     style={({ pressed }) => [
@@ -198,26 +239,32 @@ export function ProfileSetupScreen({
                     ]}
                   >
                     <View style={styles.currencyValue}>
-                      <StyledText
-                        variant="subtitle"
-                        style={styles.currencyLtrText}
-                      >
-                        {selected.code}
-                      </StyledText>
-                      <StyledText
-                        accessible={false}
-                        variant="subtitle"
-                        style={styles.currencyLtrText}
-                      >
-                        ·
-                      </StyledText>
+                      {selected ? (
+                        <StyledText
+                          variant="subtitle"
+                          style={styles.currencyLtrText}
+                        >
+                          {selected.code}
+                        </StyledText>
+                      ) : null}
+                      {selected ? (
+                        <StyledText
+                          accessible={false}
+                          variant="subtitle"
+                          style={styles.currencyLtrText}
+                        >
+                          ·
+                        </StyledText>
+                      ) : null}
                       <StyledText
                         variant="subtitle"
                         style={{ writingDirection: direction }}
                       >
                         {currencyName}
                       </StyledText>
-                      <CurrencyFlagIcon code={selected.code} size={24} />
+                      {selected ? (
+                        <CurrencyFlagIcon code={selected.code} size={24} />
+                      ) : null}
                     </View>
                     <DesignIcon
                       name="chevronDown"
@@ -225,6 +272,14 @@ export function ProfileSetupScreen({
                       decorative
                     />
                   </Pressable>
+                  {currencyError ? (
+                    <StyledText
+                      accessibilityRole="alert"
+                      style={{ color: theme.colors.status.danger }}
+                    >
+                      {translate('profileSetup.currencyChoose')}
+                    </StyledText>
+                  ) : null}
                   <StyledText
                     variant="caption"
                     style={{

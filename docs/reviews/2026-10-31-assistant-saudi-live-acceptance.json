@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "SAUDI-ASSISTANT-QA-20261031-01",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "workerImage": "sha256:4b45280ee49b3e8a463f3ce27c1567ec6894422650e7b32d656b6ad243b0da21",
+  "runtimePromptSha256": "65bb6bef7ca0252287ffd4e0cc4f968f1ea3219fd9b2776bfc110b28962243c9",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Existing authenticated owner financial context required for each question; questions and responses remain private. No client data in Git.",
+  "maxQuestions": 8,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.80",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.74680320",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "وش آخر معاملة عندي؟",
+    "صرفت كام الشهر ده؟",
+    "اعرض آخر ثلاث معاملات مؤكدة عندي.",
+    "وش أكبر مصروف منفرد، ووش أعلى فئة صرف؟",
+    "قارن مصروفاتي هالشهر بنفس المدة من الشهر اللي قبله، وخلي كل عملة لحالها.",
+    "طيب واللي قبله؟",
+    "اعرض معاملاتي المؤكدة في يناير 2020.",
+    "Please summarize my confirmed spending this month in English, keeping every currency separate."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/preservation and runtime identity before first admission; recheck configured route before every question.",
+    "Preserve all original drafts and financial rows; only approved assistant conversation/message/usage records may be created.",
+    "Do not execute any financial action, confirmation, permissions change, migration, quota increase or other provider route."
+  ],
+  "evidence": "Private per-intent durable journal before Send; bound request/job IDs, model/provider receipts, prompt hash and redacted result judgments."
+}

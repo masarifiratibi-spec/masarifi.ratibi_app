@@ -1,0 +1,191 @@
+{
+  "at": "2026-10-25T18:32:16.1914198Z",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "candidateManifestSha256": "53C276C3CAA82C9ACBD639B7FC08E41B5A32A1863B99B017CDAAC5CD7D197E62",
+  "mobile15Preserved": true,
+  "baseline21Preserved": true,
+  "inheritedWorkflowPreserved": true,
+  "files": [
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "sha256": "60E608A3BEB458244034BD3B83A9BF40DAFE19773614D900766D8F5CC5E7FC88",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.tsx",
+      "sha256": "79861A82166194118B25085B1AFC96A7A88923486DA639AC34BC115E68FAB5F0",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+      "sha256": "D24D507C58E679FA9C80F312E007538141C1691FE34A0D465D8D5945F3C1616A",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx",
+      "sha256": "4E9994DF86E25C7EE68531F1C210A5302ED33634A53FD844B3C60BD44C4B65DB",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "BFCA73A9BC0E6C4C5D929BC8EF6A5461B37A99B5EAB4BC584EBB4533D0CF3C9F",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "DB67B98338E7F0750C69943B5406A69A177C3A99F633E3FE94D3CB89B5123EDD",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/services/core-finance-runtime.ts",
+      "sha256": "135D8BA5AB119B30C11DFB836FF1FE9002C80E9BA5B4E58846848ED994AA3FD4",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "sha256": "408F90C10024C00B4E6AE070070F7051D9EF377CC6F2EF969AFF1163615241D6",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.ts",
+      "sha256": "8E6A680B86E481A6FD95FD00E01BC69A02C84A197D7AC904C9CC21FDF44480DC",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/services/mocks/core-finance-selector.test.ts",
+      "sha256": "9ED1D808CF412582CDF4A11ADC63BA44FC02C01C5C2454791E876BD33C1522A5",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-draft-storage.ts",
+      "sha256": "DDC16D32785DDB1D111A770E838B28CFEE9E57331C48D75FF491A51D1A5B6DD8",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts",
+      "sha256": "8E891C2F2D9B0957705D24382CAB100DF5B3AB7302E0D1AFD97A4FE8BE55D91F",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "sha256": "E6BA66CB605919FE58C5ECBB2F1D04EE403620C29089A41122297356C60C2A64",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-repository.ts",
+      "sha256": "88DA95ACB81781E4F775666760511B245D4608CDFED2D801DFC2BD67D8E40F7E",
+      "preserved": true
+    },
+    {
+      "path": "apps/mobile/src/storage/transaction-edit-journal.ts",
+      "sha256": "2D57D9E5BE1D304B25A09CB270730F7D3AC882ABC0BB6CA1D39A65779105E564",
+      "preserved": true
+    },
+    {
+      "path": ".github/workflows/mobile-preservation-qualification.yml",
+      "sha256": "6F41714EEAAC6F450D69605AFF5A464D5CDCCE788313E8BE7F959EA49CA697DF",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/baseline-preflight.json",
+      "sha256": "530B7E66CB30981E0AAD490E155B01D97A2E4706FE0E991971D0CAE8236A0267",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.json",
+      "sha256": "B2836F240BFB1FAF78B66ADE6ADAF15229F11CDADD6BE59D5A651A41BB960E1D",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.md",
+      "sha256": "2D782E2220F16398A4FDC6ED6AC48908F7ADEA18732678C12DED1F581A410BED",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/admission.json",
+      "sha256": "C54DDB0A50AE80CEEBBE599E097F0AF2F76B7F293B56DF710F1C5B486DAF1332",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/astra-review.json",
+      "sha256": "92E97E450FD1B6F4F43BAE6BCA337E2A3CCE25A73CF7DF728E4FC093232ACF2A",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/astra-review.json",
+      "sha256": "251D90822676F4A6DBEAC93A646D85A8DBA537EF7F3004FFA28DF9D38A00A195",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/evidence.json",
+      "sha256": "50291DC66C892CB74C7244874D881EC802A552F197A41B1BDF81F59E76CD3897",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/user-scope-revisions.json",
+      "sha256": "F3DC376AA742DA9EC2769CA8798B4E45FE241A513CE95A28ECF7E12B8FEDA1F4",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-baseline-run.json",
+      "sha256": "9CAB21F5872061975CE53A248D5C15ACFB2773B3D32BE0D50C7549F834B495D6",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-pr9-checks.json",
+      "sha256": "20DF02AE23F16A73F945D4940CC991C3FA69C5DC89DB5BE24C2A3E3312BE2A0E",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/plan-review.json",
+      "sha256": "F8239D0EEF4E55D295CB373E7AB0E075AB098969A301FE7818ABCF2C7E156D10",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.json",
+      "sha256": "C0B50A52A034D84B03B078C70118E709A937198DFF1BCC4309DECF258DFC350C",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.md",
+      "sha256": "414BB85233C01E4621C4E0B426347E7C4A7451916D9C24A9AAAA649F6BE33236",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/review.md",
+      "sha256": "3B6814C90C23E94A80B5738E92149E90490B788593B0C7E6945944C8A933CE46",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/task-evidence-template.json",
+      "sha256": "B320C25C90FA744A5E889B4B97E79FFE3FC19CEF480EB9DCB0D8349084216E50",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/verification.json",
+      "sha256": "1BCB8A4828D30580DDFBFA65E2F5D07CD0B6AE9BB82F070ED4842115B4901F6E",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/final-review-and-remaining-checklist.en.md",
+      "sha256": "E6978161431531BFE5034DA0F7DB0A7EFEF1C0CC252902DEC7D7FB649C36A53C",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/open-device-issues.md",
+      "sha256": "C23738023666A665F0C7F9024B857F460CF6243C46082F521602A067550FF822",
+      "preserved": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/pin-latency-fix.md",
+      "sha256": "2BE5A6ED8A0D9701FD9FF16AB88175AF8BB7F8A6700A47172171272BFEB9A2AF",
+      "preserved": true
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+      "sha256": "DDE83AFD481BB9D5F1F68E0BE12C39EAA1C5B221C33B4AD49CAF48F2B95BF189",
+      "preserved": true
+    }
+  ]
+}

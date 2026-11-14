@@ -273,6 +273,24 @@ describe("BE013 exact live governance mapping", () => {
     expect(rules.filter((rule) => percentageRule(rule.audience.cohort))).toHaveLength(2);
   });
 
+  test("rejects restricted rule combinations whose deny rules cannot be preserved by a percentage", async () => {
+    mockServer.use(http.get("/api/v1/admin/feature-flags", () => HttpResponse.json({ items: [{ id: "13000000-0000-4000-8000-000000000001", key: "mobile.restricted", description: "Restricted", defaultEnabled: false, status: "active", rules: [
+      { id: "13000000-0000-4000-8000-000000000002", priority: 1, audience: { platform: "android" }, enabled: false, version: 1 },
+      { id: "13000000-0000-4000-8000-000000000003", priority: 2, audience: { cohort: "internal" }, enabled: true, version: 1 },
+    ], version: 1 }], nextCursor: null })));
+    await expect(governanceRepository.updateFeatureFlag("mobile.restricted", { rolloutPercent: 100, expectedVersion: 1, reason: "Preserve restricted audience", submissionKey: "restricted-combination" })).rejects.toThrow("FLAG_ROLLOUT_SHAPE_UNSUPPORTED");
+  });
+
+  test.each([0, 100])("keeps internal-only flags off externally at %i percent", async (rolloutPercent) => {
+    let sent: unknown;
+    mockServer.use(
+      http.get("/api/v1/admin/feature-flags", () => HttpResponse.json({ items: [{ id: liveId, key: "mobile.internal-demo", description: "Internal only", defaultEnabled: false, status: "active", rules: [{ id: liveId, priority: 1, audience: { cohort: "internal", platform: "ios" }, enabled: true, version: 1 }], version: 1 }], nextCursor: null })),
+      http.patch("/api/v1/admin/feature-flags/mobile.internal-demo", async ({ request }) => { sent = await request.json(); return HttpResponse.json({ resourceId: "mobile.internal-demo", status: "updated", version: 2 }); }),
+    );
+    await governanceRepository.updateFeatureFlag("mobile.internal-demo", { rolloutPercent, expectedVersion: 1, reason: "Review restricted rollout", submissionKey: "restricted-rollout" });
+    expect(sent).toMatchObject({ defaultEnabled: false, rules: [{ priority: 1, audience: { cohort: "internal", platform: "ios" }, enabled: rolloutPercent === 100 }] });
+  });
+
   test("selects only active or scheduled maintenance and preserves canonical edits", async () => {
     let body: unknown;
     const scheduled = {
@@ -353,12 +371,16 @@ describe("BE003 exact live access governance mapping", () => {
       }),
     );
 
-    await expect(governanceRepository.listRoles({ page: 1, pageSize: 25 })).resolves.toMatchObject({
-      total: 1,
+    await expect(governanceRepository.listRoles({ page: 1, pageSize: 25 })).resolves.toMatchObject({ items: [] });
+    expect(roleCalls).toBe(1);
+    await expect(governanceRepository.listRoles({ page: 2, pageSize: 25 })).resolves.toMatchObject({
+      total: 26,
       items: [{ id: roleId, key: "operations-reviewer", description: null, systemRole: false, enabled: true, permissionKeys: ["operations.incidents.read"], assignmentCount: 2, version: 4 }],
     });
-    await expect(governanceRepository.getPermissionMatrix({ page: 1, pageSize: 25 })).resolves.toMatchObject({
-      total: 1,
+    await expect(governanceRepository.getPermissionMatrix({ page: 1, pageSize: 25 })).resolves.toMatchObject({ items: [] });
+    expect(permissionCalls).toBe(1);
+    await expect(governanceRepository.getPermissionMatrix({ page: 2, pageSize: 25 })).resolves.toMatchObject({
+      total: 26,
       items: [{ id: permissionId, key: "operations.incidents.read", resource: "operations.incidents", action: "read", description: null }],
     });
     expect(roleCalls).toBe(2);
@@ -394,6 +416,44 @@ describe("BE003 exact live access governance mapping", () => {
       message: "Review operations incidents.",
     });
     expect(idempotencyKey).toBeTruthy();
+  });
+
+  test("assigns and revokes live role IDs and accepts invitation tokens through exact routes", async () => {
+    const assignmentId = "23000000-0000-4000-8000-000000000004";
+    const calls: Array<{ method: string; path: string; body: unknown }> = [];
+    mockServer.use(
+      http.post("/api/v1/admin/access/assignments", async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json({ id: assignmentId, userId: "user_target", roleId, startsAt: liveAt, endsAt: null, revokedAt: null, version: 1 }, { status: 201 });
+      }),
+      http.delete(`/api/v1/admin/access/assignments/${assignmentId}`, async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post("/api/v1/admin/access/invitations/accept", async ({ request }) => {
+        calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json({ id: "user_target", status: "active" });
+      }),
+    );
+
+    await governanceRepository.assignAdminRoles("user_target", {
+      adminId: "user_target",
+      roleIds: [roleId],
+      reason: "Assign the reviewed live role.",
+      expectedVersion: 1,
+      submissionKey: "SUB-LIVE-ASSIGNMENT",
+    });
+    await governanceRepository.revokeAdminRole(assignmentId, {
+      expectedVersion: 1,
+      reason: "Revoke the reviewed live role.",
+    });
+    await governanceRepository.acceptAdminInvitation("x".repeat(32));
+
+    expect(calls).toEqual([
+      { method: "POST", path: "/api/v1/admin/access/assignments", body: { userId: "user_target", roleId, reason: "Assign the reviewed live role." } },
+      { method: "DELETE", path: `/api/v1/admin/access/assignments/${assignmentId}`, body: { expectedVersion: 1, reason: "Revoke the reviewed live role." } },
+      { method: "POST", path: "/api/v1/admin/access/invitations/accept", body: { token: "x".repeat(32) } },
+    ]);
   });
 });
 

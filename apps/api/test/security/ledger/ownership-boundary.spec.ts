@@ -41,6 +41,42 @@ describeLiveDatabase('ledger ownership boundary', () => {
   let transactionId = '';
   let promotedTransactionId = '';
 
+  // Reuse the exact recorded commands when exercising owner-isolated replay.
+  const mutation = (
+    principal: Principal,
+    account: string,
+    title: string,
+    key: string,
+  ): Parameters<LedgerRepository['mutate']>[0] => ({
+    operation: 'createTransaction',
+    scope: 'ledger.transaction.create',
+    principal,
+    command: {
+      kind: 'expense',
+      amountMinor: 100,
+      currency: 'SAR',
+      accountId: account,
+      categoryId: null,
+      title,
+      merchant: null,
+      paymentMethod: null,
+      note: null,
+      occurredAt: '2026-08-30T08:00:00.000Z',
+      source: 'manual',
+      externalRef: null,
+    },
+    idempotencyKey: key,
+    requestId: key,
+    status: 201,
+  });
+  const ownMutation = mutation(owner, accountId, 'Owner-only row', 'ledger-owner-read-key');
+  const promotedMutation = mutation(
+    promotedAdmin,
+    promotedAccountId,
+    'Pre-admin row',
+    'ledger-promoted-read-key',
+  );
+
   async function asRole<T>(
     role: 'anon' | 'authenticated' | 'masarifi_api' | 'masarifi_migration' | 'masarifi_worker',
     action: (client: PoolClient) => Promise<T>,
@@ -81,28 +117,9 @@ describeLiveDatabase('ledger ownership boundary', () => {
         );
       }
     });
-    const created = (await reads.mutate({
-      operation: 'createTransaction',
-      scope: 'ledger.transaction.create',
-      principal: owner,
-      command: {
-        kind: 'expense',
-        amountMinor: 100,
-        currency: 'SAR',
-        accountId,
-        categoryId: null,
-        title: 'Owner-only row',
-        merchant: null,
-        paymentMethod: null,
-        note: null,
-        occurredAt: '2026-08-30T08:00:00.000Z',
-        source: 'manual',
-        externalRef: null,
-      },
-      idempotencyKey: 'ledger-owner-read-key',
-      requestId: 'ledger-owner-read',
-      status: 201,
-    })) as { transaction: { transaction: { id: string } } };
+    const created = (await reads.mutate(ownMutation)) as {
+      transaction: { transaction: { id: string } };
+    };
     transactionId = created.transaction.transaction.id;
     await asRole('masarifi_migration', async (client) => {
       await client.query("insert into public.profiles(id,status) values($1,'active')", [
@@ -113,34 +130,20 @@ describeLiveDatabase('ledger ownership boundary', () => {
         [promotedAccountId, promotedAdmin.userId],
       );
     });
-    const promotedCreated = (await reads.mutate({
-      operation: 'createTransaction',
-      scope: 'ledger.transaction.create',
-      principal: promotedAdmin,
-      command: {
-        kind: 'expense',
-        amountMinor: 100,
-        currency: 'SAR',
-        accountId: promotedAccountId,
-        categoryId: null,
-        title: 'Pre-admin row',
-        merchant: null,
-        paymentMethod: null,
-        note: null,
-        occurredAt: '2026-08-30T08:00:00.000Z',
-        source: 'manual',
-        externalRef: null,
-      },
-      idempotencyKey: 'ledger-promoted-read-key',
-      requestId: 'ledger-promoted-read',
-      status: 201,
-    })) as { transaction: { transaction: { id: string } } };
+    const promotedCreated = (await reads.mutate(promotedMutation)) as {
+      transaction: { transaction: { id: string } };
+    };
     promotedTransactionId = promotedCreated.transaction.transaction.id;
-    await asRole('masarifi_migration', (client) =>
-      client.query("insert into public.admin_profiles(user_id,status) values($1,'active')", [
+    await asRole('masarifi_migration', async (client) => {
+      await client.query("insert into public.admin_profiles(user_id,status) values($1,'active')", [
         promotedAdmin.userId,
-      ]),
-    );
+      ]);
+      const granted = await client.query(
+        "insert into public.admin_role_assignments(user_id,role_id,assigned_by,reason) select $1,id,$1,'Synthetic ownership boundary' from public.roles where key='support-agent'",
+        [promotedAdmin.userId],
+      );
+      expect(granted.rowCount).toBe(1);
+    });
   });
 
   afterAll(() => pool.onModuleDestroy());
@@ -175,33 +178,27 @@ describeLiveDatabase('ledger ownership boundary', () => {
     }
   });
 
-  it('removes customer ledger visibility when that customer becomes an Admin', async () => {
-    await expect(reads.getTransaction(promotedAdmin, promotedTransactionId)).rejects.toMatchObject({
+  it('retains personal ownership after promotion without exposing another customer’s ledger', async () => {
+    await expect(reads.getTransaction(promotedAdmin, promotedTransactionId)).resolves.toMatchObject(
+      {
+        transaction: { id: promotedTransactionId },
+      },
+    );
+    await expect(reads.getTransaction(promotedAdmin, transactionId)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
-    await expect(
+    const replay = (principal: Principal) =>
       reads.replayCompleted({
-        operation: 'createTransaction',
-        scope: 'ledger.transaction.create',
-        principal: promotedAdmin,
-        command: {
-          kind: 'expense',
-          amountMinor: 100,
-          currency: 'SAR',
-          accountId: promotedAccountId,
-          categoryId: null,
-          title: 'Pre-admin row',
-          merchant: null,
-          paymentMethod: null,
-          note: null,
-          occurredAt: '2026-08-30T08:00:00.000Z',
-          source: 'manual',
-          externalRef: null,
-        },
-        idempotencyKey: 'ledger-promoted-read-key',
+        ...promotedMutation,
+        principal,
         requestId: 'ledger-promoted-replay',
-        status: 201,
-      }),
-    ).rejects.toMatchObject({ response: { code: 'FORBIDDEN' } });
+      });
+    await expect(
+      reads.replayCompleted({ ...ownMutation, principal: promotedAdmin }),
+    ).resolves.toBeUndefined();
+    await expect(replay(promotedAdmin)).resolves.toMatchObject({
+      transaction: { transaction: { id: promotedTransactionId } },
+    });
+    await expect(replay(nonowner)).resolves.toBeUndefined();
   });
 });

@@ -1,3 +1,4 @@
+import { ReportsMobileActivityController } from './reports-mobile-activity.controller';
 import { Module } from '@nestjs/common';
 
 import { IdentityModule } from '../identity/identity.module';
@@ -15,7 +16,12 @@ import { ReportsWebhookController } from './reports.webhook.controller';
 
 @Module({
   imports: [DatabaseModule, IdentityModule, SecurityModule],
-  controllers: [ReportsController, ReportsAdminController, ReportsWebhookController],
+  controllers: [
+    ReportsMobileActivityController,
+    ReportsController,
+    ReportsAdminController,
+    ReportsWebhookController,
+  ],
   providers: [ReportsRepository, ReportsStorage, ReportsService],
   exports: [ReportsRepository, ReportsService],
 })

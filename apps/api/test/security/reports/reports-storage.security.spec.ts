@@ -86,4 +86,48 @@ describe('ReportsStorage security', () => {
     expect(error.message).not.toContain('service-secret');
     expect(error.message).not.toContain(key);
   });
+
+  it('resolves the deployed storage-relative signed path under storage/v1', async () => {
+    const storage = new ReportsStorage(
+      {
+        getRequired: (key: string) =>
+          key === 'SUPABASE_URL'
+            ? 'https://storage.example'
+            : key === 'NODE_ENV'
+              ? 'production'
+              : 'service-secret',
+      } as never,
+      fetcher,
+    );
+    const key = storage.key(attemptId, 'owner-private', 'pdf');
+    fetcher.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          signedURL: `/object/sign/report-exports/${key}?token=opaque`,
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(storage.sign(key, 120)).resolves.toBe(
+      `https://storage.example/storage/v1/object/sign/report-exports/${key}?token=opaque`,
+    );
+  });
+
+  it.each([
+    '/object/sign/foreign-bucket/',
+    '/object/sign/report-exports/../other/',
+    '//foreign.example/object/sign/report-exports/',
+  ])('keeps the exact bucket, key and origin boundary for %s', async (prefix) => {
+    const storage = new ReportsStorage(config as never, fetcher);
+    const key = storage.key(attemptId, 'owner-private', 'pdf');
+    fetcher.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          signedURL: `${prefix}${key}?token=opaque`,
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(storage.sign(key, 120)).rejects.toThrow('REPORT_STORAGE_UNAVAILABLE');
+  });
 });

@@ -8,6 +8,7 @@ export const authSessionStatuses = [
 ] as const;
 export const authMethods = ['phone', 'google'] as const;
 export const restorationStatuses = [
+  'local',
   'idle',
   'pending',
   'restored',
@@ -26,7 +27,12 @@ export const authSessionSchema = z
   })
   .superRefine((session, ctx) => {
     if (session.status !== 'authenticated') return;
-    if (!session.userId || !session.method || !session.issuedAt || !session.expiresAt) {
+    if (
+      !session.userId ||
+      !session.method ||
+      !session.issuedAt ||
+      !session.expiresAt
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'authenticated sessions require identity and expiry data'
@@ -37,12 +43,13 @@ export const authSessionSchema = z
 export type AuthenticationSession = z.infer<typeof authSessionSchema>;
 export type AuthSessionStatus = AuthenticationSession['status'];
 
-const authTransitions: Record<AuthSessionStatus, readonly AuthSessionStatus[]> = {
-  signed_out: ['restoring'],
-  restoring: ['authenticated', 'signed_out'],
-  authenticated: ['expired', 'signed_out'],
-  expired: ['authenticated', 'signed_out']
-};
+const authTransitions: Record<AuthSessionStatus, readonly AuthSessionStatus[]> =
+  {
+    signed_out: ['restoring'],
+    restoring: ['authenticated', 'signed_out'],
+    authenticated: ['expired', 'signed_out'],
+    expired: ['authenticated', 'signed_out']
+  };
 
 export function canTransitionAuthSession(
   from: AuthSessionStatus,
@@ -123,7 +130,9 @@ export const permissionStateSchema = z.object({
     'unavailable'
   ]),
   blocking: z.literal(false),
-  recoveryAction: z.enum(['request', 'retry', 'open_settings', 'continue']).nullable()
+  recoveryAction: z
+    .enum(['request', 'retry', 'open_settings', 'continue'])
+    .nullable()
 });
 
 export type PermissionState = z.infer<typeof permissionStateSchema>;
@@ -143,6 +152,7 @@ export const keywordRuleSchema = z
   .object({
     id: z.string().min(1),
     group: z.enum([
+      'financial',
       'expense',
       'income',
       'transfer',
@@ -173,27 +183,37 @@ export const keywordRuleSchema = z
     return {
       ...rule,
       value,
-      normalizedValue: value.toLocaleLowerCase(rule.language === 'ar' ? 'ar' : 'en')
+      normalizedValue: value.toLocaleLowerCase(
+        rule.language === 'ar' ? 'ar' : 'en'
+      )
     };
   });
 
 export type KeywordRule = z.infer<typeof keywordRuleSchema>;
 
-export const privacyLockPreferenceSchema = z.object({
-  pinConfigured: z.boolean(),
-  biometricStatus: z.enum([
-    'unsupported',
-    'not_enrolled',
-    'disabled',
-    'enabled',
-    'locked_out'
-  ]),
-  autoLockDuration: z.enum(['immediate', 'one_minute', 'five_minutes', 'fifteen_minutes']),
-  invalidAttempts: z.number().int().min(0).max(5),
-  lockedUntil: z.number().int().nonnegative().nullable(),
-  appLockStatus: z.enum(['unlocked', 'locked', 'temporarily_locked'])
+const autoLockDurationSchema = z.enum(['immediate', 'one_minute', 'five_minutes', 'fifteen_minutes']);
+const nativePrivacyLockSchema = z.object({
+  enabled: z.boolean(),
+  autoLockDuration: autoLockDurationSchema,
+  appLockStatus: z.enum(['unlocked', 'locked'])
 });
 
+// Compatibility reads only preference metadata; legacy credential bytes remain untouched.
+const legacyPrivacyLockSchema = z.object({
+  pinConfigured: z.boolean(),
+  biometricStatus: z.enum(['unsupported', 'not_enrolled', 'disabled', 'enabled', 'locked_out']),
+  autoLockDuration: autoLockDurationSchema,
+  invalidAttempts: z.number().int().min(0).max(5),
+  lockoutStage: z.number().int().min(0).max(4).optional(),
+  lockedUntil: z.number().int().nonnegative().nullable(),
+  appLockStatus: z.enum(['unlocked', 'locked', 'temporarily_locked'])
+}).transform((legacy) => ({
+  enabled: legacy.pinConfigured || legacy.biometricStatus === 'enabled' || legacy.biometricStatus === 'locked_out',
+  autoLockDuration: legacy.autoLockDuration,
+  appLockStatus: legacy.appLockStatus === 'unlocked' ? 'unlocked' as const : 'locked' as const
+}));
+
+export const privacyLockPreferenceSchema = z.union([nativePrivacyLockSchema, legacyPrivacyLockSchema]);
 export type PrivacyLockPreference = z.infer<typeof privacyLockPreferenceSchema>;
 
 export const profileCompletionStepSchema = z.object({

@@ -102,6 +102,8 @@ export function formatPeriodLabel(
     year: 'numeric',
     timeZone
   });
+  if (typeof formatter.formatRange === 'function')
+    return formatter.formatRange(period.periodStart, period.periodEnd);
   return `${formatter.format(period.periodStart)} – ${formatter.format(period.periodEnd)}`;
 }
 

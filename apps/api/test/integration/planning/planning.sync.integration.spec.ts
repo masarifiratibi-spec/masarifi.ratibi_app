@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { PlanningRepository } from '../../../src/planning/planning.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { planningOwnerQuery } from './planning.integration-harness';
 
 describeLiveDatabase('planning Phase 06 sync bridge', () => {
   const pool = createLivePool();
@@ -43,12 +44,14 @@ describeLiveDatabase('planning Phase 06 sync bridge', () => {
       idempotencyKey: 'planning-sync-delete-001',
       requestId: 'planning-sync-delete',
     });
-    const delta = await pool.query<{
+    const delta = await planningOwnerQuery<{
       position: string;
       resource_type: string;
       operation: string;
       snapshot: Record<string, unknown> | null;
     }>(
+      pool,
+      owner,
       "select position::text,resource_type,operation,snapshot from private.get_sync_delta($1,'planning',0,10)",
       [owner],
     );

@@ -1,0 +1,47 @@
+{
+  "atUtc": "2026-11-04T22:03:38.744215+00:00",
+  "readOnly": true,
+  "originalEvidenceUnmodified": true,
+  "attribution": "Strong correlation from unique matching time window, duration, and exact original named QA account; original client did not retain the immutable session/operation ID.",
+  "status": "CORRELATED_COMPLETED_NO_FINANCIAL_EFFECT",
+  "currentSessionMetadata": {
+    "status": "confirmed",
+    "duration_ms": 59950,
+    "capture_at": "2026-11-04 00:04:59.365+00",
+    "created_at": "2026-11-04 00:06:02.616717+00",
+    "confirmed_at": "2026-11-04 00:06:12.473846+00"
+  },
+  "originalEvidence": [
+    {
+      "path": ".superpowers/sdd/2026-11-02-measured-application-performance/interactive-core-workflows-20261104/voice-recording-001-reconciled-unresolved.json",
+      "sha256": "0dc29c1c7f1ca3bc29f3e4029e3e33ab58728aae4b6225072ee17d04c0e6bbf8"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-02-measured-application-performance/interactive-core-workflows-20261104/voice-recording-001-capture-receipt.json",
+      "sha256": "e66f4649c055019e0e0565c4f542672cd44ca61c4dd323f32c65286bb5a75b2c"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-02-measured-application-performance/interactive-core-workflows-20261104/voice-recording-001-audio-appops.private.txt",
+      "sha256": "c63c8d426c7d6578287273b09b7060514d86e5ccc5abbfaac5b680003f8c7cdd"
+    }
+  ],
+  "originalCaptureReceiptAtUtc": "2026-11-04T00:05:46.521459Z",
+  "nativeDurationMs": 60088,
+  "nativeAppopsWriteAtUtc": "2026-11-04T00:07:22.431780Z",
+  "nativeAppopsStartRelativeMs": 141920,
+  "nativeStartTimeInferenceUtc": "approximately2026-11-04T00:05:00.512Z; file write and adb delay limit precision",
+  "batchStatus": "completed",
+  "voiceEvents": 0,
+  "proposals": 0,
+  "linkedTransactions": 0,
+  "linkedPostings": 0,
+  "voicePostingsOnOriginalTestAccountInWindow": 0,
+  "providerAttemptStatus": "completed",
+  "newRecordingOrReplay": false,
+  "providerCalledByThisReconciliation": false,
+  "hostedMutation": false,
+  "paidProviderOrPerformanceCampaignResumed": false,
+  "intendedUtteranceCorrectnessProven": false,
+  "finalApkVoiceAcceptance": "NOT_RUN",
+  "privateExactSessionAndOperationIdsRetained": true
+}

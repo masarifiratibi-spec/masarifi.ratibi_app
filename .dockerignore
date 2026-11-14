@@ -13,6 +13,7 @@ apps/mobile/**
 !apps/mobile/assets/
 !apps/mobile/assets/fonts/
 !apps/mobile/assets/fonts/NotoSansArabicUI-Regular.ttf
+!apps/mobile/assets/fonts/IBMPlexSansArabic-Regular.ttf
 apps/admin-web
 docs
 supabase/.branches

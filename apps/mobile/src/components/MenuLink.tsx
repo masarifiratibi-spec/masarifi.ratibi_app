@@ -57,7 +57,7 @@ export const MenuLink = forwardRef<View, MenuLinkProps>(function MenuLink(
       ref={ref}
       onPress={onPress}
       {...a11y}
-      accessibilityRole="link"
+      accessibilityRole={a11y.accessibilityRole ?? 'link'}
       accessibilityLabel={a11y.accessibilityLabel ?? (subtitle ? `${label}, ${subtitle}` : label)}
       style={({ pressed }) => [
         styles.row,

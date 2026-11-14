@@ -210,7 +210,7 @@ describe("Spec 005 repository boundaries", () => {
       http.get("/api/v1/admin/imports/sessions", ({ request }) => {
         sessionRequest += 1;
         const url = new URL(request.url);
-        expect(url.searchParams.get("limit")).toBe("100");
+        expect(url.searchParams.get("limit")).toBe("25");
         expect(url.searchParams.get("status")).toBe("failed");
         expect(url.searchParams.get("sourceType")).toBe("sms");
         expect(url.searchParams.get("cursor")).toBe(
@@ -253,10 +253,8 @@ describe("Spec 005 repository boundaries", () => {
       page: 1,
       pageSize: 25,
     });
-    expect(page.items.map((item) => item.id)).toEqual([
-      "IMP-LIVE-1",
-      "IMP-LIVE-2",
-    ]);
+    expect(page.items.map((item) => item.id)).toEqual(["IMP-LIVE-1"]);
+    expect(sessionRequest).toBe(1);
     await expect(
       phase4Repository.act("versions", "PV-3182", {
         action: "release",
@@ -407,9 +405,9 @@ describe("Spec 005 repository boundaries", () => {
         },
       ],
     });
-    await expect(phase4Repository.getOverview("ios")).rejects.toMatchObject({
-      code: "provider_unavailable",
-    });
+    expect(() => phase4Repository.getOverview("ios")).toThrow(
+      "IMPORT_PLATFORM_ATTRIBUTION_UNAVAILABLE",
+    );
   });
 
   test("keeps unavailable legacy import columns absent in live mode", async () => {
@@ -441,17 +439,17 @@ describe("Spec 005 repository boundaries", () => {
     expect(result.items[0]).toMatchObject({
       id: "IMP-LIVE-11",
       source: "sms",
-      platform: "Android",
       attempts: 1,
       status: "failed",
     });
+    expect(result.items[0]).not.toHaveProperty("platform");
     expect(result.items[0]).not.toHaveProperty("user");
     expect(result.items[0]).not.toHaveProperty("bank");
     expect(result.items[0]).not.toHaveProperty("parserVersion");
     expect(result.items[0]).not.toHaveProperty("appVersion");
   });
 
-  test("traverses the complete live cursor set before reporting exact page totals", async () => {
+  test("requests the next bounded page only after explicit navigation", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     const at = "2026-09-02T10:00:00.000Z";
     const records = Array.from({ length: 30 }, (_, index) => ({
@@ -476,13 +474,27 @@ describe("Spec 005 repository boundaries", () => {
       http.get("/api/v1/admin/imports/sessions", ({ request }) => {
         calls += 1;
         const url = new URL(request.url);
-        expect(url.searchParams.get("limit")).toBe("100");
+        expect(url.searchParams.get("limit")).toBe("25");
         expect(url.searchParams.get("status")).toBe("failed");
         expect(url.searchParams.get("sourceType")).toBe("sms");
-        return HttpResponse.json({ items: records, nextCursor: null });
+        return HttpResponse.json({
+          items: url.searchParams.has("cursor")
+            ? records.slice(25)
+            : records.slice(0, 25),
+          nextCursor: url.searchParams.has("cursor") ? null : "page-two",
+        });
       }),
     );
 
+    const first = await phase4Repository.list("sessions", {
+      status: "failed",
+      source: "android_sms",
+      page: 1,
+      pageSize: 25,
+    });
+    expect(calls).toBe(1);
+    expect(first.items).toHaveLength(25);
+    expect(first.totalIsLowerBound).toBe(true);
     const result = await phase4Repository.list("sessions", {
       status: "failed",
       source: "android_sms",
@@ -490,7 +502,7 @@ describe("Spec 005 repository boundaries", () => {
       pageSize: 25,
     });
 
-    expect(calls).toBe(1);
+    expect(calls).toBe(2);
     expect(result.items).toHaveLength(5);
     expect(result.totalItems).toBe(30);
     expect(result.totalPages).toBe(2);
@@ -519,7 +531,7 @@ describe("Spec 005 repository boundaries", () => {
     ).rejects.toMatchObject({ code: "contract_mismatch" });
   });
 
-  test("derives test-case state from enabled and leaves revisionless failures unavailable", async () => {
+  test("derives test-case state from enabled and reads the supported failure endpoint", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     let failureRequests = 0;
     mockServer.use(
@@ -554,8 +566,8 @@ describe("Spec 005 repository boundaries", () => {
     });
     await expect(
       phase4Repository.list("failures", { page: 1, pageSize: 25 }),
-    ).rejects.toMatchObject({ code: "provider_unavailable" });
-    expect(failureRequests).toBe(0);
+    ).resolves.toMatchObject({ items: [] });
+    expect(failureRequests).toBe(1);
   });
 
   test("encodes and validates session detail identifiers", async () => {

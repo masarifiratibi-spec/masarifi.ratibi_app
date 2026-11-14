@@ -38,6 +38,7 @@ export interface ProfileRecord {
 
 export interface PreferencesRecord {
   defaultCurrency: string;
+  currencySelectionRequired?: boolean;
   language: Locale;
   theme: Theme;
   calendar: Calendar;
@@ -108,6 +109,7 @@ interface ProfileRow {
 
 interface PreferencesRow {
   default_currency: string;
+  currency_selected: boolean;
   language: Locale;
   theme: Theme;
   calendar: Calendar;
@@ -160,6 +162,7 @@ function profile(row: ProfileRow): ProfileRecord {
 function preferences(row: PreferencesRow): PreferencesRecord {
   return {
     defaultCurrency: row.default_currency,
+    currencySelectionRequired: !row.currency_selected,
     language: row.language,
     theme: row.theme,
     calendar: row.calendar,
@@ -203,6 +206,7 @@ export class IdentityRepository {
   async withCustomerTransaction<T>(
     principal: ClerkPrincipal,
     action: (client: PoolClient) => Promise<T>,
+    writesProfile = false,
   ): Promise<T> {
     return this.pool.withClient(async (client) => {
       await client.query('begin');
@@ -215,6 +219,12 @@ export class IdentityRepository {
           }),
         ]);
         await client.query('set local role masarifi_api');
+        // Take the writer lock before assert_active_profile's shared lock. Concurrent
+        // activity updates must not all hold shared locks while awaiting upgrades.
+        if (writesProfile)
+          await client.query('select id from public.profiles where id=$1 for no key update', [
+            principal.userId,
+          ]);
         await client.query('select private.assert_active_profile($1)', [principal.userId]);
         const result = await action(client);
         await client.query('commit');
@@ -586,9 +596,12 @@ export class IdentityRepository {
   }
 
   async getProfile(principal: ClerkPrincipal): Promise<ProfileRecord | null> {
-    return this.withCustomerTransaction(principal, async (client) => {
-      const result = await client.query<ProfileRow>(
-        `with touched as (
+    return this.withCustomerTransaction(
+      principal,
+      async (client) => {
+        await client.query('select private.ensure_default_cash_account($1)', [principal.userId]);
+        const result = await client.query<ProfileRow>(
+          `with touched as (
            update public.profiles
            set last_seen_at = now()
            where id = $1
@@ -601,9 +614,39 @@ export class IdentityRepository {
          from public.profiles
          where id = $1 and not exists (select 1 from touched)
          limit 1`,
-        [principal.userId],
-      );
-      return result.rows[0] ? profile(result.rows[0]) : null;
+          [principal.userId],
+        );
+        return result.rows[0] ? profile(result.rows[0]) : null;
+      },
+      true,
+    );
+  }
+
+  async ensureProfileBootstrap(
+    principal: ClerkPrincipal,
+    identity: ClerkIdentityUser | null = null,
+  ): Promise<boolean> {
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({
+            role: 'authenticated',
+            sub: principal.userId,
+            sid: principal.sessionId,
+          }),
+        ]);
+        await client.query('set local role masarifi_api');
+        const result = await client.query<{ ready: boolean }>(
+          'select private.ensure_authenticated_profile($1,$2::jsonb) ready',
+          [principal.userId, identity === null ? null : JSON.stringify(identity)],
+        );
+        await client.query('commit');
+        return result.rows[0]?.ready === true;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
     });
   }
 
@@ -652,7 +695,12 @@ export class IdentityRepository {
   async getPreferences(principal: ClerkPrincipal): Promise<PreferencesRecord> {
     return this.withCustomerTransaction(principal, async (client) => {
       const result = await client.query<PreferencesRow>(
-        `select default_currency, language, theme, calendar, week_start, privacy_settings, version
+        `select default_currency,
+           ((currency_selected or exists(select 1 from public.accounts a
+             where a.user_id=$1 and a.currency_code=user_preferences.default_currency
+               and a.is_default and a.status='active' and a.deleted_at is null))
+             and exists(select 1 from public.currencies c where c.code=default_currency and c.enabled)) currency_selected,
+           language, theme, calendar, week_start, privacy_settings, version
          from public.user_preferences where user_id = $1`,
         [principal.userId],
       );
@@ -660,6 +708,7 @@ export class IdentityRepository {
         ? preferences(result.rows[0])
         : {
             defaultCurrency: 'SAR',
+            currencySelectionRequired: true,
             language: 'ar',
             theme: 'system',
             calendar: 'gregorian',
@@ -677,20 +726,26 @@ export class IdentityRepository {
     return this.withCustomerTransaction(principal, async (client) => {
       const result = await client.query<PreferencesRow>(
         `insert into public.user_preferences (
-           user_id, default_currency, language, theme, calendar, week_start, privacy_settings
+           user_id, default_currency, language, theme, calendar, week_start, privacy_settings, currency_selected
          )
-         select $1, $2, $3, $4, $5, $6, $7::jsonb
+         select $1, $2, $3, $4, $5, $6, $7::jsonb, $9::boolean
          where $8::bigint = 1
             or exists (select 1 from public.user_preferences where user_id = $1)
          on conflict (user_id) do update
          set default_currency = excluded.default_currency,
+             currency_selected = $9::boolean or (user_preferences.currency_selected and user_preferences.default_currency=excluded.default_currency),
              language = excluded.language,
              theme = excluded.theme,
              calendar = excluded.calendar,
              week_start = excluded.week_start,
              privacy_settings = excluded.privacy_settings
          where user_preferences.version = $8
-         returning default_currency, language, theme, calendar, week_start, privacy_settings, version`,
+         returning default_currency,
+           ((currency_selected or exists(select 1 from public.accounts a
+             where a.user_id=$1 and a.currency_code=$2
+               and a.is_default and a.status='active' and a.deleted_at is null))
+             and exists(select 1 from public.currencies c where c.code=$2 and c.enabled)) currency_selected,
+           language, theme, calendar, week_start, privacy_settings, version`,
         [
           principal.userId,
           input.defaultCurrency,
@@ -700,9 +755,12 @@ export class IdentityRepository {
           input.weekStart,
           JSON.stringify(input.privacySettings),
           input.expectedVersion,
+          input.currencySelectionConfirmed === true,
         ],
       );
-      return result.rows[0] ? preferences(result.rows[0]) : null;
+      if (!result.rows[0]) return null;
+      await client.query('select private.ensure_default_cash_account($1)', [principal.userId]);
+      return preferences(result.rows[0]);
     });
   }
 
@@ -785,6 +843,7 @@ export class IdentityRepository {
   async registerDevice(
     principal: ClerkPrincipal,
     input: DeviceRegistrationDto,
+    devTrackingDeviceId?: string,
   ): Promise<DeviceRegistrationRecord> {
     const protection = this.requirePushCrypto();
     const fingerprint = protection.fingerprint(input.deviceFingerprint);
@@ -833,6 +892,14 @@ export class IdentityRepository {
 
       if (input.pushToken && input.pushProvider) {
         const tokenHash = protection.tokenHash(input.pushToken);
+        if (devTrackingDeviceId)
+          await client.query('select private.release_dev_push_token($1,$2,$3,$4,$5)', [
+            principal.userId,
+            record.id,
+            fingerprint,
+            input.pushProvider,
+            tokenHash,
+          ]);
         const tokenCiphertext = protection.encrypt(input.pushToken, {
           provider: input.pushProvider,
           userId: principal.userId,
@@ -863,6 +930,12 @@ export class IdentityRepository {
         }
         if (push.rowCount !== 1) throw new Error('PUSH_TOKEN_CONFLICT');
       }
+      if (devTrackingDeviceId)
+        await client.query('select private.bind_dev_push_installation($1,$2,$3)', [
+          principal.userId,
+          devTrackingDeviceId,
+          record.id,
+        ]);
 
       await client.query(
         `select private.enqueue_outbox_event('device.registered', 'device', $1::uuid, $2::jsonb)`,
@@ -960,5 +1033,33 @@ export class IdentityRepository {
   private requirePushCrypto(): PushTokenCrypto {
     if (!this.pushCrypto) throw new Error('PUSH_CRYPTO_UNAVAILABLE');
     return this.pushCrypto;
+  }
+
+  async signOutDevInstallation(
+    principal: ClerkPrincipal,
+    input: DeviceRegistrationDto,
+  ): Promise<void> {
+    const fingerprint = this.requirePushCrypto().fingerprint(input.deviceFingerprint);
+    await this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({
+            role: 'authenticated',
+            sub: principal.userId,
+            sid: principal.sessionId,
+          }),
+        ]);
+        await client.query('set local role masarifi_api');
+        await client.query('select private.sign_out_dev_installation($1,$2)', [
+          principal.userId,
+          fingerprint,
+        ]);
+        await client.query('commit');
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
+    });
   }
 }

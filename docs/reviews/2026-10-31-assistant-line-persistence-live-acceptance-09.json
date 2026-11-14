@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "ASSISTANT-LINE-PERSISTENCE-QA-20261031-09",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "supersedesConsumedScope": "ASSISTANT-TRANSACTION-LINES-QA-20261031-08",
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "runtimePromptSha256": "c412f9bf4835b0f0ae23240fc258f6ad0d335d02de8a48a868392dc3b588b102",
+  "nginxConfigSha256": "f4da6759b5a8d97cff9ff24a92b58c566415fa4ec180ddd595bb38ee3f9dea69",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Same owner's necessary financial context, including the three explicitly authorized new transactions; no raw client data in Git.",
+  "maxQuestions": 1,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.10",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.09335040",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "وش آخر ثلاث مصروفات مؤكدة في أكتوبر 2026؟ اكتب كل عملية بسطر مع المبلغ والتاريخ."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/runtime/preservation before first admission and configured route before each question.",
+    "Preserve all existing financial rows and planning draft2026-13, including the three authorized transactions. Only approved assistant conversation/message/usage records may be added.",
+    "Do not execute financial action, permission change, migration, quota increase, native capture or additional delivery."
+  ],
+  "evidence": "One new read-only latest-three-expenses question after correcting LF persistence as Unicode line separators and decoding them for native prose. Verify one completed saved reply with all three grounded rows, amount/currency/local date/name, no unsolicited explanation or saving. QA08 closed after SQL23514, no replay of its job or provider window.",
+  "authority": "New bounded human approval required for scope09; scopes01–08 closed, no replay or renewal.",
+  "baseWorkerImage": "sha256:457c88437caaad00779585783e8680b6badf8ebd9009a031e786840a89c57e17",
+  "runtimeModuleSha256": "a301d5f7630a88919ee01020ed6dc171f28da3feb1624cd6fc951c0ed4af6525",
+  "runtimeHelperSha256": "2168e3289939ca18afeda3d4c07cb79e51cab7b8a911b05a7771ba02525a17b8",
+  "qualifiedWorkerImageRequiredBeforeFirstAdmission": true,
+  "qualifiedWorkerImage": "sha256:0d29d496be496ce14e34d84d33ce3d33655527d1ff5237bcc4021cecfd5ddf73",
+  "runtimeRepositorySha256": "9d804cd32f7977308f626e87c7d0f5d9e00596f61a656c0f52d3007bcc067d0c"
+}

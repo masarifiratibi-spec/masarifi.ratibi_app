@@ -1,5 +1,11 @@
 import React from 'react';
-import { PixelRatio, Pressable, StyleSheet, View } from 'react-native';
+import {
+  PixelRatio,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View
+} from 'react-native';
 
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
@@ -51,6 +57,8 @@ export function TransactionRow({
   groupedPosition?: 'first' | 'middle' | 'last' | 'only';
   onPress?: () => void;
 }) {
+  // Text scale can change while a memoized ledger item keeps its props.
+  useWindowDimensions();
   const theme = useTheme();
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();

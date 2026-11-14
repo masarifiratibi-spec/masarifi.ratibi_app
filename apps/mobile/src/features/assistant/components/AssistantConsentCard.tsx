@@ -1,4 +1,6 @@
 import React from 'react';
+import { router } from 'expo-router';
+import { useTheme } from '@/state/theme-context';
 import { View, StyleSheet } from 'react-native';
 import { LockShieldIcon, SmallShieldIcon } from './AssistantIcons';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -6,20 +8,24 @@ import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors, radius, spacing } from '@/design-system/tokens';
 import type { AssistantConsent } from '@/domain/assistant';
 
 export interface AssistantConsentCardProps {
   consent?: AssistantConsent | null;
   onEnableConsent: () => void;
+  onDisableConsent?: () => void;
   loading?: boolean;
 }
 
 export function AssistantConsentCard({
   consent,
   onEnableConsent,
+  onDisableConsent,
   loading = false
 }: AssistantConsentCardProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const isEnabled = consent?.status === 'enabled';
@@ -28,7 +34,7 @@ export function AssistantConsentCard({
     <View testID="assistant-consent-card" style={styles.card}>
       {/* Shield icon badge — centered, always at top */}
       <View style={styles.iconBadge}>
-        <LockShieldIcon size={22} color={colorTokens.teal['700']} />
+        <LockShieldIcon size={22} color={colors.content.link} />
       </View>
 
       {/* Text block: title + description */}
@@ -45,6 +51,8 @@ export function AssistantConsentCard({
         >
           {translate('assistant.privacy.transactions')}
         </StyledText>
+        <ActionButton label="privacy.details" variant="quiet"
+          onPress={() => router.push({ pathname: '/(public)/legal', params: { document: 'privacy' } })} />
       </View>
 
       {/* CTA: enable button OR enabled confirmation */}
@@ -64,28 +72,35 @@ export function AssistantConsentCard({
             { flexDirection: isRtl ? 'row-reverse' : 'row' }
           ]}
         >
-          <SmallShieldIcon size={15} color={colorTokens.teal['700']} />
+          <SmallShieldIcon size={15} color={colors.content.link} />
           <StyledText style={styles.enabledText}>
             {translate('assistant.consent.enabled')}
           </StyledText>
         </View>
       )}
+      {isEnabled && onDisableConsent ? (
+        <ActionButton label="assistant.consent.withdraw" variant="secondary" disabled={loading}
+          onPress={onDisableConsent} />
+      ) : !isEnabled ? (
+        <ActionButton label="appShell.permission.manualFallback" variant="quiet"
+          onPress={() => router.replace('/(tabs)/add')} />
+      ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
+    backgroundColor: colors.surfaces.card,
+    borderColor: colors.borders.default,
     borderRadius: radius.card,
     borderWidth: 1,
     gap: spacing.sm,
     marginHorizontal: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    shadowColor: colorTokens.teal['950'],
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -93,8 +108,8 @@ const styles = StyleSheet.create({
   },
   iconBadge: {
     alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.subtle,
     borderRadius: radius.pill,
     borderWidth: 1,
     height: 48,
@@ -106,12 +121,12 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   title: {
-    color: colorTokens.ink['900'],
+    color: colors.content.primary,
     fontSize: 15,
     fontWeight: '700'
   },
   description: {
-    color: colorTokens.ink['500'],
+    color: colors.content.secondary,
     fontSize: 13,
     lineHeight: 18
   },
@@ -121,8 +136,8 @@ const styles = StyleSheet.create({
   },
   enabledNotice: {
     alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
+    backgroundColor: colors.surfaces.brandSubtle,
+    borderColor: colors.borders.subtle,
     borderRadius: radius.sm,
     borderWidth: 1,
     ...layoutDirectionStyle('ltr'),
@@ -133,7 +148,7 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   enabledText: {
-    color: colorTokens.teal['700'],
+    color: colors.content.link,
     fontSize: 13,
     fontWeight: '600'
   }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/core/api/errors";
+import { apiActorCacheKey, mocksEnabled } from "@/core/api/client";
 import type { AdminRole } from "@/core/permissions/permissions";
 import { SIMULATED_ACTORS } from "@/core/permissions/role-map";
 import { useLockedMutation } from "@/features/foundation/useLockedMutation";
@@ -33,7 +34,7 @@ export function millisecondsUntilExpiry(expiresAt: string, now = new Date()): nu
 
 export function isTerminalWorkspaceError(error: unknown): boolean {
   return error instanceof ApiError
-    && ["forbidden", "session_expired", "gone", "conflict", "not_found"].includes(error.code);
+    && ["forbidden", "session_expired", "gone", "conflict", "not_found", "contract_mismatch", "recent_auth_required"].includes(error.code);
 }
 
 export function useAccessRequests(input: Partial<AccessRequestsQuery>, role: AdminRole) {
@@ -84,15 +85,19 @@ export function useRevokeAccessRequest(requestId: string, role: AdminRole) {
 
 export function useTemporaryWorkspace(requestId: string, role: AdminRole, scenario?: string) {
   const client = useQueryClient();
-  const actor = SIMULATED_ACTORS[role];
+  const actor = mocksEnabled() ? SIMULATED_ACTORS[role] : apiActorCacheKey();
   const key = useMemo(() => accessQueryKeys.workspace(requestId, actor, scenario), [actor, requestId, scenario]);
-  const [expired, setExpired] = useState(false);
+  const [expiredKey, setExpiredKey] = useState<string | null>(null);
+  const keyId = JSON.stringify(key);
+  const expired = expiredKey === keyId;
   const query = useQuery({
     queryKey: key,
     queryFn: () => accessRepository.getWorkspace(requestId, role, scenario),
     enabled: !expired,
     retry: false,
     refetchOnWindowFocus: true,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
   const terminalError = isTerminalWorkspaceError(query.error);
   const workspace = query.data;
@@ -101,7 +106,7 @@ export function useTemporaryWorkspace(requestId: string, role: AdminRole, scenar
   useEffect(() => {
     if (!workspace) return;
     const expire = () => {
-      setExpired(true);
+      setExpiredKey(keyId);
       void client.cancelQueries({ queryKey: key });
       client.removeQueries({ queryKey: key });
     };
@@ -116,10 +121,13 @@ export function useTemporaryWorkspace(requestId: string, role: AdminRole, scenar
       window.clearTimeout(timeout);
       window.removeEventListener("focus", recheck);
       document.removeEventListener("visibilitychange", recheck);
-      void client.cancelQueries({ queryKey: key });
-      client.removeQueries({ queryKey: key });
     };
-  }, [client, key, refetchWorkspace, workspace]);
+  }, [client, key, keyId, refetchWorkspace, workspace]);
+
+  useEffect(() => () => {
+    void client.cancelQueries({ queryKey: key });
+    client.removeQueries({ queryKey: key });
+  }, [client, key]);
 
   useEffect(() => {
     if (!terminalError) return;

@@ -1,0 +1,294 @@
+{
+  "hashKind": "Workspace bytes before Git line-ending normalization",
+  "schemaVersion": 1,
+  "unrelatedWorkExcluded": true,
+  "recordedAtUtc": "2026-11-12T16:06:16.6143714Z",
+  "sourceFiles": [
+    {
+      "workspaceSha256": "551cd403122bad268aee96c2814509449550ff154a0454733cf1b407159e499b",
+      "path": "apps/admin-web/next.config.ts"
+    },
+    {
+      "workspaceSha256": "18a88a68bf48b1197698a89db87f3e9ae510df74bed02df83ef457c88f03b078",
+      "path": "apps/admin-web/src/app/delete-account/page.tsx"
+    },
+    {
+      "workspaceSha256": "8e1568a62f166a1323758bc8748e65010c7a208be290f04ceb229ecf89ed4017",
+      "path": "apps/admin-web/src/app/privacy/page.tsx"
+    },
+    {
+      "workspaceSha256": "225016c646071d1a63335feaf75d3222c6ccc8b765fc84c26571874c30dd61ed",
+      "path": "apps/admin-web/src/app/providers.test.tsx"
+    },
+    {
+      "workspaceSha256": "5caa952fbfa08dfab20add356e8d7defe7d0bbdb653901b5e53551aecf0b50c7",
+      "path": "apps/admin-web/src/app/providers.tsx"
+    },
+    {
+      "workspaceSha256": "7762cd5871f3eba178dad28f90d078b380acd05eeef693c559391ab8c93535bb",
+      "path": "apps/admin-web/src/app/terms/page.tsx"
+    },
+    {
+      "workspaceSha256": "5d8e05079584ff6570a5144908fe85df2a4e99360ba4df29aeef0f24b631451d",
+      "path": "apps/admin-web/src/features/communications/repository.test.ts"
+    },
+    {
+      "workspaceSha256": "032b81dabfec4bcba2511ea3db85268d56e3ed8d4e9c5cdef6439db63de6c5d0",
+      "path": "apps/admin-web/src/features/communications/repository.ts"
+    },
+    {
+      "workspaceSha256": "7510b8bdee180dbae680b641cfa7ba05486dfa4bade0094aeb6c43c9ed60537f",
+      "path": "apps/admin-web/src/features/public-deletion/deletion.module.css"
+    },
+    {
+      "workspaceSha256": "98be415bb5d1d802a82bc34576b3466ca3cb31f8483779dad2cb2065b9374d31",
+      "path": "apps/admin-web/src/features/public-deletion/DeletionPage.test.tsx"
+    },
+    {
+      "workspaceSha256": "5e5173caac7bf4bf04ac9c2caf66779a3bd3c542c0d96e812b9478d3860455dd",
+      "path": "apps/admin-web/src/features/public-deletion/DeletionPage.tsx"
+    },
+    {
+      "workspaceSha256": "74d9ea6d203146a5760b95cc4de0c9d674b2fa990308673dfb174e3338a2b06e",
+      "path": "apps/admin-web/src/features/public-legal/legal.module.css"
+    },
+    {
+      "workspaceSha256": "a16d10410019fc3cdbcd2c610ec47d6c8af252f8e2f9e8c54d11508b6c019f6b",
+      "path": "apps/admin-web/src/features/public-legal/PublicLegalPage.test.tsx"
+    },
+    {
+      "workspaceSha256": "7e328e41073af87b32bb87f7df359b8f4e7f416d28b7e11df693173532a8bf30",
+      "path": "apps/admin-web/src/features/public-legal/PublicLegalPage.tsx"
+    },
+    {
+      "workspaceSha256": "20137479d38a43e1725534351175c36a58878acd1ea7434f6be38e3f5ae3d22f",
+      "path": "apps/admin-web/src/features/public-legal/shared-document-boundary.test.ts"
+    },
+    {
+      "workspaceSha256": "a70734920b78343e1db2192f69611f0bd477d9471b6a880a8bd44c6d3fec743f",
+      "path": "apps/api/specs/011-notifications-support-content/contracts/openapi.yaml"
+    },
+    {
+      "workspaceSha256": "8d1f196efbe20368523349da9614df01aff1eb7d58cd2d2e8072c5b72f4c3cf4",
+      "path": "apps/api/specs/013-performance-caching-observability-operations/contracts/openapi.yaml"
+    },
+    {
+      "workspaceSha256": "4bf127d1538a31536cfb4bccd77c06f6e49e946a22dbd17a1fd620c169f8b87e",
+      "path": "apps/api/src/engagement/campaign.service.ts"
+    },
+    {
+      "workspaceSha256": "304fc07d3e7ca9612007421a4c177311529556d9a8a3330fe3af534b430a0129",
+      "path": "apps/api/src/engagement/engagement.dto.ts"
+    },
+    {
+      "workspaceSha256": "629205884a5153bea9a4f789016ffed22f90b149e1387ab9d88fcc91817f4c66",
+      "path": "apps/api/src/engagement/engagement.repository.ts"
+    },
+    {
+      "workspaceSha256": "95bf725557d9c9afca4d3af1c080925a5846e8f9516c45c379fbbda9a1ac7c64",
+      "path": "apps/api/src/engagement/engagement.worker.ts"
+    },
+    {
+      "workspaceSha256": "ff13da4410d9e9ab56220493f332e9f4812d12ee4d6462a70a1653d1ecf8bce0",
+      "path": "apps/api/src/platform/config/environment.schema.ts"
+    },
+    {
+      "workspaceSha256": "037f882f784dcd3610e18f239eac116f87032fe6c0f9f890e62609835ffe1d5d",
+      "path": "apps/api/src/platform/config/environment.types.ts"
+    },
+    {
+      "workspaceSha256": "c55ef9de9c71951bf4451821a8401aff7abccf1f85c80727379477686771d831",
+      "path": "apps/api/src/platform/meta/android-update-policy.ts"
+    },
+    {
+      "workspaceSha256": "50928371e4d8aee1bd12ad0f16a6357f4d98a61fffca210ff6216c0fa2e0dcb5",
+      "path": "apps/api/src/platform/meta/meta.controller.ts"
+    },
+    {
+      "workspaceSha256": "408268feb58ea0e7c0ef72857f4a67044bfe54f7a0516e0cafcfe15a1a95595e",
+      "path": "apps/api/src/platform/meta/meta.service.ts"
+    },
+    {
+      "workspaceSha256": "88a725763c48d61901ef1758ddf0c24951fb949b0221238d13ff4dc7d2a94572",
+      "path": "apps/api/test/contract/engagement/engagement-openapi-instance.contract-spec.ts"
+    },
+    {
+      "workspaceSha256": "7c0818e142433f8e63fef535a64e04cdf47852d3c97179c1a90d8829570ee262",
+      "path": "apps/api/test/contract/meta.contract-spec.ts"
+    },
+    {
+      "workspaceSha256": "c6e5533adcfb9fc6c6897fb46704d85d21267c3f695266c6e32671df6ea0f17e",
+      "path": "apps/api/test/integration/engagement/android-update-announcements.integration.spec.ts"
+    },
+    {
+      "workspaceSha256": "ca4910dcdef44a8ba1a3925d3af2285a0cce0db0dd29fe293f7d8be9d7584e24",
+      "path": "apps/api/test/unit/config/environment.schema.spec.ts"
+    },
+    {
+      "workspaceSha256": "d8660c8e42cf0cec490e8d2991147a32ff1f2f4c2f182f67a3ac76e419fac788",
+      "path": "apps/api/test/unit/engagement/android-update-campaign.spec.ts"
+    },
+    {
+      "workspaceSha256": "25fecd77c075589e9e2fbbaa9f54574c59d003b8dc2f82ffc6b0ef18ff544055",
+      "path": "apps/api/test/unit/engagement/campaign-audience.spec.ts"
+    },
+    {
+      "workspaceSha256": "f0cc294121873d99e93292ac8476aa7088028f79efdd0d920d271b19c607506f",
+      "path": "apps/api/test/unit/platform/android-update-policy.spec.ts"
+    },
+    {
+      "workspaceSha256": "f25234c95167ba203b762a42a77908db021d5634caffd872ddc755849fe70cc8",
+      "path": "apps/mobile/app/_layout.tsx"
+    },
+    {
+      "workspaceSha256": "039b2949b074546d2b46efc52300a6781f8682caf01b4da8fd04cc36286b115d",
+      "path": "apps/mobile/app/app-update.tsx"
+    },
+    {
+      "workspaceSha256": "b9af3a9b7a875cf93b16ea008c0fd7929c8590ce717599c1e2f6da47ce21682b",
+      "path": "apps/mobile/package-lock.json"
+    },
+    {
+      "workspaceSha256": "b615b6425ef5ab5d243a341210f3c739f6b49dcf4bf4e37aebb940aa8b8da843",
+      "path": "apps/mobile/package.json"
+    },
+    {
+      "workspaceSha256": "98bedea2e35a10f136b5bedc1df794b97221e10433c1c077e7ba639f93f550d3",
+      "path": "apps/mobile/src/features/app-update/app-update.test.ts"
+    },
+    {
+      "workspaceSha256": "35a7563ab08326b15f432ac50ce6ac1b8749dff28a8de138f5450f5e61f574c5",
+      "path": "apps/mobile/src/features/app-update/app-update.ts"
+    },
+    {
+      "workspaceSha256": "8a6ba6cbaa503a873d2f81dc6b787de167fa512cf5bbe86e95759de5769f4d02",
+      "path": "apps/mobile/src/features/app-update/AppUpdateNotice.test.tsx"
+    },
+    {
+      "workspaceSha256": "afecf1a2ba7333b3328a3ce86b7307e1616dbeb223c8a2a91b30f45d1785464c",
+      "path": "apps/mobile/src/features/app-update/AppUpdateNotice.tsx"
+    },
+    {
+      "workspaceSha256": "9bda6b0eed3b91372a2a25824bf15a5dbce50cc675821af92c0fc1bc488d3cee",
+      "path": "apps/mobile/src/features/app-update/update-copy.ts"
+    },
+    {
+      "workspaceSha256": "127ca5fba47d73bf84dae8c90f47075c43e10c21051fb50ce1a24c740eac318d",
+      "path": "apps/mobile/src/features/app-update/useAppUpdate.ts"
+    },
+    {
+      "workspaceSha256": "b2627621a07cc399a34bdd8bf3daf8f7903f048e97a03c15cfb2aae3f9bb3fdc",
+      "path": "apps/mobile/src/features/assistant/assistant-recovery-polling.test.tsx"
+    },
+    {
+      "workspaceSha256": "4f1d97bfb83866c944edf695d0edd49765fcd36cc9d9303be8c33f9859aa8397",
+      "path": "apps/mobile/src/features/assistant/AssistantHomeScreen.tsx"
+    },
+    {
+      "workspaceSha256": "b95aeada5448a7776f24bdbdcc909c5cf23aa2fde8a021dbab10eccedc8f7057",
+      "path": "apps/mobile/src/features/assistant/AssistantJourney.test.tsx"
+    },
+    {
+      "workspaceSha256": "4eaf6e0324e45bcd5f63331b053394a7872c0c169283a7e77a79379acc9a095f",
+      "path": "apps/mobile/src/features/assistant/AssistantLanding.test.tsx"
+    },
+    {
+      "workspaceSha256": "384c52dca571a3df5a87db2eb8d0588f64b1917e477c2e2c2345071b6e61fd8e",
+      "path": "apps/mobile/src/features/assistant/AssistantLanding.tsx"
+    },
+    {
+      "workspaceSha256": "17f727580be5c7bce25afe5e3e05141f130fdb5be597c82c41ea65eddb39cf91",
+      "path": "apps/mobile/src/features/assistant/components/AssistantAskCard.tsx"
+    },
+    {
+      "workspaceSha256": "8789f7b3a82d947c6c97a8f5490b6378bcb5ac64cfb381ec2d909f29e61e3276",
+      "path": "apps/mobile/src/features/assistant/components/AssistantConsentCard.tsx"
+    },
+    {
+      "workspaceSha256": "5823b1a3d769c4b08cb145dc6fba83979f93d62d8f43c3fcdd88abb720a47081",
+      "path": "apps/mobile/src/features/notifications/notification-response-controller.test.ts"
+    },
+    {
+      "workspaceSha256": "bcd39dd8ad43c4e021eb629cf24fbba45c6e40a0d3d6bf0af2f777aff5b4f109",
+      "path": "apps/mobile/src/features/notifications/notification-response-controller.ts"
+    },
+    {
+      "workspaceSha256": "4dc9c4d57ffbe4de84fc121ffab01cd52912592aa6c3c37924e9ae8c51e472ef",
+      "path": "apps/mobile/src/features/settings/ApplicationSettingsScreen.tsx"
+    },
+    {
+      "workspaceSha256": "047532bbe5dcfce6d82756b9b7a0ef21b439f7ece9756892f83168d8321eccc9",
+      "path": "apps/mobile/src/features/settings/PrivacySettingsScreen.tsx"
+    },
+    {
+      "workspaceSha256": "f4b83dba0a4be717804c0bf3021221521afe0e431cc62291be669b038574e641",
+      "path": "apps/mobile/src/features/shell/AppUpdateNavigation.test.tsx"
+    },
+    {
+      "workspaceSha256": "75d04aee0b6f6122efd205dd8f244fce6d198adbf72ec8ea294ca8f2225192e7",
+      "path": "apps/mobile/src/features/shell/navigation-context.ts"
+    },
+    {
+      "workspaceSha256": "b01ff95256d35a6f8f33aa3a243b7673ed736783e56cf1607c045ca0802ae3dc",
+      "path": "apps/mobile/src/features/shell/ProtectedRouteGate.tsx"
+    },
+    {
+      "workspaceSha256": "744042d7d2cce944059fca1d35908d923714e98577671e51e0022da6e046be24",
+      "path": "apps/mobile/src/features/shell/RootLayoutOptions.test.tsx"
+    },
+    {
+      "workspaceSha256": "a04734b6c8fdd6a4c75a6a00ff6590b6dc1cfbcfeaeb5cf2a9580173557e0e10",
+      "path": "apps/mobile/src/features/support/support-context-integration.test.tsx"
+    },
+    {
+      "workspaceSha256": "f215a823d75341432024c5240912845af6c62b0eeff685c05eb54cd1f0eae6aa",
+      "path": "apps/mobile/src/features/voice/useVoiceCapture.test.tsx"
+    },
+    {
+      "workspaceSha256": "a94f26e0db7483de973de134250237ff6bff10c976b0add119b10f954c7ed21c",
+      "path": "apps/mobile/src/features/voice/useVoiceProcessingConsent.tsx"
+    },
+    {
+      "workspaceSha256": "1e95376d20fbc512df6f5dcb49eaa2fdefa3af157f84121f4193a963f049252f",
+      "path": "apps/mobile/src/features/voice/voice-processing-consent.test.tsx"
+    },
+    {
+      "workspaceSha256": "31338a485ab95c10e382cfec0c6b8233546a4a27b2cfac685da25c6bbcff1980",
+      "path": "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx"
+    },
+    {
+      "workspaceSha256": "faea7c593b894b64cf43be847a18d670cac699c103c1fb8bec6cfbdb214b668f",
+      "path": "apps/mobile/src/localization/messages/ar.ts"
+    },
+    {
+      "workspaceSha256": "d556fe19485651293b17f661dcc98daaee2e8985e7c13a1d7e6d39179187c793",
+      "path": "apps/mobile/src/localization/messages/en.ts"
+    },
+    {
+      "workspaceSha256": "dc329904cd3aa0ab75e87bab33851a05b81995a9aaa1e3ce10f8e0fe47b0a936",
+      "path": "apps/mobile/src/services/contracts/assistant-notifications-service.ts"
+    },
+    {
+      "workspaceSha256": "d618121bc52873c87b3c03577d13a8d79ce9fb2e9df16a5a0424653c9ac9e3c5",
+      "path": "apps/mobile/src/services/live/voice-batch-unavailable.test.ts"
+    },
+    {
+      "workspaceSha256": "e12f9574aa3fba0bba46a5eb6e3e20328fb28e0dea38558b3693c0087057fbc0",
+      "path": "apps/mobile/src/services/platform/application-version.ts"
+    },
+    {
+      "workspaceSha256": "0bf5ccc629a4dfe7bf70fd076f4df25ff68aa4dd7ef5458d96cc3d0432552ce3",
+      "path": "apps/mobile/src/services/platform/phone-notification-service.test.ts"
+    },
+    {
+      "workspaceSha256": "8293a45a92a5910775d42ed58e86a07534aaadd046cd2786f307d614efbd89e0",
+      "path": "apps/mobile/src/services/platform/phone-notification-service.ts"
+    },
+    {
+      "workspaceSha256": "918ce6fd132c3f5203bf759499aa3c95724183c635f3bf853c3285733bd5cf69",
+      "path": "apps/mobile/src/state/voice-update-interaction.ts"
+    }
+  ],
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "baseline": "3d38af414ac4fab28dd5a61a9c411be6de7708c4"
+}

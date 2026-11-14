@@ -1,0 +1,11 @@
+{
+  "checkedUtc": "2026-11-13T20:03:18.8811677Z",
+  "statusCode": 200,
+  "response": {
+    "status": "ready",
+    "checks": {
+      "database": "up",
+      "queue": "up"
+    }
+  }
+}

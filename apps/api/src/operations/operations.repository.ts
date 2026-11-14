@@ -12,6 +12,14 @@ export class OperationsRepository {
 
   read(principal: ClerkPrincipal, kind: string, query: unknown): Promise<unknown> {
     return this.asApi(principal, async (client) => {
+      if (kind === 'ai-usage') {
+        const input = query as { userId: string | null };
+        const result = await client.query<{ value: unknown }>(
+          'select private.read_ai_usage_limits($1) value',
+          [input.userId],
+        );
+        return result.rows[0]?.value;
+      }
       const result = await client.query<{ value: unknown }>(
         'select private.read_operations($1,$2::jsonb) value',
         [kind, JSON.stringify(query)],
@@ -93,11 +101,17 @@ export class OperationsRepository {
     });
   }
 
-  claim(workerId: string, limit: number): Promise<Record<string, unknown>[]> {
+  claim(
+    workerId: string,
+    limit: number,
+    jobKeys?: readonly string[],
+  ): Promise<Record<string, unknown>[]> {
     return this.asWorker(async (client) => {
       const result = await client.query<{ value: Record<string, unknown> }>(
-        'select private.claim_due_jobs($1,$2,clock_timestamp()) value',
-        [workerId, limit],
+        jobKeys
+          ? 'select private.claim_due_jobs($1,$2,clock_timestamp(),$3::text[]) value'
+          : 'select private.claim_due_jobs($1,$2,clock_timestamp()) value',
+        jobKeys ? [workerId, limit, jobKeys] : [workerId, limit],
       );
       return result.rows.map((row) => row.value);
     });

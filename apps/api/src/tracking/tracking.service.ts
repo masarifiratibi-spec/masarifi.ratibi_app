@@ -1,6 +1,15 @@
+import { financialGeneration } from '../platform/http/financial-generation';
 import { createHash } from 'node:crypto';
+import {
+  canonicalJson,
+  classifyFinancialMessage,
+  validateRuleSnapshot,
+  evidenceCorpus as corpus,
+} from '@masarifi/transaction-parser';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
+import { IdentityRepository } from '../identity/identity.repository';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
 
 import type { ClerkPrincipal } from '../identity/clerk-auth.guard';
 import { hashIdempotencyKey } from '../ledger/idempotency';
@@ -14,6 +23,8 @@ import {
   normalizeTrackingList,
   normalizeTrackingOwnerFilters,
   normalizeVersion,
+  normalizeTrackingInstallationEnrollment,
+  normalizeTrackingInstallationConsent,
   type NormalizedImport,
 } from './tracking.dto';
 import {
@@ -24,6 +35,7 @@ import {
 import { TrackingRepository } from './tracking.repository';
 import { TrackingStorage } from './tracking.storage';
 import { recordTrackingIntake } from './tracking.observability';
+import { captureEffectsAgree } from './tracking-capture-agreement';
 
 type Input = {
   principal: ClerkPrincipal;
@@ -100,10 +112,141 @@ function trackingPage(items: unknown[], limit: number, resource = ''): Record<st
 
 @Injectable()
 export class TrackingService {
+  async updateInstallationConsent(
+    principal: ClerkPrincipal,
+    deviceId: unknown,
+    body: unknown,
+  ): Promise<Record<string, unknown>> {
+    let input: ReturnType<typeof normalizeTrackingInstallationConsent>;
+    try {
+      input = normalizeTrackingInstallationConsent(deviceId, body);
+    } catch {
+      throw this.validation();
+    }
+    if (!this.identity) throw new Error('TRACKING_IDENTITY_UNAVAILABLE');
+    const registration = await this.identity
+      .registerDevice(principal, input.deviceRegistration)
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === 'PUSH_TOKEN_CONFLICT')
+          throw new HttpException({ code: 'TRACKING_DEVICE_SESSION_CONFLICT' }, 409);
+        throw error;
+      });
+    const value = await this.repository.updateInstallationConsent(principal, {
+      deviceId: input.deviceId,
+      notificationDeviceId: registration.device.id,
+      expectedVersion: input.expectedVersion,
+      sources: input.sources,
+    });
+    return {
+      ...value,
+      configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    };
+  }
+  async deviceRuleSnapshot(principal: ClerkPrincipal, body: unknown) {
+    if (this.config?.get('MASARIFI_MOBILE_AUTOMATION_ENABLED') !== true)
+      throw new HttpException({ code: 'NOT_FOUND' }, 404);
+    let input: ReturnType<typeof normalizeTrackingInstallationEnrollment>;
+    try {
+      input = normalizeTrackingInstallationEnrollment(body);
+    } catch {
+      throw this.validation();
+    }
+    if (!this.identity) throw new Error('TRACKING_IDENTITY_UNAVAILABLE');
+    const registration = await this.identity.registerDevice(principal, input.deviceRegistration);
+    const value = await this.repository.enrollInstallation(principal, {
+      deviceId: input.deviceId,
+      notificationDeviceId: registration.device.id,
+      smsActivationId: input.smsActivationId,
+      remindersEnabled: input.remindersEnabled,
+      foreground: input.foreground,
+      reminderLocale: input.reminderLocale,
+      reminderTimeZone: input.reminderTimeZone,
+    });
+    return {
+      ...value,
+      configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    };
+  }
+  confirmation(principal: ClerkPrincipal, id: string) {
+    return this.repository.confirmation(principal, normalizeTrackingId(id));
+  }
+  async ruleSnapshot(principal: ClerkPrincipal, deviceId?: string) {
+    let device: string | undefined;
+    try {
+      device = deviceId === undefined ? undefined : normalizeTrackingId(deviceId);
+    } catch {
+      throw this.validation();
+    }
+    const value = await this.repository.ruleSnapshot(principal, device);
+    return {
+      ...value,
+      configurationHash: createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    };
+  }
+  releaseRead(principal: ClerkPrincipal, id: string | null) {
+    return this.repository.releaseRead(principal, id ? normalizeTrackingId(id) : null);
+  }
+  async releaseMutate(id: string | null, input: Input) {
+    let action: ReturnType<typeof normalizeAdminTrackingAction>;
+    try {
+      action = normalizeAdminTrackingAction(input.body);
+      if (!['create', 'validate', 'publish', 'activate', 'rollback'].includes(action.action))
+        throw new Error();
+      exact(
+        action.patch,
+        action.action === 'create'
+          ? ['snapshot']
+          : ['validate', 'publish'].includes(action.action)
+            ? []
+            : ['mode'],
+      );
+      if (action.action === 'create') validateRuleSnapshot(action.patch.snapshot);
+      if (action.action !== 'create' && !id) throw new Error();
+      if (id) id = normalizeTrackingId(id);
+    } catch {
+      throw this.validation();
+    }
+    if (action.action === 'validate') {
+      const read = await this.repository.releaseRead(input.principal, normalizeTrackingId(id));
+      const releases = read.items as unknown[];
+      if (!releases[0]) throw new HttpException({ code: 'TRACKING_RELEASE_NOT_FOUND' }, 404);
+      const release = record(releases[0]);
+      const snapshot = validateRuleSnapshot(release.snapshot);
+      const failures = corpus
+        .filter((sample) => {
+          const result = classifyFinancialMessage(
+            { text: sample.text, sender: sample.sender, country: sample.country },
+            snapshot,
+          );
+          return Object.entries(sample.expected).some(
+            ([key, value]) => Reflect.get(result, key) !== value,
+          );
+        })
+        .map((sample) => sample.id);
+      if (failures.length)
+        throw new HttpException({ code: 'TRACKING_CORPUS_FAILED', cases: failures }, 400);
+      action.patch = {
+        validatedHash: release.contentHash ?? release.content_hash,
+        corpusResult: { passed: true, caseCount: corpus.length },
+      };
+    }
+    return this.repository.releaseMutate(
+      input.principal,
+      id ? normalizeTrackingId(id) : null,
+      action.action,
+      action.patch,
+      action.expectedVersion,
+      action.reason,
+      input.idempotencyKey,
+      input.requestId,
+    );
+  }
   constructor(
     readonly repository: TrackingRepository,
     private readonly ledger: LedgerService,
     private readonly storage: TrackingStorage,
+    @Optional() private readonly identity?: IdentityRepository,
+    @Optional() private readonly config?: PlatformConfigService,
   ) {}
 
   preferences(principal: ClerkPrincipal): Promise<Record<string, unknown>> {
@@ -298,14 +441,13 @@ export class TrackingService {
       );
     }
     const hash = createHash('sha256').update(bytes).digest('hex');
-    const key = `tracking/${uuidFrom(input.principal.userId)}/${uuidFrom(`${hash}\0${idempotencyHash}`)}`;
+    const generation = financialGeneration.getStore();
+    // Generation zero keeps existing immutable keys. Old cleanup cannot delete a later upload.
+    const seed = [hash, idempotencyHash];
+    if (generation && generation !== '0') seed.push(generation);
+    const key = `tracking/${uuidFrom(input.principal.userId)}/${uuidFrom(seed.join('\0'))}`;
     const preferences = await this.repository.getPreferences(input.principal);
     const days = Number(preferences.sourceRetentionDays ?? 30);
-    const uploaded = await this.storage.upload(
-      key,
-      bytes,
-      contentType === 'text/csv' ? 'text/csv' : 'application/json',
-    );
     const raw: RawPayload = {
       storageRef: key,
       payloadHash: hash,
@@ -313,28 +455,16 @@ export class TrackingService {
       sizeBytes: bytes.length,
       expiresAt: new Date(Date.now() + days * 86_400_000),
     };
-    let created: Record<string, unknown>;
-    try {
-      created = await this.repository.createImport(input.principal, normalized, {
-        sourceName: sourceName ?? null,
-        key: input.idempotencyKey,
-        requestId: input.requestId,
-        raw,
-      });
-    } catch (error) {
-      if (uploaded) {
-        try {
-          await this.deleteOrQueueRaw(input.principal, raw);
-        } catch (cleanupError) {
-          throw new AggregateError([error, cleanupError], 'TRACKING_STORAGE_CLEANUP_FAILED');
-        }
-      }
-      throw error;
-    }
-    if (created.replayed === true) {
-      if (!(await this.repository.rawPayloadRegistered(input.principal, key)))
-        await this.deleteOrQueueRaw(input.principal, raw);
-    }
+    // The purge worker owns abandoned objects, including a PUT with a lost acknowledgement.
+    // Registration atomically takes the reservation out of the purge queue.
+    await this.repository.reserveRawUpload(input.principal, raw);
+    await this.storage.upload(key, bytes, raw.contentType);
+    const created = await this.repository.createImport(input.principal, normalized, {
+      sourceName: sourceName ?? null,
+      key: input.idempotencyKey,
+      requestId: input.requestId,
+      raw,
+    });
     recordTrackingIntake(contentType === 'text/csv' ? 'file' : normalized.sourceType, 'accepted');
     return created;
   }
@@ -449,7 +579,18 @@ export class TrackingService {
         'paymentMethod',
         'note',
         'occurredAt',
+        'kind',
+        'originalTransactionId',
+        'originalTransactionVersion',
+        'settlementConfirmed',
+        'rememberAccountBinding',
       ]);
+      if (
+        (patch.rememberAccountBinding !== undefined &&
+          typeof patch.rememberAccountBinding !== 'boolean') ||
+        (patch.settlementConfirmed !== undefined && typeof patch.settlementConfirmed !== 'boolean')
+      )
+        throw new Error();
       if ((decision === 'edit_accept') !== Object.keys(patch).length > 0) throw new Error();
       command = {
         decision,
@@ -489,6 +630,31 @@ export class TrackingService {
       String(importItem.id),
     )}`;
     const values = { ...record(review.proposedValues), ...record(command.patch) };
+    await this.assertBindingEligibility(input.principal, values);
+    if (importItem.canonicalIdentityHash) {
+      const existing = await this.repository.captureTransaction(
+        input.principal,
+        String(importItem.id),
+      );
+      if (existing?.transactionId) {
+        await this.assertCaptureAgreement(
+          input.principal,
+          existing.transactionId,
+          values,
+          input.requestId,
+        );
+        return this.repository.decideReview(
+          input.principal,
+          id,
+          command,
+          decisionToken,
+          null,
+          existing.transactionId,
+          input.idempotencyKey,
+          input.requestId,
+        );
+      }
+    }
     const ledger = await this.createImportedLedgerEntry(
       input.principal,
       values,
@@ -587,6 +753,27 @@ export class TrackingService {
         input.requestId,
       );
     const item = record(await this.detail(input.principal, 'items', String(candidate.leftItemId)));
+    if (item.canonicalIdentityHash) {
+      const existing = await this.repository.captureTransaction(input.principal, String(item.id));
+      if (existing?.transactionId) {
+        await this.assertCaptureAgreement(
+          input.principal,
+          existing.transactionId,
+          record(item.normalizedPayload),
+          input.requestId,
+        );
+        return this.repository.decideDuplicate(
+          input.principal,
+          id,
+          command,
+          decisionToken,
+          null,
+          existing.transactionId,
+          input.idempotencyKey,
+          input.requestId,
+        );
+      }
+    }
     const sourceKey = `tracking:${await this.repository.getImportSourceIdentityHash(
       input.principal,
       String(item.id),
@@ -611,6 +798,37 @@ export class TrackingService {
     );
   }
 
+  private async assertCaptureAgreement(
+    principal: ClerkPrincipal,
+    transactionId: string,
+    values: Record<string, unknown>,
+    requestId: string,
+  ): Promise<void> {
+    const existing = record(
+      record(await this.ledger.getTransaction(principal, transactionId, requestId)).transaction,
+    );
+    if (!captureEffectsAgree(existing, values))
+      throw new HttpException({ code: 'TRACKING_CAPTURE_CONFLICT' }, 409);
+  }
+
+  private async assertBindingEligibility(
+    principal: ClerkPrincipal,
+    values: Record<string, unknown>,
+  ): Promise<void> {
+    if (values.rememberAccountBinding !== true) return;
+    const provider = values.sourceProvider ?? record(values.metadata ?? {}).sourceProvider;
+    const configuration = await this.repository.ruleSnapshot(principal);
+    const snapshot = validateRuleSnapshot(configuration.snapshot);
+    if (
+      typeof values.accountId !== 'string' ||
+      !(await this.repository.accountType(principal, normalizeTrackingId(values.accountId))) ||
+      !snapshot.providers?.some((candidate) => candidate.providerKey === provider) ||
+      !Array.isArray(record(values.classification ?? {}).instruments) ||
+      !(record(values.classification).instruments as unknown[]).length
+    )
+      throw new HttpException({ code: 'TRACKING_BINDING_INVALID' }, 400);
+  }
+
   private async createImportedLedgerEntry(
     principal: ClerkPrincipal,
     values: Record<string, unknown>,
@@ -622,13 +840,67 @@ export class TrackingService {
       idempotencyKey: sourceKey,
       requestId,
     };
+    if (values.classification) {
+      const classification = record(values.classification);
+      if (
+        !['completed', 'pending', 'unknown'].includes(String(classification.status)) ||
+        (classification.status !== 'completed' && values.settlementConfirmed !== true)
+      )
+        throw new HttpException({ code: 'TRACKING_SETTLEMENT_REQUIRED' }, 400);
+      if (classification.timeProvenance === 'ambiguous' && !values.occurredAt)
+        throw new HttpException({ code: 'TRACKING_TIME_REQUIRED' }, 400);
+    }
+    if (values.kind === 'refund' || values.kind === 'reversal') {
+      if (!values.originalTransactionId || !values.originalTransactionVersion)
+        throw new HttpException({ code: 'TRACKING_ORIGINAL_TRANSACTION_REQUIRED' }, 400);
+      return record(
+        await (values.kind === 'reversal' ||
+        record(values.classification ?? {}).subtype === 'reversal'
+          ? this.ledger.reverseTransaction({
+              ...common,
+              transactionId: normalizeTrackingId(values.originalTransactionId),
+              body: {
+                expectedVersion: values.originalTransactionVersion,
+                occurredAt: values.occurredAt,
+                reason: 'Reviewed tracking reversal',
+              },
+            })
+          : this.ledger.refundTransaction({
+              ...common,
+              transactionId: normalizeTrackingId(values.originalTransactionId),
+              body: {
+                expectedVersion: values.originalTransactionVersion,
+                amountMinor: Math.abs(Number(values.amountMinor)),
+                accountId: values.accountId,
+                occurredAt: values.occurredAt,
+                reason: 'Reviewed tracking refund',
+              },
+            })),
+      );
+    }
+    if (
+      record(values.classification ?? {}).subtype === 'withdrawal' &&
+      (values.kind !== 'transfer' ||
+        typeof values.destinationAccountId !== 'string' ||
+        (await this.repository.accountType(
+          principal,
+          normalizeTrackingId(values.destinationAccountId),
+        )) !== 'cash')
+    )
+      throw new HttpException({ code: 'TRACKING_CASH_ACCOUNT_REQUIRED' }, 400);
     if (values.kind === 'transfer')
       return record(
         await this.ledger.transfer({
           ...common,
           body: {
-            sourceAccountId: values.accountId,
-            destinationAccountId: values.destinationAccountId,
+            sourceAccountId:
+              record(values.classification ?? {}).direction === 'incoming'
+                ? values.destinationAccountId
+                : values.accountId,
+            destinationAccountId:
+              record(values.classification ?? {}).direction === 'incoming'
+                ? values.accountId
+                : values.destinationAccountId,
             amountMinor: Math.abs(Number(values.amountMinor)),
             currency: values.currency,
             feeMinor: 0,
@@ -642,7 +914,7 @@ export class TrackingService {
       await this.ledger.createTransaction({
         ...common,
         body: {
-          kind: values.kind,
+          kind: values.kind === 'fee' ? 'expense' : values.kind,
           amountMinor: Math.abs(Number(values.amountMinor)),
           currency: values.currency,
           accountId: values.accountId,
@@ -706,17 +978,38 @@ export class TrackingService {
         'purpose',
         'search',
         'status',
+        'severity',
         'sourceType',
         'institutionId',
         'parserVersionId',
         'from',
         'to',
       ]);
-      const page = normalizeTrackingList({ cursor: values.cursor, limit: values.limit });
-      const cursor = page.cursor ? decodeTrackingCursor(page.cursor) : null;
+      const filters = Object.fromEntries(
+        Object.entries(values)
+          .filter(
+            ([key, value]) =>
+              !['cursor', 'limit', 'purpose'].includes(key) && value != null && value !== '',
+          )
+          .map(([key, value]) => [key, String(value).trim()] as const)
+          .sort(([a], [b]) => a.localeCompare(b)),
+      );
+      const page = normalizeTrackingList({ limit: values.limit });
+      const scope = createHash('sha256')
+        .update(JSON.stringify([principal.userId, resource, page.limit, filters]))
+        .digest('hex');
+      let cursor = null;
+      if (values.cursor) {
+        const saved = JSON.parse(
+          Buffer.from(boundedText(values.cursor, 1, 512), 'base64url').toString('utf8'),
+        ) as { scope: string; position: string };
+        if (saved.scope !== scope) throw new Error('CURSOR_SCOPE_CHANGED');
+        cursor = decodeTrackingCursor(saved.position);
+      }
       for (const key of [
         'search',
         'status',
+        'severity',
         'sourceType',
         'institutionId',
         'parserVersionId',
@@ -732,17 +1025,19 @@ export class TrackingService {
         id ? 1 : page.limit + 1,
         purpose,
         cursor,
-        Object.fromEntries(
-          Object.entries(values).filter(
-            ([key, value]) => !['cursor', 'limit', 'purpose'].includes(key) && value != null,
-          ),
-        ),
+        filters,
       );
       if (id) {
         const entries = Array.isArray(response) ? response : [];
         return entries[0] ?? Promise.reject(new HttpException({ code: 'NOT_FOUND' }, 404));
       }
-      return Array.isArray(response) ? trackingPage(response, page.limit, resource) : response;
+      if (!Array.isArray(response)) return response;
+      const result = trackingPage(response, page.limit, resource);
+      if (typeof result.nextCursor === 'string')
+        result.nextCursor = Buffer.from(
+          JSON.stringify({ scope, position: result.nextCursor }),
+        ).toString('base64url');
+      return result;
     } catch {
       throw this.validation();
     }
@@ -929,22 +1224,6 @@ export class TrackingService {
       input.idempotencyKey,
       input.requestId,
     );
-  }
-
-  private async deleteOrQueueRaw(principal: ClerkPrincipal, raw: RawPayload): Promise<void> {
-    try {
-      await this.storage.delete(raw.storageRef);
-    } catch (deleteError) {
-      try {
-        await this.repository.queueRawCleanup(principal, raw);
-      } catch (queueError) {
-        throw new AggregateError(
-          [deleteError, queueError],
-          'TRACKING_STORAGE_CLEANUP_QUEUE_FAILED',
-        );
-      }
-      throw deleteError;
-    }
   }
 
   private validation(): HttpException {

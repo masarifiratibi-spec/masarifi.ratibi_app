@@ -246,7 +246,7 @@ export function updateRetentionPolicy(id: string, input: z.infer<typeof retentio
   const record = retentionPolicies.find((item) => item.id === id);
   if (!record) fail("not_found");
   if (record.revision !== input.expectedRevision) fail("conflict");
-  if (input.retentionDays < record.minimumDays || input.retentionDays > record.maximumDays) fail("validation_error");
+  if (input.retentionDays < (record.minimumDays ?? 0) || input.retentionDays > (record.maximumDays ?? Infinity)) fail("validation_error");
   const previous = record.state;
   record.retentionDays = input.retentionDays;
   record.effectiveCleanupState = record.legalHold ? "suspended" : "active";

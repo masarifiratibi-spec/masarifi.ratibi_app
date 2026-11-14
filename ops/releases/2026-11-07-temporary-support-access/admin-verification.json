@@ -1,0 +1,48 @@
+{
+  "verified": true,
+  "sourceCommit": "73b790d04d705d349107da1e34cc65a06b195107",
+  "compatibleCommit": "0ffccbd6918b3e6c4878a96e431ef94a376935f0",
+  "adminGitTree": "9f60670e19f2369e7e12d2260c131f9b75391a42",
+  "compatibleSourcesVerified": true,
+  "sourceArchiveSha256": "cfbb693a13be7623e0cb81f9100614906e02733bb7f017e62c0372718c50dfb5",
+  "sourceFilesVerified": 576,
+  "excludedTrackedFiles": 2,
+  "generatedNextEnvRewrites": [],
+  "apiReportSources": {
+    "apps/api/src/reports/reports.admin.ts": "8d84a76a4a1a21fa3c734da656f8fcea67d1d5b457e3b9ca1a60f00bf0270efb",
+    "apps/api/src/reports/reports.admin-types.ts": "cd6ab17f290a3499c10289acb0c43365546c355f08554000ba3828668fc4a28c"
+  },
+  "runtimeArchive": {
+    "sha256": "8fe6f57f5bcee817639f0ae3a3102c21aa8b2f25bdadbab587986cf74ab32e88",
+    "bytes": 263726798
+  },
+  "manifest": {
+    "sha256": "d6b4e163f3460a1b72532b86f21120ee2c6946bec1902f60e451f624a55497b7"
+  },
+  "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+  "buildId": "mT4teHZyRNxcKzft789xW",
+  "node": "v24.16.0",
+  "npm": "11.17.0",
+  "memberCount": 52750,
+  "symlinkCount": 44,
+  "staticArtifactCount": 73,
+  "staticArtifact": {
+    "path": "apps/admin-web/.next/static/chunks/1m9hg5q6q0-6j.css",
+    "sha256": "fbe7f718954d848cb789f50ab86db249395a025a12f1f5fcc521c0fa15d33be0",
+    "bytes": 1711
+  },
+  "noEnvironmentOrExcludedMembers": true,
+  "noUnsafeLinksOrDuplicateMembers": true,
+  "extractedToDisk": false,
+  "artifactExecuted": false,
+  "artifactBuilt": false,
+  "hostedActions": false,
+  "limits": [
+    "Generated runtime/dependency contents are bound by the independently pinned archive; no reproducible rebuild was performed.",
+    "This validates archive scope and source identity, not authenticated hosted behavior or a full secret-content scan."
+  ],
+  "staticInventory": {
+    "sha256": "4302110cd8ec0f6f5a2f610645f38754ccaccb3970ef65cf85bb6d169b847c30"
+  },
+  "scope": "Read-only local artifact admission; no hosted activation"
+}

@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-25T13:55:12.3680583Z",
+  "baselineCount": 21,
+  "baselineChanged": 0,
+  "sourceCount": 15,
+  "sourceChanged": 0,
+  "sourceManifestSha256": "53C276C3CAA82C9ACBD639B7FC08E41B5A32A1863B99B017CDAAC5CD7D197E62",
+  "correctionRound": 2,
+  "changedSincePriorReview": [
+    "apps/mobile/src/services/live/core-finance-service.test.ts",
+    "apps/mobile/src/services/live/core-finance-service.ts"
+  ],
+  "noSourceChangesAfterFinalChecks": true,
+  "status": "BLOCKED",
+  "pendingQaOperationPreserved": true
+}

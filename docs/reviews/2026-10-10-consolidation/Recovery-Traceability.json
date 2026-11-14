@@ -1,0 +1,498 @@
+{
+  "base": "3bd0c5d3149259ad69fb6a5e86083a820052b7f4",
+  "all35PreparedPathsPresent": true,
+  "rows": [
+    {
+      "path": "apps/api/test/integration/ai/staging-voice-epoch.spec.ts",
+      "phase": "voice-regressions",
+      "kind": "tests",
+      "voiceSHA256": "6b41d48dce86a93abde0361fdee94076f47261fd489237d6fd159de76097840e",
+      "trackingSHA256": "b12016462901c332be001dbcc55853db6a6cc6275d0107ed7a3003a88977ca50",
+      "recoveredNormalizedSHA256": "a437091540a570e171b57c9b8463a73a3c3cffb6c6547b9800d3749f2599cb63",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "a437091540a570e171b57c9b8463a73a3c3cffb6c6547b9800d3749f2599cb63",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/api/test/unit/ai/staging-voice-worker.spec.ts",
+      "phase": "voice-regressions",
+      "kind": "tests",
+      "voiceSHA256": "41dc80b9b656908ab021ffa740270b83036be2d61f0a3193f1686b9624b1b6fd",
+      "trackingSHA256": "fd8cbdea06411b5b878671a004696051a11d2f4d61f8b7c42954a311954cb802",
+      "recoveredNormalizedSHA256": "09fcff53f28f8e54b1bbaca5b6b321541c43f33d8f1ac266c234a0e6749fc830",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "09fcff53f28f8e54b1bbaca5b6b321541c43f33d8f1ac266c234a0e6749fc830",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/AssistantHomeScreen.tsx",
+      "phase": "assistant-recovery",
+      "kind": "implementation",
+      "voiceSHA256": "db0d31c81c09b6e34d9f950b5581dd56a420595ac805ff05147cecef6be4fe6a",
+      "trackingSHA256": "bdcb35cca06396944401556d55861437875b507fb9291dbc8eadf69b71c1dce6",
+      "recoveredNormalizedSHA256": "18dd5be7fc2559ffd0d887e57ce80634ff58fb1d906114bca939505b79151652",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "18dd5be7fc2559ffd0d887e57ce80634ff58fb1d906114bca939505b79151652",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx",
+      "phase": "assistant-recovery",
+      "kind": "tests",
+      "voiceSHA256": "22ccd6e5ce24b6c0e3dbd44c8aeace6946354b4a46b2aa95e32da76b5fa9763d",
+      "trackingSHA256": "ae56ef7c7a7bfaf47ccc6847c0ea267341373396adfda69eca42a949e79e8b0f",
+      "recoveredNormalizedSHA256": "847a63e23d17e16204add2b5a88e641168a927286589a95a524dcba694a19275",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "847a63e23d17e16204add2b5a88e641168a927286589a95a524dcba694a19275",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeScreen.test.tsx",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "5244474cd7403b67a4d798f96d15061ae4a8919c785be19233a79bb394c8bd65",
+      "trackingSHA256": "3c4b0ceec4f79b1d09f1c7f6d8f4627149f0714b142d364f9b37409ab67c1586",
+      "recoveredNormalizedSHA256": "51d6bd2af32ea18c06fb1bf60e4e81061575a209d1f4b2d81e1278c5a910cab9",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "138d68eea17aa32087cbe9180610e96cc72d349d36822baaaf525fef818a10a5",
+      "verification": "Reviewed recovery plus separately verified stash-derived 200% Arabic/English typography reflow refinement and tests."
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeScreen.tsx",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "7894f62f266d755d4784236e50ad73c62ca3dd2db4bbe303173003273516cc9f",
+      "trackingSHA256": "9d2f69484d8cc2a8e68c01786f9f86565f59fc5a876fc7ea9d61d8d7a98e6271",
+      "recoveredNormalizedSHA256": "3ac333a44268ae8019dce5cf7a924ff93b4c22fb783be02993e6bd5b9adf68df",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "3ac333a44268ae8019dce5cf7a924ff93b4c22fb783be02993e6bd5b9adf68df",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeSummary.tsx",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "cbaf44d9a5808bc7fdd58a0c57b01d80c98e192d615030906f2190da96ead15f",
+      "trackingSHA256": "d9aaeafead238f96a40e246c7aeab98eea072abd830ee2581a791f61417453cf",
+      "recoveredNormalizedSHA256": "cbaf44d9a5808bc7fdd58a0c57b01d80c98e192d615030906f2190da96ead15f",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "cbaf44d9a5808bc7fdd58a0c57b01d80c98e192d615030906f2190da96ead15f",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/home/useHomeTodayActivity.test.tsx",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "8f716d6975cec2397c6de49fa8c88a7550d8b7a76da723ccafc95d65a7e7e0f0",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "8f716d6975cec2397c6de49fa8c88a7550d8b7a76da723ccafc95d65a7e7e0f0",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "8f716d6975cec2397c6de49fa8c88a7550d8b7a76da723ccafc95d65a7e7e0f0",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/home/useHomeTodayActivity.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "9d5e5f305048dab36df22223a292ddf323230efeee71825cb48f6f87c79c1c5d",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "9d5e5f305048dab36df22223a292ddf323230efeee71825cb48f6f87c79c1c5d",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "9d5e5f305048dab36df22223a292ddf323230efeee71825cb48f6f87c79c1c5d",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/shell/AppShellAccessibility.test.tsx",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "d26f04577c3bd5e8035ac851d3bf58a9b8a9d44167537a00a01180c1c485c1f0",
+      "trackingSHA256": "c2f843bbbc89f7db766d7834a19507b3afa4a756c9cc61469b9f049113294d07",
+      "recoveredNormalizedSHA256": "2082e8bff88e60a575f98e098531da0fb2786ae8bc9d38f2b937c27215a41560",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "2082e8bff88e60a575f98e098531da0fb2786ae8bc9d38f2b937c27215a41560",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionCard.test.tsx",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "1af44361b50a13f3c31df3af2efc2e6795d19bf6fd4264be1cfe5d50a4992453",
+      "trackingSHA256": "f5ec7ac363a1248666f02e7f854295a81f456309b58d07b4a64acabe989d58bb",
+      "recoveredNormalizedSHA256": "c42ab0b410af91719f46881d5a2a213129eeb8a491b2f8376b98f718efc88b4a",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "c42ab0b410af91719f46881d5a2a213129eeb8a491b2f8376b98f718efc88b4a",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionCard.tsx",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "031487e1ceeef4d4c657c2ae814e907cccc1290f01de53d0d22261e3f10d3aa7",
+      "trackingSHA256": "81c8cf6b694e1a74d39499b5756aa0c484f0a313be1d8f097b6085c08638b08c",
+      "recoveredNormalizedSHA256": "3a552b75741132ddd1604d443b53cd64a248dc69b8f6aa96709ce530f1a83298",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "14110ade489ee1041fcdc6320edde7295b4f2646005d7c2c14ffb33aa5072643",
+      "verification": "Reviewed recovery plus separately verified stash-derived 200% Arabic/English typography reflow refinement and tests."
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/transaction-presentation.test.ts",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "7fc4a88c973e98485be8e9fe579f3d99fe007596c0237a18073a302aa3402aa7",
+      "trackingSHA256": "2251c7431e117d950f53118c0dc840e5e4d4f9ac0358fa311dcde2b92cc55078",
+      "recoveredNormalizedSHA256": "9ad0bb6beca99fb1f2d3f8a3b16ce70e4ba5df71bbd7d20af4fe0f7e1e923aa6",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "9ad0bb6beca99fb1f2d3f8a3b16ce70e4ba5df71bbd7d20af4fe0f7e1e923aa6",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/transaction-presentation.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "9b996aaeb5dd074d0b7c62f87b94016e10b0166d9f0169669479508409b02334",
+      "trackingSHA256": "9c87991c5404b00967a4afdc9b607d339ad475b64b7b713943e5a6a263d4e9b8",
+      "recoveredNormalizedSHA256": "e687c564d5e11607436934d808c4c4a1b5e9fd4ffa95b76ade96e743f7fa88fb",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "e687c564d5e11607436934d808c4c4a1b5e9fd4ffa95b76ade96e743f7fa88fb",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/features/voice/voice-transaction-visibility.test.tsx",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "ac9912a9979d24ca7d85fc5b7bdb79689d65437229e59b59967ea5aafe3b919b",
+      "trackingSHA256": "ba0dc269ccd52ded28ba26aca3c2337f9630728446f906c61e303c436c5fef15",
+      "recoveredNormalizedSHA256": "ac9912a9979d24ca7d85fc5b7bdb79689d65437229e59b59967ea5aafe3b919b",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "ac9912a9979d24ca7d85fc5b7bdb79689d65437229e59b59967ea5aafe3b919b",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "098b20d348c7507318c1694d555b68329130087ad0c65bdeb4a8f821a7c72dcc",
+      "trackingSHA256": "2a2c9c16c986795c11d7bb55402d7c6d3b5dddb9d78d03fa433a2a967d4a681a",
+      "recoveredNormalizedSHA256": "e1ef91a8c3d5d98c7429efa3baf62a9f66dbe5e6a9e8193198d0ef128561256f",
+      "selectiveLabelsOnly": true,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "e1ef91a8c3d5d98c7429efa3baf62a9f66dbe5e6a9e8193198d0ef128561256f",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "968062869cf91835e96a8020c8e7b9d56c1aa7a51f539cecba97beed61c4fc7c",
+      "trackingSHA256": "a1726f7d2a2040ed9aa9d7b53c33186867a1164df01b19913bf0902bf9a46518",
+      "recoveredNormalizedSHA256": "fc8786e50a1db3a3e4caca5da53bb45f1c3bac8153f1fc8160c973a6d1afe359",
+      "selectiveLabelsOnly": true,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "fc8786e50a1db3a3e4caca5da53bb45f1c3bac8153f1fc8160c973a6d1afe359",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/contracts/core-finance-service.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "4c144be7474cc24ecf46d902f09e810fb55ea2afcfdf720d8546a1c72243d7f7",
+      "trackingSHA256": "68f81ec447a017888c80ae588d151e1e50bf97359a44fa574ee5ac15e4210cd8",
+      "recoveredNormalizedSHA256": "4c144be7474cc24ecf46d902f09e810fb55ea2afcfdf720d8546a1c72243d7f7",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "4c144be7474cc24ecf46d902f09e810fb55ea2afcfdf720d8546a1c72243d7f7",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/home-today-activity.test.ts",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "cd47dc5c082d825a6411aee42bd81610772644bc3751df271653652b685e3d88",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "cd47dc5c082d825a6411aee42bd81610772644bc3751df271653652b685e3d88",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "cd47dc5c082d825a6411aee42bd81610772644bc3751df271653652b685e3d88",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/home-today-activity.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "9336478ea6b995a5279fd78d25e6e62184ed84ea6916ce97155aa409d6b21b80",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "9336478ea6b995a5279fd78d25e6e62184ed84ea6916ce97155aa409d6b21b80",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "9336478ea6b995a5279fd78d25e6e62184ed84ea6916ce97155aa409d6b21b80",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/assistant-api-service.test.ts",
+      "phase": "assistant-recovery",
+      "kind": "tests",
+      "voiceSHA256": "95725568f073d1eecc60074d6f0956f2690450af4bb507b77bb6a265588b7f92",
+      "trackingSHA256": "ca852aa6bd40ece89a28f139026cdbde81e5e54e3fb88c180265ecc471019b59",
+      "recoveredNormalizedSHA256": "95725568f073d1eecc60074d6f0956f2690450af4bb507b77bb6a265588b7f92",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "95725568f073d1eecc60074d6f0956f2690450af4bb507b77bb6a265588b7f92",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/assistant-api-service.ts",
+      "phase": "assistant-recovery",
+      "kind": "implementation",
+      "voiceSHA256": "c162bee3ee66206ba340256a9ab72d674ce91f07e5a9b9cc687cd486960b6783",
+      "trackingSHA256": "f5afaa8409413f86b699da8ca503ca8e578efdbf98300360ff25006afebb69b0",
+      "recoveredNormalizedSHA256": "c162bee3ee66206ba340256a9ab72d674ce91f07e5a9b9cc687cd486960b6783",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "c162bee3ee66206ba340256a9ab72d674ce91f07e5a9b9cc687cd486960b6783",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "phase": "home-today",
+      "kind": "tests",
+      "voiceSHA256": "20dd102d14d81e777398a2793637f10600114612d8a1ff10852fecc1041a62ea",
+      "trackingSHA256": "1eb13beb785387315d3ea1dba870764c551cf64fbe6c34e91b61cd59d0eb8621",
+      "recoveredNormalizedSHA256": "20dd102d14d81e777398a2793637f10600114612d8a1ff10852fecc1041a62ea",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "20dd102d14d81e777398a2793637f10600114612d8a1ff10852fecc1041a62ea",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "500f2507f172d0631a96ff17367b0ad0f8adbf04190a94b24bc2deaa7d35094a",
+      "trackingSHA256": "3ed39fecbec2ccd347f582a9609812d452c468b691941c71ed56a38670513d1b",
+      "recoveredNormalizedSHA256": "500f2507f172d0631a96ff17367b0ad0f8adbf04190a94b24bc2deaa7d35094a",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "500f2507f172d0631a96ff17367b0ad0f8adbf04190a94b24bc2deaa7d35094a",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/http-client.test.ts",
+      "phase": "http-diagnostics",
+      "kind": "tests",
+      "voiceSHA256": "fcbb2fc44dd028c653fa246ab74b7f85659f4a8dcaaf8b60b346242702614128",
+      "trackingSHA256": "c19b66b417a4e277d7c26eed32d90e535deeefe51127c87bf35ea546868de270",
+      "recoveredNormalizedSHA256": "fcbb2fc44dd028c653fa246ab74b7f85659f4a8dcaaf8b60b346242702614128",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "fcbb2fc44dd028c653fa246ab74b7f85659f4a8dcaaf8b60b346242702614128",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/http-client.ts",
+      "phase": "http-diagnostics",
+      "kind": "implementation",
+      "voiceSHA256": "094cc9558ed7a7af54227a512bd60ecf4f8641247d648958e67798cd441a37a7",
+      "trackingSHA256": "ff62ff8aee9efd25cdc77fad8f763c32950b3f62c8cb4c0a97429bf787368dab",
+      "recoveredNormalizedSHA256": "094cc9558ed7a7af54227a512bd60ecf4f8641247d648958e67798cd441a37a7",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "094cc9558ed7a7af54227a512bd60ecf4f8641247d648958e67798cd441a37a7",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/reports-service.test.ts",
+      "phase": "assistant-recovery",
+      "kind": "tests",
+      "voiceSHA256": "e158e61d1f12a9bcdfe14a22366c900ebab522274382b0a6eece9e049d690567",
+      "trackingSHA256": "3168bef026dc9125e2a651cd17ce667ba48f4545776a86169edc0676ee7fa7d8",
+      "recoveredNormalizedSHA256": "1063935df210fb66e897df3a95699cc7b636753761bcd96bc79c2919329dbc62",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "1063935df210fb66e897df3a95699cc7b636753761bcd96bc79c2919329dbc62",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/live/reports-service.ts",
+      "phase": "assistant-recovery",
+      "kind": "implementation",
+      "voiceSHA256": "31a1b8db88a7686c1f602bb0a21422d74931980902f72319b74c931408d5d998",
+      "trackingSHA256": "050b836c3712c4d8e28114f923bf5f5e6bd68506dca55344b31f1a2746a557ce",
+      "recoveredNormalizedSHA256": "365dd3c9dba3433cfc6ce91a24e7674b801574df0633880534a852daa42a026f",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "365dd3c9dba3433cfc6ce91a24e7674b801574df0633880534a852daa42a026f",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/mocks/core-finance-service.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "15dceabd1e6286ad8234b0fec3a55fe6d5f8a44ad3e280b44f3febb7d15b23fa",
+      "trackingSHA256": "f1cdea6f0210c61464cced324d24af2b93c01385e47699aed1c66195e17c2fb7",
+      "recoveredNormalizedSHA256": "15dceabd1e6286ad8234b0fec3a55fe6d5f8a44ad3e280b44f3febb7d15b23fa",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "15dceabd1e6286ad8234b0fec3a55fe6d5f8a44ad3e280b44f3febb7d15b23fa",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/utils/format-financial-value.ts",
+      "phase": "home-today",
+      "kind": "implementation",
+      "voiceSHA256": "26a464d0be6a9e19e3f7e990850a444715ef4cacdc68ce12a276d322b140d13d",
+      "trackingSHA256": "907208c37429ecabf094617c14011bd02867c874049b663591e774f7bce9b10a",
+      "recoveredNormalizedSHA256": "f61626064164c4a63800302dee284984b015dc6fbf30812e03b32386d93d56a9",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "f61626064164c4a63800302dee284984b015dc6fbf30812e03b32386d93d56a9",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "docs/reviews/2026-10-07-independent-assistant/capture.py",
+      "phase": "review-documentation",
+      "kind": "implementation",
+      "voiceSHA256": "ed624d02d64d3d6bfe8ffe823006e3d4eef0df472b1f79cc0bde4508a9887242",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "58d9ff4d82a23f6d6d2f28f47154e2232c95ec43265539f5e37526280e6c634f",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "58d9ff4d82a23f6d6d2f28f47154e2232c95ec43265539f5e37526280e6c634f",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "docs/reviews/2026-10-07-independent-assistant/design/index.html",
+      "phase": "review-documentation",
+      "kind": "implementation",
+      "voiceSHA256": "3bf376c157f92d50bffc1ff5ea164ac41866676bc188ad006b30eb4e9e5f2105",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "3bf376c157f92d50bffc1ff5ea164ac41866676bc188ad006b30eb4e9e5f2105",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "3bf376c157f92d50bffc1ff5ea164ac41866676bc188ad006b30eb4e9e5f2105",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "docs/reviews/2026-10-07-independent-assistant/runtime-source.cjs",
+      "phase": "review-documentation",
+      "kind": "implementation",
+      "voiceSHA256": "fa17a447323c4343498b67aa7c50adfc0c875532429315a8b262fd30917df8a7",
+      "trackingSHA256": null,
+      "recoveredNormalizedSHA256": "1ec714e8708e9bfc07d64d496abaa0a5d847c30bbe05d8983da9fc096070e866",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "1ec714e8708e9bfc07d64d496abaa0a5d847c30bbe05d8983da9fc096070e866",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "scripts/staging-voice/operating-host.py",
+      "phase": "voice-regressions",
+      "kind": "implementation",
+      "voiceSHA256": "eac66b13a32859ef8dd8e3d8249ee49cd80fc04957a0edfc2d79ab25353b15bc",
+      "trackingSHA256": "32bfb67b077a7cb685a3026bb7e6c37a6c6e20499631dc5e5c17c593b617e769",
+      "recoveredNormalizedSHA256": "b4a0f98ed761bc01414b30527c04619edc094c3c0392ebf9ac0edf54dd229973",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "b4a0f98ed761bc01414b30527c04619edc094c3c0392ebf9ac0edf54dd229973",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "scripts/staging-voice/operating-host.test.py",
+      "phase": "voice-regressions",
+      "kind": "tests",
+      "voiceSHA256": "f0d0dc63638ff6d423ff2b81123ad385d926848bd8e20071bd12ecb19c09b2ba",
+      "trackingSHA256": "2c0250445e10cf449f3350daab9871f1bc8ac4aa9ee6a639ac59c43a1609ec52",
+      "recoveredNormalizedSHA256": "f0d0dc63638ff6d423ff2b81123ad385d926848bd8e20071bd12ecb19c09b2ba",
+      "selectiveLabelsOnly": false,
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "f0d0dc63638ff6d423ff2b81123ad385d926848bd8e20071bd12ecb19c09b2ba",
+      "verification": "Exact reviewed selective recovery after line-ending normalization."
+    },
+    {
+      "path": "apps/mobile/src/services/platform/development-auth-diagnostics.ts",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "dc728ef08a684ecadc23f46f67881cc3f0cdb763a3fb49b4923a6fd0b76e1c5e",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "apps/mobile/src/services/platform/development-auth-diagnostics.test.ts",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "7bf2c36654b02cd540b58292e19adbc2360edc733799b229d3298ca545b270ef",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "apps/mobile/src/services/live/clerk-provider.test.tsx",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "685eb08f106aa3040e4ea767ad9b45628af26bd181adaf84d70efe041cf28167",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "b7322622530bc7e2085dfc9019939dfbc31553dccc7a6ef38eabc320b1b47993",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/accuracy-diagnostics.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "b5703dfd67cab8384dddfd9c5ef7d4e2e74bd3add94ea7a4ae442a6c2371389b",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/accuracy-diagnostics.test.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "356a7234b144726478152067dace0c8f1c73bba42c6af71f0fc808a06e65a03c",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/capture-validation.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "c47e299b460a30eb68817b7d0159cbba4d8321c5cbae39f324dfedfdd6c68a5b",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/capture-validation.test.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "9cfc0ec44f2cee58d46bce417bf87050078f594b34ed5ed6d436b75fdaa1e8c5",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/visibility-fixture.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "6a6bdf1dd3d89f3d0eed2fd2d4939cb53db8739eba02271b55163d926ba9fad9",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/visibility-fixture.test.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "9b35d8a242493f42157fe5f7faed2c3a130b57b679e5a74a123e0653c408418e",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/capacity-fixtures.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "4f216e59c83ea586be33969c2656196d3430c98ec52e188c1727bf48cc62811c",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    },
+    {
+      "path": "docs/reviews/2026-10-04-voice-processing/capacity-fixtures.test.cjs",
+      "disposition": "INTEGRATE",
+      "candidateNormalizedSHA256": "3753192c6c1f60cf4161a2975ca7758dc542d83764d5407770879027251ec352",
+      "verification": "Narrow additional ignored-evidence recovery, adapted to current Tracking interfaces and independently tested."
+    }
+  ]
+}

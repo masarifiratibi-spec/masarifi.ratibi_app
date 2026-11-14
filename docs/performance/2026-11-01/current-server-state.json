@@ -1,0 +1,1187 @@
+{
+  "observedAtUtc": "2026-11-01T21:23:50.992341+00:00",
+  "disk": {
+    "totalBytes": 102915489792,
+    "usedBytes": 27716403200,
+    "availableBytes": 75182309376,
+    "usedPercent": 27
+  },
+  "memory": {
+    "MemTotal": 8321167360,
+    "MemAvailable": 3837984768,
+    "SwapTotal": 0
+  },
+  "containers": [
+    {
+      "id": "47ecec2481c32a6cc801498d4681a6acfa0e7f2fb7f627c40cdbf3e7e966cbda",
+      "name": "masarifi-admin-canonical-721a943b-20261101-01",
+      "role": "admin-ui",
+      "image": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+      "declaredSourceRevisionNotAttestation": "721a943b72837d3f43a4e4b61bc3ab4cd83738d8",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3040/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3040"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/workspace",
+          "readOnly": true,
+          "sourcePathFingerprint": "618d754d06a4db85afd3c29399664663d1aaacabcb4c01014d9bfcca4cfda9ab"
+        },
+        {
+          "type": "bind",
+          "destination": "/workspace/apps/admin-web/.next/cache",
+          "readOnly": false,
+          "sourcePathFingerprint": "fddb1a4aad9b38edc14ed1b6337968ae42242176a9e2ffee1065951842f78db9"
+        }
+      ]
+    },
+    {
+      "id": "c4b0254230515aeee1ac14b959409cd9690b1ffa1accb1b85fab34c1db7fd46e",
+      "name": "masarifi-canonical-721a943b-artifact",
+      "role": "canonical-artifact-check",
+      "image": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+      "declaredSourceRevisionNotAttestation": "721a943b72837d3f43a4e4b61bc3ab4cd83738d8",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {},
+      "mounts": []
+    },
+    {
+      "id": "dce27b9a1691a7ded3d36088c22e83855979a656d8022b153d78dfdd07fe46fa",
+      "name": "masarifi-readiness-restore-20261101-v2",
+      "role": "isolated-recovery-fixture",
+      "image": "sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b",
+      "declaredSourceRevisionNotAttestation": null,
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/var/lib/postgresql/data",
+          "readOnly": false,
+          "sourcePathFingerprint": "6a000b58832a0c712e0ab4bb03fea9576dfe23cab49be0895a994fdde0415fa3"
+        }
+      ]
+    },
+    {
+      "id": "8a2130ec3eb10b44ef3aac7b153b156569e0bb44ba6229e0d49a134ab9841c50",
+      "name": "masarifi-readiness-restore-20261101",
+      "role": "isolated-recovery-fixture",
+      "image": "sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b",
+      "declaredSourceRevisionNotAttestation": null,
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/var/lib/postgresql/data",
+          "readOnly": false,
+          "sourcePathFingerprint": "94fcaf9416305021baba9ed5773f87ee57d1e10addf35e4a5aededbde0be3ba6"
+        }
+      ]
+    },
+    {
+      "id": "073a736f68054484045f236fe4b5a38dcb454664eaa766bacbbfce94392efc21",
+      "name": "masarifi-assistant-reports-worker-20261023",
+      "role": "worker",
+      "image": "sha256:72ae3ed54343c00ab5ab731e969a98a34e21ff9f880729cd7c2c05cb5bf69cb0",
+      "declaredSourceRevisionNotAttestation": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 2,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "75c25ce44eaa6fb32558ef5fec7ecf46b091353a926b04f4cd46bd33d751dbc5",
+      "name": "masarifi-assistant-reports-api-ledger-scope-20261023-t04-r18-8937ba09",
+      "role": "api",
+      "image": "sha256:4b70927fcbf19bf015f80fce0110173152b94a21d5c1146c67133c0b9854f95f",
+      "declaredSourceRevisionNotAttestation": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3001"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "3141295d1a006fc0408b2dc5b6ea6257be4ca5a30e511a37e4f9963a4a864591",
+      "name": "masarifi-dev-voice-repair-worker-d7fa3054-5e79-4668-a72d-522950777dff",
+      "role": "worker",
+      "image": "sha256:14ac05c7a6ab010f4e143868415988fb9d78d26738ae6ccf6d417e8b620ce395",
+      "declaredSourceRevisionNotAttestation": "d02f03df7ab49260c57800d7576f1cd2c2a1ca24",
+      "status": "restarting",
+      "running": true,
+      "restarting": true,
+      "oomKilled": false,
+      "restartCount": 574,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "1ed0ac75c26f93b349530d5a532e935bcd80dddbbb1f830c6a757a5d14f07c9b",
+      "name": "masarifi-staging-analysis-worker-1",
+      "role": "worker",
+      "image": "sha256:fb25127724ec75ba42ddba05cbc88154803fb24b19991f3a8f645aedd93f9f69",
+      "declaredSourceRevisionNotAttestation": "ac7bc92ab2e6e6c2e50a969de6c69463688febae",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "4c58f6c44018c4afaad5346e296d54e965eed76dc77dd48248c508a2d69a0703",
+      "name": "masarifi-staging-worker-1",
+      "role": "worker",
+      "image": "sha256:f1ea1557383d70cd3e78e361c18412171bb0ae002ea53314eefaddbd20495bf4",
+      "declaredSourceRevisionNotAttestation": "f97a5d9d41d30267b5730acbfaadc60ba0e4fd12",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 1,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "69fc061f6d76fa3a3b4eb01e53d1c3a59def5d36746a8fc7b6d625bd3c05802c",
+      "name": "masarifi-requested-pdf-email-20261031-01",
+      "role": "worker",
+      "image": "sha256:6cfb97248a949f0278304b358e584006657b60612d0a141a97eea477f9794b4e",
+      "declaredSourceRevisionNotAttestation": "a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 13,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "5ba09a5b36366ec707726f5e23d73e93b3b36ec0f50147100d4ab51beb3d9747",
+      "name": "masarifi-dev-sync-readiness-20261019-t04-r18-8937ba09",
+      "role": "api",
+      "image": "sha256:6569dd9087ab58bed5a3c8dc7ca1d65fcd6354547642f63786af0438939351e0",
+      "declaredSourceRevisionNotAttestation": "e72a99b172424973eaa2c5a2dedfcc8be308d015",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3020"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "ea55008a6d75877cfcf7745d40cc04d3e026bbfeb5fce8c0bc0f8f0972b9abe2",
+      "name": "masarifi-admin-recovery-customer-worker-7e3bbef0",
+      "role": "worker",
+      "image": "sha256:274f4e7dca0add015e834c9b0af9a8371fac4b78bfabf18833d2467500c424f1",
+      "declaredSourceRevisionNotAttestation": "7e3bbef0cdccc2ee5509dd332f4e32236af01b90",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 1,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "a30543c1cafa8278777e3e95069db0306178f821d9254e257425f06c7ebedaad",
+      "name": "masarifi-admin-recovery-api-7e3bbef0",
+      "role": "api",
+      "image": "sha256:274f4e7dca0add015e834c9b0af9a8371fac4b78bfabf18833d2467500c424f1",
+      "declaredSourceRevisionNotAttestation": "7e3bbef0cdccc2ee5509dd332f4e32236af01b90",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3033"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "d68865c934988202324ac9b500d9212375f4b7715599e8adecce4decc407519a",
+      "name": "masarifi-qa-assistant-routing-20261022",
+      "role": "api",
+      "image": "sha256:69e6bcb561255c151ddda7c3dec51b628b93d882d7cf4124edde7215e2be1f6a",
+      "declaredSourceRevisionNotAttestation": "c430442b292eaa245a3bfd6dca957e0edda041e2",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3013"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "e64887dcc5a24bc0f16bb8a87adcb2c738d246ecec1ee7bb90c50348aa6b7511",
+      "name": "masarifi-qa-assistant-persistence-20261022",
+      "role": "worker",
+      "image": "sha256:fabc278b525e54a08ba24a06071c466cc46af564b01719c9bb2cebde3e3daa71",
+      "declaredSourceRevisionNotAttestation": "ac7bc92ab2e6e6c2e50a969de6c69463688febae",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 1,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "1b48baf2daabf981a6dff4e4c4e9ce7282c19ca1cf8d85e8e7a3b58a0e5af0ce",
+      "name": "masarifi-dev-immediate-delete-2764f849",
+      "role": "api",
+      "image": "sha256:abb6e9137a52c309e78e0069895a1a855e6af78c48ceb05364808816b8037576",
+      "declaredSourceRevisionNotAttestation": "2764f849137ddf1cef468dff3fd150e942d5c26e",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3027"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "3924f79349f7b75849c077dc959124b64a443232ecdab817c593fd532744574d",
+      "name": "masarifi-account-voice-api-7a18a547",
+      "role": "api",
+      "image": "sha256:feb275e498a0c2a9298993655917f4db4d9d099f3b2524ab39a72fc9b647fa8f",
+      "declaredSourceRevisionNotAttestation": "7a18a54730e8c8f896dcf7f179ff467a137ba19c",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3026"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "2f5b87e31098cbd77d541f834539e8fee1baa836c66285fc5bd931a5450b5b9d",
+      "name": "masarifi-social-media-staging-api-bb0f2fe7",
+      "role": "api",
+      "image": "sha256:915a8c35b9ca82518859e3000d994e8955c71ccc4027a6380515bfc8bd669ea8",
+      "declaredSourceRevisionNotAttestation": "bb0f2fe746bb496b6937b7e8613f08998a79938f",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3024"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "aeb8b5a28ef89cc1e9668f96392371b006101b7dbbad9e1c573902d44c01dc00",
+      "name": "masarifi-dev-reminders-20261021",
+      "role": "worker",
+      "image": "sha256:41fb00ac178e96fd82a8bb20a279ce1c9464ec073368a40a6ec060087592f75b",
+      "declaredSourceRevisionNotAttestation": "23f9ba5b564af5a85743c4872515fb889818f74a",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "97968e0658a51c005c26beb17c5bfc5a277d9f0991076460e2ae23c572147c84",
+      "name": "masarifi-permanent-dev-api-20261021",
+      "role": "api",
+      "image": "sha256:41fb00ac178e96fd82a8bb20a279ce1c9464ec073368a40a6ec060087592f75b",
+      "declaredSourceRevisionNotAttestation": "23f9ba5b564af5a85743c4872515fb889818f74a",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3023"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "13bb9318eb9241d84b0ed39c1a1437b1d576c18304de00d5d1449ce235fabbfc",
+      "name": "masarifi-dev-account-deletion-contract-20261020",
+      "role": "api",
+      "image": "sha256:8fa16063cb13fe7b482c981fd0641c2d9c35a4dcc9c41b2e6d8bd819cd32de3e",
+      "declaredSourceRevisionNotAttestation": null,
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3022"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "aa95a405e53aec5eb1ee2ee091ea71c3443e13b601c135c4ff757f2b68279708",
+      "name": "masarifi-dev-assistant-parts-20261019",
+      "role": "worker",
+      "image": "sha256:2028e0f31e3caa29dc606cb3974267ad57e8ea5e6b159f4e06cdf4302f4e526a",
+      "declaredSourceRevisionNotAttestation": "c430442b292eaa245a3bfd6dca957e0edda041e2",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "145d5f39ac167d6490c06ac1d9f631ecc8cd999984ebed506dcc602b18e5a10d",
+      "name": "masarifi-dev-planning-scope-20261019",
+      "role": "api",
+      "image": "sha256:bafbc3986eb88e5b8f79473cb142816801b5f5df5323be68706bf72572b6c9bc",
+      "declaredSourceRevisionNotAttestation": "e72a99b172424973eaa2c5a2dedfcc8be308d015",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3021"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "a8a2540cc8727a35f75c721cd2f2b5cbaffdf53cf6e675c91750777ed6fbc307",
+      "name": "masarifi-dev-voice-repair-api-d7fa3054-5e79-4668-a72d-522950777dff",
+      "role": "api",
+      "image": "sha256:14ac05c7a6ab010f4e143868415988fb9d78d26738ae6ccf6d417e8b620ce395",
+      "declaredSourceRevisionNotAttestation": "d02f03df7ab49260c57800d7576f1cd2c2a1ca24",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3004"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "12a43edf4bd582b8b5f55eacc122d1b50f1215e4b3f2eb38eb5f0d737c74da72",
+      "name": "masarifi-staging-p0-finance-2026-10-18",
+      "role": "api",
+      "image": "sha256:8cc1aaee453d3c72f7726ff0af4f49c809b75b6638a0a0b1b7a14e3f2e83f632",
+      "declaredSourceRevisionNotAttestation": "139be49655177e5748382b6c46731095c7d71e45",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3019"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "ce35b711f187ef35dae45f88668b313e862941e95979ffe48d194a2f3a3b45ec",
+      "name": "masarifi-staging-planning-review-9f650fa5",
+      "role": "api",
+      "image": "sha256:2acb8a59eec92fd14a7f0f9e2c73da3f20880e33c5d82d1822d5014f7e23944e",
+      "declaredSourceRevisionNotAttestation": "139be49655177e5748382b6c46731095c7d71e45",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3018"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "2190e5f65bb3666d81a4d13bd249d27e83fbabfd3601085ff9300dee39fcbf21",
+      "name": "masarifi-staging-payment-history-f65be899",
+      "role": "api",
+      "image": "sha256:f2a739ff394a44ecaaf6f7d1ae779111bafaba7f6c1d8e0e835f406199a9e5e5",
+      "declaredSourceRevisionNotAttestation": "139be49655177e5748382b6c46731095c7d71e45",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3017"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "2ef09cd984fbbb44985449c869c34eb4897c23d06bcda2d26db4f5abb958a516",
+      "name": "masarifi-immediate-storage-runtime-upgrade-2026-10-16-worker",
+      "role": "worker",
+      "image": "sha256:7ed39b790ac1c3975147b3d9a7215b7b96f0be227ba968cf4bf22699c79c17bc",
+      "declaredSourceRevisionNotAttestation": "577defc5084b420130422db0a373444a365695d7",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 1,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "899653619fc52072ec498e19bd41608947ff488ddebe27186cb1970c6f1d56e1",
+      "name": "masarifi-immediate-storage-runtime-upgrade-2026-10-16-api",
+      "role": "api",
+      "image": "sha256:7ed39b790ac1c3975147b3d9a7215b7b96f0be227ba968cf4bf22699c79c17bc",
+      "declaredSourceRevisionNotAttestation": "577defc5084b420130422db0a373444a365695d7",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3016"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "df15c0f2bd56f8be66ee87205fc6723aee358d8212bc544d10164fbd18d851b8",
+      "name": "masarifi-immediate-dev-privacy-api-2b3d1061-41c9-4b63-8436-dfdf11aef07c",
+      "role": "api",
+      "image": "sha256:7c6ff3b9f5a6d7ce39796aba1677fb49190869ff88707a59836c4e19d5242d1e",
+      "declaredSourceRevisionNotAttestation": "d6cb730c576e44bcd2bbdec2d16a289b64c76c06",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3015"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "fffa76a3f1d9b68e70f1c32b5c344c85131dee712c190ac0d0409ac2c8d12e48",
+      "name": "masarifi-native-dev-privacy-api-75422a63-ccd4-48d9-a79a-42f8082c7822",
+      "role": "api",
+      "image": "sha256:42d90d33691e1078321bfd44ddf679aae4be7f04085ac7fcab7f5ebed1fffc5b",
+      "declaredSourceRevisionNotAttestation": "c430442b292eaa245a3bfd6dca957e0edda041e2",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3014"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "4533d99caffeb32c756f40db6b904070fc75f2aaed5984b8b711f94f283657b7",
+      "name": "masarifi-dev-assistant-reliability-v4-api-b81cbf9c-15d8-4eae-9420-55d2426fdca9",
+      "role": "api",
+      "image": "sha256:36c89e561578126f65665139b254b7c8ad71c776846529dfec0a49aae20a3907",
+      "declaredSourceRevisionNotAttestation": "29c73f2c8943eb9a3cc77eed7e13413eb869b90f",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3011"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "441d4b9062e77a3a6029bf7b6f6a784435ed756630dc271f7b1c3fcf5a8c1f23",
+      "name": "masarifi-dev-assistant-reliability-v3-api-fff643c2-442f-434c-82c6-ec363b978477",
+      "role": "api",
+      "image": "sha256:8571e39b294d7952e674265a558eebf6670c3bd2a60a55dbed00a6c1f0db4276",
+      "declaredSourceRevisionNotAttestation": "5f6518ebd8bcf66718fba3c4f50d565aab9a366b",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3010"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "0c06e9acc8477b29e941dc5ca91491170c148d7d7cf551ee824f71dcd11dc918",
+      "name": "masarifi-dev-assistant-reliability-api-2fc911f4-ac5f-48e0-a1f9-4ab3cf76146d",
+      "role": "api",
+      "image": "sha256:047aac33fec27d56c4f3fcf1c5c9682940d0a7cf5c575bb43d842da6f6db5463",
+      "declaredSourceRevisionNotAttestation": "0254a5ac1c0b89b3f5fbde79d1bb8cb139925371",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3009"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "d398d75fd8373fd12cbb0d51c7e69b55d63eeab45f532f494876f48152165d04",
+      "name": "masarifi-dev-assistant-specialization-api-3e68fa2f-1e4e-402d-871a-ef324fb45d16",
+      "role": "api",
+      "image": "sha256:2f6dc5be22ce995dc1eeeb479a7d2d26e89a3acfc5d9ee639bdcf6ac3e425a9d",
+      "declaredSourceRevisionNotAttestation": "c35ab714ef8b09c78d07196321a4c52949d3936b",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3008"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "a62024e988c8148f00e627ffe29cc8e7e5802f9c6ff1f8fdd60c01ee6f90e1aa",
+      "name": "masarifi-dev-assistant-performance-api-9b100867-4bfb-44e2-b6f1-0ca2d4a62a43",
+      "role": "api",
+      "image": "sha256:9f615f89cc53623edc4630080ee0cc2edc3e839e28f953f25e3939cbec65bde4",
+      "declaredSourceRevisionNotAttestation": "d7a4d8942fa7d8502d82ea5f2390063ebd802976",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3007"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "efd724a9b560a8d50b59a22905755e70bb8369a912d92812e506aca5f32bb25b",
+      "name": "masarifi-dev-assistant-upgrade-api-a9973ab2-892e-4dbb-9d3f-dea435da3f2d",
+      "role": "api",
+      "image": "sha256:262d7bf93de2dad3684a44aa25a274f3183fc443bd213545f3a2476f80b75604",
+      "declaredSourceRevisionNotAttestation": "d6242b77dc980daa1bc55ef5a377aa96f1e5fe65",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3006"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "b2fd3cbc38237214c06e019a333abee56b0cd8b0c119a14138a0ff2b00f7a929",
+      "name": "masarifi-dev-assistant-api-1d25d705-dd09-4adb-a6e1-add2360af337",
+      "role": "api",
+      "image": "sha256:ed8b92f9b7723bf8077b777da6766a6ff901c56dc958d11ecac80a407722dbc7",
+      "declaredSourceRevisionNotAttestation": "204bfcb6d5ed41e426b60a3f471225f76b8bd713",
+      "status": "exited",
+      "running": false,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "no",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3005"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "03dc9ab0f37fec34383753cee5ea6207cd6638a8488cb10fbc99af1ce9b4a988",
+      "name": "masarifi-staging-tracking-maintenance-e079e570-eab5-43f0-a6ed-ac98e3fc10bd",
+      "role": "worker",
+      "image": "sha256:03f699578d0d3e0b92cc1db5944e82d41fe575cc03273d1b23679f37ed22c957",
+      "declaredSourceRevisionNotAttestation": "79cd3a758a8cb305d863542895c9e1ca3373ee25",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 2,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/app/tracking-acceptance.cjs",
+          "readOnly": true,
+          "sourcePathFingerprint": "37a6e508f6d39c007b4ce2904c790bd6955a4cc28b25ef6fe35254cd9bba482e"
+        },
+        {
+          "type": "bind",
+          "destination": "/app/tracking-recovery-gate.json",
+          "readOnly": true,
+          "sourcePathFingerprint": "37d52319127c677f44fe0bd0eb2522e05709e12aeb53b60f11bdcd58b6408ea7"
+        },
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "98cb120092a0685a003b42f3854523d775905451696ad0b93241706c1cb15fd7",
+      "name": "masarifi-staging-api-1",
+      "role": "api",
+      "image": "sha256:a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383",
+      "declaredSourceRevisionNotAttestation": "ac7bc92ab2e6e6c2e50a969de6c69463688febae",
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3000"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/etc/ssl/certs/masarifi-database-ca.crt",
+          "readOnly": true,
+          "sourcePathFingerprint": "5a644b272b7d1b0345701b60cb8b7dbc82871cecfe2a7bc2f539ff07c2e43494"
+        }
+      ]
+    },
+    {
+      "id": "bcffc1641fd8ae2b7ecbc84ab244037fe3998b0abf63fc0e95a6ff2c6717cc88",
+      "name": "masarifi-staging-clamav-1",
+      "role": "dependency-or-tool",
+      "image": "sha256:e8388295191bff0893fb889d9415ae975491201c989b205e30c9057b1985d36a",
+      "declaredSourceRevisionNotAttestation": null,
+      "status": "running",
+      "running": true,
+      "restarting": false,
+      "oomKilled": false,
+      "restartCount": 0,
+      "restartPolicy": "unless-stopped",
+      "publishedPorts": {},
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/var/lib/clamav",
+          "readOnly": false,
+          "sourcePathFingerprint": "7aef6e2e1c2503329baf3842c39474b91fdcd59985282b9b9b1627c3a1f619c4"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "containers": 41,
+    "activeContainers": 27,
+    "activeApis": 14,
+    "activeWorkers": 11,
+    "activeAdminUis": 1,
+    "images": 35
+  },
+  "apiLiveness": {
+    "3000": "200",
+    "3001": "200",
+    "3004": "200",
+    "3016": "200",
+    "3017": "200",
+    "3018": "200",
+    "3019": "200",
+    "3020": "200",
+    "3021": "200",
+    "3023": "200",
+    "3024": "200",
+    "3026": "200",
+    "3027": "200",
+    "3033": "200"
+  },
+  "publicAdminTls": {
+    "/": "307",
+    "/delete-account": "200",
+    "/_next/static/chunks/1m9hg5q6q0-6j.css": "200"
+  },
+  "retiredAdminUnits": [
+    {
+      "Id": "masarifi-admin.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-social-media-admin-bb0f2fe7.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-admin-recovery-ui-daeb1ef1.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-admin-recovery-ui-01ae6311.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-admin-feedback-a7d21c42-01.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-admin-feedback-route-97662218-01.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    },
+    {
+      "Id": "masarifi-admin-ui-8678c586-01.service",
+      "ActiveState": "inactive",
+      "UnitFileState": "disabled",
+      "MainPID": "0"
+    }
+  ],
+  "dockerSystemDf": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          35        35        4.822GB   0B (0%)\nContainers      41        27        1.692MB   417.8kB (24%)\nLocal Volumes   3         3         1.63GB    0B (0%)\nBuild Cache     17        0         9.698MB   9.698MB\n",
+  "actualBusinessReadsMeasured": false,
+  "secretsExported": false
+}

@@ -1,0 +1,41 @@
+{
+  "atUtc": "2026-11-06T20:49:11.464564+00:00",
+  "reviewedManifestSha256": "3914354a4108060bfcb0bafb7376bb9307003551661a1e6910c56198bec34022",
+  "candidateApiImageId": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+  "oldApiId": "ad1001547d10ebdca2f4fda7dfb220735ea965fa161f0b0b85af33ff3f6bb7d8",
+  "newApiId": "0af822702cf12217821f1cfd4a1c14b0053b1f19200272b26f75ed42168cf1ce",
+  "newStartedAt": "2026-11-06T20:49:06.882316968Z",
+  "allOtherContainersUnchanged": true,
+  "otherContainerCount": 30,
+  "environmentAndRuntimePreserved": true,
+  "hostedInputFilesPreserved": true,
+  "loopbackLive": "ok",
+  "loopbackReady": "ready",
+  "publicTlsLiveness": "ok",
+  "unauthenticatedAssistantReadStatus": 401,
+  "noSchemaModelWorkerEnvironmentDnsTlsChange": true,
+  "actualPhoneSelfDeletionAcceptancePending": true,
+  "rollbackExecuted": false,
+  "productionReady": false,
+  "unauthenticatedSelfDeletionPostStatus": 401,
+  "noExtraFactorChallengeForAuthenticatedSelfDeletionImageSmokePassed": true,
+  "accessClosed": {
+    "atUtc": "2026-11-06T20:51:16.703506+00:00",
+    "apiId": "0af822702cf12217821f1cfd4a1c14b0053b1f19200272b26f75ed42168cf1ce",
+    "apiImageId": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+    "apiHealthy": true,
+    "other30ServingContainersUnchanged": true,
+    "environmentAndHostedFilesPreserved": true,
+    "task33SshRuleRemoved": true,
+    "allFourUfwFilesMetadataAndStatusRestored": {
+      "/etc/ufw/user.rules": true,
+      "/etc/ufw/user6.rules": true,
+      "/etc/ufw/before.rules": true,
+      "/etc/ufw/before6.rules": true
+    },
+    "noAgentOriginalAccountDeletion": true
+  },
+  "sameApplication123Preserved": true,
+  "actualUserAcceptance": "User reported the old verification-code control remains. Screenshot proves locally persisted verification_required state; source requires a client continuation repair. No completed original-account deletion claimed.",
+  "actualDeletionAcceptance": false
+}

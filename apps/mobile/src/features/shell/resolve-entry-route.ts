@@ -5,6 +5,7 @@ import type {
 } from '@/domain/app-shell';
 import type { ProfileSetupStatus } from '@/domain/settings';
 import { sanitizeReturnRoute } from './navigation-context';
+import { isAppLockEnabled } from '@/config/client-runtime';
 
 export interface EntryRouteInput {
   hydrated: boolean;
@@ -20,24 +21,37 @@ export interface EntryRouteInput {
 const homeRoute = '/(tabs)/home';
 
 export function resolveEntryRoute(input: EntryRouteInput): string {
-  if (!input.hydrated) return '/index';
-  if (!isSessionValid(input.session, input.now ?? Date.now())) {
+  if (!input.hydrated || input.session?.status === 'restoring') return '/index';
+  const localAccess =
+    input.session?.status === 'authenticated' &&
+    input.session.restoration === 'local' &&
+    input.session.userId &&
+    input.profileSetupStatus === 'complete' &&
+    (input.privacyLock?.enabled || !isAppLockEnabled());
+  if (
+    input.session?.restoration === 'local'
+      ? !localAccess
+      : !isSessionValid(input.session, input.now ?? Date.now())
+  ) {
     return input.firstLaunchOnboardingCompleted
       ? '/(public)/auth-pending'
       : '/welcome';
   }
-  if (input.privacyLock && input.privacyLock.appLockStatus !== 'unlocked') {
+  if (
+    isAppLockEnabled() &&
+    input.privacyLock?.enabled &&
+    input.privacyLock.appLockStatus !== 'unlocked'
+  ) {
     return '/security/unlock';
   }
   if (
     input.profileSetupStatus === 'unknown' ||
-    input.profileSetupStatus === 'loading'
-  )
-    return '/index';
-  if (
-    input.profileSetupStatus === 'incomplete' ||
+    input.profileSetupStatus === 'loading' ||
+    input.profileSetupStatus === 'unavailable' ||
     input.profileSetupStatus === 'error'
   )
+    return '/index';
+  if (input.profileSetupStatus === 'incomplete')
     return '/(onboarding)/profile-setup';
   return sanitizeReturnRoute(input.pendingDestination) ?? homeRoute;
 }

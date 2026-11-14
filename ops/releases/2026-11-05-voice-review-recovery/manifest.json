@@ -1,0 +1,25 @@
+{
+  "status": "prepared-not-activated",
+  "head": "fbbf7a317227c5c6e1dd7792d742fa892bcc5ab4",
+  "backendImageSource": "97e66588b2b516ae8c67e285f8439be591439dd6",
+  "target": "core-api",
+  "changedEnvironment": {
+    "MASARIFI_VOICE_ANALYSIS_ONLY": {
+      "before": "false",
+      "after": "true"
+    }
+  },
+  "existingImage": "masarifi-readiness-production@sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc",
+  "baseComposeSha256": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5",
+  "unchangedApiEnvSha256": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389",
+  "candidateMergeValidated": true,
+  "existingImageNetworkNoneConfigValidated": true,
+  "retainedContainers": 30,
+  "retainedMetadataSha256": "27600b0eb5c6b6a3082cd2334811cfcb0032b4f9ed371cb25be23e39827591fc",
+  "files": {
+    "compose.voice-review.yml": "a6bd0ca4fe27bdf120b1508da55f240f55b9087d81d3f4ebce5ab4440abc40f0",
+    "deployment-runbook.md": "5a90cfd179251402f120ee0acb2b0ca12a89366a6dfbef46545d09f30d0d60ec"
+  },
+  "sameCustomer107ApkSha256": "95098ae581392454e0a37fc03975aa9b983eed8c5b0e74c0ad46dabb59177a27",
+  "newVoiceAcceptancePending": true
+}

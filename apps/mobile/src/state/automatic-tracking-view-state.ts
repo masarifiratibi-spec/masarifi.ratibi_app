@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 
+/** Saved reads are display models; native capture configuration remains independently verified. */
+export const automaticTrackingReadKey = (
+  key: readonly unknown[],
+  ownerId?: string | null
+) => (ownerId ? ([...key, { ownerId }] as const) : key);
+
 export const automaticTrackingKeys = {
   status: ['automatic-tracking', 'status'] as const,
   history: (query?: unknown) =>

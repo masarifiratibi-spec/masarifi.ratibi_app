@@ -1,0 +1,3015 @@
+[
+  {
+    "route": "/",
+    "example": "/",
+    "permission": "redirect to authenticated /admin",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [],
+    "endpoints": [],
+    "source": "apps/admin-web/src/app/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Entry redirect to /admin; no page API of its own."
+  },
+  {
+    "route": "/admin",
+    "example": "/admin",
+    "permission": "admin.overview.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/overview/repository.ts",
+      "apps/admin-web/src/features/overview/report-exports.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/overview?${params}",
+      "/api/v1/admin/overview/platform-analytics?${params}",
+      "/api/v1/admin/overview/activity?${params}",
+      "/api/v1/admin/exports",
+      "/api/v1/admin/exports/${encodeURIComponent(z.uuid().parse(attemptId))}"
+    ],
+    "source": "apps/admin-web/src/app/admin/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/access-requests",
+    "example": "/admin/access-requests",
+    "permission": "support.access.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/support-access/requests"
+    ],
+    "source": "apps/admin-web/src/app/admin/access-requests/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
+  },
+  {
+    "route": "/admin/access-requests/[requestId]",
+    "example": "/admin/access-requests/ACC-1001",
+    "permission": "support.access.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/support-access/requests/{requestId}",
+      "/api/v1/admin/support-access/requests/{requestId}/decision",
+      "/api/v1/admin/support-access/requests/{requestId}/revoke"
+    ],
+    "source": "apps/admin-web/src/app/admin/access-requests/[requestId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
+  },
+  {
+    "route": "/admin/access-requests/[requestId]/workspace",
+    "example": "/admin/access-requests/ACC-1003/workspace",
+    "permission": "support.access.use",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/access/repository.ts",
+      "apps/admin-web/src/features/access/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/support-access/requests/{requestId}/workspace",
+      "/api/v1/admin/support-access/requests/{requestId}/end"
+    ],
+    "source": "apps/admin-web/src/app/admin/access-requests/[requestId]/workspace/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Live candidate adapter. The historical ACC-* visit is synthetic; real request IDs are UUIDs."
+  },
+  {
+    "route": "/admin/admin-team",
+    "example": "/admin/admin-team",
+    "permission": "admin-team.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/admin-team/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/admin-team/[adminId]",
+    "example": "/admin/admin-team/ADM-DEMO-SUPPORT-03",
+    "permission": "admin-team.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/admin-team/[adminId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/admin-team/invite",
+    "example": "/admin/admin-team/invite",
+    "permission": "admin-team.invite",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/admin-team/invite/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai",
+    "example": "/admin/ai",
+    "permission": "ai.overview.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/failures",
+    "example": "/admin/ai/failures",
+    "permission": "ai.failures.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/failures/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/models",
+    "example": "/admin/ai/models",
+    "permission": "ai.models.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/models/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/prompts",
+    "example": "/admin/ai/prompts",
+    "permission": "ai.prompts.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/prompts/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/prompts/[promptId]",
+    "example": "/admin/ai/prompts/AIPR-RECEIPT-AR-V3",
+    "permission": "ai.prompts.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/prompts/[promptId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/providers",
+    "example": "/admin/ai/providers",
+    "permission": "ai.providers.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/providers/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/providers/[providerId]",
+    "example": "/admin/ai/providers/AIP-OPENAI",
+    "permission": "ai.providers.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/providers/[providerId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/reports",
+    "example": "/admin/ai/reports",
+    "permission": "ai.reports.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/reports/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/safety-rules",
+    "example": "/admin/ai/safety-rules",
+    "permission": "ai.safety.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/safety-rules/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/ai/usage",
+    "example": "/admin/ai/usage",
+    "permission": "ai.usage.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/ai/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/ai"
+    ],
+    "source": "apps/admin-web/src/app/admin/ai/usage/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/audit",
+    "example": "/admin/audit",
+    "permission": "audit.logs.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/audit/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/audit/[eventId]",
+    "example": "/admin/audit/AUD-1001",
+    "permission": "audit.logs.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/audit/[eventId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/announcements",
+    "example": "/admin/content/announcements",
+    "permission": "communications.templates.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/announcements/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/categories",
+    "example": "/admin/content/categories",
+    "permission": "content.categories.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/categories/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/categories/[categoryId]",
+    "example": "/admin/content/categories/CAT-1001",
+    "permission": "content.categories.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/categories/[categoryId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/email-templates",
+    "example": "/admin/content/email-templates",
+    "permission": "communications.templates.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/email-templates/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/faqs",
+    "example": "/admin/content/faqs",
+    "permission": "content.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/faqs/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/help-center",
+    "example": "/admin/content/help-center",
+    "permission": "content.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/help-center/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/onboarding",
+    "example": "/admin/content/onboarding",
+    "permission": "content.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/onboarding/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/push-templates",
+    "example": "/admin/content/push-templates",
+    "permission": "communications.templates.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/push-templates/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/content/tips",
+    "example": "/admin/content/tips",
+    "permission": "content.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/content/tips/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/data-requests/deletions",
+    "example": "/admin/data-requests/deletions",
+    "permission": "data_requests.deletions.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/data-requests/deletions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/data-requests/deletions/[requestId]",
+    "example": "/admin/data-requests/deletions/DEL-1001",
+    "permission": "data_requests.deletions.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/data-requests/deletions/[requestId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/data-requests/exports",
+    "example": "/admin/data-requests/exports",
+    "permission": "data_requests.exports.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/data-requests/exports/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/data-requests/exports/[requestId]",
+    "example": "/admin/data-requests/exports/EXP-1001",
+    "permission": "data_requests.exports.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/data-requests/exports/[requestId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/data-requests/retention",
+    "example": "/admin/data-requests/retention",
+    "permission": "data_retention.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/data-requests/retention/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/feedback",
+    "example": "/admin/feedback",
+    "permission": "feedback.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/feedback/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/feedback/[feedbackId]",
+    "example": "/admin/feedback/FDB-1001",
+    "permission": "feedback.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/feedback/[feedbackId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/feedback/abuse",
+    "example": "/admin/feedback/abuse",
+    "permission": "feedback.abuse.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/feedback/abuse/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports",
+    "example": "/admin/imports",
+    "permission": "imports.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/duplicates",
+    "example": "/admin/imports/duplicates",
+    "permission": "imports.duplicates.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/duplicates/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/failed",
+    "example": "/admin/imports/failed",
+    "permission": "imports.failures.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/failed/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/low-confidence",
+    "example": "/admin/imports/low-confidence",
+    "permission": "imports.confidence.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/low-confidence/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/sessions",
+    "example": "/admin/imports/sessions",
+    "permission": "imports.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/sessions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/sessions/[importId]",
+    "example": "/admin/imports/sessions/IMP-77241",
+    "permission": "imports.detail.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/sessions/[importId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/imports/unsupported",
+    "example": "/admin/imports/unsupported",
+    "permission": "imports.unsupported.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/imports/unsupported/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/jobs/queues",
+    "example": "/admin/jobs/queues",
+    "permission": "jobs.queues.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/jobs/queues/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/jobs/runs",
+    "example": "/admin/jobs/runs",
+    "permission": "jobs.runs.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/jobs/runs/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/jobs/runs/[jobRunId]",
+    "example": "/admin/jobs/runs/JOB-DEMO-FAILED-01",
+    "permission": "jobs.runs.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/jobs/runs/[jobRunId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/jobs/scheduled",
+    "example": "/admin/jobs/scheduled",
+    "permission": "jobs.schedules.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/jobs/scheduled/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications",
+    "example": "/admin/notifications",
+    "permission": "notifications.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications/campaigns",
+    "example": "/admin/notifications/campaigns",
+    "permission": "notifications.campaigns.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/campaigns/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications/campaigns/[campaignId]",
+    "example": "/admin/notifications/campaigns/CMP-1001",
+    "permission": "notifications.campaigns.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/campaigns/[campaignId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications/campaigns/new",
+    "example": "/admin/notifications/campaigns/new",
+    "permission": "notifications.campaigns.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/campaigns/new/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications/delivery-logs",
+    "example": "/admin/notifications/delivery-logs",
+    "permission": "notifications.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/delivery-logs/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/notifications/transactional",
+    "example": "/admin/notifications/transactional",
+    "permission": "notifications.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/notifications/transactional/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/banks",
+    "example": "/admin/parsers/banks",
+    "permission": "parsers.coverage.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/banks/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/banks/[bankId]",
+    "example": "/admin/parsers/banks/BNK-001",
+    "permission": "parsers.coverage.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/banks/[bankId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/category-rules",
+    "example": "/admin/parsers/category-rules",
+    "permission": "parsers.categories.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/category-rules/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/merchant-rules",
+    "example": "/admin/parsers/merchant-rules",
+    "permission": "parsers.merchants.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/merchant-rules/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/rules",
+    "example": "/admin/parsers/rules",
+    "permission": "parsers.rules.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/rules/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/rules/[ruleId]",
+    "example": "/admin/parsers/rules/PRL-001",
+    "permission": "parsers.rules.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/rules/[ruleId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/senders",
+    "example": "/admin/parsers/senders",
+    "permission": "parsers.senders.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/senders/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/test-cases",
+    "example": "/admin/parsers/test-cases",
+    "permission": "parsers.tests.run",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/test-cases/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/parsers/versions",
+    "example": "/admin/parsers/versions",
+    "permission": "parsers.versions.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/imports/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/imports/sessions",
+      "/api/v1/admin/imports/failures",
+      "/api/v1/admin/imports/low-confidence",
+      "/api/v1/admin/imports/duplicates",
+      "/api/v1/admin/imports/unsupported-formats",
+      "/api/v1/admin/parsers/institutions",
+      "/api/v1/admin/parsers/senders",
+      "/api/v1/admin/parsers/rules",
+      "/api/v1/admin/parsers/test-cases",
+      "/api/v1/admin/parsers/versions",
+      "/api/v1/admin/parsers/merchant-rules",
+      "/api/v1/admin/parsers/category-rules",
+      "/api/v1/admin/imports?${params}",
+      "/api/v1/admin/imports/${encodedId}/retry${params}",
+      "/api/v1/admin/imports/sessions/${encodedId}/retry-handoff",
+      "/api/v1/admin/imports/overview?platform=${encodeURIComponent(parsedPlatform)}",
+      "/api/v1/admin/imports/overview"
+    ],
+    "source": "apps/admin-web/src/app/admin/parsers/versions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/payments",
+    "example": "/admin/payments",
+    "permission": "payments.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/payments/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/payments/events/[eventId]",
+    "example": "/admin/payments/events/EVT-20260728-001",
+    "permission": "payments.detail.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/payments/events/[eventId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/payments/failed",
+    "example": "/admin/payments/failed",
+    "permission": "payment_failures.manage",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/payments/failed/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/payments/reconciliation",
+    "example": "/admin/payments/reconciliation",
+    "permission": "billing_reconciliation.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/payments/reconciliation/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/roles",
+    "example": "/admin/roles",
+    "permission": "roles.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/roles/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/roles/[roleId]",
+    "example": "/admin/roles/ROLE-DEMO-CUSTOM-RISK",
+    "permission": "roles.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/roles/[roleId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/roles/[roleId]/edit",
+    "example": "/admin/roles/ROLE-DEMO-CUSTOM-01/edit",
+    "permission": "roles.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/roles/[roleId]/edit/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/roles/new",
+    "example": "/admin/roles/new",
+    "permission": "roles.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/roles/new/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/roles/permissions",
+    "example": "/admin/roles/permissions",
+    "permission": "permissions.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/roles/permissions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security",
+    "example": "/admin/security",
+    "permission": "security.events.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/admins",
+    "example": "/admin/security/admins",
+    "permission": "security.admins.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/admins/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/authentication-events",
+    "example": "/admin/security/authentication-events",
+    "permission": "security.events.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/authentication-events/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/incidents/[incidentId]",
+    "example": "/admin/security/incidents/INC-1001",
+    "permission": "security.incidents.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/incidents/[incidentId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/permission-changes",
+    "example": "/admin/security/permission-changes",
+    "permission": "security.permissions.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/permission-changes/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/support-access",
+    "example": "/admin/security/support-access",
+    "permission": "security.support_access.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/support-access/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/security/suspicious-activity",
+    "example": "/admin/security/suspicious-activity",
+    "permission": "security.incidents.manage",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/security/repository.ts",
+      "apps/admin-web/src/features/security/live-repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/security/suspicious-activity/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings",
+    "example": "/admin/settings",
+    "permission": "settings.general.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/ai",
+    "example": "/admin/settings/ai",
+    "permission": "settings.ai.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/ai/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/feature-flags",
+    "example": "/admin/settings/feature-flags",
+    "permission": "settings.flags.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/feature-flags/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/imports",
+    "example": "/admin/settings/imports",
+    "permission": "settings.imports.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [],
+    "endpoints": [],
+    "source": "apps/admin-web/src/app/admin/settings/imports/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Intentionally informational: ImportDeploymentSettings names deployment-managed configuration. There is no form, API mutation or save action."
+  },
+  {
+    "route": "/admin/settings/maintenance",
+    "example": "/admin/settings/maintenance",
+    "permission": "settings.maintenance.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/maintenance/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/mobile",
+    "example": "/admin/settings/mobile",
+    "permission": "settings.mobile.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/mobile/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/security",
+    "example": "/admin/settings/security",
+    "permission": "settings.security.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/security/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/settings/subscriptions",
+    "example": "/admin/settings/subscriptions",
+    "permission": "settings.subscriptions.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts",
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/admin/settings/subscriptions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/social-media",
+    "example": "/admin/social-media",
+    "permission": "operations.settings.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/settings/mobile.social_links"
+    ],
+    "source": "apps/admin-web/src/app/admin/social-media/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/subscriptions",
+    "example": "/admin/subscriptions",
+    "permission": "subscriptions.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/subscriptions/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/subscriptions/[subscriptionId]",
+    "example": "/admin/subscriptions/SUB-123",
+    "permission": "subscriptions.detail.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/subscriptions/[subscriptionId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/subscriptions/plans",
+    "example": "/admin/subscriptions/plans",
+    "permission": "plans.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/subscriptions/plans/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/subscriptions/promotional-codes",
+    "example": "/admin/subscriptions/promotional-codes",
+    "permission": "promotions.read",
+    "navigation": "outside live navigation; not certified as a live capability",
+    "adapters": [
+      "apps/admin-web/src/features/billing/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/billing/subscriptions/overview?${params}",
+      "/api/v1/admin/billing/subscriptions?${params}",
+      "/api/v1/admin/billing/subscriptions/${request.subscriptionId}?${params}",
+      "/api/v1/admin/billing/subscriptions/${safeId}/action",
+      "/api/v1/admin/billing/plans",
+      "/api/v1/admin/billing/plans/${safeId}",
+      "/api/v1/admin/billing/promotional-codes?${params}",
+      "/api/v1/admin/billing/promotional-codes",
+      "/api/v1/admin/billing/promotional-codes/${safeId}",
+      "/api/v1/admin/billing/payments/overview?${params}",
+      "/api/v1/admin/billing/payment-events?${params}",
+      "/api/v1/admin/billing/payment-events/${request.eventId}?${params}",
+      "/api/v1/admin/billing/failed-payments?${params}",
+      "/api/v1/admin/billing/failed-payments/${safeId}/action",
+      "/api/v1/admin/billing/reconciliation?${params}",
+      "/api/v1/admin/billing/reconciliation/${safeId}/action"
+    ],
+    "source": "apps/admin-web/src/app/admin/subscriptions/promotional-codes/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Adapter-declared billing contract only. Billing is disabled in the live runtime; a synthetic 200 does not establish a supported payment or subscription operation."
+  },
+  {
+    "route": "/admin/support",
+    "example": "/admin/support",
+    "permission": "support.overview.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/support/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/support/categories",
+    "example": "/admin/support/categories",
+    "permission": "support.categories.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/support/categories/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/support/tickets",
+    "example": "/admin/support/tickets",
+    "permission": "support.tickets.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/support/tickets/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/support/tickets/[ticketId]",
+    "example": "/admin/support/tickets/TKT-1001",
+    "permission": "support.tickets.detail.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/communications/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin"
+    ],
+    "source": "apps/admin-web/src/app/admin/support/tickets/[ticketId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health",
+    "example": "/admin/system-health",
+    "permission": "system-health.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health/ai-usage-limits",
+    "example": "/admin/system-health/ai-usage-limits",
+    "permission": "operations.settings.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/foundation/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/access/me",
+      "/api/v1/admin/navigation",
+      "/api/v1/admin/platform-options",
+      "/api/v1/admin/ai/usage-limits",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/ai-usage-limits/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "explicitAlert": true,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health/api",
+    "example": "/admin/system-health/api",
+    "permission": "system-health.api.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/api/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health/database",
+    "example": "/admin/system-health/database",
+    "permission": "system-health.database.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/database/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health/providers",
+    "example": "/admin/system-health/providers",
+    "permission": "system-health.providers.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/providers/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/system-health/storage",
+    "example": "/admin/system-health/storage",
+    "permission": "system-health.storage.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/system-health/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/system-health/overview?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/overview?${liveParams.toString()}",
+      "/api/v1/admin/system-health/api?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/database?${monitoringParams(query)}",
+      "/api/v1/admin/recovery",
+      "/api/v1/admin/system-health/storage?${monitoringParams(query)}",
+      "/api/v1/admin/system-health/providers?${params.toString()}",
+      "/api/v1/admin/system-health/providers",
+      "/api/v1/admin/jobs/queues?${params.toString()}",
+      "/api/v1/admin/jobs/queues",
+      "/api/v1/admin/jobs/runs?${params.toString()}",
+      "/api/v1/admin/jobs/runs",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/retry",
+      "/api/v1/admin/jobs/runs/${encodeURIComponent(parsed)}/cancel",
+      "/api/v1/admin/jobs/scheduled?${params.toString()}",
+      "/api/v1/admin/jobs/scheduled"
+    ],
+    "source": "apps/admin-web/src/app/admin/system-health/storage/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/users",
+    "example": "/admin/users",
+    "permission": "users.read",
+    "navigation": "live navigation",
+    "adapters": [
+      "apps/admin-web/src/features/users/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/users?${params}",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}/devices",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}/sessions",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/suspend",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/reactivate",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/verification",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/devices/${deviceIdSchema.parse(deviceId)}/revoke",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/sessions/revoke",
+      "/api/v1/admin/users/bulk-actions"
+    ],
+    "source": "apps/admin-web/src/app/admin/users/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/admin/users/[userId]",
+    "example": "/admin/users/USR-10482",
+    "permission": "users.read",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/users/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/users?${params}",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}/devices",
+      "/api/v1/admin/users/${encodeURIComponent(request.userId)}/sessions",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/suspend",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/reactivate",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/verification",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/devices/${deviceIdSchema.parse(deviceId)}/revoke",
+      "/api/v1/admin/users/${userIdSchema.parse(userId)}/sessions/revoke",
+      "/api/v1/admin/users/bulk-actions"
+    ],
+    "source": "apps/admin-web/src/app/admin/users/[userId]/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  },
+  {
+    "route": "/delete-account",
+    "example": "/delete-account",
+    "permission": "public entry; owner authorization enforced by API",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/public-deletion/DeletionPage.tsx",
+      "apps/admin-web/src/features/public-deletion/deletion-client.ts"
+    ],
+    "endpoints": [
+      "/api/v1/me/deletion-requests",
+      "/api/v1/me/deletion-requests/{requestId}",
+      "/api/v1/privacy/deletion-completions/{operationId}"
+    ],
+    "source": "apps/admin-web/src/app/delete-account/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    },
+    "endpointScope": "Source trace only. Owner and completion-token flows are distinct; no deletion, cancellation, OTP or replay was performed for this review."
+  },
+  {
+    "route": "/invitations/accept",
+    "example": "/invitations/accept",
+    "permission": "authenticated invitation entry",
+    "navigation": "deep link / secondary navigation",
+    "adapters": [
+      "apps/admin-web/src/features/governance/repository.ts"
+    ],
+    "endpoints": [
+      "/api/v1/admin/admin-users?${params(input)}",
+      "/api/v1/admin/access/admins",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/admin-invitations?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/access/invitations",
+      "/api/v1/admin/admin-invitations",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/disable",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/access/admins/${encodeURIComponent(parsed)}/sessions/revoke",
+      "/api/v1/admin/admin-users/${encodeURIComponent(parsed)}/roles",
+      "/api/v1/admin/access/assignments",
+      "/api/v1/admin/access/assignments/${encodeURIComponent(id)}",
+      "/api/v1/admin/access/invitations/accept",
+      "/api/v1/admin/roles?${values.toString()}",
+      "/api/v1/admin/access/roles",
+      "/api/v1/admin/roles",
+      "/api/v1/admin/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/access/roles/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/permissions",
+      "/api/v1/admin/access/permissions",
+      "/api/v1/admin/settings/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/settings/${encodeURIComponent(key)}",
+      "/api/v1/admin/feature-flags?page=${parsed.page}&pageSize=${parsed.pageSize}",
+      "/api/v1/admin/feature-flags",
+      "/api/v1/admin/feature-flags/${encodeURIComponent(parsed)}",
+      "/api/v1/admin/feature-flags?limit=1&key=${encodeURIComponent(parsed)}",
+      "/api/v1/admin/maintenance",
+      "/api/v1/admin/maintenance?limit=1&current=true",
+      "/api/v1/admin/maintenance/${maintenanceWindow.id}"
+    ],
+    "source": "apps/admin-web/src/app/invitations/accept/page.tsx",
+    "localBrowser": {
+      "status": 200,
+      "overflow": false,
+      "scope": "synthetic route rendering; not hosted business acceptance"
+    }
+  }
+]

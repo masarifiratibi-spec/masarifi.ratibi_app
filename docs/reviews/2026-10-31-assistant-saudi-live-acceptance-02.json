@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "SAUDI-ASSISTANT-QA-20261031-02",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "supersedesConsumedScope": "SAUDI-ASSISTANT-QA-20261031-01",
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "workerImage": "sha256:4b45280ee49b3e8a463f3ce27c1567ec6894422650e7b32d656b6ad243b0da21",
+  "runtimePromptSha256": "65bb6bef7ca0252287ffd4e0cc4f968f1ea3219fd9b2776bfc110b28962243c9",
+  "nginxConfigSha256": "f4da6759b5a8d97cff9ff24a92b58c566415fa4ec180ddd595bb38ee3f9dea69",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Same owner's necessary financial context, including the three explicitly authorized new transactions; no raw client data in Git.",
+  "maxQuestions": 4,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.40",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.37340160",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "راجع مصاريف هذا الشهر: اعرض آخر ثلاث عمليات مؤكدة فقط، وافصل كل عملة.",
+    "قارن مصروفاتي المؤكدة في أكتوبر 2026 وسبتمبر 2026، وبيّن الفرق لكل عملة.",
+    "طيب وأغسطس 2026؟",
+    "What was my largest single expense this month, and which category had the highest total? Keep each currency separate and answer in English."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/runtime/preservation before first admission and configured route before each question.",
+    "Preserve all existing financial rows and planning draft2026-13, including the three authorized transactions. Only approved assistant conversation/message/usage records may be added.",
+    "Do not execute financial action, permission change, migration, quota increase, native capture or additional delivery."
+  ],
+  "evidence": "Durable private intent before Send; same-owner message/job/request binding, actual provider/model/prompt/cost receipts and UI result; compare facts against confirmed same-owner ledger SELECT."
+}

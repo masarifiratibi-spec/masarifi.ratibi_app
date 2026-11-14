@@ -8,13 +8,11 @@ const { resetRuntimeUserData } = require('@/storage/runtime-user-data-reset') as
 const now = Date.UTC(2026, 0, 15, 12);
 
 describe('AssistantService', () => {
-  it('requires consent before personalized answers and replays create/ask operations', async () => {
+  it('is available by default and replays create/ask operations', async () => {
     const contextProvider = jest.fn().mockResolvedValue(context());
     const service = createMockAssistantService({ now: () => now, contextProvider });
 
     expect(await service.getAvailability()).toEqual({ status: 'available', remainingQuestions: 100 });
-    await expect(service.createConversation({ question: 'What changed?' }, 'create-denied')).rejects.toMatchObject({ code: 'consent_required' });
-    await service.setConsent(true, 1, 'consent-enable');
 
     const first = await service.createConversation({ question: 'What changed?' }, 'create-1');
     const replay = await service.createConversation({ question: 'Changed text should not matter' }, 'create-1');
@@ -81,12 +79,12 @@ describe('AssistantService', () => {
     expect((await service.getConversation(second.value.id)).conversation.status).toBe('active');
   });
 
-  it('returns safe disablement, offline, error, and limit states', async () => {
+  it('keeps questions available after a legacy toggle and preserves offline, error, and limit states', async () => {
     const disabled = createMockAssistantService({ now: () => now, contextProvider: jest.fn().mockResolvedValue(context()) });
     await disabled.setConsent(true, 1, 'consent-enable');
     const conversation = await disabled.createConversation({ question: 'Start' }, 'create-disabled');
     await disabled.setConsent(false, 2, 'consent-disable');
-    await expect(disabled.ask(conversation.value.id, 'Anything?', 'ask-disabled')).rejects.toMatchObject({ code: 'assistant_disabled' });
+    await expect(disabled.ask(conversation.value.id, 'Anything?', 'ask-disabled')).resolves.toMatchObject({ value: { responseType: 'direct' } });
 
     const offline = createMockAssistantService({ offline: true, now: () => now, contextProvider: jest.fn().mockResolvedValue(context()) });
     await offline.setConsent(true, 1, 'consent-enable');

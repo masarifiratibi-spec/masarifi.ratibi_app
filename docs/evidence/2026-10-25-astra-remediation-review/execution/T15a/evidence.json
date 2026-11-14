@@ -1,0 +1,30 @@
+{
+  "task": "T15a",
+  "batch": "B8",
+  "at": "2026-10-29T09:32:54.227Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B8-sms-merchant-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B8-sms-merchant-2026-10-29/B8-REVIEWED-RESULT.json",
+    "sha256": "8e0d5e80398e5d12857d093d67b4b798c850abedda800a04ce9acff79a5c623d"
+  },
+  "currentSupplements": [],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T15a/evidence.json",
+    "sha256": "854f35825560a31ab89c0dce5c35f805afbbe2245ce6d1c92416f86092532cda"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Actualspecificallyauthorized controlledmerchant/accountoptoutcapture",
+    "Preservepublishedpolicy/currentparser limits",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": []
+}

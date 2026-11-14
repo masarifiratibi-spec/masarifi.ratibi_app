@@ -31,7 +31,11 @@ test('saves, loads, discards, validates, and preserves drafts through failed sub
   const draft = await service.saveDraft(ticketDraft('draft-1'));
 
   expect(await service.loadDraft(draft.id)).toEqual(draft);
-  await expect(service.saveDraft({ ...ticketDraft('bad'), subject: '' })).rejects.toMatchObject({ code: 'validation' });
+  const partial = await service.saveDraft({ ...ticketDraft('partial'), subject: '' });
+  await expect(service.submitDraft(partial.id, 'never-send-partial')).rejects.toThrow();
+  expect(await service.loadDraft(partial.id)).toEqual(partial);
+  expect((await service.listTickets()).items).toHaveLength(0);
+  await expect(service.saveDraft({ ...ticketDraft('bad'), subject: 'x'.repeat(161) })).rejects.toMatchObject({ code: 'validation' });
   const failed = await service.submitDraft(draft.id, 'submit-offline');
   expect(failed.value).toMatchObject({ status: 'failed', safeFailure: 'offline' });
   expect(await service.loadDraft(draft.id)).toEqual(draft);

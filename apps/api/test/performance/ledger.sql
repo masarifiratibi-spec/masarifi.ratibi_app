@@ -24,6 +24,12 @@ insert into public.profiles (id, status)
 select 'ledger_performance_user_' || lpad(sample::text, 3, '0'), 'active'
 from generate_series(1, 100) sample;
 
+-- Replica-mode imports skip the profile trigger. Use the same epoch backfill
+-- as the financial reset migration, scoped to the disposable benchmark owners.
+insert into private.financial_reset_epochs (owner_id)
+select id from public.profiles where id like 'ledger_performance_%'
+on conflict do nothing;
+
 insert into public.accounts (id, user_id, name, type, currency_code, is_default, sort_order)
 select md5(profile.id || ':source')::uuid, profile.id, 'Performance source', 'cash', 'SAR', true, 0
 from public.profiles profile

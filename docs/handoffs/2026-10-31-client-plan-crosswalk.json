@@ -1,0 +1,574 @@
+{
+  "date": "2026-10-31",
+  "scopeExclusions": [
+    {
+      "item": "Budget and savings acceptance in the current batch",
+      "status": "cancelled_by_user",
+      "date": "2026-10-31"
+    },
+    {
+      "item": "Android TalkBack manual acceptance",
+      "status": "cancelled_by_user",
+      "date": "2026-10-31"
+    }
+  ],
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "counts": {
+    "clientItems": 62,
+    "references": 69,
+    "acceptanceUnits": 88,
+    "tasks": 29,
+    "tasksThroughT19a": 26
+  },
+  "statusMeaning": "Qualification levels are separate; source/tests do not equal actual device, hosted email or release acceptance.",
+  "items": [
+    {
+      "clientId": 1,
+      "originalTitle": "Account deletion",
+      "acceptanceTasks": ["T12"],
+      "currentQualificationAr": "الكود والاختبارات موجودان؛ حذف الحساب الفعلي وتبعات الاحتفاظ والاشتراك لم تُنفّذ على المالك المحفوظ."
+    },
+    {
+      "clientId": 2,
+      "originalTitle": "Default EGP",
+      "acceptanceTasks": ["T07", "T13"],
+      "currentQualificationAr": "الافتراضي يتبع الإعداد الإقليمي؛ شوهد SAR للحساب الحالي. قبول إنشاء حساب بكل الدول لم يُستكمل."
+    },
+    {
+      "clientId": 3,
+      "originalTitle": "Inconsistent expense totals/refund",
+      "acceptanceTasks": ["T05", "T09"],
+      "currentQualificationAr": "صُححت حدود الحقيقة المالية واختُبرت؛ إجماليات التقارير الحالية قورنت بالسجل. مصفوفة الاسترداد الكاملة باقية."
+    },
+    {
+      "clientId": 4,
+      "originalTitle": "Assistant card contradicts itself",
+      "acceptanceTasks": ["T09", "T17"],
+      "currentQualificationAr": "سياق المساعد وحقيقة التقارير لهما اختبارات؛ لا يوجد قبول فعلي لكل تناقضات البطاقات دون بيانات بطاقة معتمدة."
+    },
+    {
+      "clientId": 5,
+      "originalTitle": "Obligation total mismatch",
+      "acceptanceTasks": ["T07a"],
+      "currentQualificationAr": "إجماليات الالتزامات والقراءة المحلية لها اختبارات؛ القراءة دون اتصال نجحت للحالة الفارغة على الجهاز نفسه."
+    },
+    {
+      "clientId": 6,
+      "originalTitle": "Net worth excludes/mis-signs accounts",
+      "acceptanceTasks": ["T05", "T09"],
+      "currentQualificationAr": "اتساق الإشارة والتقارير له تحقق؛ لا يُعد ذلك قبولًا لكل سيناريوهات الحسابات والديون والعملات."
+    },
+    {
+      "clientId": 7,
+      "originalTitle": "Egyptian account-creation heading",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "النصوص الخليجية عُدلت؛ مراجعة حزمة صور الإصدار النهائي ما زالت ضمن T21."
+    },
+    {
+      "clientId": 8,
+      "originalTitle": "Egyptian account-type descriptions",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "وصف الأنواع عُدل؛ التحقق اللغوي الكامل لكل الحالات ومواد الإصدار باقٍ."
+    },
+    {
+      "clientId": 9,
+      "originalTitle": "“Almost done” Egyptian wording",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "النص محل الملاحظة عولج؛ لا نساوي فحص المصدر بقبول كل شاشات الإصدار."
+    },
+    {
+      "clientId": 10,
+      "originalTitle": "Egyptian last-four explanation",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "توضيح آخر أربع خانات موجود؛ قبول مجموعة البطاقات الفعلية لم يُستكمل."
+    },
+    {
+      "clientId": 11,
+      "originalTitle": "Non-Gulf bank examples",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "الأمثلة الخليجية موجودة في المصدر؛ اعتماد صور المتجر والمحتوى النهائي لاحق."
+    },
+    {
+      "clientId": 12,
+      "originalTitle": "Colloquial loanword used instead of the standard Arabic term for card",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "مصطلح البطاقات عُدل؛ بيانات البطاقة الفعلية غير موجودة في الحساب الحالي."
+    },
+    {
+      "clientId": 13,
+      "originalTitle": "“House money” wording",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "الصياغة الخليجية عُدلت؛ القبول التحريري الكامل مرتبط بمراجعة الإصدار."
+    },
+    {
+      "clientId": 14,
+      "originalTitle": "Currency ordering",
+      "acceptanceTasks": ["T07", "T13"],
+      "currentQualificationAr": "ترتيب العملات يتبع تفضيل المنطقة؛ تحقق SAR الحالي لا يغطي كل الدول."
+    },
+    {
+      "clientId": 15,
+      "originalTitle": "Dialect inconsistency",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "الصياغة العربية والاتجاهات اختُبرت في النطاق المرصود؛ المراجعة الشاملة للإصدار باقية."
+    },
+    {
+      "clientId": 16,
+      "originalTitle": "English AM/PM in Arabic",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "تنسيق الوقت محلي ومختبَر؛ مصفوفة جميع إعدادات الوقت على الجهاز غير مكتملة."
+    },
+    {
+      "clientId": 17,
+      "originalTitle": "English demo data in Arabic",
+      "acceptanceTasks": ["T13", "T21"],
+      "currentQualificationAr": "فصل أوضاع البيانات التجريبية موجود؛ إزالة كل آثارها من حزمة الإصدار تُحسم في T21."
+    },
+    {
+      "clientId": 18,
+      "originalTitle": "Truncated financial amounts",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "تحسين التفاف المبالغ والحجم الكبير شوهد على الهاتف؛ فحص كل شاشة/عملة لاحق."
+    },
+    {
+      "clientId": 19,
+      "originalTitle": "Leading-side ellipsis",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "اتجاه النص والقص عولجا ضمن فحوص الواجهة؛ ليست شهادة لكل حالات النص الطويل."
+    },
+    {
+      "clientId": 20,
+      "originalTitle": "Clipped date-period chip",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "عناصر التاريخ والالتفاف اختُبرت ضمن الفحص المرصود؛ حالات التقويم الموسعة باقية."
+    },
+    {
+      "clientId": 21,
+      "originalTitle": "Raw ISO dates",
+      "acceptanceTasks": ["T13", "T17"],
+      "currentQualificationAr": "المساعد والتاريخ لهما عقود واضحة؛ مصفوفة التنفيذ المالي الفعلي للمساعد غير مكتملة."
+    },
+    {
+      "clientId": 22,
+      "originalTitle": "Ambiguous numeric date",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "الفترات تُحل حسب المنطقة ودورة الشهر؛ دورة يوم 25 صُلحت فعليًا على API Staging."
+    },
+    {
+      "clientId": 23,
+      "originalTitle": "Broken net-worth change badge",
+      "acceptanceTasks": ["T09", "T13"],
+      "currentQualificationAr": "شارة صافي الثروة تستخدم ألوان الثيم والإشارات؛ تغطية البيانات المالية الغنية باقية."
+    },
+    {
+      "clientId": 24,
+      "originalTitle": "Empty/broken cash-flow chart",
+      "acceptanceTasks": ["T09", "T13"],
+      "currentQualificationAr": "الرسم يستخدم ألوان الهوية وتخطيطًا متجاوبًا؛ البيانات غير المدعومة لا تُعرض كأنها مكتملة."
+    },
+    {
+      "clientId": 25,
+      "originalTitle": "Mixed Arabic/Latin bidi reversal",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "العربية/الإنجليزية والاتجاه والمبالغ اختُبرت؛ قبول iOS الكامل باقٍ، وTalkBack ملغى بطلب المستخدم."
+    },
+    {
+      "clientId": 26,
+      "originalTitle": "Disabled save without explanation",
+      "acceptanceTasks": ["T07"],
+      "currentQualificationAr": "رفض الإدخال غير الصالح محفوظ؛ مسودة 2026-13 لم تُحفظ عمدًا، لذلك حفظ ميزانية صالحة فعليًا باقٍ."
+    },
+    {
+      "clientId": 27,
+      "originalTitle": "Transfer styled as income",
+      "acceptanceTasks": ["T05", "T13"],
+      "currentQualificationAr": "فصل التحويل عن الدخل موجود في الحقيقة المالية؛ لا عمليات مالية جديدة لملء مصفوفة القبول."
+    },
+    {
+      "clientId": 28,
+      "originalTitle": "Off-brand blue chart controls",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "ألوان الرسم عادت لأدوار الهوية والثيم؛ تحسن التباين في الفاتح والداكن."
+    },
+    {
+      "clientId": 29,
+      "originalTitle": "Plan naming inconsistency",
+      "acceptanceTasks": ["D00"],
+      "currentQualificationAr": "أسماء الخطط والفوترة مؤجلة بقرار نطاق D00؛ ليست ميزة مدفوعة مقبولة."
+    },
+    {
+      "clientId": 30,
+      "originalTitle": "Category deletion without confirmation",
+      "acceptanceTasks": ["T07c"],
+      "currentQualificationAr": "تأكيدات وتصنيف الفئات لها مصدر واختبارات؛ حذف/دمج فئة مستخدمة فعليًا محجوز لحماية البيانات."
+    },
+    {
+      "clientId": 31,
+      "originalTitle": "Home does not surface planning cards",
+      "acceptanceTasks": ["T01", "T13"],
+      "currentQualificationAr": "تركيب Home الحالي قرار معتمد؛ لم تُفتح شاشات تخطيط مخفية لمجرد إكمال القائمة."
+    },
+    {
+      "clientId": 32,
+      "originalTitle": "Clipped filter strip lacks affordance",
+      "acceptanceTasks": ["T13"],
+      "currentQualificationAr": "عناصر الفلترة واللمس والالتفاف حُسنت؛ التحقق مقتصر على الشاشات والأحجام المرصودة."
+    },
+    {
+      "clientId": 33,
+      "originalTitle": "Profile image upload absent",
+      "acceptanceTasks": ["T01", "T13"],
+      "currentQualificationAr": "رفع صورة الحساب يحتاج قرار المنتج المعتمد؛ لا يُستبدل بتصميم تجريبي غير متصل."
+    },
+    {
+      "clientId": 34,
+      "originalTitle": "Account detail navigation",
+      "acceptanceTasks": ["T07", "T13"],
+      "currentQualificationAr": "تنقل الحسابات موجود ومختبَر؛ الحالات المالية الغنية لها قبول منفصل."
+    },
+    {
+      "clientId": 35,
+      "originalTitle": "Refund entry flow absent",
+      "acceptanceTasks": ["T06", "T05"],
+      "currentQualificationAr": "العودة/إلغاء نموذج الاسترداد تحققا فعليًا؛ حفظ الاسترداد ومصفوفته المالية لم يُنفّذا على المالك."
+    },
+    {
+      "clientId": 36,
+      "originalTitle": "Savings goals missing",
+      "acceptanceTasks": ["T07a"],
+      "currentQualificationAr": "Savings مخفي في النطاق الحالي؛ اختبارات المصدر لا تعني إتاحته أو قبول رحلته الفعلية."
+    },
+    {
+      "clientId": 37,
+      "originalTitle": "Statement PDF/CSV import missing",
+      "acceptanceTasks": ["T01", "T15"],
+      "currentQualificationAr": "استيراد كشف PDF/CSV مؤجل لقرار المنتج والعقد؛ لا علاقة له بإرسال تقرير PDF المطلوب الآن."
+    },
+    {
+      "clientId": 38,
+      "originalTitle": "Card payoff/interest calculator",
+      "acceptanceTasks": ["T07b"],
+      "currentQualificationAr": "حاسبة البطاقة موجودة ومختبَرة؛ لا بطاقة محفوظة معتمدة لإكمال القبول الفعلي."
+    },
+    {
+      "clientId": 39,
+      "originalTitle": "Card statement terms",
+      "acceptanceTasks": ["T07b", "T16"],
+      "currentQualificationAr": "مصطلحات الدورة والاستحقاق والتنبيهات لها كود واختبارات؛ قبول بطاقة/تنبيه حقيقي باقٍ."
+    },
+    {
+      "clientId": 40,
+      "originalTitle": "Merchant rules missing",
+      "acceptanceTasks": ["T15a"],
+      "currentQualificationAr": "قواعد التاجر لها مصدر واختبارات؛ التقاط الرسائل الأصلي مغلق ولم يُستورد تاريخ حساس."
+    },
+    {
+      "clientId": 41,
+      "originalTitle": "Saudi VAT missing",
+      "acceptanceTasks": ["T01"],
+      "currentQualificationAr": "ضريبة القيمة المضافة السعودية مؤجلة لقرار المنتج؛ لا يُفترض وجود محرك ضريبي مقبول."
+    },
+    {
+      "clientId": 42,
+      "originalTitle": "Notification center/preferences missing",
+      "acceptanceTasks": ["T16", "T16a"],
+      "currentQualificationAr": "تفضيلات الإشعارات والمركز لها اختبارات؛ التسليم الفعلي/OEM/القفل محجوز والتقاط النظام مغلق."
+    },
+    {
+      "clientId": 43,
+      "originalTitle": "Zakat",
+      "acceptanceTasks": ["T01"],
+      "currentQualificationAr": "الزكاة مؤجلة بقرار المنتج؛ غير مدّعاة كميزة مقبولة."
+    },
+    {
+      "clientId": 44,
+      "originalTitle": "Phone notifications/quick actions",
+      "acceptanceTasks": ["T16a"],
+      "currentQualificationAr": "إجراءات الإشعار لها اختبارات؛ تنفيذها المالي الفعلي يحتاج نطاقًا منفصلًا ولا يُعاد تلقائيًا."
+    },
+    {
+      "clientId": 45,
+      "originalTitle": "Merchant rules and ignored cards",
+      "acceptanceTasks": ["T15a"],
+      "currentQualificationAr": "ربط القواعد بالبطاقات له اختبارات؛ المصفوفة الأصلية على الهاتف غير منفذة والتقاط النظام مغلق."
+    },
+    {
+      "clientId": 46,
+      "originalTitle": "Generic bank keywords",
+      "acceptanceTasks": ["T15"],
+      "currentQualificationAr": "قواعد الكلمات والمحللات لها اختبارات؛ لا قراءة SMS فعلية أو إذن جديد في هذه الجلسة."
+    },
+    {
+      "clientId": 47,
+      "originalTitle": "Sender-ID binding missing",
+      "acceptanceTasks": ["T15"],
+      "currentQualificationAr": "ربط المرسل له اختبارات عزل؛ الاستيراد والالتقاط الفعليان محجوزان."
+    },
+    {
+      "clientId": 48,
+      "originalTitle": "Assistant cannot execute",
+      "acceptanceTasks": ["T17a"],
+      "currentQualificationAr": "مسار تأكيد تنفيذ المساعد له اختبارات وأدلة محدودة؛ مصفوفة الإنشاء المالي كاملة غير مقبولة."
+    },
+    {
+      "clientId": 49,
+      "originalTitle": "Weekly report/family/referral",
+      "acceptanceTasks": ["T01", "T09"],
+      "currentQualificationAr": "التقارير لها تنفيذ؛ السلوك الجديد PDF مرفق بالبريد نُشر وجُرب بطلب واحد وقبول SMTP دون تأكيد إضافي. العائلة والإحالة مؤجلتان."
+    },
+    {
+      "clientId": 50,
+      "originalTitle": "Real customer data in screenshot bundle",
+      "acceptanceTasks": ["T01", "T21"],
+      "currentQualificationAr": "صور العميل التي قد تحوي بيانات شخصية تبقى بوابة خصوصية وإصدار؛ لا تُرفع تلقائيًا إلى GitHub."
+    },
+    {
+      "clientId": 51,
+      "originalTitle": "Investments missing",
+      "acceptanceTasks": ["T01"],
+      "currentQualificationAr": "الاستثمارات مؤجلة بقرار المنتج؛ ليست جزءًا مكتملًا مخفيًا."
+    },
+    {
+      "clientId": 52,
+      "originalTitle": "Budget income/savings targets missing",
+      "acceptanceTasks": ["T07a"],
+      "currentQualificationAr": "الميزانية والدخل والأهداف لها كود واختبارات؛ المسودة غير الصالحة محفوظة والقبول الغني باقٍ."
+    },
+    {
+      "clientId": 53,
+      "originalTitle": "Recurring transactions entity missing",
+      "acceptanceTasks": ["T01", "T07a"],
+      "currentQualificationAr": "الراتب/الإيجار الحاليان يختلفان عن محرك تكرار عام؛ لا يُعلن إنشاء محرك أوسع دون قرار."
+    },
+    {
+      "clientId": 54,
+      "originalTitle": "Card payment concept missing",
+      "acceptanceTasks": ["T05", "T07b", "D00"],
+      "currentQualificationAr": "سداد البطاقة المالية يُفصل عن دفع الاشتراك؛ الأول يحتاج قبول بطاقة والثاني مؤجل في D00."
+    },
+    {
+      "clientId": 55,
+      "originalTitle": "Wallet account type missing",
+      "acceptanceTasks": ["T07", "T05"],
+      "currentQualificationAr": "نوع المحفظة موجود ضمن الحسابات؛ قبول الإنشاء والتعديل المالي المتكامل غير مكتمل هنا."
+    },
+    {
+      "clientId": 56,
+      "originalTitle": "Custom category lacks income/expense kind",
+      "acceptanceTasks": ["T07c"],
+      "currentQualificationAr": "نوع الفئة والتحويل/الحوالة له تحقق مصدر ونموذج إلغاء فعلي؛ الحفظ/الدمج المحميان باقيان."
+    },
+    {
+      "clientId": 57,
+      "originalTitle": "Feedback channel missing",
+      "acceptanceTasks": ["T10", "T19a"],
+      "currentQualificationAr": "ملاحظة تجريبية واحدة معتمدة أكملت مراجعة ثم مخطط ثم محلول ثم مغلق في الإدارة والهاتف؛ لا رسائل إضافية."
+    },
+    {
+      "clientId": 58,
+      "originalTitle": "Transfers modeled as expense category",
+      "acceptanceTasks": ["T07c", "T05"],
+      "currentQualificationAr": "التحويل لا يُحتسب كمصروف في العقود المالية؛ تحقق كل التركيبات المالية الفعلية باقٍ."
+    },
+    {
+      "clientId": 59,
+      "originalTitle": "Base44 six currencies/AED default",
+      "acceptanceTasks": ["T07", "T13"],
+      "currentQualificationAr": "تفضيلات الخليج والعملات موجودة؛ الحساب الحالي SAR ولا يُحوّل افتراضيًا إلى AED لحسم اختبار."
+    },
+    {
+      "clientId": 60,
+      "originalTitle": "Subscription-tier count mismatch",
+      "acceptanceTasks": ["D00"],
+      "currentQualificationAr": "الاشتراك المدفوع مؤجل؛ MVP المجاني لا يُقدّم كأنه تسعير وفوترة مكتملان."
+    },
+    {
+      "clientId": 61,
+      "originalTitle": "Transaction time missing",
+      "acceptanceTasks": ["T05", "T13"],
+      "currentQualificationAr": "توقيت المعاملة والتنسيق لهما اختبارات؛ مصفوفة التحرير والقفل والساعة الفعلية غير كاملة."
+    },
+    {
+      "clientId": 62,
+      "originalTitle": "External remittance category missing",
+      "acceptanceTasks": ["T07c"],
+      "currentQualificationAr": "نوع الحوالة له مصدر واختبارات ونموذج غير محفوظ؛ قبول الأثر المالي الكامل باقٍ."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "partAr": "تثبيت النطاق والربط",
+      "statusAr": "مكتمل كسجل نطاق؛ ليس قبولًا تلقائيًا لكل الميزات.",
+      "nextAr": "الاحتفاظ بربط البنود وأي استثناءات لاحقة."
+    },
+    {
+      "id": "T02",
+      "partAr": "الأمان وإعداداته",
+      "statusAr": "التنفيذ والفحص المسموحان تحققا باستثناء المستخدم؛ مدد PIN الفعلية 30/60 دقيقة غير منفذة.",
+      "nextAr": "تنفيذ المدد في نافذة اختبار مستقلة عند الحاجة."
+    },
+    {
+      "id": "T03",
+      "partAr": "استعادة الوصول",
+      "statusAr": "العائق التاريخي عولج ضمن قبول T04 اللاحق؛ لا يُعاد فتحه اعتمادًا على JSON قديم.",
+      "nextAr": "إعادة استخدام دليل T04؛ SSH الحالي غير مستجيب وWeb Console متاح."
+    },
+    {
+      "id": "T04",
+      "partAr": "استعادة المزامنة",
+      "statusAr": "PASS في النطاق الأصلي غير المدمر المعتمد، مع حفظ بيانات المالك.",
+      "nextAr": "لا إعادة إرسال العمليات أو تدوير مفاتيح مكتملة."
+    },
+    {
+      "id": "T05",
+      "partAr": "الحقيقة المالية والترقيات",
+      "statusAr": "PASS لتأهيل قاعدة مؤقتة fresh/upgrade والتاريخ المحفوظ في القبول الأصلي.",
+      "nextAr": "عدم تعميم عدد migrations تاريخي على قاعدة Staging مختلفة."
+    },
+    {
+      "id": "T06",
+      "partAr": "الأحداث الأمنية والاسترداد",
+      "statusAr": "نُشر فلتر المالك بإيصالCOMMITTED، وفُتح المسار بعد النشر فقط. عرض الهاتف الأحداث الفعلية ونجح الانتقال للخصوصية والرجوع؛ عزل الكاش والترجمة مختبران.",
+      "nextAr": "لا إعادة النشر أو الحاجز؛ تبديل مالك/أدوار فعلي وبقية أنواع الاسترداد لها قبول مستقل. دليل1 نوفمبر2026 يوثق الحفظ وحدود القبول."
+    },
+    {
+      "id": "T07",
+      "partAr": "الميزانية",
+      "statusAr": "الميزانية ملغاة من الدفعة الحالية بطلب المستخدم؛ ليست نتيجة قبول ناجحة. 2026-13 محفوظة.",
+      "nextAr": "لا عمل على الميزانية في هذه الدفعة ولا فتح أو تصحيح المسودة."
+    },
+    {
+      "id": "T07a",
+      "partAr": "الراتب والالتزامات والادخار",
+      "statusAr": "نجحت فحوص الأساسيات وظهرت قراءة الالتزام الأصلي المملوء على الهاتف؛ تعريف الراتب الأصلي موجود بدليل سابق. الادخار ملغى من هذه الدفعة.",
+      "nextAr": "استخدم الراتب والالتزام الموجودين؛ لا تكرر الإنشاء أو الاستلام أو الدفعات، ولا تعمم ذلك على مصفوفة القبول الأوسع."
+    },
+    {
+      "id": "T07b",
+      "partAr": "البطاقات والحاسبة",
+      "statusAr": "حُفظت بطاقة واحدة معتمدة بصفر وحد/متاح1000SAR، دون تتبع تلقائي أو حركة افتتاحية، وأعيد فتحها على الهاتف.",
+      "nextAr": "لا تكرر البطاقة؛ قبول الفوائد والسداد ومصفوفة البطاقة الأوسع مستقل، وليس مشمولًا بهذا القبول الأساسي."
+    },
+    {
+      "id": "T07c",
+      "partAr": "الفئات والتحويلات",
+      "statusAr": "أُنشئت الفئتان المعتمدتان مرة واحدة، ودُمجت أ في ب وأُرشفت ب، مع0 معاملات مرتبطة وحفظ كل صف أصلي. صُلح فتح التفاصيل من القائمة.",
+      "nextAr": "لا تكرر الإنشاء/الدمج/الأرشفة؛ قبول تأثير الفئة المستخدمة أوسع وغير مغلق."
+    },
+    {
+      "id": "T08",
+      "partAr": "بنية التقارير",
+      "statusAr": "إصلاحات API/S1 والقراءة السابقة متحققة؛ بيانات الوظائف المتينة محفوظة.",
+      "nextAr": "لا إعادة نافذة S1 مستهلكة أو تشغيل سجل الوظائف القديم."
+    },
+    {
+      "id": "T09",
+      "partAr": "صحة التقارير والتسليم",
+      "statusAr": "التطابق ودورة يوم25 وPDF السابق متحققون؛ طلب PDF جديد دون تأكيد إضافي أنشأ مرفقًا مطابقًا للبيانات وقبله SMTP. لا يُعد ذلك قبولًا كاملًا لمصفوفة FX/Refund/Card.",
+      "nextAr": "وصل المرفق نفسه إلى الوارد وفُتح على نفس الهاتف والحساب؛ الجدولة والمصفوفة المالية الغنية لهما قبول مستقل. توجد صياغة إنجليزية صغيرة لنطاق الحساب داخل PDF العربي."
+    },
+    {
+      "id": "T10",
+      "partAr": "الدعم",
+      "statusAr": "نجح الرد الإداري وتأكيد الهاتف ثم الحل والإغلاق على تذكرة الاختبار الأصلية؛ الهاتف يعرض مغلقة مع3 رسائل ومنع الرد.",
+      "nextAr": "لا تكرر التذكرة أو الرسائل أو الحل/الإغلاق. المرفقات والتقييم الحي والتعديل/الحذف الأوسع غير مقبولة بهذا الدليل."
+    },
+    {
+      "id": "T11",
+      "partAr": "ZIP",
+      "statusAr": "ملغى صراحة من المستخدم.",
+      "nextAr": "لا تطوير أو توليد أو إعادة تجربة ZIP."
+    },
+    {
+      "id": "T12",
+      "partAr": "الخصوصية والحذف",
+      "statusAr": "مصدر واختبارات؛ حذف المالك الحقيقي وتبديل المالك/الأدوار غير منفذين.",
+      "nextAr": "اختبار مخصص قابل للاسترجاع أو نطاق حذف صريح؛ لا حذف بيانات المستخدم."
+    },
+    {
+      "id": "T13",
+      "partAr": "واجهة ولغة وإتاحة",
+      "statusAr": "تعديلات فعلية على الهاتف والإدارة، AR/EN والثيمان والنص200% والتباين والأحجام المرصودة.",
+      "nextAr": "iOS وبقية الشاشات/الأجهزة بوابات لاحقة؛ TalkBack ملغى بطلب المستخدم."
+    },
+    {
+      "id": "T14",
+      "partAr": "المسودات والحالات",
+      "statusAr": "مسودتا المساعد والدعم صُلحتا؛ حفظ النص الأحدث والعزل لهما اختبارات.",
+      "nextAr": "تحرير مالي/تبديل مالك/قفل ومصفوفة الساعة محجوزة."
+    },
+    {
+      "id": "T15",
+      "partAr": "المحللات والرسائل",
+      "statusAr": "مصدر واختبارات؛ الالتقاط الأصلي مغلق.",
+      "nextAr": "إذن صريح عند الفعل وبيانات التقاط مصرح بها."
+    },
+    {
+      "id": "T15a",
+      "partAr": "قواعد المرسل والتاجر",
+      "statusAr": "مصدر واختبارات عزل/رفض؛ لا استيراد رسائل حساسة.",
+      "nextAr": "نفس قيد الالتقاط الأصلي والبيانات المعتمدة."
+    },
+    {
+      "id": "T16",
+      "partAr": "مركز الإشعارات",
+      "statusAr": "مصدر وتفضيلات واختبارات.",
+      "nextAr": "تسليم النظام/OEM والقفل لم يُعتمدا فعليًا."
+    },
+    {
+      "id": "T16a",
+      "partAr": "إجراءات الإشعارات",
+      "statusAr": "اختبارات تنفيذ/عزل دون تشغيل الالتقاط الأصلي.",
+      "nextAr": "قبول فعلي يتضمن التأكيدات والأثر المالي ضمن نطاق مستقل."
+    },
+    {
+      "id": "T17",
+      "partAr": "سياق المساعد",
+      "statusAr": "اختبارات وأدلة محدودة معتمدة سابقة؛ لا نافذة مزود جديدة.",
+      "nextAr": "مصفوفة سياق وبيانات كاملة؛ لا تكرار الاستهلاك المحدود."
+    },
+    {
+      "id": "T17a",
+      "partAr": "تنفيذ المساعد",
+      "statusAr": "صُلح عزل كاش المعاينة. تصحيح قبول الأوامر النصية وتشغيل المعالج القائم وصحته المشتركة ناجح119 اختبارًا محليًا؛ نشر الزوج وقبول العملية المالية الفعلية ما زالا منفصلين.",
+      "nextAr": "عملية معتمدة وبيانات مناسبة، دون إعادة عملية سابقة."
+    },
+    {
+      "id": "T18",
+      "partAr": "الصوت",
+      "statusAr": "مصدر واختبارات وأدلة محدودة تاريخية؛ لا تسجيل أو إذن جديد.",
+      "nextAr": "قبول الجهاز/المزود المحدد مستقل عن اختبارات CI الاصطناعية."
+    },
+    {
+      "id": "T19",
+      "partAr": "الإدارة",
+      "statusAr": "نُشرت UI الإدارة فعليًا على3039 وفُحصت بالعربية/الإنجليزية والداكن/الفاتح دون overflow؛ النسخ القديمة محفوظة.",
+      "nextAr": "مصفوفة صلاحيات وأدوار إضافية غير مقبولة بهذا الحساب الواحد؛ لا تعديل مالي للتجربة."
+    },
+    {
+      "id": "T19a",
+      "partAr": "التفاعل والملاحظات",
+      "statusAr": "الملاحظة الواحدة المعتمدة أكملت الحالات الأربع فعليًا وانتهت Closed/version5.",
+      "nextAr": "مصفوفة دور عادي/مستخدم آخر والتعديل/الحذف/التقييم ليست مقبولة بهذا الحساب الواحد."
+    },
+    {
+      "id": "T20",
+      "partAr": "تأهيل الإصدار الأصلي",
+      "statusAr": "CI الاصطناعي نجح؛ القارئ الإنتاجي لا يزال يرفض schema16. ليس قبول هاتف/native كاملًا.",
+      "nextAr": "تأهيل أصلي مستقل وتوقيع/حواجز إصدار؛ الحفاظ على APK الحالي."
+    },
+    {
+      "id": "T21",
+      "partAr": "حزمة الإصدار",
+      "statusAr": "غير منفذ ضمن طلب APK/Metro الحالي؛ لا APK/AAB مستقل أو Play جديد.",
+      "nextAr": "توقيع وحزمة نشر وسياسة خصوصية وصور مصرح بها وقبول الأجهزة."
+    },
+    {
+      "id": "T22",
+      "partAr": "قبول الإطلاق",
+      "statusAr": "غير مكتمل؛ لا merge أو Production.",
+      "nextAr": "حسم البوابات المتبقية ومراجعة القبول المتكامل أولًا."
+    }
+  ]
+}

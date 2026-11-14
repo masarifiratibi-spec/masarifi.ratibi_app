@@ -44,16 +44,21 @@ select function_privs_are('private','complete_tracking_admin_idempotency',array[
 grant masarifi_migration,authenticated to current_user with inherit true,set true;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('tracking-rls-owner-a','active'),('tracking-rls-owner-b','active');
+select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-a","role":"authenticated"}',true);
 select private.get_tracking_preferences('tracking-rls-owner-a');
+select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-b","role":"authenticated"}',true);
 select private.get_tracking_preferences('tracking-rls-owner-b');
+select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-a","role":"authenticated"}',true);
 select private.upsert_keyword_rule('tracking-rls-owner-a',null,'Fictional A','expense','en','contains',null,10,true,null);
+select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-b","role":"authenticated"}',true);
 select private.upsert_keyword_rule('tracking-rls-owner-b',null,'Fictional B','expense','en','contains',null,10,true,null);
 reset role;
 select set_config('request.jwt.claims','{"sub":"tracking-rls-owner-a","role":"authenticated"}',true);
 set local role authenticated;
 select is((select count(*) from public.tracking_preferences),1::bigint,'owner RLS exposes one preference row');
-select is((select count(*) from public.user_keyword_rules),1::bigint,'owner RLS exposes one keyword row');
-select is((select keyword from public.user_keyword_rules),'Fictional A','cross-owner rule stays hidden');
+select is((select count(*) from public.user_keyword_rules),114::bigint,'owner RLS exposes seeded defaults and one custom keyword');
+select is((select count(*) from public.user_keyword_rules where user_id<>'tracking-rls-owner-a'),0::bigint,'cross-owner defaults and custom rules stay hidden');
+select is((select keyword from public.user_keyword_rules where origin='custom'),'Fictional A','cross-owner custom rule stays hidden');
 reset role;
 
 select * from finish();

@@ -1,0 +1,11 @@
+# Redmi Tracking release correction
+
+Historical release-103 preparation follows. Release 103 was subsequently installed and its native registration fix physically proved. Customer 104 now supersedes it and has real SMS and notification acceptance; see [Customer 104 acceptance](2026-11-05-customer-104-acceptance.md). Do not repeat the old installation instructions or downgrade from 104.
+
+Release 101's installed DEX contained an abstract Expo `BackgroundRemoteNotificationTaskConsumer` with no public constructor matching the signature used by `TaskService.getDeclaredConstructor`. The native registration failure propagates through Tracking background configuration, where the existing status-phase warning reports `unknown`. The signed release 103 DEX contains the concrete consumer, the exact public constructor, and the stable name used to restore registrations.
+
+The only source change is a narrow R8 keep rule in `apps/mobile/plugins/release-rules.pro`. The Hermes SHA-256 remains `439a241e34ac1f9ccb579236aa581a9a50ad028146f082834084201d9d7d0e41`. No database, API, routing, parser, identity, or ledger code is part of this correction.
+
+The candidate is `com.masarifi.mobile`, version 1.0.0, code 103, min SDK 24. Its APK SHA-256 is `529aeee4a5fdda5ad57c954fe9692cf4d6ba52e6cce6a8993fd26778dc2107b4`. Existing production signing certificate SHA-256 is `886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57`. Signature verification passed at Android API levels 24, 28, 32, 33, 35, and 36. Release policy checks passed for non-debuggable packaging, disabled Android backup, native label, 16 KB ZIP and ELF alignment, and the prior R8 record sentinel. The APK is at `C:/mrc1105/artifacts/task9-customer-103-native.apk`.
+
+Use one in-place update on Android owner user 0 from installed code 101. Verify the installed digest, unchanged application ID and first-install time, saved session, and successful native registration. Then verify Tracking consent and the physical capture journey with the existing account. Recovery remains forward-only after 103. The retained code 102 predates this APK counter and remains an archived artifact. Keep the secondary Android profile and all original data intact. Customer delivery and the branch push still require physical Tracking proof.

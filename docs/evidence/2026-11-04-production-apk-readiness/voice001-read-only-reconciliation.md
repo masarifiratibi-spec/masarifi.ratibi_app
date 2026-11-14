@@ -1,0 +1,9 @@
+# Voice001 read-only reconciliation
+
+A single server session matches the approximately60-second native recording window and the exact named QA account selected in the original receipt. Its capture time is00:04:59.365Z, creation00:06:02.616717Z and confirmation00:06:12.473846Z on4November2026. The original capture observation at00:05:46.521459Z was still inside that recording interval. The retained Android AppOps evidence reports60,088ms and a start about2m21.920s before its00:07:22.431780Z file write, approximately00:05:00.512Z before allowing for adb/file-write delay. Server media duration is59,950ms.
+
+This is a **strong correlation**, using a unique matching session, duration, timing and the original QA account. The original client did not retain an immutable session/operation ID, so this is not a cryptographic original-media match. Exact recovered IDs and owner hashes remain private. The earlier protected receipt is unchanged; its lack of a server outcome is superseded only to this extent by the new read-only evidence.
+
+The correlated session is`confirmed`; its single batch is`completed` and its sole provider attempt is`completed`. There are zero voice events, proposals, linked transactions or linked postings. There are also zero voice-source postings on the selected QA account in the bounded recording/confirmation window. The observed server outcome is a completed empty batch with no financial effect. Terminal rows retain historical next-attempt timestamps; these timestamps alone do not establish a pending operation. No new financial event, recording, replay, provider request, cancellation, deletion or cleanup was triggered.
+
+The planned spoken test clip was not played. An empty result from this recording cannot establish transcription or financial parsing correctness. Voice functionality still requires the intended final-APK acceptance case; this record is not a substitute and must not be replayed.

@@ -1,9 +1,10 @@
 import React from 'react';
 
-import { elevation } from '@/design-system/tokens';
+import { colorTokens, elevation } from '@/design-system/tokens';
 import { renderWithProviders } from '@/test-utils/render';
 import { fixtureTransactions } from '@/test-utils/core-finance-fixtures';
 import { TransactionCard } from './TransactionCard';
+import { changeLocale, translate } from '@/localization/i18n';
 
 const transaction = fixtureTransactions[0];
 
@@ -21,6 +22,30 @@ function renderTransactionCard(groupedPosition?: 'only') {
 }
 
 describe('TransactionCard surface hierarchy', () => {
+  afterEach(() => changeLocale('ar'));
+
+  it.each([['expense', 1, '+50.00'], ['income', -1, '-50.00']] as const)(
+    'shows the committed %s reversal amount and direction color in the account list',
+    (_originalKind, adjustmentSign, amount) => {
+      changeLocale('en');
+      const screen = renderWithProviders(
+        <TransactionCard accountName="Test" groupedPosition="only" hidden={false} largeText={false} testIDPrefix="account"
+          transaction={{ ...transaction, type: 'reversal', amountMinor: 5000, adjustmentSign }} />
+      );
+      expect(screen.getByText(new RegExp(amount.replace(/[+.-]/g, '\\$&')))).toHaveStyle({
+        color: colorTokens.financial[adjustmentSign === 1 ? 'income' : 'expense']
+      });
+    }
+  );
+
+  it.each(['ar', 'en'] as const)('does not classify an uncategorized income as salary in %s', (locale) => {
+    changeLocale(locale);
+    const screen = renderWithProviders(
+      <TransactionCard accountName="Voice Staging Test" groupedPosition="only" hidden={false} largeText={false} testIDPrefix="home" transaction={{ ...transaction, type: 'income', categoryId: null }} />
+    );
+    expect(screen.getByLabelText(translate('coreFinance.ledger.uncategorized', locale))).toBeTruthy();
+    expect(screen.queryByTestId('category-visual-openmoji-salary')).toBeNull();
+  });
   it('elevates a standalone home transaction card', () => {
     const screen = renderTransactionCard();
 

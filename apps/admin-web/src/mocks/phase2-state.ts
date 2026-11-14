@@ -269,7 +269,7 @@ export function createPhase2AccessRequest(input: CreateAccessRequest, requestedB
   const created: AccessRequestDetail = {
     id: `ACC-${sequence}`,
     userId: user.id,
-    maskedCustomerLabel: user.maskedEmail,
+    maskedCustomerLabel: user.maskedEmail ?? user.id,
     supportTicketId: ticket.id,
     requestedBy,
     assignee: request.assignee,
@@ -323,6 +323,7 @@ export function decidePhase2AccessRequest(
   const request = accessRequest(requestId);
   if (request.status !== "pending") stateError("conflict", 409);
   if (request.requestedBy === actor) stateError("forbidden", 403);
+  if (request.requestedDurationMinutes === null) stateError("conflict", 409);
   const decision = accessDecisionRequestSchema({
     requestedScope: request.requestedScope,
     requestedDurationMinutes: request.requestedDurationMinutes,

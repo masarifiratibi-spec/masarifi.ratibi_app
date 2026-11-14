@@ -5,8 +5,8 @@ import {
 } from './contracts/assistant-notifications-service';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { createLiveAssistantApiService } from './live/assistant-api-service';
-import { getLiveClerkToken } from './live/auth-service';
-import { assistantService as fixtureAssistantService } from './mocks/assistant-service';
+import { captureLiveAssistantClerkIdentity } from './live/auth-service';
+import { assistantSecureJournal } from '@/storage/assistant-secure-journal';
 
 const unavailable: CapabilityProviderHandle<AssistantService> = {
   metadata: {
@@ -42,7 +42,10 @@ export function selectAssistantService(
   live: CapabilityProviderHandle<AssistantService>
 ): CapabilityProviderHandle<AssistantService> {
   return fixtureMode
-    ? fixtureAssistantService
+    ? (
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+        require('./mocks/assistant-service') as typeof import('./mocks/assistant-service')
+      ).assistantService
     : live.metadata.availability === 'available'
       ? live
       : unavailable;
@@ -50,5 +53,8 @@ export function selectAssistantService(
 
 export const assistantService = selectAssistantService(
   isFixtureModeEnabled(),
-  createLiveAssistantApiService({ token: getLiveClerkToken })
+  createLiveAssistantApiService({
+    identity: captureLiveAssistantClerkIdentity,
+    journal: assistantSecureJournal
+  })
 );

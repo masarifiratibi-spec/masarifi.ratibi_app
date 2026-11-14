@@ -12,6 +12,27 @@ tags:
   - name: Health
   - name: Platform
 paths:
+  /health/compatibility:
+    get:
+      operationId: getRuntimeCompatibility
+      tags: [Health]
+      summary: Declare API protocol versions for cross-feature deployment checks
+      description: No dependency I/O, credentials or user data. Behavioral and runtime readiness checks are required separately.
+      security: []
+      responses:
+        '200':
+          description: Supported protocol versions.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [schemaVersion, contracts]
+                properties:
+                  schemaVersion: { type: integer, const: 1 }
+                  contracts:
+                    type: object
+                    additionalProperties: { type: integer, minimum: 1 }
   /health/live:
     get:
       operationId: getLiveness
