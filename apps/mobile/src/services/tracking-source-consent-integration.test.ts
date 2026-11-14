@@ -159,3 +159,38 @@ it.each(['partition', 'owner', 'session'] as const)(
     expect(f.consent.acknowledge).not.toHaveBeenCalled();
   }
 );
+
+it.each([
+  ['sms', false, false],
+  ['sms', true, false],
+  ['sms', false, true],
+  ['notification', false, false],
+  ['notification', true, false],
+  ['notification', false, true]
+] as const)(
+  'ensures %s is off without redundant approval when enabled=%s pending=%s',
+  async (source, initiallyEnabled, pending) => {
+    const f = fixture();
+    const otherSource = source === 'sms' ? 'notification' : 'sms';
+    await f.preferences.set(otherSource, true);
+    if (initiallyEnabled) await f.preferences.set(source, true);
+    f.consent.apply.mockClear();
+    f.consent.acknowledge.mockClear();
+    jest.mocked(disableTrackingBackground).mockClear();
+    Object.assign(f.consent, { hasPending: async () => pending });
+    const saved = await f.preferences.ensureDisabled(source);
+    expect(
+      source === 'sms' ? saved.smsEnabled : saved.notificationEnabled
+    ).toBe(false);
+    expect(
+      source === 'sms' ? saved.notificationEnabled : saved.smsEnabled
+    ).toBe(true);
+    expect(await f.preferences.load()).toEqual(saved);
+    expect(f.consent.apply).toHaveBeenCalledTimes(
+      initiallyEnabled || pending ? 1 : 0
+    );
+    expect(disableTrackingBackground).toHaveBeenCalledTimes(
+      initiallyEnabled || pending ? 1 : 0
+    );
+  }
+);

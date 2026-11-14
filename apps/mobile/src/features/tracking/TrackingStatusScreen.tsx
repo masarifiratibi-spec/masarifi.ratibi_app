@@ -834,9 +834,8 @@ async function enableTrackingSource(
     if (source === 'sms')
       await bankNotificationService.setCaptureEnabled(false);
     assertIntent();
-    await trackingSourcePreferences.set(
-      source === 'sms' ? 'notification' : 'sms',
-      false
+    await trackingSourcePreferences.ensureDisabled(
+      source === 'sms' ? 'notification' : 'sms'
     );
     assertIntent();
     await automaticTrackingService.setMode('automatic_clear');

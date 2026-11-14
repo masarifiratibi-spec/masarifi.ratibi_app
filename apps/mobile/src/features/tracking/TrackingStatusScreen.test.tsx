@@ -81,6 +81,11 @@ function renderStatus(
   } = {}
 ) {
   jest
+    .spyOn(trackingSourcePreferences, 'ensureDisabled')
+    .mockImplementation((source) =>
+      trackingSourcePreferences.set(source, false)
+    );
+  jest
     .spyOn(automaticTrackingService, 'getStatus')
     .mockImplementation(options.loadStatus ?? (async () => status));
   jest
