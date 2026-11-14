@@ -25,7 +25,7 @@ export const platformScopeSchema = z.enum(["all", "ios", "android", "unknown", "
 export const riskLevelSchema = z.enum(["informational", "low", "medium", "high", "critical"]);
 export const resultSchema = z.enum(["success", "failure", "blocked"]);
 export const securityStateSchema = z.enum(["New", "Investigating", "Escalated", "Resolved", "Dismissed"]);
-export const incidentStateSchema = z.enum(["Open", "Contained", "Monitoring", "Resolved", "Closed"]);
+export const incidentStateSchema = z.enum(["Open", "Investigating", "Contained", "Monitoring", "Resolved", "Closed"]);
 export const supportAccessStateSchema = z.enum(["active", "pending", "approved", "denied", "expired", "revoked"]);
 export const exportStateSchema = z.enum(["Requested", "Validating", "Processing", "Ready", "Expired", "Failed", "Cancelled"]);
 export const deletionStateSchema = z.enum(["Requested", "Review Required", "Scheduled", "In Progress", "Blocked", "Completed", "Cancelled"]);
@@ -217,29 +217,6 @@ export const incidentDetailSchema = z.object({
 export const incidentActionSchema = z.object({
   action: z.enum(["contain", "monitor", "resolve", "close", "reopen_monitoring", "note"]),
   context: actionContextSchema,
-}).strict();
-
-export const operationsIncidentSchema = z.object({
-  id: z.uuid(),
-  title: boundedText(160, 512),
-  severity: z.enum(["info", "warning", "critical"]),
-  status: z.enum(["open", "investigating", "monitoring", "resolved"]),
-  startedAt: z.iso.datetime({ offset: true }),
-  resolvedAt: z.iso.datetime({ offset: true }).nullable().optional(),
-  publicSummary: boundedText(500, 2048).nullable().optional(),
-  assignedAdminId: z.string().min(1).max(128).nullable().optional(),
-  version: z.number().int().positive(),
-}).strict();
-
-export const operationsIncidentPageSchema = z.object({
-  items: z.array(operationsIncidentSchema).max(100),
-  nextCursor: z.string().min(1).max(512).nullable(),
-}).strict();
-
-export const operationsIncidentMutationResultSchema = z.object({
-  resourceId: z.uuid(),
-  status: z.string().min(1).max(40),
-  version: z.number().int().positive(),
 }).strict();
 
 export const auditEventSummarySchema = z.object({
@@ -440,4 +417,3 @@ export type DeletionRequestDetail = z.infer<typeof deletionRequestDetailSchema>;
 export type DeletionWorkflowRequest = z.infer<typeof deletionWorkflowRequestSchema>;
 export type RetentionPolicyDetail = z.infer<typeof retentionPolicyDetailSchema>;
 export type ActionResult = z.infer<typeof actionResultSchema>;
-export type OperationsIncidentMutationResult = z.infer<typeof operationsIncidentMutationResultSchema>;

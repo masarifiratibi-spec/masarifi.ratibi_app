@@ -665,3 +665,65 @@ test("new public copies and auth secrets in a reviewed path never inherit its ex
   assert.equal(sidecar.exitCode, 2);
   assert.deepEqual(sidecar.findings, result.findings);
 });
+
+const currentVpsDigestFindings = [
+  {
+    "Commit": "6abae7005a84fae9df49e39fa26f3a1cd24eabec",
+    "File": "ops/releases/2026-11-14-dashboard-vps/manifest.json",
+    "RuleID": "generic-api-key",
+    "StartLine": 209,
+    "EndLine": 209,
+    "StartColumn": 9,
+    "EndColumn": 80,
+    "Secret": "REDACTED",
+    "Match": "api\": \"REDACTED\"",
+    "Fingerprint": "6abae7005a84fae9df49e39fa26f3a1cd24eabec:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:209"
+  },
+  {
+    "Commit": "f34a886fd86150a392f692cbbed075560c804511",
+    "File": "ops/releases/2026-11-14-dashboard-vps/manifest.json",
+    "RuleID": "generic-api-key",
+    "StartLine": 36,
+    "EndLine": 36,
+    "StartColumn": 9,
+    "EndColumn": 110,
+    "Secret": "REDACTED",
+    "Match": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\": \"REDACTED\"",
+    "Fingerprint": "f34a886fd86150a392f692cbbed075560c804511:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:36"
+  },
+  {
+    "Commit": "f34a886fd86150a392f692cbbed075560c804511",
+    "File": "ops/releases/2026-11-14-dashboard-vps/manifest.json",
+    "RuleID": "generic-api-key",
+    "StartLine": 96,
+    "EndLine": 96,
+    "StartColumn": 9,
+    "EndColumn": 110,
+    "Secret": "REDACTED",
+    "Match": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\": \"REDACTED\"",
+    "Fingerprint": "f34a886fd86150a392f692cbbed075560c804511:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:96"
+  }
+];
+
+
+test("VPS receipt digests are bound to exactly the reviewed immutable contexts", () => {
+  const result = classifyScanReport(JSON.stringify(currentVpsDigestFindings), 2);
+  assert.equal(result.exitCode, 0);
+  assert.deepEqual(result.findings.map((finding) => finding.classification),
+    ["runtime-payload-sha256", "public-clerk-sha256", "public-clerk-sha256"]);
+  for (const finding of currentVpsDigestFindings) {
+    const changed = {...finding, Commit: "a".repeat(40)};
+    changed.Fingerprint = `${changed.Commit}:${changed.File}:${changed.RuleID}:${changed.StartLine}`;
+    assert.equal(classifyScanReport(JSON.stringify([changed]), 2).exitCode, 2);
+  }
+});
+
+test("VPS payload classification refuses a changed private receipt binding", (t) => {
+  const catalog = require("./reviewed-secret-findings.json");
+  const entry = catalog.findings.find((finding) => finding.fingerprint === currentVpsDigestFindings[0].Fingerprint);
+  assert.ok(entry);
+  const original = entry.receiptSha256;
+  t.after(() => { entry.receiptSha256 = original; });
+  entry.receiptSha256 = "a".repeat(64);
+  assert.throws(() => classifyScanReport(JSON.stringify([currentVpsDigestFindings[0]]), 2), /context/);
+});

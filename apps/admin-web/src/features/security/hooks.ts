@@ -65,6 +65,15 @@ export function useSecurityIncident(id: string) {
   return useQuery({ queryKey: securityQueryKeys.detail(role, "incident", id), queryFn: () => securityRepository.getSecurityIncident(id), enabled: id.length > 0 });
 }
 
+export function useSecurityIncidents(page: number, enabled: boolean) {
+  const role = useSimulatedRole();
+  return useQuery({
+    queryKey: securityQueryKeys.list(role, "incidents", { page, pageSize: 25 }),
+    queryFn: () => securityRepository.listSecurityIncidents({ page, pageSize: 25 }),
+    enabled,
+  });
+}
+
 export function useAuditEvent(id: string) {
   const role = useSimulatedRole();
   return useQuery({ queryKey: securityQueryKeys.detail(role, "audit", id), queryFn: () => securityRepository.getAuditEvent(id), enabled: id.length > 0 });

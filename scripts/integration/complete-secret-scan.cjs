@@ -119,6 +119,16 @@ function classifyScanReport(
           contextVerified &&
           entry.pointer.join("/") === "executorSha256/" + name &&
           value === digest("sha256", git("show", commit + ":" + sibling));
+      } else if (entry.classification === "runtime-payload-sha256") {
+        const manifest = JSON.parse(source);
+        contextVerified =
+          contextVerified &&
+          file === "ops/releases/2026-11-14-dashboard-vps/manifest.json" &&
+          entry.pointer.join("/") === "admission/plannedPayloadSha256/api" &&
+          manifest.dataAuthority === "current-vps" &&
+          manifest.admission.canonicalSha256 === entry.receiptSha256 &&
+          manifest.admission.receiptPath ===
+            "/etc/masarifi/selfhost/dashboard-collector-qualification-20261114T003239Z.json";
       }
     }
     if (
@@ -184,6 +194,11 @@ function classifyScanReport(
           "host-inventory-field",
           "packet-executor-digest",
         ].includes(entry.classification)
+      )
+        classification = entry.classification;
+      else if (
+        entry.classification === "runtime-payload-sha256" &&
+        /^[a-f0-9]{64}$/.test(value)
       )
         classification = entry.classification;
       else if (

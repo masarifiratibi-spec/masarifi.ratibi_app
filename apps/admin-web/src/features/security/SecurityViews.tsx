@@ -5,14 +5,16 @@ import { ConfirmDialog, ErrorState, LoadingState, PageHeader, UnavailableState }
 import { ApiError } from "@/core/api/errors";
 import { getActionLabel, getPlatformLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import {
   useSecurityAction,
   useSecurityIncident,
+  useSecurityIncidents,
   useSecurityList,
   useSecurityOverview,
 } from "./hooks";
 import { securityRepository } from "./repository";
-import type { ActionResult, AuthenticationEvent, IncidentDetail, OperationsIncidentMutationResult, SuspiciousActivity, SupportAccessGrant } from "./contracts";
+import type { ActionResult, AuthenticationEvent, IncidentDetail, SuspiciousActivity, SupportAccessGrant } from "./contracts";
 
 const defaultContext = (state: string, revision: number) => ({
   expectedState: state,
@@ -277,10 +279,36 @@ export function SecurityOverviewRoute() {
           ))}
         </section>
       )}
+      <SecurityIncidentList />
       <SimpleList resource="authentication" title={copy.authenticationTitle} />
       <SimpleList resource="suspicious" title={copy.suspiciousTitle} />
     </div>
   );
+}
+
+export function SecurityIncidentList() {
+  const { locale } = useLocale();
+  const allowed = useCurrentPermission()("security.incidents.manage");
+  const [page, setPage] = useState(1);
+  const query = useSecurityIncidents(page, allowed);
+  if (!allowed) return null;
+  const ar = locale === "ar";
+  return <section className="table-card ops-table-card" aria-labelledby="security-incidents-title">
+    <h2 id="security-incidents-title">{ar ? "الحوادث الأمنية" : "Security incidents"}</h2>
+    {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : <>
+      {query.data.items.length === 0 ? <p role="status">{ar ? "لا توجد حوادث أمنية." : "No security incidents."}</p> :
+        <div className="phase7-cards">{query.data.items.map((item) => <article className="mobile-data-card" key={item.id}>
+          <a href={`/admin/security/incidents/${encodeURIComponent(item.id)}`}>{item.title}</a>
+          <p><Id value={item.id} /></p>
+          <p>{ar && item.state === "Contained" ? "تم الاحتواء" : statusText(locale, item.state)} · {getSeverityLabel(locale, item.severity)}</p>
+        </article>)}</div>}
+      <div className="card-heading">
+        <button className="button" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{ar ? "السابق" : "Previous"}</button>
+        <span>{ar ? "صفحة" : "Page"} {page}</span>
+        <button className="button" disabled={page >= query.data.pagination.totalPages} onClick={() => setPage((value) => value + 1)}>{ar ? "التالي" : "Next"}</button>
+      </div>
+    </>}
+  </section>;
 }
 
 export function AuthenticationEventsRoute() {
@@ -437,30 +465,70 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
 }
 
 export function IncidentDetailRoute({ incidentId }: { incidentId: string }) {
+  const { locale } = useLocale();
   const incident = useSecurityIncident(incidentId);
   const mutation = useSecurityAction();
-  const [result, setResult] = useState<ActionResult | OperationsIncidentMutationResult | null>(null);
+  const [result, setResult] = useState<{ auditReference: ActionResult["auditReference"] } | { version: number } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    id: string;
+    action: IncidentDetail["allowedActions"][number];
+    context: ReturnType<typeof defaultContext>;
+  } | null>(null);
   if (incident.isPending) return <div className="page"><LoadingState /></div>;
-  if (incident.isError) return <div className="page"><ErrorState /></div>;
+  if (incident.isError) return <div className="page"><ErrorState error={incident.error} /></div>;
   const data: IncidentDetail = incident.data;
   const action = data.allowedActions[0];
+  const ar = locale === "ar";
+  const actionLabel = (value: NonNullable<typeof action>) => {
+    if (ar && value === "contain") return "احتواء الحادث";
+    if (ar && value === "resolve") return "حل الحادث";
+    return getActionLabel(locale, value);
+  };
   return (
     <div className="page">
-      <PageHeader title={`Incident ${data.id}`} description="Sanitized incident detail and timeline." />
+      <PageHeader title={`${ar ? "الحادث الأمني" : "Security incident"} ${data.id}`}
+        description={ar ? "تفاصيل الحادث وسجل إجراءاته." : "Incident details and action history."} />
       <FieldList rows={[
-        ["State", data.state],
-        ["Severity", data.severity],
-        ["Owner", data.owner?.label ?? data.assignedAdminId ?? "Unavailable"],
-        ["Affected customers", data.affectedCustomerCount ?? "Unavailable"],
+        [ar ? "الحالة" : "State", ar && data.state === "Contained" ? "تم الاحتواء" : statusText(locale, data.state)],
+        [ar ? "الخطورة" : "Severity", getSeverityLabel(locale, data.severity)],
+        [ar ? "المسؤول" : "Owner", data.owner?.label ?? data.assignedAdminId ?? (ar ? "غير متاح" : "Unavailable")],
+        [ar ? "العملاء المتأثرون" : "Affected customers", data.affectedCustomerCount ?? (ar ? "غير متاح" : "Unavailable")],
       ]} />
       <ol>{data.timeline.map((item) => <li key={`${item.at}:${item.label}`}><Id value={item.at} /> {item.label}</li>)}</ol>
-      {action && <button className="button primary" onClick={() => mutation.mutate({
-        resource: "incident",
-        id: data.id,
-        action,
-        run: () => securityRepository.actOnSecurityIncident(data.id, { action, context: defaultContext(data.state, data.revision) }),
-      }, { onSuccess: (value) => setResult(value as ActionResult | OperationsIncidentMutationResult) })}>{action}</button>}
-      {result && <p role="status">{"auditReference" in result ? <>Audit reference <Id value={result.auditReference.eventId} /></> : <>Incident version {result.version}</>}</p>}
+      {action && <button className="button primary" onClick={() => {
+        mutation.reset();
+        setConfirmation({ id: data.id, action, context: defaultContext(data.state, data.revision) });
+      }}>{actionLabel(action)}</button>}
+      {confirmation && (
+        <ConfirmDialog
+          open
+          onClose={() => setConfirmation(null)}
+          onConfirm={() => mutation.mutate({
+            resource: "incident",
+            id: confirmation.id,
+            action: confirmation.action,
+            run: () => securityRepository.actOnSecurityIncident(confirmation.id, {
+              action: confirmation.action,
+              context: confirmation.context,
+            }),
+          }, { onSuccess: (value) => {
+            setConfirmation(null);
+            setResult(value as ActionResult | { version: number });
+          } })}
+          title={actionLabel(confirmation.action)}
+          scope={confirmation.id}
+          consequence={ar ? "سيتم تحديث حالة الحادث الأمني وتسجيل الإجراء." : "This updates the security incident and records the action."}
+          permission="security.incidents.manage"
+          auditEvent="security.update-security-incident"
+          pending={mutation.isPending}
+          outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}
+        >
+          {mutation.isError && <ErrorState error={mutation.error} />}
+        </ConfirmDialog>
+      )}
+      {result && <p role="status">{"auditReference" in result
+        ? <>{ar ? "مرجع التدقيق" : "Audit reference"} <Id value={result.auditReference.eventId} /></>
+        : <>{ar ? "إصدار الحادث" : "Incident version"} {result.version}</>}</p>}
     </div>
   );
 }
