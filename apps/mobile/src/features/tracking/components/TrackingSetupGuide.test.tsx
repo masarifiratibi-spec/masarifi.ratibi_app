@@ -17,11 +17,15 @@ const originalOS = Platform.OS;
 const enableSms = jest.fn(async () => undefined);
 const enableNotifications = jest.fn(async () => undefined);
 const openAlerts = jest.fn(async () => true);
-const renderGuide = () =>
+const renderGuide = (
+  enabled: { smsEnabled?: boolean; notificationEnabled?: boolean } = {}
+) =>
   renderWithProviders(
     <TrackingSetupGuide
       smsAvailable
       notificationAvailable
+      smsEnabled={enabled.smsEnabled ?? false}
+      notificationEnabled={enabled.notificationEnabled ?? false}
       onEnableSmsTracking={enableSms}
       onEnableNotificationTracking={enableNotifications}
       onOpenAlertSettings={openAlerts}
@@ -49,6 +53,23 @@ it('keeps the settings shortcut visible while guide steps start collapsed', asyn
   expect(enableNotifications).not.toHaveBeenCalled();
   expect(enableSms).not.toHaveBeenCalled();
 });
+
+it.each(['sms', 'notification'] as const)(
+  'shows an already enabled %s source as Enabled when its sheet opens',
+  (source) => {
+    renderGuide({
+      smsEnabled: source === 'sms',
+      notificationEnabled: source === 'notification'
+    });
+    fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+    fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
+    const completed = screen.getByRole('button', { name: 'Enabled' });
+    expect(completed).toBeDisabled();
+    fireEvent.press(completed);
+    expect(enableSms).not.toHaveBeenCalled();
+    expect(enableNotifications).not.toHaveBeenCalled();
+  }
+);
 
 it.each([
   ['sms', enableSms, 'Enable text message tracking', 'Enable SMS tracking'],
@@ -186,6 +207,8 @@ it.each(['sms', 'notification'] as const)(
       <TrackingSetupGuide
         smsAvailable={false}
         notificationAvailable={false}
+        smsEnabled={false}
+        notificationEnabled={false}
         onEnableSmsTracking={enableSms}
         onEnableNotificationTracking={enableNotifications}
         onOpenAlertSettings={openAlerts}

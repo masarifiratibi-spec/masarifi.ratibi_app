@@ -1271,6 +1271,7 @@ const ar: MessageCatalog = {
   'tracking.setup.title': 'كيف أفعّل التتبع؟',
   'tracking.setup.description': 'الرسائل، إشعارات البنوك، وتنبيه الحفظ.',
   'tracking.setup.viewSteps': 'عرض الخطوات',
+  'tracking.setup.enabled': 'تم التفعيل',
   'tracking.setup.sms.title': 'تتبع الرسائل النصية',
   'tracking.setup.sms.description': 'افتح الأذونات واسمح لمصاريفي بقراءة الرسائل.',
   'tracking.setup.notification.title': 'تتبع إشعارات البنوك',

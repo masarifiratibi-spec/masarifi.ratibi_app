@@ -26,6 +26,9 @@ import type { TrackingStatusSnapshot } from '@/domain/automatic-tracking';
 import { usePreferenceStore } from '@/state/preferences';
 import { bankNotificationService } from '@/services/platform/bank-notification-service';
 import { trackingSourcePreferences } from '@/services/tracking-source-preferences';
+import { TrackingHomeCard } from './TrackingHomeCard';
+import { phoneNotificationService } from '@/services/platform/phone-notification-service';
+import { useAppShellStore } from '@/state/app-shell';
 import * as coordinator from '@/services/automatic-tracking-coordinator';
 import {
   beginTrackingAdmission,
@@ -74,6 +77,7 @@ function renderStatus(
   options: {
     loadStatus?: () => Promise<TrackingStatusSnapshot>;
     smsPermission?: ReturnType<typeof permissionState>['status'];
+    homeSetup?: boolean;
   } = {}
 ) {
   jest
@@ -103,9 +107,13 @@ function renderStatus(
       ),
       openSettings: openSmsSettings
     });
-  return renderWithQueryData(<TrackingStatusScreen />, [
-    [automaticTrackingKeys.status, status]
-  ]);
+  return renderWithQueryData(
+    <>
+      <TrackingStatusScreen />
+      {options.homeSetup ? <TrackingHomeCard /> : null}
+    </>,
+    [[automaticTrackingKeys.status, status]]
+  );
 }
 
 async function readyControl(testID: string) {
@@ -942,6 +950,19 @@ describe('TrackingStatusScreen', () => {
         if (wantEnabled)
           await waitFor(() => expect(save).toHaveBeenCalledWith(source, true));
         else expect(save).not.toHaveBeenCalledWith(source, true);
+        if (wantEnabled) {
+          expect(
+            await screen.findByRole('button', {
+              name: translate('tracking.setup.enabled')
+            })
+          ).toBeDisabled();
+        } else {
+          expect(
+            screen.queryByRole('button', {
+              name: translate('tracking.setup.enabled')
+            })
+          ).toBeNull();
+        }
         fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
         await waitFor(() =>
           expect(
@@ -958,6 +979,109 @@ describe('TrackingStatusScreen', () => {
       } finally {
         view.unmount();
         Platform.OS = priorOS;
+      }
+    }
+  );
+
+  it.each(['sms', 'notification'] as const)(
+    'guide activation hides the matching home setup card and resets its label when switched off: %s',
+    async (source) => {
+      const priorOS = Platform.OS;
+      const priorSession = useAppShellStore.getState().session;
+      const priorProfile = useAppShellStore.getState().profileSetupStatus;
+      Platform.OS = 'android';
+      useAppShellStore.setState({
+        session: {
+          status: 'authenticated',
+          userId: `guide-home-${source}`,
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 9999999999,
+          restoration: 'restored'
+        },
+        profileSetupStatus: 'complete'
+      });
+      jest
+        .spyOn(phoneNotificationService, 'getPermission')
+        .mockResolvedValue('granted');
+      const stored = { smsEnabled: false, notificationEnabled: false };
+      let mode: TrackingStatusSnapshot['mode'] = 'paused';
+      const read = async (): Promise<TrackingStatusSnapshot> => ({
+        ...responsiveStatus,
+        mode,
+        smsTrackingEnabled: stored.smsEnabled,
+        notificationTrackingEnabled: stored.notificationEnabled
+      });
+      jest.spyOn(coordinator, 'resyncAutomaticTracking').mockResolvedValue({
+        status: 'idle',
+        sessionId: null,
+        reviewId: null,
+        duplicateId: null,
+        errorCode: null
+      });
+      jest
+        .spyOn(trackingSourcePreferences, 'set')
+        .mockImplementation(async (selected, enabled) => {
+          if (selected === 'sms') stored.smsEnabled = enabled;
+          else stored.notificationEnabled = enabled;
+          return { ...stored };
+        });
+      jest
+        .spyOn(automaticTrackingService, 'setMode')
+        .mockImplementation(async (next) => {
+          mode = next;
+          return read();
+        });
+      jest
+        .spyOn(bankNotificationService, 'setCaptureEnabled')
+        .mockResolvedValue();
+      const view = renderStatus(await read(), 'granted', {
+        loadStatus: read,
+        homeSetup: true
+      });
+      jest
+        .mocked(trackingSourcePreferences.load)
+        .mockImplementation(async () => ({ ...stored }));
+      const card =
+        source === 'sms'
+          ? 'sms-tracking-home-card'
+          : 'notification-tracking-home-card';
+      const otherCard =
+        source === 'sms'
+          ? 'notification-tracking-home-card'
+          : 'sms-tracking-home-card';
+      try {
+        expect(await screen.findByTestId(card)).toBeOnTheScreen();
+        expect(screen.getByTestId(otherCard)).toBeOnTheScreen();
+        fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+        fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
+        fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+        expect(
+          await screen.findByRole('button', {
+            name: translate('tracking.setup.enabled')
+          })
+        ).toBeDisabled();
+        fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
+        await waitFor(() => expect(screen.queryByTestId(card)).toBeNull());
+        expect(screen.getByTestId(otherCard)).toBeOnTheScreen();
+        fireEvent.press(await readyControl(`tracking-${source}-switch`));
+        expect(await screen.findByTestId(card)).toBeOnTheScreen();
+        fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
+        expect(
+          screen.queryByRole('button', {
+            name: translate('tracking.setup.enabled')
+          })
+        ).toBeNull();
+        expect(
+          screen.getByTestId('tracking-guide-open-settings')
+        ).toBeEnabled();
+      } finally {
+        view.unmount();
+        Platform.OS = priorOS;
+        useAppShellStore.setState({
+          session: priorSession,
+          profileSetupStatus: priorProfile
+        });
       }
     }
   );

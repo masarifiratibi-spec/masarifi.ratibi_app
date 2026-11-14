@@ -23,12 +23,16 @@ const topics: readonly GuideTopic[] = ['sms', 'notification', 'alerts'];
 export function TrackingSetupGuide({
   smsAvailable,
   notificationAvailable,
+  smsEnabled,
+  notificationEnabled,
   onEnableSmsTracking,
   onEnableNotificationTracking,
   onOpenAlertSettings
 }: {
   smsAvailable: boolean;
   notificationAvailable: boolean;
+  smsEnabled: boolean;
+  notificationEnabled: boolean;
   onEnableSmsTracking: () => Promise<void>;
   onEnableNotificationTracking: () => Promise<void>;
   onOpenAlertSettings: () => Promise<boolean>;
@@ -59,6 +63,12 @@ export function TrackingSetupGuide({
   };
   const titleStyle = [styles.title, text, { color: colors.content.primary }];
   const bodyStyle = [styles.body, text, { color: colors.content.secondary }];
+  const selectedEnabled =
+    selected === 'sms'
+      ? smsEnabled
+      : selected === 'notification'
+        ? notificationEnabled
+        : false;
   const unavailableMessage: MessageKey | null =
     Platform.OS === 'web'
       ? 'tracking.setup.webUnavailable'
@@ -79,6 +89,11 @@ export function TrackingSetupGuide({
 
   async function runSetupAction(topic: GuideTopic) {
     if (opening) return;
+    if (
+      (topic === 'sms' && smsEnabled) ||
+      (topic === 'notification' && notificationEnabled)
+    )
+      return;
     const version = ++actionVersion.current;
     setOpening(true);
     setError(null);
@@ -368,10 +383,14 @@ export function TrackingSetupGuide({
                 <ActionButton
                   testID="tracking-guide-open-settings"
                   label={
-                    selected === 'alerts'
-                      ? 'tracking.setup.alerts.open'
-                      : `tracking.setup.${selected}.enable`
+                    selectedEnabled
+                      ? 'tracking.setup.enabled'
+                      : selected === 'alerts'
+                        ? 'tracking.setup.alerts.open'
+                        : `tracking.setup.${selected}.enable`
                   }
+                  disabled={selectedEnabled}
+                  style={selectedEnabled ? styles.completedAction : undefined}
                   loading={opening}
                   onPress={() => void runSetupAction(selected)}
                 />
@@ -390,6 +409,7 @@ export function TrackingSetupGuide({
 }
 
 const styles = StyleSheet.create({
+  completedAction: { opacity: 1 },
   shortcutCard: { padding: 0 },
   header: {
     alignItems: 'center',

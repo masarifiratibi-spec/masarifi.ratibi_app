@@ -1322,6 +1322,7 @@ const en = {
   'tracking.setup.title': 'How do I enable tracking?',
   'tracking.setup.description': 'Text messages, bank notifications, and saved alerts.',
   'tracking.setup.viewSteps': 'View steps',
+  'tracking.setup.enabled': 'Enabled',
   'tracking.setup.sms.title': 'Text message tracking',
   'tracking.setup.sms.description': 'Open permissions and allow Masarifi to read text messages.',
   'tracking.setup.notification.title': 'Track bank notifications',

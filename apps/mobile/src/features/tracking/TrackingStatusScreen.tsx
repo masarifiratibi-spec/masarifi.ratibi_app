@@ -764,8 +764,14 @@ function TrackingStatusContent() {
         <TrackingSetupGuide
           smsAvailable={smsPermission !== 'unavailable'}
           notificationAvailable={notificationAccess !== 'unavailable'}
+          smsEnabled={smsEnabled && sourceIntents.sms !== false}
+          notificationEnabled={
+            notificationEnabled && sourceIntents.notification !== false
+          }
           onEnableSmsTracking={() => enableSourceFromGuide('sms')}
-          onEnableNotificationTracking={() => enableSourceFromGuide('notification')}
+          onEnableNotificationTracking={() =>
+            enableSourceFromGuide('notification')
+          }
           onOpenAlertSettings={openTrackingAlertSettings}
         />
 
