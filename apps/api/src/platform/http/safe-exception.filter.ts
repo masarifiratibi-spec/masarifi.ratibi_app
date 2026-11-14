@@ -1,3 +1,4 @@
+import { isProjectRuntimeEnvironment } from '../config/runtime-scope';
 import {
   ArgumentsHost,
   Catch,
@@ -11,6 +12,7 @@ import type { Request, Response } from 'express';
 
 import { LEDGER_METRICS, recordPlatformMetric } from '../observability/platform-metrics';
 import { normalizeRequestId } from './request-id.middleware';
+import { workerErrorFields } from '../observability/worker-error';
 
 const errors: Record<number, { code: string; message: string }> = {
   [HttpStatus.BAD_REQUEST]: {
@@ -332,9 +334,18 @@ export class SafeExceptionFilter implements ExceptionFilter {
     )
       recordPlatformMetric(LEDGER_METRICS.error, 1, { reason: domainCode });
     const envelope = safeError(status, request.requestId, [], domainCode, domainResponse);
+    if (status >= 500) {
+      this.logger.error('http.failed', {
+        context: 'Http',
+        requestId: envelope.requestId,
+        httpStatus: status,
+        code: envelope.code,
+        ...workerErrorFields(exception),
+      });
+    }
     if (
       process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED === 'true' &&
-      process.env.SUPABASE_URL === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      isProjectRuntimeEnvironment(process.env) &&
       request.path === '/api/v1/transactions'
     ) {
       const operation = request.headers['idempotency-key'];

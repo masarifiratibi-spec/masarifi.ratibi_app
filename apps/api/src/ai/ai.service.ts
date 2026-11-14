@@ -1,3 +1,4 @@
+import { isProjectRuntime } from '../platform/config/runtime-scope';
 import { createHash } from 'node:crypto';
 import { HttpException, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
@@ -167,7 +168,7 @@ export class AiService {
     const devPosting =
       contract === '3' &&
       variant === 'staging-development' &&
-      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      isProjectRuntime(this.config) &&
       this.config.get('MASARIFI_STAGING_VOICE_DEV_OWNER_ID') === principal.userId;
     const result = resource(
       contract === '2' && this.config.get('MASARIFI_VOICE_ANALYSIS_ONLY')
@@ -582,7 +583,7 @@ export class AiService {
     const developmentAgent =
       this.config.get('MASARIFI_ASSISTANT_AGENT_ENABLED') &&
       this.config.get('MASARIFI_ASSISTANT_AGENT_OWNER_ID') === principal.userId &&
-      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co';
+      isProjectRuntime(this.config);
     const scopeNotice = developmentAgent ? directAssistantScopeNotice(input.content) : null;
     if (scopeNotice) {
       return this.accepted(
@@ -676,7 +677,7 @@ export class AiService {
           )));
     if (
       this.config.get('MASARIFI_ASSISTANT_AGENT_PUBLIC_ENABLED') &&
-      this.config.get('SUPABASE_URL') === 'https://qcffvfbpzvpwcwxwjyro.supabase.co' &&
+      isProjectRuntime(this.config) &&
       !explicitAction &&
       !(initialRoute.intent === 'spending_summary' && isDirectSpendingTotal(input.content))
     ) {

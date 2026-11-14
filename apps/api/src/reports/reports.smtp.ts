@@ -1,3 +1,4 @@
+import { storageConfiguration } from '../platform/storage/storage-configuration';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 
@@ -53,7 +54,7 @@ export class ReportsSmtp {
     @Optional() @Inject(REPORT_SMTP_TRANSPORT) supplied?: MailTransport,
   ) {
     this.from = config.getRequired('EMAIL_FROM');
-    this.allowedOrigin = new URL(config.getRequired('SUPABASE_URL')).origin;
+    this.allowedOrigin = storageConfiguration(config).origin.origin;
     this.maximumAttachmentBytes = config.getRequired('MASARIFI_REPORT_MAX_BYTES');
     this.transport = supplied ?? createTlsMailTransport(config);
   }

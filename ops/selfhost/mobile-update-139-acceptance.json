@@ -1,0 +1,19 @@
+{
+  "state": "passed",
+  "versionCode": 139,
+  "versionName": "1.0.1",
+  "sha256": "edd697e043032f4213600452538712c01e62a3bdef15f527f9ea91685946403f",
+  "uidPreserved": true,
+  "bothProfilesDataInodesPreserved": true,
+  "firstInstallTimesPreserved": true,
+  "currentAuthenticatedSessionObserved": true,
+  "conciseTrackingObserved": true,
+  "conciseAssistantObserved": true,
+  "automaticCapturePermissionsChanged": false,
+  "automaticCaptureTested": false,
+  "tests": 94,
+  "suites": 6,
+  "typecheckExit": 0,
+  "changedFileLintExit": 0,
+  "atUtc": "2026-11-13T17:31:02.117167+00:00"
+}

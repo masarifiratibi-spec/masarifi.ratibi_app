@@ -1,3 +1,7 @@
+import {
+  correlatedStorageFetch,
+  storageConfiguration,
+} from '../platform/storage/storage-configuration';
 import { createHash } from 'node:crypto';
 import { Transform } from 'node:stream';
 
@@ -29,8 +33,10 @@ export class ReportsStorage {
     config: PlatformConfigService,
     @Optional() private readonly fetcher: typeof fetch = fetch,
   ) {
-    this.origin = new URL(config.getRequired('SUPABASE_URL'));
-    this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
+    this.fetcher = correlatedStorageFetch(this.fetcher);
+    const storage = storageConfiguration(config);
+    this.origin = storage.origin;
+    this.credential = storage.credential;
     this.allowHttp = config.getRequired('NODE_ENV') !== 'production';
   }
 

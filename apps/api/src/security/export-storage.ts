@@ -1,3 +1,7 @@
+import {
+  correlatedStorageFetch,
+  storageConfiguration,
+} from '../platform/storage/storage-configuration';
 import { Injectable, Optional } from '@nestjs/common';
 import type { Readable } from 'node:stream';
 
@@ -19,8 +23,10 @@ export class ExportStorage {
     config: PlatformConfigService,
     @Optional() private readonly fetcher: typeof fetch = fetch,
   ) {
-    this.origin = new URL(config.getRequired('SUPABASE_URL'));
-    this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
+    this.fetcher = correlatedStorageFetch(this.fetcher);
+    const storage = storageConfiguration(config);
+    this.origin = storage.origin;
+    this.credential = storage.credential;
   }
 
   async upload(key: string, body: Readable, bytes?: number): Promise<void> {

@@ -3,6 +3,8 @@ import { Pool, type PoolClient, type PoolConfig, type QueryResult, type QueryRes
 
 import { PlatformConfigService } from '../config/platform-config.service';
 import { financialGeneration } from '../http/financial-generation';
+import { PlatformLogger } from '../observability/platform-logger';
+import { workerErrorFields } from '../observability/worker-error';
 
 export function buildPoolOptions(connectionString: string, max: number): PoolConfig {
   if (!Number.isInteger(max) || max < 1 || max > 50) {
@@ -61,6 +63,7 @@ export class PoolService implements OnModuleDestroy {
       // The driver's own timeout may reject before our deadline, leaving work
       // running on this connection. Treat every failed query as uncertain.
       failed = true;
+      this.logFailure(error, 'query');
       throw error;
     } finally {
       if (timer) clearTimeout(timer);
@@ -81,6 +84,7 @@ export class PoolService implements OnModuleDestroy {
       // A driver timeout can also time out a queued ROLLBACK. Never return an
       // uncertain transaction or owner-local settings to another request.
       failed = true;
+      this.logFailure(error, 'transaction');
       throw error;
     } finally {
       client.release(failed);
@@ -88,7 +92,13 @@ export class PoolService implements OnModuleDestroy {
   }
 
   private async connect(): Promise<PoolClient> {
-    const client = await this.pool.connect();
+    let client: PoolClient;
+    try {
+      client = await this.pool.connect();
+    } catch (error) {
+      this.logFailure(error, 'connect');
+      throw error;
+    }
     try {
       const generation = financialGeneration.getStore() ?? '';
       if ((this.clientGenerations.get(client) ?? '') !== generation) {
@@ -110,8 +120,17 @@ export class PoolService implements OnModuleDestroy {
       return client;
     } catch (error) {
       client.release(true);
+      this.logFailure(error, 'initialize');
       throw error;
     }
+  }
+
+  private logFailure(error: unknown, stage: string): void {
+    new PlatformLogger().error('database.failed', {
+      operation: `database.${stage}`,
+      failureStage: stage,
+      ...workerErrorFields(error),
+    });
   }
 
   async onModuleDestroy(): Promise<void> {

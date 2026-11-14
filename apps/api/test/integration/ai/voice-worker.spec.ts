@@ -175,7 +175,7 @@ describe('voice transcription worker', () => {
     'stream_overflow',
     'stream_length',
     'Bearer private-fixture-token',
-  ])('fails closed before provider dispatch and logs only a fixed stage for %s', async (stage) => {
+  ])('fails closed before provider dispatch and logs only a fixed stage with safe metadata for %s', async (stage) => {
     const lines: string[] = [];
     jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
       lines.push(String(chunk));
@@ -253,6 +253,13 @@ describe('voice transcription worker', () => {
         message: 'VOICE_MEDIA_INVALID',
         eventName: 'voice.media.rejected',
         state: stage === 'Bearer private-fixture-token' ? 'unknown' : stage,
+        service: 'api',
+        version: 'test-release',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/i) as unknown,
+        operation: 'voice.media.rejected',
+        outcome: 'failure',
+        durationMs: 0,
+        code: 'UNCLASSIFIED',
       },
     ]);
   });

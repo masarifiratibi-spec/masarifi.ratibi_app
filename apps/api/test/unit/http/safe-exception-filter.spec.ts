@@ -3,6 +3,33 @@ import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 describe('safeError', () => {
+  it('logs an ordinary internal failure by request ID without SQL or financial contents', () => {
+    const lines: string[] = [];
+    Logger.overrideLogger(new PlatformLogger((line) => lines.push(line)));
+    const response = { status: () => response, json: () => undefined };
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          path: '/api/v1/accounts',
+          requestId: 'correlated-error',
+          headers: {},
+          body: { balance: 'sensitive-balance' },
+        }),
+        getResponse: () => response,
+      }),
+    } as unknown as ArgumentsHost;
+    try {
+      new SafeExceptionFilter().catch(new Error('select secret_payload; financial 12345'), host);
+      expect(
+        lines.some(
+          (line) => (JSON.parse(line) as { requestId?: string }).requestId === 'correlated-error',
+        ),
+      ).toBe(true);
+      expect(JSON.stringify(lines)).not.toMatch(/secret_payload|12345|sensitive-balance/);
+    } finally {
+      Logger.overrideLogger(new ConsoleLogger());
+    }
+  });
   it('logs Staging ledger rejection correlation without identity or financial contents', () => {
     const oldUrl = process.env.SUPABASE_URL;
     const oldFlag = process.env.MASARIFI_FINANCE_DIAGNOSTICS_ENABLED;

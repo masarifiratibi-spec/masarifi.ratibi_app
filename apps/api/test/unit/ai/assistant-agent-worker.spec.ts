@@ -3,8 +3,24 @@ import type { AssistantAgentClaim } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery, AssistantDataResult } from '../../../src/ai/assistant-agent-data';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import * as health from '../../../src/ai/ai-worker-health';
+import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 const owner = 'owner-a';
+
+it('links assistant failures to the operation accepted by the API', async () => {
+  const f = fixture();
+  const error = jest.spyOn(PlatformLogger.prototype, 'error').mockImplementation(() => undefined);
+  f.data.read.mockRejectedValue(new Error('DATABASE_QUERY_TIMEOUT'));
+  await f.worker.runOnce();
+  expect(error).toHaveBeenCalledWith(
+    'ASSISTANT_AGENT_FAILED',
+    expect.objectContaining({
+      requestId: 'operation-a',
+      jobName: 'assistant.respond',
+      code: 'DATABASE_QUERY_TIMEOUT',
+    }),
+  );
+});
 
 it('reports agent health through its shared observer instead of overwriting the shared health file', async () => {
   const publish = jest.spyOn(health, 'publishAiWorkerHealth').mockReturnValue(true);
@@ -252,20 +268,26 @@ it('writes safe round and attempt diagnostics through the real gateway and logge
     }),
   ]);
   expect(JSON.stringify(records)).not.toMatch(
-    /PRIVATE|owner-a|job-a|claim-fence|operation-a|provider-a|model-a/u,
+    /PRIVATE|owner-a|job-a|claim-fence|provider-a|model-a/u,
   );
   for (const record of records) {
     expect(Object.keys(record).sort()).toEqual([
       'attempt',
-      ...(record.eventName === 'assistant.agent.model' ? ['code'] : []),
+      'code',
       'durationMs',
       'eventName',
+      'jobName',
       'level',
       'message',
+      'operation',
+      'outcome',
       'readCount',
+      'requestId',
       'round',
+      'service',
       'state',
       'timestamp',
+      'version',
     ]);
   }
   expect(f.jobs.finish).toHaveBeenCalledWith(
