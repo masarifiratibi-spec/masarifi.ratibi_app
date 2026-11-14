@@ -18,7 +18,7 @@
     "members": 52794,
     "internalSymlinks": 44,
     "staticAssets": 74,
-    "runtimeExecuted": false,
+    "runtimeExecuted": true,
     "sourceSha": "fd834905433060551bb71940be1eb0e504097cca",
     "adminGitTree": "4b4fff5c7d8109a79221a25cd58fe40b25cf135e",
     "sourceArchiveSha256": "1336868c3a389fe58d2bfbf3cde3656c5ee548d19d22e190534d84fac17d5be3",
@@ -45,7 +45,9 @@
       "path": "/_next/static/JnPTcIfQ1KSXKIwHFmZEy/_buildManifest.js",
       "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
     },
-    "runtimeImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5"
+    "runtimeImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "runtimeExecutionScope": "isolated-github-vm-network-none",
+    "hostedRuntimeExecuted": false
   },
   "dataAuthority": "current-vps",
   "currentHostAdmission": {
@@ -64,10 +66,9 @@
   "runFrozenConsumers": false,
   "supersededPacket": "2026-11-07-temporary-support-access",
   "blockers": [
-    "Complete current packet Linux/PG17/systemd qualification",
-    "Review scoped current-host executor and runtime qualification gates",
+    "Complete remote history-scan requalification for the three exact reviewed digest findings",
     "Identify independent authenticated acceptance participants",
-    "Obtain user approval for final concrete packet"
+    "Review final actor-bound packet and obtain user approval"
   ],
   "historicalSupersededAdmin": {
     "source": "90505a908bcb3840e2620f2df442d1774a8753ef",
@@ -142,7 +143,7 @@
       "passed": true,
       "hostedExecuted": false
     },
-    "linuxRuntimeRestorationQualified": false
+    "linuxRuntimeRestorationQualified": true
   },
   "migration": {
     "clusterSha256": "719b24d1e37aea5b70b3abaefb193cdaaf6cae4059acb12b68e5e89f7152e18e",
@@ -162,10 +163,59 @@
     "hostedExecuted": false
   },
   "qualification": {
-    "linuxPassed": false,
+    "linuxPassed": true,
     "workflow": "dashboard-vps-packet.yml",
     "localControlsPassed": 69,
-    "hostedRuntimeExecuted": false
+    "hostedRuntimeExecuted": false,
+    "run": 43538257141,
+    "headSha": "6d9dff6210056ef1c91f6c845f4c7d7aee871904",
+    "postgresMajor": 17,
+    "postgresTransactionPassed": true,
+    "nginxMountTrialPassed": true,
+    "systemdOperatorDisconnectTimeoutPassed": true,
+    "adminRuntime": {
+      "actualImageId": "sha256:fbbe2a5ac5a540add77c05927b1f1009f9fb49f13f8dfdc07cd4f3b2747327a8",
+      "artifact": 14086067555,
+      "buildId": "JnPTcIfQ1KSXKIwHFmZEy",
+      "hostedActions": false,
+      "imageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+      "liveSecretsProvided": false,
+      "network": "none",
+      "publicConfigurationHashesMatched": true,
+      "qualified": true,
+      "restartCount": 0,
+      "runtimeNode": "v24.20.0",
+      "serverSecretPlaceholder": true,
+      "source": "fd834905433060551bb71940be1eb0e504097cca",
+      "staticProbePassed": true,
+      "registryDescriptor": {
+        "digest": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+        "verifiedRawDigest": true,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 7157,
+          "digest": "sha256:fbbe2a5ac5a540add77c05927b1f1009f9fb49f13f8dfdc07cd4f3b2747327a8"
+        },
+        "manifests": null,
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux",
+          "variant": null
+        },
+        "configDigestVerified": true
+      }
+    },
+    "completeHistoryScan": {
+      "localPassed": true,
+      "headSha": "6d9dff6210056ef1c91f6c845f4c7d7aee871904",
+      "commits": 1111,
+      "redactedFindings": 17,
+      "unreviewed": 0,
+      "scanner": "gitleaks-8.24.3",
+      "classifierTestsPassed": 19,
+      "remoteRequalificationPending": true
+    }
   },
   "files": {
     ".gitattributes": "95bd20e106c0bf5ad7e8ea9be5f1e6c443614628b20284eea258617520732854",
@@ -181,7 +231,7 @@
     "qualify_timeout.py": "d2014ca04356c85d9efdbb0172f8d3dbe34e3e841f28a501fb55cb97bcd3d6f8",
     "qualify_trial.py": "6e9fc33ded391fb77bdb369578c5d5d3cb2a7040002c87d320eb3d013a6a2e5b",
     "read_nginx_context.py": "0eb4d953502ee9b6693bab8a41459aff50dfadc35b4559df10b99f41f0410e30",
-    "README.md": "a757a48810be6a70d6fa4328476d47e472c31eb5048c6f6ad80e227c2842ff5d",
+    "README.md": "8468b0fa93fe9c62e4b626bd0a221f8bb2352a9f18ef25732d2db02a566ef245",
     "routing_files.py": "2b721f4d5b80603c74a119a32cfd5ca2044d888028aee664a09eab81436adb1d",
     "runtime_plan.py": "1d2e0ca17f68ddbcc5678063d51a858db70783ecbb8db1a011634bd34609dc65",
     "security.repository.js.patch": "df3ce17c3bf91e5ac1fbe26e09117ffafde8f6fb356b958207eb8bf49f62a85b",
