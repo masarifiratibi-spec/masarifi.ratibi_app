@@ -1,6 +1,6 @@
 # iOS Client Ad Hoc Readiness Implementation Plan
 
-محدّثة في 15 نوفمبر 2026 لتشمل المصدر المنشور Android 153 وحالة مسودات Apple. إعداد وتجربة Ad Hoc هما المسار الحالي؛ قسم المتجر اللاحق جرد مشروط، وبناء iOS ما زال موقوفًا.
+**خطة سابقة محفوظة:** حلّت محلها الخطة المعتمدة `2026-11-15-ios-store-and-iphone17-readiness.md` بعد إذن المالك بالبناء والتثبيت وربط Apple المجاني. بنود الإيقاف والنسخة 1.0.1 أدناه تصف لقطة المزامنة السابقة، وليست الحالة التنفيذية الحالية. iOS الحالي 1.0.0؛ لا رفع إلى Apple أو نشر/إقرارات دون مراجعة المالك.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking. Execution is native in the current worktree; do not dispatch agents unless explicitly requested by the user.
 

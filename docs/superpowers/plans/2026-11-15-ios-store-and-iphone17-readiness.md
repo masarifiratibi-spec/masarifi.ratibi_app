@@ -30,37 +30,37 @@
 
 **Interfaces:** Existing production bindings -> ios-ad-hoc/internal and ios-app-store/store with version 1.0.0, explicit compatible EAS image, production providers, unchanged Android settings.
 
-- [ ] Add failing profile/config/runtime/entrypoint tests for App Store, marker isolation, equal production bindings and retained Android configuration.
-- [ ] Add ios-app-store, update ios-ad-hoc's approved version/image, and extend config/runtime/production entrypoints without changing Android profiles or submit configuration.
-- [ ] Run Node configuration suites, scoped lint and diff checks; commit the qualified profiles.
+- [x] Add failing profile/config/runtime/entrypoint tests for App Store, marker isolation, equal production bindings and retained Android configuration.
+- [x] Add ios-app-store, update ios-ad-hoc's approved version/image, and extend config/runtime/production entrypoints without changing Android profiles or submit configuration.
+- [x] Run Node configuration suites, scoped lint and diff checks; commit the qualified profiles.
 
 ### Task 2: Add native Apple authentication
 
 **Interfaces:** AuthService.signInWithApple(): Promise<AuthResult>; session method adds apple; native Clerk bridge authenticates and explicitly activates the returned session before admission.
 
-- [ ] Add failing SDK-boundary/auth-service/UI/session-restoration tests for Apple success, cancellation, incomplete/error, owner isolation, availability and unchanged Android Google UI.
-- [ ] Install Expo 55-compatible expo-apple-authentication with the existing lockfile; add iOS-only native config and Apple button using the installed Clerk Apple hook.
-- [ ] Extend real/unavailable/demo auth providers consistently, preserve existing sessions and owner fences, and avoid Google-only labels for Apple identities.
-- [ ] Activate the free Apple social connection in the retained production Clerk instance after verifying the target and price; validate native registration. Request only genuinely missing credentials or out-of-scope Apple configuration.
-- [ ] Run relevant auth, routing, storage, privacy/recent-auth tests, typecheck and scoped lint; commit.
+- [x] Add failing SDK-boundary/auth-service/UI/session-restoration tests for Apple success, cancellation, incomplete/error, owner isolation, availability and unchanged Android Google UI.
+- [x] Install Expo 55-compatible expo-apple-authentication with the existing lockfile; add iOS-only native config and Apple button using the installed Clerk Apple hook.
+- [x] Extend real/unavailable/demo auth providers consistently, preserve existing sessions and owner fences, and avoid Google-only labels for Apple identities.
+- [x] Activate the free Apple social connection in the retained production Clerk instance after verifying the target and price; validate native registration. Request only genuinely missing credentials or out-of-scope Apple configuration.
+- [x] Run relevant auth, routing, storage, privacy/recent-auth tests, typecheck and scoped lint; commit.
 
 ### Task 3: Resolve deletion presentation and audit compliance
 
 **Interfaces:** Existing deletion service/receipt contracts unchanged; iOS presentation stays stable. Produce evidence-based login/encryption/privacy audit and draft review materials.
 
-- [ ] Reproduce error -> Retry/Continue -> progress -> error using iOS/Android fixtures; fix only an evidenced defect, keeping Android behavior and no live deletion.
-- [ ] Audit Info.plist, entitlements, SDK privacy manifests/reasons, SQLCipher/crypto and consent/data providers; add necessary iOS config with tests.
-- [ ] Record proposed export-compliance answers and metadata/privacy differences without making declarations or publishing.
-- [ ] Run changed suites, the project's mobile suite, typecheck, lint and secret checks; commit local fixes/audit.
+- [x] Reproduce error -> Retry/Continue -> progress -> error using iOS/Android fixtures; fix only an evidenced defect, keeping Android behavior and no live deletion.
+- [x] Audit Info.plist, entitlements, SDK privacy manifests/reasons, SQLCipher/crypto and consent/data providers; add necessary iOS config with tests.
+- [x] Record proposed export-compliance answers and metadata/privacy differences without making declarations or publishing.
+- [x] Run changed suites, the project's mobile suite, typecheck, lint and secret checks; commit local fixes/audit.
 
 ### Task 4: Connect iPhone 17, sign, build and test
 
 **Interfaces:** Fixed source commit + valid signing + actual iPhone enrollment -> matching Ad Hoc and App Store IPAs with private artifact manifests.
 
-- [ ] Verify current membership/team/Expo credentials/APNs and valid certificate/profile; owner enters secrets in their own UI.
-- [ ] Connect iPhone 17 over data USB; owner unlocks and trusts the computer. Read actual model/iOS; prepare isolated Windows device tooling and official Apple connection prerequisites as needed.
-- [ ] Prove control using live display, tap/swipe/type/open before calling it available. Use pymobiledevice3 local browser control when supported (documented iOS 27+); otherwise document the limitation and execute phone steps with owner assistance. No automatic OS update or paid tool purchase.
-- [ ] Register only missing devices and confirm inclusion in the final embedded Ad Hoc profile. Build Ad Hoc first, monitor to terminal state, inspect/download/hash, install via supported USB tooling or EAS Safari link, and launch without Metro.
+- [x] Verify current membership/team/Expo credentials/APNs and valid certificate/profile; owner enters secrets in their own UI.
+- [x] Connect iPhone 17 over data USB; owner unlocks and trusts the computer. Read actual model/iOS; prepare isolated Windows device tooling and official Apple connection prerequisites as needed.
+- [x] Prove control using live display, tap/swipe/type/open before calling it available. Use pymobiledevice3 local browser control when supported (documented iOS 27+); otherwise document the limitation and execute phone steps with owner assistance. No automatic OS update or paid tool purchase.
+- [x] Register only missing devices and confirm inclusion in the final embedded Ad Hoc profile. Build Ad Hoc first, monitor to terminal state, inspect/download/hash, install via supported USB tooling or EAS Safari link, and launch without Metro.
 - [ ] Test every user-requested acceptance path with fictional data and Pass/Fail/Not Tested, tied to build/source/device/iOS. Stop mirroring for microphone tests where it interferes; user performs Face ID and protected prompts.
 - [ ] Fix evidenced failures and requalify; build App Store Distribution from the same final source. No auto-submit. Record separate build numbers/signing differences and Windows verification limits.
 
@@ -76,3 +76,7 @@
 ## Execution status
 
 See private ledger E:/Masarifi-ios-artifacts/ios-store-20261115/progress.md. Pending owner/device/account steps never count as completed or accepted.
+
+Current application candidate: `08e197d63f1e99f5041a0c0f461746208bea6c5f`, iOS 1.0.0. Ad Hoc build 5 failed physical Home acceptance; build 6 contains the reproduced Hermes fixes and opens Home/More stably. Logout, Google cancellation and owner-assisted dedicated Google login have been observed; broader fictional-data checks are in progress. Matching Store build 7 finished, was downloaded and inspected; both IPAs have byte-identical JavaScript bundles, assets and privacy manifests, and their Info.plist differs only in build number. CI is successful; final mobile suite 630 suites / 5,283 tests passes. Export/privacy/revocation/security gates remain explicit in the compliance audit. No Apple upload has occurred.
+
+Further Task 4 finding: the iOS amount editor clips a leading digit because of its estimated character width. The ar/en regression was RED, and 121/121 form tests passed after an iOS-only native-sizing fix. Replacement builds and physical acceptance are required; builds 6/7 remain retained historical artifacts. No ambiguous income was saved. The next complete suite is running, without test skips or timeout changes.

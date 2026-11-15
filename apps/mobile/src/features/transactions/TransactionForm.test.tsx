@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, BackHandler } from 'react-native';
+import { Alert, BackHandler, Platform, StyleSheet } from 'react-native';
 import {
   act,
   fireEvent,
@@ -38,6 +38,7 @@ import {
 } from '@/services/platform/manual-diagnostics';
 
 let mockFocusEffectCallback: (() => void | (() => void)) | undefined;
+const originalPlatform = Platform.OS;
 jest.mock('expo-crypto', () => ({
   randomUUID: () => '90000000-0000-4000-8000-000000000099'
 }));
@@ -91,6 +92,10 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatform
+  });
 });
 
 it('keeps restored native fields mounted but blocks edits and actions while refocus verifies the draft', async () => {
@@ -1727,7 +1732,34 @@ it('shows a zero amount placeholder without a browser focus box', async () => {
   expect(within(amountUnit).getByText('SAR')).toBeTruthy();
 });
 
-it('keeps the complete money unit centered for small and large amounts', async () => {
+it.each(['ar', 'en'] as const)(
+  'lets native iOS measurement fit the complete amount when editing in %s',
+  async (locale) => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+    changeLocale(locale);
+    renderWithQueryData(
+      <TransactionForm
+        transaction={{ ...fixtureTransactions[11], amountMinor: 5_000_000 }}
+      />,
+      [
+        [coreFinanceKeys.accounts(false), fixtureAccounts],
+        [coreFinanceKeys.categories(false), fixtureCategories]
+      ]
+    );
+
+    const input = await screen.findByDisplayValue('50000');
+    expect(StyleSheet.flatten(input.props.style).width).toBeUndefined();
+    expect(input).toHaveStyle({ minWidth: 40, maxWidth: 300, flexShrink: 1 });
+
+    fireEvent.changeText(input, '5000');
+    fireEvent(input, 'blur');
+    expect(screen.getByDisplayValue('5000')).toBeOnTheScreen();
+    expect(StyleSheet.flatten(input.props.style).width).toBeUndefined();
+  }
+);
+
+it('keeps Android money-unit sizing centered for small and large amounts', async () => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
   const small = renderWithQueryData(
     <TransactionForm
       transaction={{ ...fixtureTransactions[11], amountMinor: 500 }}

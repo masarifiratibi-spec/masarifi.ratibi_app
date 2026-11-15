@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   BackHandler,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -1227,7 +1228,11 @@ function TransactionFormContent({
                     ...(amount === '' || amount === '0'
                       ? { textAlign: 'center', textAlignVertical: 'center' }
                       : {}),
-                    width: Math.min(300, Math.max(40, amount.length * 27))
+                    ...(Platform.OS === 'ios'
+                      ? {}
+                      : {
+                          width: Math.min(300, Math.max(40, amount.length * 27))
+                        })
                   }
                 ]}
                 value={amount}
