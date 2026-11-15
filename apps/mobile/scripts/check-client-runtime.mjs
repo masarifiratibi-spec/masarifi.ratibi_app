@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import benchmarkPolicy from './benchmark-build-policy.cjs';
 import performanceQaExclusion from './performance-qa-exclusion.cjs';
+import iosReleasePolicy from './ios-release-policy.cjs';
 
 const clerkKeyPattern = /^pk_(?:live|test)_[A-Za-z0-9_-]{10,}$/;
 const publicSecretPattern = /^EXPO_PUBLIC_.*(?:API_KEY|SECRET|SERVICE_ROLE)/;
@@ -26,13 +27,18 @@ export function validateClientBuildEnvironment(
   identity = applicationIdentity
 ) {
   performanceQaExclusion.assertNormalBuildComposition(environment);
-  const iosAdHoc = environment.EAS_BUILD_PROFILE === 'ios-ad-hoc';
-  const iosAppStore = environment.EAS_BUILD_PROFILE === 'ios-app-store';
+  const releaseProfile = iosReleasePolicy.iosReleaseProfile(environment);
+  const iosAdHoc = releaseProfile === 'ios-ad-hoc';
+  const iosAppStore = releaseProfile === 'ios-app-store';
   const iosRelease = iosAdHoc || iosAppStore;
-  if (iosAdHoc && environment.EAS_BUILD_PLATFORM !== 'ios')
-    throw new Error('iPhone Ad Hoc requires the ios build platform');
-  if (iosAppStore && environment.EAS_BUILD_PLATFORM !== 'ios')
-    throw new Error('iPhone App Store requires the ios build platform');
+  if (
+    iosRelease &&
+    environment.EAS_BUILD_PROFILE &&
+    environment.EAS_BUILD_PLATFORM !== 'ios'
+  )
+    throw new Error(
+      `iPhone ${iosAppStore ? 'App Store' : 'Ad Hoc'} requires the ios build platform`
+    );
   const exposed = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
   );

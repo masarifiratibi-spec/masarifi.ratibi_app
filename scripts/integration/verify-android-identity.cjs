@@ -13,6 +13,7 @@ const baseline = "7e3bbef0cdccc2ee5509dd332f4e32236af01b90";
 const displayNameBaseline = "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d";
 const iosProfileBaseline = "0389dff3936211b968c1128471cc313af3b2aef2";
 const iosRuntimeProfileBaseline = "5482885f8cc4fb629b95bb2d7734981eb02985d3";
+const iosStoreProfilesBaseline = "94f221cafeefd8cc0d95ce723b825abb10243aa1";
 const normalize = (bytes) => bytes.toString("utf8").replace(/\r\n/g, "\n");
 function validateIdentity(actual, expected) {
   for (const key of ["name", "slug", "scheme"])
@@ -110,9 +111,12 @@ function loadApprovedIdentity(readRevision, isAncestor) {
     ? iosRuntimeProfileBaseline
     : iosProfileBaseline;
   // Production and all registered package/project identities retain C0 checks.
-  expected.eas.build["ios-ad-hoc"] = JSON.parse(
-    readRevision(approvedIosProfile, "apps/mobile/eas.json"),
-  ).build["ios-ad-hoc"];
+  const hasStoreProfiles = isAncestor(iosStoreProfilesBaseline);
+  const reviewedProfiles = JSON.parse(
+    readRevision(hasStoreProfiles ? iosStoreProfilesBaseline : approvedIosProfile, "apps/mobile/eas.json"),
+  ).build;
+  expected.eas.build["ios-ad-hoc"] = reviewedProfiles['ios-ad-hoc'];
+  if (hasStoreProfiles) expected.eas.build['ios-app-store'] = reviewedProfiles['ios-app-store'];
   return expected;
 }
 if (require.main === module) {

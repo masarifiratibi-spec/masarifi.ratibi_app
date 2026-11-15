@@ -309,7 +309,7 @@ const ar: MessageCatalog = {
   'googleAuth.supporting': 'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
   'appleAuth.continue': 'المتابعة باستخدام Apple',
   'appleAuth.supporting': 'أموالك في مكان واحد.\nاختر حسابًا وابدأ.',
-  'appleAuth.incomplete': 'يحتاج حساب Apple إلى معلومات إضافية لإكمال الدخول. أعد المحاولة أو تواصل مع الدعم.',
+  'appleAuth.notCompleted': 'لم يكتمل تسجيل الدخول. أعد المحاولة أو اختر حسابًا آخر.',
   'auth.cancelled': 'تم إلغاء تسجيل الدخول.',
   'auth.incomplete': 'يحتاج تسجيل الدخول إلى معلومات إضافية. أعد المحاولة أو تواصل مع الدعم.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
@@ -546,6 +546,8 @@ const ar: MessageCatalog = {
     'التطبيق لإدارة المال الشخصي، ولا يقدم مشورة مهنية.',
   'appShell.auth.method.phone': 'رقم الهاتف',
   'appShell.auth.method.google': 'جوجل',
+  'appShell.auth.method.apple': 'حساب Apple',
+  'appShell.auth.method.unknown': 'الحساب المتصل',
   'appShell.auth.signIn.title': 'تسجيل دخول آمن',
   'appShell.auth.required.message':
     'سجل الدخول للمتابعة إلى هذا الجزء المحمي من مصاريفي وراتبي.',

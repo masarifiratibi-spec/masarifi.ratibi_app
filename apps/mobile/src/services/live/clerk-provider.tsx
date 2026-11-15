@@ -36,8 +36,16 @@ import type {
   AuthResult,
   PhoneVerificationAttempt
 } from '@/services/contracts/app-shell-service';
-import { registerLiveClerkBridge, type ClerkSession, type LiveClerkBridge } from './auth-service';
-import { clearClerkAuthMethod, restoreClerkAuthMethod, saveClerkAuthMethod } from './clerk-auth-method';
+import {
+  registerLiveClerkBridge,
+  type ClerkSession,
+  type LiveClerkBridge
+} from './auth-service';
+import {
+  clearClerkAuthMethod,
+  restoreClerkAuthMethod,
+  saveClerkAuthMethod
+} from './clerk-auth-method';
 import { classifyPhoneVerificationError } from './clerk-errors';
 import { RecentAuthDialog } from '@/features/security/RecentAuthDialog';
 import { beginTrackingAdmission } from '@/state/tracking-admission';
@@ -205,9 +213,30 @@ function ClerkBridgeInstaller({
   const signUpState = useSignUp();
   const { startSSOFlow } = useSSO();
   const { startAppleAuthenticationFlow } = useSignInWithApple();
-  const latest = useRef({ auth, signInState, signUpState, startSSOFlow, startAppleAuthenticationFlow });
-  latest.current = { auth, signInState, signUpState, startSSOFlow, startAppleAuthenticationFlow };
+  const latest = useRef({
+    auth,
+    signInState,
+    signUpState,
+    startSSOFlow,
+    startAppleAuthenticationFlow
+  });
+  latest.current = {
+    auth,
+    signInState,
+    signUpState,
+    startSSOFlow,
+    startAppleAuthenticationFlow
+  };
   const ssoPending = useRef(false);
+  const installerMounted = useRef(false);
+  const appleAttempt = useRef<object | null>(null);
+  useEffect(() => {
+    installerMounted.current = true;
+    return () => {
+      installerMounted.current = false;
+      appleAttempt.current = null;
+    };
+  }, []);
   const attempts = useRef(new Map<string, PendingPhoneAttempt>());
   const rememberedSession = useRef<ClerkSession | null>(null);
 
@@ -223,9 +252,11 @@ function ClerkBridgeInstaller({
     return {
       id: session.id,
       userId: clerk.user.id,
-      method: rememberedSession.current?.id === session.id &&
+      method:
+        rememberedSession.current?.id === session.id &&
         rememberedSession.current.userId === clerk.user.id
-        ? rememberedSession.current.method : 'google',
+          ? rememberedSession.current.method
+          : 'google',
       issuedAt: session.lastActiveAt.getTime(),
       expiresAt: session.expireAt.getTime()
     };
@@ -234,11 +265,17 @@ function ClerkBridgeInstaller({
   const bridge: LiveClerkBridge = {
     getSession: async () => {
       const session = currentSession();
-      if (!session || (rememberedSession.current?.id === session.id &&
-          rememberedSession.current.userId === session.userId)) return session;
+      if (
+        !session ||
+        (rememberedSession.current?.id === session.id &&
+          rememberedSession.current.userId === session.userId)
+      )
+        return session;
+      if (Platform.OS !== 'ios') return session;
       const method = await restoreClerkAuthMethod(session);
       const current = currentSession();
-      if (current?.id !== session.id || current.userId !== session.userId) return null;
+      if (current?.id !== session.id || current.userId !== session.userId)
+        return null;
       rememberedSession.current = { ...current, method };
       return rememberedSession.current;
     },
@@ -330,8 +367,11 @@ function ClerkBridgeInstaller({
         const verified = await attempt.verify(code);
         attempts.current.delete(sessionId);
         rememberedSession.current = {
-          id: verified.sessionId, userId: verified.userId, method: 'phone',
-          issuedAt: verified.issuedAt, expiresAt: verified.expiresAt
+          id: verified.sessionId,
+          userId: verified.userId,
+          method: 'phone',
+          issuedAt: verified.issuedAt,
+          expiresAt: verified.expiresAt
         };
         return {
           status: 'authenticated',
@@ -432,40 +472,76 @@ function ClerkBridgeInstaller({
       }
     },
     async signInWithApple() {
-      if (Platform.OS !== 'ios' || isBenchmarkReadOnly() ||
-          !latest.current.auth.isLoaded || ssoPending.current)
+      if (
+        Platform.OS !== 'ios' ||
+        isBenchmarkReadOnly() ||
+        !latest.current.auth.isLoaded ||
+        ssoPending.current
+      )
         throw new Error('appShell.auth.unavailable');
       ssoPending.current = true;
+      const attempt = {};
+      appleAttempt.current = attempt;
+      const origin = getClerkInstance();
+      const originId = origin.session?.id ?? null;
+      const originOwner = origin.user?.id ?? null;
+      const isCurrentAttempt = () => {
+        const sdk = getClerkInstance();
+        return (
+          installerMounted.current &&
+          appleAttempt.current === attempt &&
+          (sdk.session?.id ?? null) === originId &&
+          (sdk.user?.id ?? null) === originOwner
+        );
+      };
+      let preparedId: string | null = null;
+      let admitted = false;
       onStatus('sso');
       try {
         const result = await latest.current.startAppleAuthenticationFlow();
+        if (!isCurrentAttempt()) return null;
         if (!result.createdSessionId) {
-          if (result.signUp?.status === 'missing_requirements') {
-            onStatus('incomplete');
-            throw new Error('appleAuth.incomplete');
-          }
+          // Clerk returns the same mutable resources for cancellation, unloaded
+          // hooks and incomplete flows. A null ID proves only non-completion.
           onStatus('cancelled');
           return null;
         }
         if (!result.setActive) throw new Error('appShell.auth.unavailable');
+        preparedId = result.createdSessionId;
+        await saveClerkAuthMethod({ id: preparedId, method: 'apple' });
+        if (!isCurrentAttempt()) return null;
         await result.setActive({ session: result.createdSessionId });
+        if (!installerMounted.current || appleAttempt.current !== attempt)
+          return null;
         const session = currentSession();
         if (!session || session.id !== result.createdSessionId)
           throw new Error('Clerk session missing');
         const appleSession: ClerkSession = { ...session, method: 'apple' };
-        await saveClerkAuthMethod(appleSession);
-        const current = currentSession();
-        if (current?.id !== session.id || current.userId !== session.userId)
-          throw new Error('Clerk session changed');
         rememberedSession.current = appleSession;
+        admitted = true;
         onStatus('ready');
         onSessionKey(session.id);
         return appleSession;
       } catch (error) {
-        onStatus(error instanceof Error && error.message === 'appleAuth.incomplete' ? 'incomplete' : 'error');
+        if (installerMounted.current && appleAttempt.current === attempt)
+          onStatus('error');
         throw error;
       } finally {
-        ssoPending.current = false;
+        if (
+          preparedId &&
+          !admitted &&
+          getClerkInstance().session?.id !== preparedId
+        )
+          void clearClerkAuthMethod({ id: preparedId });
+        if (appleAttempt.current === attempt) {
+          appleAttempt.current = null;
+          ssoPending.current = false;
+          if (installerMounted.current) {
+            const active = currentSession();
+            onSessionKey(active?.id ?? null);
+            if (active) onStatus('ready');
+          }
+        }
       }
     },
     reverifyConflict: async () => null,
@@ -476,6 +552,8 @@ function ClerkBridgeInstaller({
           latest.current.auth.sessionId !== sessionId)
       )
         throw new Error('LOGOUT_SESSION_UNVERIFIED');
+      appleAttempt.current = null;
+      ssoPending.current = false;
       const departingSession = currentSession();
       await latest.current.auth.signOut(
         scope === 'current'
@@ -484,7 +562,8 @@ function ClerkBridgeInstaller({
             }
           : undefined
       );
-      if (departingSession) await clearClerkAuthMethod(departingSession);
+      if (Platform.OS === 'ios' && departingSession)
+        await clearClerkAuthMethod(departingSession);
     }
   };
   useEffect(() => {

@@ -24,6 +24,36 @@ const storeEnvironment = {
   EAS_BUILD_PLATFORM: 'ios'
 };
 
+for (const profile of ['ios-ad-hoc', 'ios-app-store']) {
+  const early = { ...builds.production.env, ...builds[profile].env };
+  test(`${profile} marker alone selects and validates production before EAS context exists`, () => {
+    assert.equal(isLiveProduction(early), true);
+    assert.doesNotThrow(() => validateClientBuildEnvironment(early));
+    assert.throws(() =>
+      validateClientBuildEnvironment({
+        ...early,
+        EXPO_PUBLIC_CLIENT_MODE: 'demo'
+      })
+    );
+  });
+  for (const [name, changes] of Object.entries({
+    android: { EAS_BUILD_PLATFORM: 'android' },
+    otherProfile: { EAS_BUILD_PROFILE: 'preview', EAS_BUILD_PLATFORM: 'ios' },
+    bothMarkers: {
+      MASARIFI_IOS_AD_HOC: 'true',
+      MASARIFI_IOS_APP_STORE: 'true'
+    },
+    otherVariant: { EXPO_PUBLIC_APP_VARIANT: 'preview' },
+    internalVariant: { MASARIFI_APP_VARIANT: 'staging-development' }
+  }))
+    test(`${profile} early marker rejects ${name} across all resolvers`, () => {
+      const environment = { ...early, ...changes };
+      assert.throws(() => resolvedConfig(environment));
+      assert.throws(() => validateClientBuildEnvironment(environment));
+      assert.throws(() => isLiveProduction(environment));
+    });
+}
+
 function resolvedConfig(environment) {
   const previous = { ...process.env };
   try {

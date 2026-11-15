@@ -16,7 +16,14 @@ const runtimeBindings = Object.keys(process.env)
   .filter(
     (name) =>
       name.startsWith('EXPO_PUBLIC_') ||
-      ['NODE_ENV', 'EAS_BUILD_PROFILE', 'MASARIFI_APP_VARIANT'].includes(name)
+      [
+        'NODE_ENV',
+        'EAS_BUILD_PROFILE',
+        'EAS_BUILD_PLATFORM',
+        'MASARIFI_APP_VARIANT',
+        'MASARIFI_IOS_AD_HOC',
+        'MASARIFI_IOS_APP_STORE'
+      ].includes(name)
   )
   .sort()
   .map((name) => [name, process.env[name]]);

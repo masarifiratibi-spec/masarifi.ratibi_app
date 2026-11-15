@@ -7,7 +7,8 @@ export const authSessionStatuses = [
   'expired'
 ] as const;
 export const authMethods = ['phone', 'google', 'apple'] as const;
-export type AuthenticationMethod = (typeof authMethods)[number];
+const sessionMethods = [...authMethods, 'unknown'] as const;
+export type AuthenticationMethod = (typeof sessionMethods)[number];
 export const restorationStatuses = [
   'local',
   'idle',
@@ -21,7 +22,7 @@ export const authSessionSchema = z
   .object({
     status: z.enum(authSessionStatuses),
     userId: z.string().min(1).nullable(),
-    method: z.enum(authMethods).nullable(),
+    method: z.enum(sessionMethods).nullable(),
     issuedAt: z.number().int().nonnegative().nullable(),
     expiresAt: z.number().int().nonnegative().nullable(),
     restoration: z.enum(restorationStatuses)

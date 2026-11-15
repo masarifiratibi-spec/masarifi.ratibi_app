@@ -6,29 +6,14 @@ const {
 const {
   assertNormalBuildComposition
 } = require('./scripts/performance-qa-exclusion.cjs');
+const { iosReleaseProfile } = require('./scripts/ios-release-policy.cjs');
 
 module.exports = ({ config }) => {
   assertNormalBuildComposition(process.env, config);
   // EAS CLI resolves profile env locally before setting EAS_BUILD_PROFILE.
-  const iosAdHoc = process.env.MASARIFI_IOS_AD_HOC === 'true';
-  const iosAppStore = process.env.MASARIFI_IOS_APP_STORE === 'true';
-  if (
-    iosAppStore &&
-    (iosAdHoc ||
-      (process.env.EAS_BUILD_PROFILE &&
-        process.env.EAS_BUILD_PROFILE !== 'ios-app-store') ||
-      (process.env.EAS_BUILD_PLATFORM &&
-        process.env.EAS_BUILD_PLATFORM !== 'ios'))
-  )
-    throw new Error('iPhone App Store marker requires its own iOS profile');
-  if (
-    iosAdHoc &&
-    ((process.env.EAS_BUILD_PROFILE &&
-      process.env.EAS_BUILD_PROFILE !== 'ios-ad-hoc') ||
-      (process.env.EAS_BUILD_PLATFORM &&
-        process.env.EAS_BUILD_PLATFORM !== 'ios'))
-  )
-    throw new Error('iPhone Ad Hoc marker requires its own iOS profile');
+  const releaseProfile = iosReleaseProfile(process.env);
+  const iosAdHoc = releaseProfile === 'ios-ad-hoc';
+  const iosAppStore = releaseProfile === 'ios-app-store';
   if (validateBenchmarkBuildEnvironment(process.env)) {
     return {
       ...config,

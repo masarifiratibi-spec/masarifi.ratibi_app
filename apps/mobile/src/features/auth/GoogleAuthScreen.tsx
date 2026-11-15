@@ -46,7 +46,10 @@ export function GoogleAuthScreen({
     >
       <ScrollView
         style={styles.fill}
-        contentContainerStyle={[styles.content, layoutDirectionStyle(direction)]}
+        contentContainerStyle={[
+          styles.content,
+          layoutDirectionStyle(direction)
+        ]}
       >
         <LogoutRecoveryPanel />
         <Image
@@ -86,7 +89,11 @@ export function GoogleAuthScreen({
                 }
               ]}
             >
-              {translate(Platform.OS === 'ios' ? 'appleAuth.supporting' : 'googleAuth.supporting')}
+              {translate(
+                Platform.OS === 'ios'
+                  ? 'appleAuth.supporting'
+                  : 'googleAuth.supporting'
+              )}
             </StyledText>
           </View>
           <View style={styles.actions}>
@@ -114,17 +121,25 @@ export function GoogleAuthScreen({
               }}
               lifecycleMessage={
                 identity.status === 'cancelled'
-                  ? Platform.OS === 'ios' ? 'auth.cancelled' : 'appShell.auth.google.cancelled'
+                  ? Platform.OS === 'ios'
+                    ? 'appleAuth.notCompleted'
+                    : 'appShell.auth.google.cancelled'
                   : identity.status === 'incomplete'
-                    ? Platform.OS === 'ios' ? 'auth.incomplete' : 'googleAuth.incomplete'
+                    ? Platform.OS === 'ios'
+                      ? 'auth.incomplete'
+                      : 'googleAuth.incomplete'
                     : identity.status === 'error'
                       ? 'appShell.error.unknown'
                       : undefined
               }
               onResult={finishAuthentication}
             />
-            <AppleAccountSelector onResult={finishAuthentication}
-              disabled={identity.status === 'loading' || identity.status === 'sso'} />
+            <AppleAccountSelector
+              onResult={finishAuthentication}
+              disabled={
+                identity.status === 'loading' || identity.status === 'sso'
+              }
+            />
             {identity.status === 'loading' ? (
               <StyledText
                 accessibilityLiveRegion="polite"

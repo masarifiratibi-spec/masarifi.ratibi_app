@@ -346,7 +346,7 @@ const en = {
   'googleAuth.continue': 'Continue with Google',
   'appleAuth.continue': 'Continue with Apple',
   'appleAuth.supporting': 'Your finances, together in one place.\nChoose an account to get started.',
-  'appleAuth.incomplete': 'Your Apple account needs more details to finish signing in. Try again or contact support.',
+  'appleAuth.notCompleted': 'Sign-in did not finish. Try again or choose another account.',
   'auth.cancelled': 'Sign-in was cancelled.',
   'auth.incomplete': 'Sign-in needs more details. Try again or contact support.',
   'googleAuth.footer':
@@ -593,6 +593,8 @@ const en = {
     'For personal money management; does not provide professional advice.',
   'appShell.auth.method.phone': 'Phone number',
   'appShell.auth.method.google': 'Google',
+  'appShell.auth.method.apple': 'Apple',
+  'appShell.auth.method.unknown': 'Connected account',
   'appShell.auth.signIn.title': 'Sign in securely',
   'appShell.auth.required.message':
     'Sign in to continue to this protected Masarifi & Ratibi area.',

@@ -50,16 +50,11 @@ export function AppleAccountSelector({
       else
         setMessage(
           result.status === 'cancelled'
-            ? 'auth.cancelled'
+            ? 'appleAuth.notCompleted'
             : 'appShell.auth.unavailable'
         );
-    } catch (error) {
-      if (mounted.current)
-        setMessage(
-          error instanceof Error && error.message === 'appleAuth.incomplete'
-            ? 'appleAuth.incomplete'
-            : 'appShell.error.unknown'
-        );
+    } catch {
+      if (mounted.current) setMessage('appShell.error.unknown');
     } finally {
       pending.current = false;
       if (mounted.current) setBusy(false);

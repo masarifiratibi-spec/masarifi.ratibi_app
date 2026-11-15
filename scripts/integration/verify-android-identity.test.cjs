@@ -55,9 +55,10 @@ test("allows release safety configuration while preserving registered identities
 
 function reviewedFixture({
   withRuntimeMarker = false,
+  withStoreProfiles = false,
   isAncestor = (revision) =>
-    withRuntimeMarker ||
-    revision !== "5482885f8cc4fb629b95bb2d7734981eb02985d3",
+    (revision !== "5482885f8cc4fb629b95bb2d7734981eb02985d3" || withRuntimeMarker) &&
+    (revision !== "94f221cafeefd8cc0d95ce723b825abb10243aa1" || withStoreProfiles),
 } = {}) {
   const { baseline, candidate } = fixture();
   const displayName = "مصاريفي وراتبي";
@@ -83,6 +84,14 @@ function reviewedFixture({
       production: { unreviewedRuntime: true },
     },
   };
+  const storeEas = structuredClone(runtimeEas);
+  storeEas.build['ios-ad-hoc'].env.MASARIFI_RELEASE_VERSION_NAME = '1.0.0';
+  storeEas.build['ios-ad-hoc'].ios.image = 'macos-sequoia-15.6-xcode-26.2';
+  storeEas.build['ios-app-store'] = {
+    ...structuredClone(storeEas.build['ios-ad-hoc']), distribution: 'store'
+  };
+  delete storeEas.build['ios-app-store'].env.MASARIFI_IOS_AD_HOC;
+  storeEas.build['ios-app-store'].env.MASARIFI_IOS_APP_STORE = 'true';
   const snapshots = {
     "apps/mobile/app.json": baseline.app,
     "apps/mobile/eas.json": baseline.eas,
@@ -108,14 +117,43 @@ function reviewedFixture({
       file === "apps/mobile/eas.json"
     )
       value = runtimeEas;
+    else if (revision === "94f221cafeefd8cc0d95ce723b825abb10243aa1" && file === "apps/mobile/eas.json")
+      value = storeEas;
     else assert.fail("Unreviewed identity source requested");
     return typeof value === "string" ? value : JSON.stringify(value);
   }, isAncestor);
   candidate.app.expo.name = displayName;
   candidate.eas.build["ios-ad-hoc"] = structuredClone(
-    withRuntimeMarker ? runtimeEas.build["ios-ad-hoc"] : profile,
+    withStoreProfiles ? storeEas.build['ios-ad-hoc'] : withRuntimeMarker ? runtimeEas.build["ios-ad-hoc"] : profile,
   );
+  if (withStoreProfiles) candidate.eas.build['ios-app-store'] = structuredClone(storeEas.build['ios-app-store']);
   return { expected, candidate };
+}
+
+test('inherits only the exact reviewed iOS release pair on its lineage', () => {
+  const { expected, candidate } = reviewedFixture({ withRuntimeMarker: true, withStoreProfiles: true });
+  assert.deepEqual(expected.eas.build.production, {});
+  validateIdentity(candidate, expected);
+});
+
+test('rejects the iOS release pair outside its reviewed ancestry', () => {
+  const { expected, candidate } = reviewedFixture({ withRuntimeMarker: true, withStoreProfiles: true,
+    isAncestor: revision => revision !== '94f221cafeefd8cc0d95ce723b825abb10243aa1' });
+  assert.throws(() => validateIdentity(candidate, expected));
+});
+
+for (const profile of ['ios-ad-hoc', 'ios-app-store']) {
+  for (const [name, change] of Object.entries({
+    distribution: value => { value.distribution = 'unreviewed'; },
+    version: value => { value.env.MASARIFI_RELEASE_VERSION_NAME = '1.0.9'; },
+    image: value => { value.ios.image = 'unreviewed'; },
+    missingMarker: value => { delete value.env[profile === 'ios-ad-hoc' ? 'MASARIFI_IOS_AD_HOC' : 'MASARIFI_IOS_APP_STORE']; },
+    swappedMarker: value => { value.env[profile === 'ios-ad-hoc' ? 'MASARIFI_IOS_APP_STORE' : 'MASARIFI_IOS_AD_HOC'] = 'true'; }
+  })) test(`rejects ${profile} ${name} after the reviewed pair`, () => {
+    const { expected, candidate } = reviewedFixture({ withRuntimeMarker: true, withStoreProfiles: true });
+    change(candidate.eas.build[profile]);
+    assert.throws(() => validateIdentity(candidate, expected));
+  });
 }
 
 test("inherits only the reviewed name and exact iOS profile while retaining C0 identity bindings", () => {

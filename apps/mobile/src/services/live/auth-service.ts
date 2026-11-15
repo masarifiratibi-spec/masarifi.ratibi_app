@@ -62,7 +62,7 @@ import {
 export type ClerkSession = {
   id: string;
   userId: string;
-  method: 'phone' | 'google' | 'apple';
+  method: NonNullable<AuthenticationSession['method']>;
   issuedAt: number;
   expiresAt: number;
 };

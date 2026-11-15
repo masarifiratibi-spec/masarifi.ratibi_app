@@ -186,6 +186,7 @@ jobs:
         run: |
           node --test ../../scripts/integration/verify-android-identity.test.cjs
           node ../../scripts/integration/verify-android-identity.cjs
+          node --test scripts/ios-ad-hoc-config.test.mjs scripts/ios-store-config.test.mjs scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs
       - name: Select the runner Java 17 installation
         shell: bash
         run: |
