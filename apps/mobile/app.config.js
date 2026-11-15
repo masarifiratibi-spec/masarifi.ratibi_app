@@ -11,6 +11,16 @@ module.exports = ({ config }) => {
   assertNormalBuildComposition(process.env, config);
   // EAS CLI resolves profile env locally before setting EAS_BUILD_PROFILE.
   const iosAdHoc = process.env.MASARIFI_IOS_AD_HOC === 'true';
+  const iosAppStore = process.env.MASARIFI_IOS_APP_STORE === 'true';
+  if (
+    iosAppStore &&
+    (iosAdHoc ||
+      (process.env.EAS_BUILD_PROFILE &&
+        process.env.EAS_BUILD_PROFILE !== 'ios-app-store') ||
+      (process.env.EAS_BUILD_PLATFORM &&
+        process.env.EAS_BUILD_PLATFORM !== 'ios'))
+  )
+    throw new Error('iPhone App Store marker requires its own iOS profile');
   if (
     iosAdHoc &&
     ((process.env.EAS_BUILD_PROFILE &&
@@ -63,7 +73,10 @@ module.exports = ({ config }) => {
   if (!variant) {
     if (
       iosAdHoc ||
-      ['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)
+      iosAppStore ||
+      ['production', 'ios-ad-hoc', 'ios-app-store'].includes(
+        process.env.EAS_BUILD_PROFILE
+      )
     ) {
       const version = process.env.MASARIFI_RELEASE_VERSION_NAME;
       if (!/^\d+\.\d+\.\d+$/.test(version ?? ''))
@@ -72,7 +85,11 @@ module.exports = ({ config }) => {
         ...config,
         version,
         plugins:
-          iosAdHoc || process.env.EAS_BUILD_PROFILE === 'ios-ad-hoc'
+          iosAdHoc ||
+          iosAppStore ||
+          ['ios-ad-hoc', 'ios-app-store'].includes(
+            process.env.EAS_BUILD_PROFILE
+          )
             ? [...config.plugins, ['@clerk/expo', { appleSignIn: false }]]
             : config.plugins
       };

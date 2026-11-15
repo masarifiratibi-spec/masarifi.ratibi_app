@@ -27,8 +27,12 @@ export function validateClientBuildEnvironment(
 ) {
   performanceQaExclusion.assertNormalBuildComposition(environment);
   const iosAdHoc = environment.EAS_BUILD_PROFILE === 'ios-ad-hoc';
+  const iosAppStore = environment.EAS_BUILD_PROFILE === 'ios-app-store';
+  const iosRelease = iosAdHoc || iosAppStore;
   if (iosAdHoc && environment.EAS_BUILD_PLATFORM !== 'ios')
     throw new Error('iPhone Ad Hoc requires the ios build platform');
+  if (iosAppStore && environment.EAS_BUILD_PLATFORM !== 'ios')
+    throw new Error('iPhone App Store requires the ios build platform');
   const exposed = Object.entries(environment).find(
     ([name, value]) => value && publicSecretPattern.test(name)
   );
@@ -63,7 +67,7 @@ export function validateClientBuildEnvironment(
       throw new Error('development build requires demo client mode');
     return;
   }
-  if (environment.NODE_ENV !== 'production' && !iosAdHoc) return;
+  if (environment.NODE_ENV !== 'production' && !iosRelease) return;
   if (environment.EXPO_PUBLIC_CLIENT_MODE !== 'live')
     throw new Error('production requires live client mode');
   let apiUrl;
@@ -95,13 +99,15 @@ export function validateClientBuildEnvironment(
   if (
     environment.EAS_BUILD_PROFILE &&
     environment.EAS_BUILD_PROFILE !== 'production' &&
-    !iosAdHoc
+    !iosRelease
   )
     throw new Error('unknown release build profile');
   if (environment.EXPO_PUBLIC_RELEASE_CHANNEL !== 'production')
     throw new Error('production requires its release channel');
   if (iosAdHoc && identity?.ios?.bundleIdentifier !== 'com.masarifi.mobile')
     throw new Error('iPhone Ad Hoc requires the retained production bundle');
+  if (iosAppStore && identity?.ios?.bundleIdentifier !== 'com.masarifi.mobile')
+    throw new Error('iPhone App Store requires the retained production bundle');
   const approvedOrigin = environment.MASARIFI_PRODUCTION_API_ORIGIN;
   if (
     !approvedOrigin ||
@@ -175,9 +181,5 @@ function isPrivacyApiNamespace(value) {
   }
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url ===
-    pathToFileURL(process.argv[1]).href
-)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   validateClientBuildEnvironment();
