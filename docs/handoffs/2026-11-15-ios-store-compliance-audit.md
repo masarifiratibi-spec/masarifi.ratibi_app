@@ -2,7 +2,13 @@
 
 This is a preparation record. It does not authorize Apple uploads, privacy publication, submission, agreements, or changes to the VPS. Build and physical-device results belong in the final artifact/acceptance handoff. Private evidence is under `E:/Masarifi-ios-artifacts/ios-store-20261115`, outside Git.
 
-## Most recent built-source evidence (supersedes earlier counts below)
+## Current signed candidate — 16 November
+
+The authoritative artifact/status record is [candidate 10/11](2026-11-16-ios-signed-candidate-10-11-ar.md), application source `5b5d3c7976c0d6351ae895012bbf43b847260aff`. Both actual signed IPAs finished and passed inspection; their main JavaScript, assets and privacy manifests are byte-identical, with only build number differing in Info.plist. Complete local qualification is 631 suites / 5308 tests with natural exit, TypeScript/scoped lint and [CI43759318384](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43759318384) passed. The conditional signed-release evidence job was skipped. Doctor remains19/20, encryption undeclared, and Windows verification does not establish Mac codesign, chain trust or Apple processing.
+
+Build10 is installed and its scoped device lookup confirms1.0.0/10. Its first cold launch reached the existing authentication shield; the owner must complete the current Face ID prompt before visual/data acceptance and final screenshots. Build8's owner-assisted native Apple login/cold session, Google isolation, device lock, voice saves and authorized delivered PDF are historical device evidence. An automated sufficient-description issue1002 on its Home heading remains to assess; no comprehensive Accessibility declaration is justified. No Apple upload occurred. The revocation, encryption, privacy/provider, dependency and reviewer-access gates below remain open.
+
+## Historical source0d4ddcc8 / builds8 and9
 
 **Physical acceptance remains open:** the latest built source is `0d4ddcc8974b5daea10a99336e6b0f5c07042763`. Its complete local run passed 630/630 suites and 5,285/5,285 tests, with natural exit, no force-exit, skips or timeout increases. TypeScript and scoped lint passed (four pre-existing warnings). [CI 43719730109](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43719730109) completed successfully. The existing CI Jest command uses force-exit; the separate local full run did not.
 
