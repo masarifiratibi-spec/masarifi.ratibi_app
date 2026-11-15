@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
@@ -101,7 +102,8 @@ export function AccountScopeSheet({
                 {
                   textAlign: isRtl ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.manageLabel)
               ]}
             >
               {translate('coreFinance.home.manageAccounts')}
@@ -189,7 +191,8 @@ function AllAccountsOption({
             {
               textAlign: isRtl ? 'right' : 'left',
               writingDirection: direction
-            }
+            },
+            iosTextLayoutStyle(direction, styles.allAccountsTitle)
           ]}
         >
           {label}

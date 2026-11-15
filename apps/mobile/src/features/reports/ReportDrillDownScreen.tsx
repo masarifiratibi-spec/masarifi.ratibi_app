@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { StateView } from '@/design-system/components/feedback/StateView';
@@ -147,7 +147,8 @@ export function ReportDrillDownScreen() {
               {
                 color: theme.colors.textPrimary,
                 textAlign: direction === 'rtl' ? 'right' : 'left'
-              }
+              },
+              iosTextLayoutStyle(direction, styles.sectionTitle)
             ]}
           >
             {translateDynamic(breakdown.questionKey)}

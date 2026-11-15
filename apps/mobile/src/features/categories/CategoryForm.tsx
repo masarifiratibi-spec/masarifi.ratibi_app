@@ -12,7 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { ChipSelector } from '@/design-system/components/forms/ChipControls';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, spacing } from '@/design-system/tokens';
@@ -272,7 +272,8 @@ export function CategoryForm({
                 color: theme.colors.textSecondary,
                 textAlign: isRtl ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.fieldLabel)
             ]}
           >
             {translate('coreFinance.categories.groupName')}
@@ -318,7 +319,8 @@ export function CategoryForm({
                 color: theme.colors.textSecondary,
                 textAlign: isRtl ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.fieldLabel)
             ]}
           >
             {translate('coreFinance.filters.type')}

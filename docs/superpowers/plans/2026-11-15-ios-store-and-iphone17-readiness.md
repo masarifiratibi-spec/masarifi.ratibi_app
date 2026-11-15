@@ -77,6 +77,8 @@
 
 See private ledger E:/Masarifi-ios-artifacts/ios-store-20261115/progress.md. Pending owner/device/account steps never count as completed or accepted.
 
+**Current owner priority (16 November):** complete the focused Arabic RTL / English LTR source review and one consolidated remediation batch before returning to other acceptance paths or requesting another build. See `docs/handoffs/2026-11-16-arabic-english-direction-review-ar.md`. The retained10/11 artifacts below do not include these newer direction fixes. The owner has confirmed Face ID completion and Home on10; fresh device display remains blocked by CoreDevice9022 (phone/VoIP call), so native visual acceptance is still open. Do not repeat authentication based on an old frame or send the approved assistant question during the direction review.
+
 Latest built application source: `5b5d3c7976c0d6351ae895012bbf43b847260aff`, iOS1.0.0, Ad Hoc10 and Store11. Both finished, were downloaded and inspected. Their JavaScript bundles, assets and privacy manifests are byte-identical; Info.plist differs only in build number. Windows CMS verification does not prove certificate-chain trust, Mac codesign or Apple processing. The full local suite passed631 suites /5308 tests with natural exit and no force-exit, skips or timeout changes; CI43759318384 completed successfully. Doctor remains19/20. See `docs/handoffs/2026-11-16-ios-signed-candidate-10-11-ar.md` for hashes and current limits.
 
 Build 8 physically passed the leading-digit fix: all 50000 draft digits are visible, then a reviewed fictional salary 5000 saved once. A 100 transfer preserved the total 7672.43 and produced balances A5865/B100. Google session and QA data survived the USB upgrade. No ambiguous 50000 income was saved.

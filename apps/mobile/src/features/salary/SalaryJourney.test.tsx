@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { fireEvent } from '@testing-library/react-native';
 
@@ -12,6 +13,7 @@ import {
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
+import { nativeTextAlignment } from '@/test-utils/native-direction';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
 import {
   fixtureSalaryProfile,
@@ -235,19 +237,25 @@ it('loads the active salary profile before editing', async () => {
   expect(profile.getByText(currentProfile!.sourceName)).toBeTruthy();
 });
 
-it('keeps multiline Arabic salary copy aligned to the right', async () => {
+it.each([
+  ['ios', 'right'], ['android', 'left']
+] as const)('keeps Arabic salary alignment on %s with Android behavior preserved', async (platform, textAlign) => {
+  const platformOverride = jest.replaceProperty(Platform, 'OS', platform);
   changeLocale('ar');
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   const profile = renderWithProviders(<SalaryProfileForm />);
 
-  expect(await profile.findByText('جهة العمل أو مصدر الراتب')).toHaveStyle({
-    textAlign: 'left',
-    writingDirection: 'rtl'
-  });
-  expect(
-    profile.getByText(translate('planning.salary.automaticDetectionSubtitle'))
-  ).toHaveStyle({ textAlign: 'left', writingDirection: 'rtl' });
-  profile.unmount();
+  try {
+    const source = await profile.findByText('جهة العمل أو مصدر الراتب');
+    const helper = profile.getByText(translate('planning.salary.automaticDetectionSubtitle'));
+    for (const label of [source, helper]) {
+      expect(label).toHaveStyle({ textAlign, writingDirection: 'rtl' });
+      if (platform === 'ios') expect(nativeTextAlignment(label)).toBe('right');
+    }
+  } finally {
+    profile.unmount();
+    platformOverride.restore();
+  }
 });
 
 it('shows a configured salary cycle before the first receipt', async () => {

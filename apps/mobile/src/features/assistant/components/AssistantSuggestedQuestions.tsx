@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '@/state/theme-context';
 import {
   PixelRatio,
+  Platform,
   View,
   Pressable,
   StyleSheet,
@@ -107,7 +108,7 @@ export function AssistantSuggestedQuestions({
     <View testID="assistant-suggested-questions" style={styles.container}>
       {/* Row 1 */}
       <View style={[styles.row, stacked && styles.stackedRow]}>
-        {isRtl ? (
+        {isRtl && !(Platform.OS === 'ios' && stacked) ? (
           <>
             {renderCard(cards[1])}
             {renderCard(cards[0])}
@@ -122,7 +123,7 @@ export function AssistantSuggestedQuestions({
 
       {/* Row 2 */}
       <View style={[styles.row, stacked && styles.stackedRow]}>
-        {isRtl ? (
+        {isRtl && !(Platform.OS === 'ios' && stacked) ? (
           <>
             {renderCard(cards[3])}
             {renderCard(cards[2])}

@@ -21,7 +21,7 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { BrandedScreenHeader } from '@/design-system/components/navigation/AppNavigation';
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, elevation, spacing } from '@/design-system/tokens';
 import { editorialFontFamilyForLocale } from '@/design-system/typography';
@@ -266,7 +266,8 @@ export function AccountDetailScreen({ id }: { id: string }) {
                 fontFamily: editorialFontFamilyForLocale(locale, 400),
                 textAlign: isRtl ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.heroLabel)
             ]}
           >
             {translate('coreFinance.accounts.balanceCurrent')}
@@ -281,7 +282,8 @@ export function AccountDetailScreen({ id }: { id: string }) {
               {
                 fontFamily: editorialFontFamilyForLocale('en', 700),
                 textAlign: isRtl ? 'right' : 'left'
-              }
+              },
+              iosTextLayoutStyle(direction, styles.heroAmount)
             ]}
           >
             {balanceDisplay.text.replace(/[\u2066\u2069]/g, '')}
@@ -293,7 +295,8 @@ export function AccountDetailScreen({ id }: { id: string }) {
                 fontFamily: editorialFontFamilyForLocale(locale, 400),
                 textAlign: isRtl ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.heroNote)
             ]}
           >
             {translate('coreFinance.accounts.balanceCalculated')}

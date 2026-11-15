@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import parsePhoneNumber, {
   getCountries,
   getCountryCallingCode,
@@ -157,6 +157,9 @@ function ProfilePhoneContent() {
         <StyledText
           style={[
             styles.currentPhoneValue,
+            Platform.OS === 'ios' && profile.data.phone != null && {
+              writingDirection: 'ltr'
+            },
             { color: theme.colors.textPrimary }
           ]}
         >

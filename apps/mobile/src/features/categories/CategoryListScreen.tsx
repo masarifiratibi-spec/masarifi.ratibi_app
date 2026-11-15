@@ -15,7 +15,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { DesignIcon } from '@/design-system/icons';
 import type { Category } from '@/domain/core-finance';
@@ -234,7 +234,8 @@ export function CategoryListScreen() {
                   color: theme.colors.textPrimary,
                   textAlign: isRtl ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.pageTitle)
               ]}
             >
               {locale === 'ar' ? 'الفئات' : 'Categories'}

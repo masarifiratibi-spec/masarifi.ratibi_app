@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
@@ -129,7 +129,8 @@ export function SelectionScreen<T = string>({
                 color: theme.colors.content.primary,
                 textAlign: isRtl ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.title)
             ]}
           >
             {title}
@@ -143,7 +144,8 @@ export function SelectionScreen<T = string>({
                   color: theme.colors.content.secondary,
                   textAlign: isRtl ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.subtitle)
               ]}
             >
               {subtitle}

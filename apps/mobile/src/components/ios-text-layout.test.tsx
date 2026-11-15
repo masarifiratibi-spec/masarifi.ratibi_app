@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { screen } from '@testing-library/react-native';
+import { act, screen } from '@testing-library/react-native';
 import { StyledText } from './StyledText';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { CurrencyRow } from '@/features/accounts/CurrencyRow';
@@ -9,6 +9,7 @@ import { VoiceProcessingConsentDialog } from '@/features/voice/VoiceProcessingCo
 import { changeLocale, translate } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 import { formatDate } from '@/utils/format-financial-value';
+import { usePreferenceStore } from '@/state/preferences';
 
 jest.mock('@react-native-community/datetimepicker', () => ({
   __esModule: true,
@@ -32,6 +33,24 @@ afterEach(() => {
 });
 
 describe('iOS physical text layout', () => {
+  it('updates mounted text and direction when the app language changes', async () => {
+    renderWithProviders(<StyledText>coreFinance.accounts.currency</StyledText>);
+    expect(screen.getByText(translate('coreFinance.accounts.currency', 'ar')))
+      .toHaveStyle({ writingDirection: 'rtl', textAlign: 'right' });
+
+    await act(async () => {
+      await usePreferenceStore.getState().setLocale('en');
+    });
+    expect(screen.getByText(translate('coreFinance.accounts.currency', 'en')))
+      .toHaveStyle({ writingDirection: 'ltr', textAlign: 'left' });
+
+    await act(async () => {
+      await usePreferenceStore.getState().setLocale('ar');
+    });
+    expect(screen.getByText(translate('coreFinance.accounts.currency', 'ar')))
+      .toHaveStyle({ writingDirection: 'rtl', textAlign: 'right' });
+  });
+
   it.each([
     ['ar', 'rtl', 'right'],
     ['en', 'ltr', 'left']

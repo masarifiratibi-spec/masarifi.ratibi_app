@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { CurrencyFlagIcon } from '@/design-system/components/currency/CurrencyFlagIcon';
 import { SelectionScreen } from '@/design-system/components/selection/SelectionScreen';
 import type {
@@ -122,7 +122,10 @@ export function CurrencySelectionScreen({
           <View
             style={[
               styles.textContainer,
-              { alignItems: isRtl ? 'flex-end' : 'flex-start' }
+              {
+                alignItems: Platform.OS !== 'ios' && isRtl
+                  ? 'flex-end' : 'flex-start'
+              }
             ]}
           >
             <Text
@@ -134,7 +137,8 @@ export function CurrencySelectionScreen({
                     : theme.colors.content.primary,
                   textAlign: isRtl ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.nameText)
               ]}
             >
               {name}
@@ -148,7 +152,8 @@ export function CurrencySelectionScreen({
                     : theme.colors.content.muted,
                   textAlign: isRtl ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, { writingDirection: 'ltr' })
               ]}
             >
               {code}

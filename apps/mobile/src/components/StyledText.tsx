@@ -8,6 +8,7 @@
 
 import React from 'react';
 import {
+  Platform,
   Text,
   type TextProps,
   type StyleProp,
@@ -18,6 +19,7 @@ import { useTheme } from '@/state/theme-context';
 import { currentLocale, translateDynamic } from '@/localization/i18n';
 import { financialFontFamily, fontFamilyForLocale } from '@/design-system/typography';
 import { iosTextLayoutStyle } from '@/design-system/direction';
+import { usePreferenceStore } from '@/state/preferences';
 
 type Variant = keyof ReturnType<typeof variantStyles>;
 
@@ -33,7 +35,10 @@ export function StyledText({
 }: StyledTextProps) {
   const theme = useTheme();
   const base = variantStyles(theme.typography)[variant];
-  const locale = currentLocale();
+  const iosLocale = usePreferenceStore((state) =>
+    Platform.OS === 'ios' ? state.locale : undefined
+  );
+  const locale = iosLocale ?? currentLocale();
   const children = typeof rest.children === 'string'
     ? translateDynamic(rest.children)
     : rest.children;
