@@ -33,7 +33,7 @@ describe('automatic tracking accessibility', () => {
       expect(control.props.accessibilityLabel).toBeTruthy()
     );
     expect(
-      screen.getByText(translate('tracking.howItWorks.detection'))
+      screen.getByRole('button', { name: translate('tracking.setup.title') })
     ).toBeOnTheScreen();
     await waitFor(() => expect(screen.queryByText('999')).toBeNull());
   });

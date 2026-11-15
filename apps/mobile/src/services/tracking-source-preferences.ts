@@ -114,7 +114,12 @@ function sourceScope() {
       : storageKey,
     async check(requireSession = true) {
       assertCurrent();
-      if (useTrackingAdmission.getState().nativeLease !== admission.nativeLease)
+      // Foreground configuration can rotate the same owner's native generation
+      // while consent is saved. The storage partition belongs to its owner digest.
+      if (
+        useTrackingAdmission.getState().nativeLease?.ownerDigest !==
+        admission.nativeLease?.ownerDigest
+      )
         throw new Error('tracking_source_owner_unavailable');
       if (
         ownerId &&
@@ -233,12 +238,35 @@ export class TrackingSourcePreferences {
     source: 'sms' | 'notification',
     enabled: boolean
   ): Promise<TrackingSourceState> {
+    return this.updateSource(source, enabled, false);
+  }
+
+  async ensureDisabled(
+    source: 'sms' | 'notification'
+  ): Promise<TrackingSourceState> {
+    return this.updateSource(source, false, true);
+  }
+
+  private async updateSource(
+    source: 'sms' | 'notification',
+    enabled: boolean,
+    skipDisabled: boolean
+  ): Promise<TrackingSourceState> {
     assertTrackingAvailable();
     assertSourceMutationAllowed();
     const scope = sourceScope();
     consentEpoch++;
     return serializeSources(async () => {
       const { sources: current, revision } = await this.read(scope);
+      // Check under the source lock so an unfinished approval cannot be skipped.
+      if (
+        skipDisabled &&
+        !current[source === 'sms' ? 'smsEnabled' : 'notificationEnabled'] &&
+        !(await this.consent.hasPending?.())
+      ) {
+        await scope.check();
+        return current;
+      }
       const boundary =
         enabled && source === 'sms' && !current.smsEnabled
           ? await this.smsBoundary()

@@ -58,7 +58,7 @@ describe('TrackingStatusJourney', () => {
     ).toBeNull();
   });
 
-  it('shows concise explanations without a passive permission warning or privacy link', async () => {
+  it('shows the collapsed setup guide without a passive permission warning or privacy link', async () => {
     const status = {
       platform: 'android' as const,
       mode: 'automatic_clear' as const,
@@ -88,7 +88,7 @@ describe('TrackingStatusJourney', () => {
       screen.queryByText(translate('tracking.permission.warning'))
     ).toBeNull();
     expect(
-      screen.getByText(translate('tracking.howItWorks.detection'))
+      screen.getByRole('button', { name: translate('tracking.setup.title') })
     ).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', { name: translate('privacy.details') })

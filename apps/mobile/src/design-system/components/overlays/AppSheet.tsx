@@ -22,12 +22,14 @@ export function AppSheet({
   title,
   visible,
   onDismiss,
+  animationType = 'slide',
   appearance = 'default',
   children
 }: {
   title: string;
   visible: boolean;
   onDismiss: () => void;
+  animationType?: 'none' | 'slide' | 'fade';
   appearance?: 'default' | 'menu';
   children: ReactNode;
 }) {
@@ -64,7 +66,7 @@ export function AppSheet({
 
   return (
     <Modal
-      animationType="slide"
+      animationType={animationType}
       onRequestClose={onDismiss}
       transparent
       visible={visible}
