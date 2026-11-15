@@ -1,5 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -19,6 +25,10 @@ interface TransactionExample {
     | 'firstLaunch.merchant.applePay'
     | 'firstLaunch.merchant.transfer';
   source: string;
+  sourceKey?:
+    | 'firstLaunch.ios.source.manual'
+    | 'firstLaunch.ios.source.voice'
+    | 'firstLaunch.ios.source.transfer';
   tone: 'primary' | 'info' | 'transfer';
 }
 
@@ -46,6 +56,26 @@ const examples: readonly TransactionExample[] = [
   }
 ];
 
+const iosExamples: readonly TransactionExample[] = [
+  {
+    ...examples[0],
+    icon: 'edit',
+    source: 'manual',
+    sourceKey: 'firstLaunch.ios.source.manual'
+  },
+  {
+    ...examples[1],
+    icon: 'voice',
+    source: 'voice',
+    sourceKey: 'firstLaunch.ios.source.voice'
+  },
+  {
+    ...examples[2],
+    source: 'transfer',
+    sourceKey: 'firstLaunch.ios.source.transfer'
+  }
+];
+
 const localeOptions = ['ar', 'en'] as const;
 const savedStatusColor = colorTokens.raw['007A3D'];
 
@@ -55,6 +85,11 @@ export function FirstLaunchOnboardingScreen({
   onStart: () => void | Promise<void>;
 }) {
   const theme = useTheme();
+  const isIos = Platform.OS === 'ios';
+  const visibleExamples = isIos ? iosExamples : examples;
+  const savedLabel = translate(
+    isIos ? 'firstLaunch.ios.example' : 'firstLaunch.savedAutomatically'
+  );
   const locale = usePreferenceStore((state) => state.locale);
   const setLocale = usePreferenceStore((state) => state.setLocale);
   const [submitting, setSubmitting] = useState(false);
@@ -145,7 +180,7 @@ export function FirstLaunchOnboardingScreen({
 
       <View style={styles.visual}>
         <View style={[styles.cards, { gap: theme.spacing.sm }]}>
-          {examples.map((example, index) => (
+          {visibleExamples.map((example, index) => (
             <SurfaceCard
               key={example.source}
               testID={`transaction-example-${index + 1}`}
@@ -187,10 +222,12 @@ export function FirstLaunchOnboardingScreen({
                   style={{
                     color: theme.colors.content.muted,
                     textAlign,
-                    writingDirection: 'ltr'
+                    writingDirection: isIos ? direction : 'ltr'
                   }}
                 >
-                  {example.source}
+                  {example.sourceKey
+                    ? translate(example.sourceKey)
+                    : example.source}
                 </StyledText>
                 <StyledText
                   numberOfLines={1}
@@ -233,9 +270,7 @@ export function FirstLaunchOnboardingScreen({
                     testID={`transaction-saved-check-${index + 1}`}
                   />
                   <StyledText
-                    accessibilityLabel={translate(
-                      'firstLaunch.savedAutomatically'
-                    )}
+                    accessibilityLabel={savedLabel}
                     numberOfLines={1}
                     variant="caption"
                     style={{
@@ -244,7 +279,7 @@ export function FirstLaunchOnboardingScreen({
                       writingDirection: direction
                     }}
                   >
-                    {translate('firstLaunch.savedAutomatically')}
+                    {savedLabel}
                   </StyledText>
                 </View>
               </View>
@@ -268,7 +303,9 @@ export function FirstLaunchOnboardingScreen({
           variant="headline"
           style={{ textAlign, writingDirection: direction }}
         >
-          {translate('firstLaunch.headline')}
+          {translate(
+            isIos ? 'firstLaunch.ios.headline' : 'firstLaunch.headline'
+          )}
         </StyledText>
         <StyledText
           variant="body"
@@ -278,7 +315,9 @@ export function FirstLaunchOnboardingScreen({
             writingDirection: direction
           }}
         >
-          {translate('firstLaunch.supporting')}
+          {translate(
+            isIos ? 'firstLaunch.ios.supporting' : 'firstLaunch.supporting'
+          )}
         </StyledText>
       </View>
 

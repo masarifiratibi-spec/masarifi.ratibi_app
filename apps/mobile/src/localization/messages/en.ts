@@ -561,6 +561,13 @@ const en = {
     'Bank SMS, Apple Pay, mada, and STC Pay are saved for you.',
   'firstLaunch.cta': 'Start now',
   'firstLaunch.savedAutomatically': 'Auto-saved',
+  'firstLaunch.ios.headline': 'Track spending\nmanually or by voice.',
+  'firstLaunch.ios.supporting':
+    'Manage accounts, budgets, and goals.\nVoice and AI features are optional.',
+  'firstLaunch.ios.source.manual': 'Manual entry',
+  'firstLaunch.ios.source.voice': 'Voice entry',
+  'firstLaunch.ios.source.transfer': 'Account transfer',
+  'firstLaunch.ios.example': 'Example data',
   'firstLaunch.merchant.bankSms': 'Tamimi Markets',
   'firstLaunch.merchant.applePay': 'Careem',
   'firstLaunch.merchant.transfer': 'Local transfer',

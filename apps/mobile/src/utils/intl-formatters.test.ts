@@ -45,6 +45,43 @@ it('updates relative labels across midnight and daylight-saving boundaries', () 
   ).toBe('Nov 1, 2026');
 });
 
+it('keeps zoned relative transaction labels when iOS has no DateTimeFormat.formatToParts', () => {
+  const original = Object.getOwnPropertyDescriptor(
+    Intl.DateTimeFormat.prototype,
+    'formatToParts'
+  )!;
+  Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatToParts', {
+    configurable: true,
+    writable: true,
+    value: undefined
+  });
+  try {
+    const transaction = Date.parse('2026-11-01T05:30:00Z');
+    expect(
+      formatTransactionTimestamp(
+        transaction,
+        transaction,
+        'en',
+        'America/New_York'
+      )
+    ).toMatch(/^Today, .*01:30/);
+    expect(
+      formatTransactionTimestamp(
+        transaction,
+        Date.parse('2026-11-02T06:00:00Z'),
+        'en',
+        'America/New_York'
+      )
+    ).toMatch(/^Yesterday, .*01:30/);
+  } finally {
+    Object.defineProperty(
+      Intl.DateTimeFormat.prototype,
+      'formatToParts',
+      original
+    );
+  }
+});
+
 it('reuses equivalent options regardless of property order', () => {
   const constructors = jest.spyOn(Intl, 'DateTimeFormat');
   expect(

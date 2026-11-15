@@ -70,10 +70,21 @@ export function formatMinorAmount(
     getCurrencyMinorUnitScale(currencyCode),
     '0'
   );
-  const decimal = displayFraction
-    ? formatter.formatToParts(1.1).find((part) => part.type === 'decimal')
-        ?.value ?? '.'
-    : '';
+  let decimal = '';
+  if (displayFraction) {
+    // iOS Hermes provides format(), but not NumberFormat.formatToParts().
+    // Probe a small positive value so grouping and amount rounding are irrelevant.
+    decimal =
+      typeof formatter.formatToParts === 'function'
+        ? (formatter.formatToParts(1.1).find((part) => part.type === 'decimal')
+            ?.value ?? '.')
+        : formatter
+            .format(1.1)
+            .replace(
+              /[0-9\u0660-\u0669\u06f0-\u06f9\u061c\u200e\u200f\u2066-\u2069]/g,
+              ''
+            ) || '.';
+  }
   return `${numberPart}${decimal}${displayFraction}\u00a0${currencyCode}`;
 }
 

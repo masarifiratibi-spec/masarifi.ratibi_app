@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Platform } from 'react-native';
 
 import WelcomeRoute from '@app/(public)/welcome';
 import { colorTokens } from '@/design-system/tokens';
@@ -22,6 +23,7 @@ const mockSavePreferences = jest.mocked(savePreferences);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.replaceProperty(Platform, 'OS', 'android');
   changeLocale('ar');
   usePreferenceStore.setState({
     ...buildPreferences({ firstLaunchOnboardingCompleted: false }),
@@ -29,6 +31,49 @@ beforeEach(() => {
   });
   useAppShellStore.getState().reset();
 });
+
+afterEach(() => jest.restoreAllMocks());
+
+it.each([
+  [
+    'ar',
+    'سجّل مصاريفك\nيدويًا أو بصوتك.',
+    'إدخال يدوي',
+    'إدخال صوتي',
+    'بيانات توضيحية'
+  ],
+  [
+    'en',
+    'Track spending\nmanually or by voice.',
+    'Manual entry',
+    'Voice entry',
+    'Example data'
+  ]
+] as const)(
+  'shows only supported entry methods on iOS in %s',
+  async (locale, headline, manual, voice, example) => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    renderWithProviders(<WelcomeRoute />);
+    if (locale === 'en') {
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: 'English' }));
+      });
+    }
+    expect(screen.getByText(headline)).toBeOnTheScreen();
+    expect(screen.getByText(manual)).toBeOnTheScreen();
+    expect(screen.getByText(voice)).toBeOnTheScreen();
+    expect(screen.getAllByLabelText(example)).toHaveLength(3);
+    for (const unsupported of [
+      'BANK SMS',
+      'APPLE PAY',
+      'STC PAY',
+      'تسجيل تلقائيًا',
+      'Auto-saved'
+    ]) {
+      expect(screen.queryByText(unsupported)).toBeNull();
+    }
+  }
+);
 
 it('renders the Arabic first-launch experience in RTL', () => {
   renderWithProviders(<WelcomeRoute />);

@@ -48,3 +48,42 @@ export function getDateFormatter(
     () => new Intl.DateTimeFormat(locale, options)
   );
 }
+
+// Machine-readable calendar fields only, for our en-US zoned calculations.
+// iOS Hermes has format() but does not implement DateTimeFormat.formatToParts().
+export function calendarDateTimeParts(
+  formatter: Intl.DateTimeFormat,
+  value: number | Date
+): Intl.DateTimeFormatPart[] {
+  if (typeof formatter.formatToParts === 'function')
+    return formatter.formatToParts(value);
+  const options = formatter.resolvedOptions();
+  const fields = [
+    'year',
+    'month',
+    'day',
+    'hour',
+    'minute',
+    'second',
+    'weekday'
+  ] as const;
+  return fields.flatMap((field): Intl.DateTimeFormatPart[] => {
+    const style = options[field];
+    if (!style) return [];
+    const fieldOptions: Intl.DateTimeFormatOptions = {
+      timeZone: options.timeZone,
+      [field]: style
+    };
+    if (field === 'hour') {
+      if (options.hourCycle) fieldOptions.hourCycle = options.hourCycle;
+      else if (options.hour12 !== undefined)
+        fieldOptions.hour12 = options.hour12;
+    }
+    return [
+      {
+        type: field,
+        value: getDateFormatter('en-US', fieldOptions).format(value)
+      }
+    ];
+  });
+}

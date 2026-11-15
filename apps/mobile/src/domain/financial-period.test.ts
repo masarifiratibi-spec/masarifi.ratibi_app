@@ -3,6 +3,47 @@ import { buildFinancialPeriod } from './financial-period';
 const context = { timeZone: 'Asia/Riyadh', monthStartDay: 1 } as const;
 
 describe('financial period boundaries', () => {
+  it('keeps inclusive Riyadh and DST day boundaries without iOS formatToParts', () => {
+    const original = Object.getOwnPropertyDescriptor(
+      Intl.DateTimeFormat.prototype,
+      'formatToParts'
+    )!;
+    Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatToParts', {
+      configurable: true,
+      writable: true,
+      value: undefined
+    });
+    try {
+      expect(
+        buildFinancialPeriod({
+          ...context,
+          preset: 'today',
+          anchorDate: '2026-08-22'
+        })
+      ).toMatchObject({
+        startInstant: Date.parse('2026-08-21T21:00:00.000Z'),
+        endInstant: Date.parse('2026-08-22T20:59:59.999Z')
+      });
+      expect(
+        buildFinancialPeriod({
+          timeZone: 'America/New_York',
+          monthStartDay: 1,
+          preset: 'today',
+          anchorDate: '2026-11-01'
+        })
+      ).toMatchObject({
+        startInstant: Date.parse('2026-11-01T04:00:00.000Z'),
+        endInstant: Date.parse('2026-11-02T04:59:59.999Z')
+      });
+    } finally {
+      Object.defineProperty(
+        Intl.DateTimeFormat.prototype,
+        'formatToParts',
+        original
+      );
+    }
+  });
+
   it('uses inclusive Riyadh day boundaries when UTC is still on the prior day', () => {
     const period = buildFinancialPeriod({
       ...context,
@@ -26,9 +67,7 @@ describe('financial period boundaries', () => {
       anchorDate: '2026-08-22'
     });
 
-    expect(period.startInstant).toBe(
-      Date.parse('2026-08-21T18:15:00.000Z')
-    );
+    expect(period.startInstant).toBe(Date.parse('2026-08-21T18:15:00.000Z'));
     expect(period.endInstant).toBe(Date.parse('2026-08-22T18:14:59.999Z'));
   });
 

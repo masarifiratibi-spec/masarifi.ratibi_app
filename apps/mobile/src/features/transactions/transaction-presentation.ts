@@ -4,7 +4,7 @@ import { localizedDemoTransactionTitle } from '@/domain/core-finance-seeds';
 import type { Locale } from '@/domain/foundation';
 import { translate } from '@/localization/i18n';
 import { formatDate } from '@/utils/format-financial-value';
-import { getDateFormatter } from '@/utils/intl-formatters';
+import { calendarDateTimeParts, getDateFormatter } from '@/utils/intl-formatters';
 
 const localeTags: Record<Locale, string> = {
   ar: 'ar-u-nu-latn',
@@ -95,12 +95,13 @@ export function formatTransactionTimestamp(
 }
 
 function calendarKey(timestamp: number, timeZone: string): string {
-  const parts = getDateFormatter('en-US-u-nu-latn', {
+  const formatter = getDateFormatter('en-US-u-nu-latn', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     timeZone
-  }).formatToParts(new Date(timestamp));
+  });
+  const parts = calendarDateTimeParts(formatter, new Date(timestamp));
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? '';
   return `${value('year')}-${value('month')}-${value('day')}`;

@@ -8,6 +8,35 @@ import {
 import type { Locale } from '@/domain/foundation';
 
 describe('formatAmount', () => {
+  it.each<[number, string, Locale, string]>([
+    [0, 'SAR', 'en', '0.00\u00a0SAR'],
+    [-1234, 'SAR', 'ar', '\u200e-12.34\u00a0SAR'],
+    [12, 'JPY', 'en', '12\u00a0JPY'],
+    [Number.MAX_SAFE_INTEGER, 'OMR', 'ar', '9,007,199,254,740.991\u00a0OMR']
+  ])(
+    'preserves %s %s in %s when iOS Hermes has no formatToParts',
+    (minor, currency, locale, expected) => {
+      const original = Object.getOwnPropertyDescriptor(
+        Intl.NumberFormat.prototype,
+        'formatToParts'
+      )!;
+      Object.defineProperty(Intl.NumberFormat.prototype, 'formatToParts', {
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      try {
+        expect(formatMinorAmount(minor, currency, locale)).toBe(expected);
+      } finally {
+        Object.defineProperty(
+          Intl.NumberFormat.prototype,
+          'formatToParts',
+          original
+        );
+      }
+    }
+  );
+
   it('formats three-decimal minor units without a scale-two conversion', () => {
     expect(formatMinorAmount(12_345, 'OMR', 'en')).toBe('12.345\u00a0OMR');
   });
@@ -23,11 +52,14 @@ describe('formatAmount', () => {
   it.each([
     ['SAR', '90,071,992,547,409.91\u00a0SAR'],
     ['OMR', '9,007,199,254,740.991\u00a0OMR']
-  ])('formats every safe minor unit exactly for %s', (currencyCode, expected) => {
-    expect(formatMinorAmount(Number.MAX_SAFE_INTEGER, currencyCode, 'en')).toBe(
-      expected
-    );
-  });
+  ])(
+    'formats every safe minor unit exactly for %s',
+    (currencyCode, expected) => {
+      expect(
+        formatMinorAmount(Number.MAX_SAFE_INTEGER, currencyCode, 'en')
+      ).toBe(expected);
+    }
+  );
 
   it.each([
     [1234.5, 'SAR', 'en', '1,234.50'],

@@ -1,4 +1,5 @@
 import type { LocalDate } from './financial-planning';
+import { calendarDateTimeParts } from '@/utils/intl-formatters';
 
 export type FinancialPeriodPreset =
   | 'today'
@@ -174,9 +175,10 @@ function zonedDateParts(timestamp: number, timeZone: string) {
     zonedDateFormatters.set(timeZone, formatter);
   }
   const values = Object.fromEntries(
-    formatter
-      .formatToParts(timestamp)
-      .map((part) => [part.type, part.value])
+    calendarDateTimeParts(formatter, timestamp).map((part) => [
+      part.type,
+      part.value
+    ])
   );
   return {
     year: Number(values.year),

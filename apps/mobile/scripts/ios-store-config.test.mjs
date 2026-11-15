@@ -74,6 +74,28 @@ function resolvedConfig(environment) {
   }
 }
 
+for (const profile of ['ios-ad-hoc', 'ios-app-store']) {
+  test(`${profile} uses a bounded launch logo instead of the legacy full-screen image`, () => {
+    const config = resolvedConfig({
+      ...builds.production.env,
+      ...builds[profile].env,
+      EAS_BUILD_PROFILE: profile,
+      EAS_BUILD_PLATFORM: 'ios'
+    });
+    const splash = config.plugins.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen'
+    );
+    assert.ok(splash, 'Expected the supported iOS splash configuration plugin');
+    assert.equal(splash[1].ios.image, app.splash.image);
+    assert.equal(splash[1].ios.imageWidth, 144);
+    assert.equal(splash[1].ios.resizeMode, 'contain');
+    assert.equal(splash[1].ios.enableFullScreenImage_legacy, false);
+    assert.equal(splash[1].android, undefined);
+    assert.equal(splash[1].imageWidth, undefined);
+    assert.deepEqual(config.android, app.android);
+  });
+}
+
 test('App Store config resolves its release version and native Clerk binding before NODE_ENV exists', () => {
   const config = resolvedConfig(storeEnvironment);
   assert.equal(config.version, '1.0.0');

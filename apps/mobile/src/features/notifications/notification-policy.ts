@@ -3,6 +3,7 @@ import type {
   NotificationPermissionState,
   NotificationPreferences
 } from '@/domain/notifications';
+import { calendarDateTimeParts } from '@/utils/intl-formatters';
 
 export type NotificationPolicyOutcome =
   | 'present_local'
@@ -98,13 +99,14 @@ function isQuietNow(
   now: number
 ) {
   if (!quietHours.enabled) return false;
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: quietHours.timeZone,
     hour: '2-digit',
     minute: '2-digit',
     weekday: 'short',
     hour12: false
-  }).formatToParts(new Date(now));
+  });
+  const parts = calendarDateTimeParts(formatter, new Date(now));
   const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
   const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
   const weekdayName = parts.find((part) => part.type === 'weekday')?.value ?? 'Sun';

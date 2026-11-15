@@ -78,7 +78,19 @@ module.exports = ({ config }) => {
             ? [
                 ...config.plugins,
                 'expo-apple-authentication',
-                ['@clerk/expo', { appleSignIn: true }]
+                ['@clerk/expo', { appleSignIn: true }],
+                [
+                  'expo-splash-screen',
+                  {
+                    ios: {
+                      image: config.splash.image,
+                      backgroundColor: config.splash.backgroundColor,
+                      imageWidth: 144,
+                      resizeMode: 'contain',
+                      enableFullScreenImage_legacy: false
+                    }
+                  }
+                ]
               ]
             : config.plugins,
         ...(iosAdHoc ||
