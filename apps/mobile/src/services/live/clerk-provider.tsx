@@ -8,6 +8,7 @@ import {
   type TokenCache
 } from '@clerk/expo';
 import { useSSO } from '@clerk/expo/experimental';
+import { useSignInWithApple } from '@clerk/expo/apple';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -35,7 +36,8 @@ import type {
   AuthResult,
   PhoneVerificationAttempt
 } from '@/services/contracts/app-shell-service';
-import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
+import { registerLiveClerkBridge, type ClerkSession, type LiveClerkBridge } from './auth-service';
+import { clearClerkAuthMethod, restoreClerkAuthMethod, saveClerkAuthMethod } from './clerk-auth-method';
 import { classifyPhoneVerificationError } from './clerk-errors';
 import { RecentAuthDialog } from '@/features/security/RecentAuthDialog';
 import { beginTrackingAdmission } from '@/state/tracking-admission';
@@ -202,11 +204,12 @@ function ClerkBridgeInstaller({
   const signInState = useSignIn();
   const signUpState = useSignUp();
   const { startSSOFlow } = useSSO();
-  const latest = useRef({ auth, signInState, signUpState, startSSOFlow });
-  latest.current = { auth, signInState, signUpState, startSSOFlow };
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
+  const latest = useRef({ auth, signInState, signUpState, startSSOFlow, startAppleAuthenticationFlow });
+  latest.current = { auth, signInState, signUpState, startSSOFlow, startAppleAuthenticationFlow };
   const ssoPending = useRef(false);
   const attempts = useRef(new Map<string, PendingPhoneAttempt>());
-  const lastMethod = useRef<'phone' | 'google'>('google');
+  const rememberedSession = useRef<ClerkSession | null>(null);
 
   const currentSession = (): LiveClerkBridge extends {
     getSession(): Promise<infer T>;
@@ -220,14 +223,25 @@ function ClerkBridgeInstaller({
     return {
       id: session.id,
       userId: clerk.user.id,
-      method: lastMethod.current,
+      method: rememberedSession.current?.id === session.id &&
+        rememberedSession.current.userId === clerk.user.id
+        ? rememberedSession.current.method : 'google',
       issuedAt: session.lastActiveAt.getTime(),
       expiresAt: session.expireAt.getTime()
     };
   };
 
   const bridge: LiveClerkBridge = {
-    getSession: async () => currentSession(),
+    getSession: async () => {
+      const session = currentSession();
+      if (!session || (rememberedSession.current?.id === session.id &&
+          rememberedSession.current.userId === session.userId)) return session;
+      const method = await restoreClerkAuthMethod(session);
+      const current = currentSession();
+      if (current?.id !== session.id || current.userId !== session.userId) return null;
+      rememberedSession.current = { ...current, method };
+      return rememberedSession.current;
+    },
     getToken: (options) => latest.current.auth.getToken(options),
     async startPhone({ countryCode, phoneValue }) {
       const identifier = `${countryCode}${phoneValue}`;
@@ -315,7 +329,10 @@ function ClerkBridgeInstaller({
       try {
         const verified = await attempt.verify(code);
         attempts.current.delete(sessionId);
-        lastMethod.current = 'phone';
+        rememberedSession.current = {
+          id: verified.sessionId, userId: verified.userId, method: 'phone',
+          issuedAt: verified.issuedAt, expiresAt: verified.expiresAt
+        };
         return {
           status: 'authenticated',
           session: {
@@ -396,14 +413,14 @@ function ClerkBridgeInstaller({
           onStatus('incomplete');
           throw new Error('googleAuth.incomplete');
         }
-        lastMethod.current = 'google';
         const session = currentSession();
         if (!session || session.id !== activatedId)
           throw new Error('Clerk session missing');
+        rememberedSession.current = { ...session, method: 'google' };
         onStatus('ready');
         recordDevelopmentAuthDiagnostic('sso_ready');
         onSessionKey(session.id);
-        return session;
+        return rememberedSession.current;
       } catch (error) {
         recordDevelopmentAuthDiagnostic('sso_failure', error);
         if (error instanceof Error && error.message === 'googleAuth.incomplete')
@@ -414,21 +431,60 @@ function ClerkBridgeInstaller({
         ssoPending.current = false;
       }
     },
+    async signInWithApple() {
+      if (Platform.OS !== 'ios' || isBenchmarkReadOnly() ||
+          !latest.current.auth.isLoaded || ssoPending.current)
+        throw new Error('appShell.auth.unavailable');
+      ssoPending.current = true;
+      onStatus('sso');
+      try {
+        const result = await latest.current.startAppleAuthenticationFlow();
+        if (!result.createdSessionId) {
+          if (result.signUp?.status === 'missing_requirements') {
+            onStatus('incomplete');
+            throw new Error('appleAuth.incomplete');
+          }
+          onStatus('cancelled');
+          return null;
+        }
+        if (!result.setActive) throw new Error('appShell.auth.unavailable');
+        await result.setActive({ session: result.createdSessionId });
+        const session = currentSession();
+        if (!session || session.id !== result.createdSessionId)
+          throw new Error('Clerk session missing');
+        const appleSession: ClerkSession = { ...session, method: 'apple' };
+        await saveClerkAuthMethod(appleSession);
+        const current = currentSession();
+        if (current?.id !== session.id || current.userId !== session.userId)
+          throw new Error('Clerk session changed');
+        rememberedSession.current = appleSession;
+        onStatus('ready');
+        onSessionKey(session.id);
+        return appleSession;
+      } catch (error) {
+        onStatus(error instanceof Error && error.message === 'appleAuth.incomplete' ? 'incomplete' : 'error');
+        throw error;
+      } finally {
+        ssoPending.current = false;
+      }
+    },
     reverifyConflict: async () => null,
-    signOut: ({ scope, sessionId }) => {
+    signOut: async ({ scope, sessionId }) => {
       if (
         sessionId &&
         (!latest.current.auth.isLoaded ||
           latest.current.auth.sessionId !== sessionId)
       )
-        return Promise.reject(new Error('LOGOUT_SESSION_UNVERIFIED'));
-      return latest.current.auth.signOut(
+        throw new Error('LOGOUT_SESSION_UNVERIFIED');
+      const departingSession = currentSession();
+      await latest.current.auth.signOut(
         scope === 'current'
           ? {
               sessionId: sessionId ?? latest.current.auth.sessionId ?? undefined
             }
           : undefined
       );
+      if (departingSession) await clearClerkAuthMethod(departingSession);
     }
   };
   useEffect(() => {

@@ -90,8 +90,17 @@ module.exports = ({ config }) => {
           ['ios-ad-hoc', 'ios-app-store'].includes(
             process.env.EAS_BUILD_PROFILE
           )
-            ? [...config.plugins, ['@clerk/expo', { appleSignIn: false }]]
-            : config.plugins
+            ? [
+                ...config.plugins,
+                'expo-apple-authentication',
+                ['@clerk/expo', { appleSignIn: true }]
+              ]
+            : config.plugins,
+        ...(iosAdHoc ||
+        iosAppStore ||
+        ['ios-ad-hoc', 'ios-app-store'].includes(process.env.EAS_BUILD_PROFILE)
+          ? { ios: { ...config.ios, usesAppleSignIn: true } }
+          : {})
       };
     }
     return config;

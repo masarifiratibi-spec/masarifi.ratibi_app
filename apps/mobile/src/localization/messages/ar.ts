@@ -307,6 +307,11 @@ const ar: MessageCatalog = {
     'حساب Google يحتاج معلومات إضافية. جرّب حسابًا آخر أو الدعم.',
   'googleAuth.welcome': 'حيّاك في\nمصاريفي وراتبي',
   'googleAuth.supporting': 'أموالك في مكان واحد.\nكمّل بحساب Google وابدأ.',
+  'appleAuth.continue': 'المتابعة باستخدام Apple',
+  'appleAuth.supporting': 'أموالك في مكان واحد.\nاختر حسابًا وابدأ.',
+  'appleAuth.incomplete': 'يحتاج حساب Apple إلى معلومات إضافية لإكمال الدخول. أعد المحاولة أو تواصل مع الدعم.',
+  'auth.cancelled': 'تم إلغاء تسجيل الدخول.',
+  'auth.incomplete': 'يحتاج تسجيل الدخول إلى معلومات إضافية. أعد المحاولة أو تواصل مع الدعم.',
   'googleAuth.continue': 'المتابعة باستخدام Google',
   'googleAuth.footer': 'ارجع بنفس حساب Google،\nوتلقى بياناتك مثل ما تركتها.',
   'appShell.security.stagingDisabled':

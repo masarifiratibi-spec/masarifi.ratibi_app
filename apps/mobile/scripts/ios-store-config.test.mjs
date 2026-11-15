@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { URL } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 import test from 'node:test';
 import { validateClientBuildEnvironment } from './check-client-runtime.mjs';
 
@@ -100,6 +100,54 @@ test('App Store release always selects real production providers', () => {
     false
   );
 });
+
+for (const [profile, marker] of [
+  ['ios-ad-hoc', 'MASARIFI_IOS_AD_HOC'],
+  ['ios-app-store', 'MASARIFI_IOS_APP_STORE']
+]) {
+  test(`${profile} generates Apple sign-in entitlements and localized native button support`, async () => {
+    const config = resolvedConfig({
+      ...storeEnvironment,
+      MASARIFI_IOS_APP_STORE: undefined,
+      EAS_BUILD_PROFILE: profile,
+      [marker]: 'true'
+    });
+    assert.ok(
+      config.plugins.includes('expo-apple-authentication'),
+      'native Apple authentication plugin is required'
+    );
+    const { withPlugins } = require('expo/config-plugins');
+    const native = withPlugins(
+      {
+        ...config,
+        _internal: {
+          projectRoot: fileURLToPath(new URL('../', import.meta.url))
+        }
+      },
+      config.plugins.filter((plugin) =>
+        ['@clerk/expo', 'expo-apple-authentication'].includes(
+          Array.isArray(plugin) ? plugin[0] : plugin
+        )
+      )
+    );
+    const entitlements = await native.mods.ios.entitlements({
+      ...native,
+      modResults: {},
+      modRequest: {}
+    });
+    assert.deepEqual(
+      entitlements.modResults['com.apple.developer.applesignin'],
+      ['Default']
+    );
+    const info = await native.mods.ios.infoPlist({
+      ...native,
+      modResults: {},
+      modRequest: {}
+    });
+    assert.equal(info.modResults.CFBundleAllowMixedLocalizations, true);
+    assert.deepEqual(config.android, app.android);
+  });
+}
 
 for (const NODE_ENV of [undefined, 'development', 'production']) {
   test(`App Store runtime enforces production admission with NODE_ENV=${NODE_ENV}`, () => {

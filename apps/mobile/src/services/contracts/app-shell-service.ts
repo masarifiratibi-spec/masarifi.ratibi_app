@@ -100,6 +100,7 @@ export interface AuthService {
   verifyPhone(input: VerificationInput): Promise<AuthResult>;
   resendPhone(sessionId: string): Promise<PhoneVerificationAttempt>;
   signInWithGoogle(): Promise<AuthResult>;
+  signInWithApple(): Promise<AuthResult>;
   reverifyConflict(input: ReverificationInput): Promise<AuthResult>;
   restoreSession(): Promise<AuthenticationSession>;
   touchActivity(): Promise<void>;

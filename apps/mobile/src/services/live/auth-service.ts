@@ -59,10 +59,10 @@ import {
   configureVoiceApiTokenProvider
 } from './voice-api-service';
 
-type ClerkSession = {
+export type ClerkSession = {
   id: string;
   userId: string;
-  method: 'phone' | 'google';
+  method: 'phone' | 'google' | 'apple';
   issuedAt: number;
   expiresAt: number;
 };
@@ -74,6 +74,7 @@ export interface LiveClerkBridge {
   verifyPhone(input: VerificationInput): Promise<AuthResult>;
   resendPhone(sessionId: string): Promise<PhoneVerificationAttempt>;
   signInWithGoogle(): Promise<ClerkSession | null>;
+  signInWithApple?(): Promise<ClerkSession | null>;
   reverifyConflict(input: ReverificationInput): Promise<ClerkSession | null>;
   signOut(options: {
     scope: 'current' | 'all';
@@ -658,6 +659,14 @@ export function createLiveAuthService(
     resendPhone: (sessionId) => bridge.resendPhone(sessionId),
     async signInWithGoogle() {
       const session = await bridge.signInWithGoogle();
+      return session
+        ? { status: 'authenticated', session: authenticated(session) }
+        : { status: 'cancelled' };
+    },
+    async signInWithApple() {
+      if (!bridge.signInWithApple)
+        return { status: 'failed', errorCode: 'appShell.auth.unavailable' };
+      const session = await bridge.signInWithApple();
       return session
         ? { status: 'authenticated', session: authenticated(session) }
         : { status: 'cancelled' };

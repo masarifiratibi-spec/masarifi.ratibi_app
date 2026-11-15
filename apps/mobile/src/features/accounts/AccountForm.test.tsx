@@ -43,6 +43,7 @@ beforeEach(() => {
     verifyPhone: jest.fn(),
     resendPhone: jest.fn(),
     signInWithGoogle: jest.fn(),
+    signInWithApple: jest.fn(),
     reverifyConflict: jest.fn(),
     signOut: jest.fn()
   });

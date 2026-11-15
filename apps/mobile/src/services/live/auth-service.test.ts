@@ -93,11 +93,24 @@ function clerkBridge(overrides: Record<string, unknown> = {}) {
     verifyPhone: jest.fn(),
     resendPhone: jest.fn(),
     signInWithGoogle: jest.fn(async () => liveSession),
+    signInWithApple: jest.fn(async () => ({ ...liveSession, method: 'apple' as const })),
     reverifyConflict: jest.fn(async () => liveSession),
     signOut: jest.fn(async () => undefined),
     ...overrides
   };
 }
+
+it('admits an Apple session through the same live identity service and preserves its method', async () => {
+  const auth = createLiveAuthService(clerkBridge());
+  await expect(auth.signInWithApple()).resolves.toMatchObject({
+    status: 'authenticated', session: { userId: liveSession.userId, method: 'apple' }
+  });
+});
+
+it('returns Apple cancellation without creating an authenticated application session', async () => {
+  const auth = createLiveAuthService(clerkBridge({ signInWithApple: async () => null }));
+  await expect(auth.signInWithApple()).resolves.toEqual({ status: 'cancelled' });
+});
 
 describe('DEV authenticated sign-out', () => {
   const deviceRegistration = {

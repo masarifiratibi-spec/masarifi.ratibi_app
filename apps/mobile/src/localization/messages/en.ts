@@ -344,6 +344,11 @@ const en = {
   'googleAuth.supporting':
     'Your finances, together in one place.\nContinue with Google to get started.',
   'googleAuth.continue': 'Continue with Google',
+  'appleAuth.continue': 'Continue with Apple',
+  'appleAuth.supporting': 'Your finances, together in one place.\nChoose an account to get started.',
+  'appleAuth.incomplete': 'Your Apple account needs more details to finish signing in. Try again or contact support.',
+  'auth.cancelled': 'Sign-in was cancelled.',
+  'auth.incomplete': 'Sign-in needs more details. Try again or contact support.',
   'googleAuth.footer':
     'Use the same Google account to return to your finances.',
   'appShell.security.stagingDisabled':

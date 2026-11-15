@@ -6,7 +6,8 @@ export const authSessionStatuses = [
   'authenticated',
   'expired'
 ] as const;
-export const authMethods = ['phone', 'google'] as const;
+export const authMethods = ['phone', 'google', 'apple'] as const;
+export type AuthenticationMethod = (typeof authMethods)[number];
 export const restorationStatuses = [
   'local',
   'idle',

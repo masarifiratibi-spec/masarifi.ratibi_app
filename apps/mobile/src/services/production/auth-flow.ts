@@ -19,6 +19,7 @@ export const authService: CapabilityProviderHandle<AuthService> = {
   verifyPhone: (input) => createAuthService().verifyPhone(input),
   resendPhone: (sessionId) => createAuthService().resendPhone(sessionId),
   signInWithGoogle: () => createAuthService().signInWithGoogle(),
+  signInWithApple: () => createAuthService().signInWithApple(),
   reverifyConflict: (input) => createAuthService().reverifyConflict(input),
   restoreSession: () => createAuthService().restoreSession(),
   touchActivity: () => createAuthService().touchActivity(),
@@ -67,6 +68,9 @@ function createUnavailableAuthService(): CapabilityProviderHandle<AuthService> {
       throw new Error(unavailable);
     },
     async signInWithGoogle() {
+      return { status: 'failed', errorCode: unavailable };
+    },
+    async signInWithApple() {
       return { status: 'failed', errorCode: unavailable };
     },
     async reverifyConflict() {
