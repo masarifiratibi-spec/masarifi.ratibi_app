@@ -1,5 +1,13 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { DesignIcon } from '@/design-system/icons';
@@ -110,6 +118,36 @@ export function VoiceProcessingConsentDialog({
             >
               {translate('voice.processingConsent.title')}
             </StyledText>
+            {Platform.OS === 'ios' ? (
+              <>
+                {(
+                  [
+                    'voice.processingConsent.data',
+                    'voice.processingConsent.purpose',
+                    'voice.processingConsent.choice'
+                  ] as const
+                ).map((key) => (
+                  <StyledText
+                    key={key}
+                    style={{ color: colors.content.primary }}
+                  >
+                    {translate(key)}
+                  </StyledText>
+                ))}
+                <ActionButton
+                  label="privacy.details"
+                  variant="quiet"
+                  disabled={busy}
+                  onPress={() => {
+                    onDismiss();
+                    router.push({
+                      pathname: '/(public)/legal',
+                      params: { document: 'privacy' }
+                    });
+                  }}
+                />
+              </>
+            ) : null}
             {failed ? (
               <StyledText
                 accessibilityRole="alert"

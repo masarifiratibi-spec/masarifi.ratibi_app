@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   StyleSheet,
   View
 } from 'react-native';
@@ -139,74 +140,90 @@ export function DevAccountDeletionPanel({
               : phase
                 ? 'settings.deletion.dev.deleting'
                 : null;
+  const problemVisible =
+    production && Boolean(problem) && dismissedProblem !== problemKey;
+  const problemContent = (
+    <View style={styles.problemBackdrop}>
+      <View
+        testID="account-deletion-error-dialog"
+        accessibilityViewIsModal
+        style={[
+          styles.problemCard,
+          { backgroundColor: theme.colors.surface, direction }
+        ]}
+      >
+        <StyledText variant="title" style={styles.centered}>
+          settings.deletion.popup.title
+        </StyledText>
+        <StyledText style={styles.centered}>
+          {t(error ?? message ?? 'settings.deletion.popup.body')}
+        </StyledText>
+        <ActionButton label={retryLabel} onPress={retry} />
+        <ActionButton
+          label="common.close"
+          variant="quiet"
+          onPress={dismissProblem}
+        />
+      </View>
+    </View>
+  );
+  const progressContent = (
+    <View
+      style={[styles.backdrop, { backgroundColor: theme.colors.surfaces.page }]}
+    >
+      <View
+        accessible
+        accessibilityViewIsModal
+        accessibilityRole="progressbar"
+        accessibilityState={{ busy: true }}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={t('settings.deletion.dev.loadingTitle')}
+        style={[styles.loadingContent, { direction }]}
+      >
+        <ActivityIndicator
+          size="large"
+          color={theme.colors.primary}
+          accessible={false}
+        />
+        {!production ? (
+          <StyledText style={styles.centered}>
+            settings.deletion.dev.loadingTitle
+          </StyledText>
+        ) : null}
+      </View>
+    </View>
+  );
   return (
     <View style={styles.stack}>
-      <Modal
-        visible={
-          production && Boolean(problem) && dismissedProblem !== problemKey
-        }
-        transparent
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={dismissProblem}
-      >
-        <View style={styles.problemBackdrop}>
-          <View
-            testID="account-deletion-error-dialog"
-            accessibilityViewIsModal
-            style={[
-              styles.problemCard,
-              { backgroundColor: theme.colors.surface, direction }
-            ]}
-          >
-            <StyledText variant="title" style={styles.centered}>
-              settings.deletion.popup.title
-            </StyledText>
-            <StyledText style={styles.centered}>
-              {t(error ?? message ?? 'settings.deletion.popup.body')}
-            </StyledText>
-            <ActionButton label={retryLabel} onPress={retry} />
-            <ActionButton
-              label="common.close"
-              variant="quiet"
-              onPress={dismissProblem}
-            />
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        visible={loading}
-        transparent={false}
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={() => undefined}
-      >
-        <View
-          style={[
-            styles.backdrop,
-            { backgroundColor: theme.colors.surfaces.page }
-          ]}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={problemVisible || loading}
+          transparent
+          animationType={reducedMotion ? 'none' : 'fade'}
+          onRequestClose={loading ? () => undefined : dismissProblem}
         >
-          <View
-            accessible
-            accessibilityViewIsModal
-            accessibilityRole="progressbar"
-            accessibilityState={{ busy: true }}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t('settings.deletion.dev.loadingTitle')}
-            style={[styles.loadingContent, { direction }]}
+          {loading ? progressContent : problemContent}
+        </Modal>
+      ) : (
+        <>
+          <Modal
+            visible={problemVisible}
+            transparent
+            animationType={reducedMotion ? 'none' : 'fade'}
+            onRequestClose={dismissProblem}
           >
-            <ActivityIndicator
-              size="large"
-              color={theme.colors.primary}
-              accessible={false}
-            />
-            {!production ? (
-              <StyledText style={styles.centered}>
-                settings.deletion.dev.loadingTitle
-              </StyledText>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+            {problemContent}
+          </Modal>
+          <Modal
+            visible={loading}
+            transparent={false}
+            animationType={reducedMotion ? 'none' : 'fade'}
+            onRequestClose={() => undefined}
+          >
+            {progressContent}
+          </Modal>
+        </>
+      )}
       {!loading ? (
         <>
           {!production && !recovery && presentation === 'default' ? (

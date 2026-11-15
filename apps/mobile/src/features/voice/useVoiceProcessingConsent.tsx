@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { sha256 } from '@noble/hashes/sha256';
@@ -9,7 +10,6 @@ import { VoiceProcessingConsentDialog } from './VoiceProcessingConsentDialog';
 
 // This acknowledgement contains no audio or financial data. A new disclosure
 // version requires a new affirmative choice for this owner on this device.
-const disclosureVersion = 'voice-processing-v1';
 const consentKey = (owner: string) =>
   `masarifi.voice.processing-consent.${bytesToHex(sha256(utf8ToBytes(owner)))}`;
 // A storage failure must not reactivate a withdrawal in this running app.
@@ -23,6 +23,7 @@ type Request = {
 };
 
 export function useVoiceProcessingConsent() {
+  const disclosureVersion = Platform.OS === 'ios' ? 'ios-voice-processing-v2' : 'voice-processing-v1';
   const [view, setView] = useState<{
     granted: boolean;
     busy: boolean;

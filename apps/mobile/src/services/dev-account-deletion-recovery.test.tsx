@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AppState, Platform, type AppStateStatus } from 'react-native';
+import { Alert, AppState, Modal, Platform, type AppStateStatus } from 'react-native';
 import {
   act,
   fireEvent,
@@ -197,6 +197,44 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_API_URL;
   delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 });
+
+test.each(['ios', 'android'] as const)(
+  'preserves the native deletion presentation contract through retry transitions on %s',
+  async (platform) => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+    productionRuntime();
+    const owner = `user_modal_retry_${platform}`;
+    clerkOwner = owner;
+    session(owner);
+    await saveDeletionCompletion({
+      ownerId: owner, operationId: '3ea72ae5-dbb0-4b0b-b23e-337a2edf8c72',
+      completionToken: 'd'.repeat(64), phase: 'verification_required',
+      requestId: null, completedAt: null, attempts: 0, nextAttemptAt: 0, retryAfterAt: 0
+    });
+    let finishRequest!: (response: Response) => void;
+    fetchBoundary.mockImplementation(() => new Promise<Response>((resolve) => { finishRequest = resolve; }));
+    const view = render(<Runtime />);
+    await screen.findByRole('button', { name: t('settings.deletion.continue') });
+    const visibleModal = () => {
+      const visible = view.UNSAFE_getAllByType(Modal).filter((modal) => modal.props.visible);
+      expect(visible).toHaveLength(1);
+      return visible[0];
+    };
+    const problemHost = visibleModal();
+    fireEvent.press(screen.getByRole('button', { name: t('settings.deletion.continue') }));
+    await screen.findByRole('progressbar', { name: t('settings.deletion.dev.loadingTitle') });
+    const progressHost = visibleModal();
+    await waitFor(() => expect(fetchBoundary).toHaveBeenCalledTimes(1));
+    await act(async () => { finishRequest(successful({ code: 'PROVIDER_UNAVAILABLE' }, 503)); });
+    await screen.findByTestId('account-deletion-error-dialog');
+    expect(visibleModal() === problemHost).toBe(true);
+    expect(progressHost === problemHost).toBe(platform === 'ios');
+    expect(await loadDeletionCompletion(owner)).toMatchObject({
+      ownerId: owner, operationId: '3ea72ae5-dbb0-4b0b-b23e-337a2edf8c72'
+    });
+    expect(sdkSignOut).not.toHaveBeenCalled();
+  }
+);
 
 test.each(['staging-development-privacy', undefined, 'production'])(
   'keeps confirmed deletion receipt-backed through SDK revocation and cleanup (%s)',

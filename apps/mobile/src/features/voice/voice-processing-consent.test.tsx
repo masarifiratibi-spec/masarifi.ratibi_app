@@ -1,4 +1,6 @@
 import React from 'react';
+import { Platform } from 'react-native';
+import { createHash } from 'node:crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
@@ -22,6 +24,7 @@ function CaptureActions() {
 }
 
 const metadata = voiceAnalyzerService.metadata;
+const originalPlatform = Platform.OS;
 beforeEach(async () => {
   await AsyncStorage.clear();
   useVoiceCaptureStore.getState().reset();
@@ -34,24 +37,33 @@ beforeEach(async () => {
   jest.spyOn(router, 'replace').mockImplementation(() => undefined);
 });
 afterEach(() => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
   voiceAnalyzerService.metadata = metadata;
   jest.restoreAllMocks();
 });
 
-it.each(['ar', 'en'] as const)('requires affirmative disclosure consent before microphone access in %s and keeps refusal usable', async locale => {
+it.each([['android', 'ar'], ['android', 'en'], ['ios', 'ar'], ['ios', 'en']] as const)('requires affirmative disclosure consent before microphone access on %s in %s and keeps refusal usable', async (platform, locale) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
   changeLocale(locale);
   const transcribe = jest.spyOn(voiceAnalyzerService, 'transcribe');
   const analyze = jest.spyOn(voiceAnalyzerService, 'analyze');
   renderWithProviders(<CaptureActions />);
-  fireEvent.press(screen.getByRole('button', { name: 'Start' }));
+  await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Start' })); });
   await screen.findByText(translate('voice.processingConsent.title'));
   expect(voiceRecorderService.getPermission).not.toHaveBeenCalled();
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
   expect(transcribe).not.toHaveBeenCalled();
   expect(analyze).not.toHaveBeenCalled();
   expect(screen.getByTestId('voice-processing-consent-modal')).toBeOnTheScreen();
-  expect(screen.queryByText(translate('voice.processingConsent.data'))).toBeNull();
-  expect(screen.queryByRole('button', { name: translate('privacy.details') })).toBeNull();
+  if (platform === 'ios') {
+    expect(screen.getByText(translate('voice.processingConsent.data'))).toBeOnTheScreen();
+    expect(screen.getByText(translate('voice.processingConsent.purpose'))).toBeOnTheScreen();
+    expect(screen.getByText(translate('voice.processingConsent.choice'))).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: translate('privacy.details') })).toBeOnTheScreen();
+  } else {
+    expect(screen.queryByText(translate('voice.processingConsent.data'))).toBeNull();
+    expect(screen.queryByRole('button', { name: translate('privacy.details') })).toBeNull();
+  }
   fireEvent.press(screen.getByRole('button', { name: translate('voice.processingConsent.decline') }));
   await waitFor(() => expect(screen.queryByText(translate('voice.processingConsent.title'))).toBeNull());
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
@@ -61,6 +73,22 @@ it.each(['ar', 'en'] as const)('requires affirmative disclosure consent before m
   fireEvent.press(screen.getByRole('button', { name: 'Start' }));
   fireEvent.press(await screen.findByRole('button', { name: translate('voice.processingConsent.accept') }));
   await waitFor(() => expect(voiceRecorderService.start).toHaveBeenCalledTimes(1));
+});
+
+it.each(['ios', 'android'] as const)('handles a saved v1 voice acknowledgement on %s without silently changing Android consent', async (platform) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+  const ownerHash = createHash('sha256').update(authenticatedSession.userId!).digest('hex');
+  await AsyncStorage.setItem(`masarifi.voice.processing-consent.${ownerHash}`, 'voice-processing-v1');
+  renderWithProviders(<CaptureActions />);
+  fireEvent.press(screen.getByRole('button', { name: 'Start' }));
+  if (platform === 'ios') {
+    await screen.findByRole('button', { name: translate('voice.processingConsent.accept') });
+    expect(voiceRecorderService.getPermission).not.toHaveBeenCalled();
+    expect(voiceRecorderService.start).not.toHaveBeenCalled();
+  } else {
+    await waitFor(() => expect(voiceRecorderService.start).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('voice-processing-consent-modal')).toBeNull();
+  }
 });
 
 it('dismisses the popup without consenting or accessing the microphone', async () => {
