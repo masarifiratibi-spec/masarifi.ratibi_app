@@ -17,6 +17,7 @@ import {
 import { useTheme } from '@/state/theme-context';
 import { currentLocale, translateDynamic } from '@/localization/i18n';
 import { financialFontFamily, fontFamilyForLocale } from '@/design-system/typography';
+import { iosTextLayoutStyle } from '@/design-system/direction';
 
 type Variant = keyof ReturnType<typeof variantStyles>;
 
@@ -32,6 +33,7 @@ export function StyledText({
 }: StyledTextProps) {
   const theme = useTheme();
   const base = variantStyles(theme.typography)[variant];
+  const locale = currentLocale();
   const children = typeof rest.children === 'string'
     ? translateDynamic(rest.children)
     : rest.children;
@@ -45,10 +47,14 @@ export function StyledText({
           fontFamily:
             variant === 'amount'
               ? financialFontFamily(900)
-              : fontFamilyForLocale(currentLocale(), weightForVariant(variant)),
+              : fontFamilyForLocale(locale, weightForVariant(variant)),
           writingDirection: variant === 'amount' ? 'ltr' : 'auto'
         },
-        style
+        style,
+        iosTextLayoutStyle(
+          variant === 'amount' || locale !== 'ar' ? 'ltr' : 'rtl',
+          [base, style]
+        )
       ]}
       {...withDerivedAccessibilityLabel({ ...rest, children })}
     />

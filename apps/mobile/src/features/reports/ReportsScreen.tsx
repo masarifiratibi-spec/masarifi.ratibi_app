@@ -6,6 +6,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -985,10 +986,14 @@ function BudgetCard({
 }) {
   const theme = useTheme();
   const hasBudget = remainingMinor !== undefined;
+  // A live report can omit planning data even when saved budgets exist.
+  const neutralNavigation = Platform.OS === 'ios' && !pending && !hasBudget;
   const label =
     pending || hasBudget
       ? translate('reports.insight.budget_performance')
-      : translate('reports.analytics.setBudget');
+      : neutralNavigation
+        ? translate('planning.budgets.title')
+        : translate('reports.analytics.setBudget');
   return (
     <Pressable
       accessibilityRole="button"
@@ -1023,25 +1028,27 @@ function BudgetCard({
         <DirectionalText direction={direction} style={styles.navigationTitle}>
           {label}
         </DirectionalText>
-        <DirectionalText
-          direction={direction}
-          style={styles.navigationSubtitle}
-          muted
-        >
-          {pending
-            ? hidden
-              ? translate('designSystem.privacy.hidden')
-              : '—'
-            : hasBudget
+        {!neutralNavigation ? (
+          <DirectionalText
+            direction={direction}
+            style={styles.navigationSubtitle}
+            muted
+          >
+            {pending
               ? hidden
                 ? translate('designSystem.privacy.hidden')
-                : formatMinorAmount(
-                    remainingMinor,
-                    currency,
-                    usePreferenceStore.getState().locale
-                  )
-              : translate('reports.analytics.setBudgetHint')}
-        </DirectionalText>
+                : '—'
+              : hasBudget
+                ? hidden
+                  ? translate('designSystem.privacy.hidden')
+                  : formatMinorAmount(
+                      remainingMinor,
+                      currency,
+                      usePreferenceStore.getState().locale
+                    )
+                : translate('reports.analytics.setBudgetHint')}
+          </DirectionalText>
+        ) : null}
       </View>
       <AppIcon
         name="chevronEnd"

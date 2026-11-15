@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 
 import { changeLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -24,7 +25,9 @@ test('report primary controls expose button roles', async () => {
   expect(screen.getByRole('button', { name: /August 2026/ })).toBeTruthy();
   expect(screen.getByRole('button', { name: '1M' })).toBeTruthy();
   expect(
-    await screen.findByRole('button', { name: 'Set monthly budget' })
+    await screen.findByRole('button', {
+      name: Platform.OS === 'ios' ? 'Budgets' : 'Set monthly budget'
+    })
   ).toBeTruthy();
   expect(screen.queryByText(/416545/)).toBeNull();
   expect(screen.queryByLabelText(/416545/)).toBeNull();

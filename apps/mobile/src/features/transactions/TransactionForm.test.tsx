@@ -1277,6 +1277,23 @@ it('loads the default from delayed categories and allows a normal override', asy
   await screen.findByLabelText('Category, Food');
 });
 
+it.each([
+  ['ar', 'rtl', 'right'],
+  ['en', 'ltr', 'left']
+] as const)('iOS picker labels keep physical %s alignment', async (locale, writingDirection, textAlign) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  changeLocale(locale);
+  renderWithQueryData(<TransactionForm transaction={fixtureTransactions[1]} />, [
+    [coreFinanceKeys.accounts(false), fixtureAccounts],
+    [coreFinanceKeys.categories(false), fixtureCategories]
+  ]);
+  for (const key of ['coreFinance.transaction.category', 'coreFinance.transaction.account'] as const) {
+    expect(await screen.findByText(translate(key))).toHaveStyle({
+      direction: 'ltr', writingDirection, textAlign
+    });
+  }
+});
+
 it.each(['ar', 'en'] as const)(
   'centers the empty and entered zero in %s without changing amount dimensions',
   async (locale) => {

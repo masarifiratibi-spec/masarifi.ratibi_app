@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import {
   act,
@@ -40,6 +41,7 @@ const input = {
   accountIds: ['selected-account']
 };
 const owner = 'pdf_owner';
+const originalPlatform = Platform.OS;
 const accepted = {
   value: { id: 'attempt-1', status: 'scheduled' },
   affectedScopes: []
@@ -79,6 +81,23 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   useAppShellStore.setState({ session: null });
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+});
+
+// Build8's Arabic PDF button covered the last digits of the expense total.
+test.each([
+  ['ios', 'ar', 'flex-start'],
+  ['ios', 'en', 'flex-end'],
+  ['android', 'ar', 'flex-end']
+] as const)('places the PDF action away from the %s %s reading edge', (platform, locale, alignment) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+  changeLocale(locale);
+  renderWithProviders(<ReportPdfExport input={input} />);
+
+  expect(screen.getByTestId('reports-pdf-overlay')).toHaveStyle({
+    direction: 'ltr',
+    alignItems: alignment
+  });
 });
 
 test.each(['ar', 'en'] as const)(

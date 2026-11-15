@@ -251,7 +251,7 @@ test('does not preselect a fallback when the confirmed backend currency is unsup
   expect(screen.queryByText('SAR')).not.toBeOnTheScreen();
 });
 
-test('matches the Arabic reference and keeps the saved name ahead of Clerk prefill', () => {
+test('matches the iOS Arabic reference and keeps the saved name ahead of Clerk prefill', () => {
   renderWithProviders(
     <ProfileSetupScreen
       getClerkName={() => 'Adel Mohamed'}
@@ -264,14 +264,14 @@ test('matches the Arabic reference and keeps the saved name ahead of Clerk prefi
     direction: 'rtl'
   });
   expect(screen.getByText('وش نناديك؟')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
     width: '100%'
   });
   expect(
     screen.getByText('نستخدمه لتخصيص تجربتك في مصاريفي وراتبي.')
   ).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
     width: '100%'
   });
@@ -286,12 +286,12 @@ test('matches the Arabic reference and keeps the saved name ahead of Clerk prefi
     writingDirection: 'rtl'
   });
   expect(screen.getByText('العملة الأساسية')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
     width: '100%'
   });
   expect(screen.getByText('اختر العملة اللي تستخدمها غالبًا.')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
     width: '100%'
   });
@@ -382,7 +382,7 @@ test('falls back to the backend name and requires a non-empty value', async () =
   expect(saveProfileSetup).not.toHaveBeenCalled();
 });
 
-test('keeps edits while switching to English and uses concise LTR copy', async () => {
+test('keeps edits while switching to English and uses concise iOS LTR copy', async () => {
   renderWithProviders(
     <ProfileSetupScreen
       getClerkName={() => null}
@@ -398,14 +398,14 @@ test('keeps edits while switching to English and uses concise LTR copy', async (
   });
 
   expect(screen.getByText('What should we call you?')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'left',
     writingDirection: 'ltr',
     width: '100%'
   });
   expect(
     screen.getByText('We use it to personalize Masarifi & Ratibi.')
   ).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'left',
     writingDirection: 'ltr',
     width: '100%'
   });
@@ -420,12 +420,12 @@ test('keeps edits while switching to English and uses concise LTR copy', async (
     writingDirection: 'ltr'
   });
   expect(screen.getByText('Base currency')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'left',
     writingDirection: 'ltr',
     width: '100%'
   });
   expect(screen.getByText('Choose the currency you use most.')).toHaveStyle({
-    textAlign: 'auto',
+    textAlign: 'left',
     writingDirection: 'ltr',
     width: '100%'
   });

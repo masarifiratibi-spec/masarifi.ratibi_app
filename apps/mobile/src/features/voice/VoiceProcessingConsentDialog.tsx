@@ -129,7 +129,7 @@ export function VoiceProcessingConsentDialog({
                 ).map((key) => (
                   <StyledText
                     key={key}
-                    style={{ color: colors.content.primary }}
+                    style={[styles.disclosure, { color: colors.content.primary }]}
                   >
                     {translate(key)}
                   </StyledText>
@@ -216,6 +216,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   title: { textAlign: 'center', fontSize: 20, lineHeight: 30 },
+  disclosure: { alignSelf: 'stretch' },
   actions: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   action: { borderRadius: 16 }
 });

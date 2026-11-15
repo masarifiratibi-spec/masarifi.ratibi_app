@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import {
   Alert,
   PixelRatio,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -444,6 +445,13 @@ export function AccountDetailScreen({ id }: { id: string }) {
                   }
                   hidden={hidden}
                   largeText={largeText}
+                  sign={
+                    Platform.OS === 'ios' && transaction.type === 'transfer'
+                      ? transaction.accountId === id
+                        ? 'negative'
+                        : 'positive'
+                      : undefined
+                  }
                   testIDPrefix="account"
                   transaction={transaction}
                 />

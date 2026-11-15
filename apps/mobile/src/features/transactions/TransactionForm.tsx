@@ -1,4 +1,5 @@
 import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -1469,7 +1470,8 @@ function TransactionPickerCard({
           {
             color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'right' : 'left'
-          }
+          },
+          iosTextLayoutStyle(direction)
         ]}
       >
         {label}
