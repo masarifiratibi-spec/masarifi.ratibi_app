@@ -18,6 +18,32 @@ const {
 } = require("./complete-secret-scan.cjs");
 const binary = process.env.GITLEAKS_BINARY || "gitleaks";
 
+test("Store publishable key classification binds the exact reviewed public occurrence", () => {
+  const finding = {
+    Commit: "94f221cafeefd8cc0d95ce723b825abb10243aa1",
+    File: "apps/mobile/eas.json",
+    RuleID: "generic-api-key",
+    StartLine: 92, EndLine: 92, StartColumn: 11, EndColumn: 100,
+    Secret: "REDACTED",
+    Match: 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY\": \"REDACTED\"',
+    Fingerprint: "94f221cafeefd8cc0d95ce723b825abb10243aa1:apps/mobile/eas.json:generic-api-key:92"
+  };
+  const classified = classifyScanReport(JSON.stringify([finding]), 2);
+  assert.equal(classified.exitCode, 0);
+  assert.equal(classified.findings[0].classification, "clerk-publishable");
+  for (const patch of [
+    { File: "apps/mobile/another.json" },
+    { Commit: "a".repeat(40) },
+    { StartLine: 93, EndLine: 93 },
+    { StartColumn: 10 },
+    { Match: 'EXPO_PUBLIC_CLERK_SECRET_KEY\": \"REDACTED\"' }
+  ]) {
+    const changed = { ...finding, ...patch };
+    changed.Fingerprint = `${changed.Commit}:${changed.File}:${changed.RuleID}:${changed.StartLine}`;
+    assert.equal(classifyScanReport(JSON.stringify([changed]), 2).exitCode, 2);
+  }
+});
+
 function fixture(t) {
   const cwd = mkdtempSync(join(tmpdir(), "complete-secret-scan-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
