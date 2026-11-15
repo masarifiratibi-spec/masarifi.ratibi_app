@@ -142,3 +142,22 @@ ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.ob
 
 # Historical merge repeats the same Firebase Android public client key as the reviewed ordinary/dev/benchmark configs; no private-key fields.
 ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-api-key:18
+
+# Exact immutable noncredentials independently verified by the complete-candidate
+# catalog (original blobs, contexts and value digests); no path or rule exemption.
+94f221cafeefd8cc0d95ce723b825abb10243aa1:apps/mobile/eas.json:generic-api-key:92
+6abae7005a84fae9df49e39fa26f3a1cd24eabec:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:209
+f34a886fd86150a392f692cbbed075560c804511:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:36
+f34a886fd86150a392f692cbbed075560c804511:ops/releases/2026-11-14-dashboard-vps/manifest.json:generic-api-key:96
+a7cc6e0ee8dd1d743e0f59b99b92599f1bcb948e:ops/releases/2026-11-07-temporary-support-access/host_inventory.py:generic-api-key:39
+a7cc6e0ee8dd1d743e0f59b99b92599f1bcb948e:ops/releases/2026-11-07-temporary-support-access/manifest.json:generic-api-key:123
+73b790d04d705d349107da1e34cc65a06b195107:scripts/integration/tracking-upgrade-repository.test.cjs:generic-api-key:9
+ec90dc7f9ca1d3e145ea57883f3e1c1b91da2a13:ops/releases/2026-11-07-dashboard-reflow-activation/linux-ci-manifest.json:generic-api-key:16
+ec90dc7f9ca1d3e145ea57883f3e1c1b91da2a13:ops/releases/2026-11-07-dashboard-reflow-activation/manifest.json:generic-api-key:135
+acd3baa84e2a5e577f90746b9314df1dd7b1f208:ops/releases/2026-11-07-dashboard-brand-activation/linux-ci-manifest.json:generic-api-key:16
+acd3baa84e2a5e577f90746b9314df1dd7b1f208:ops/releases/2026-11-07-dashboard-brand-activation/manifest.json:generic-api-key:155
+2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/manifest.json:generic-api-key:168
+2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json:generic-api-key:16
+2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/host-baseline.json:generic-api-key:118
+0389dff3936211b968c1128471cc313af3b2aef2:apps/mobile/eas.json:generic-api-key:73
+152be06588229715dd1fb6669a2d01e0c48f8fdb:ops/releases/2026-11-05-voice-review-recovery/manifest.json:generic-api-key:14
