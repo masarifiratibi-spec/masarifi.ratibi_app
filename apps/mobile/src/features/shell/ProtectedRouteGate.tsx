@@ -4,7 +4,9 @@ import React, {
   useLayoutEffect,
   useRef
 } from 'react';
+import { Platform } from 'react-native';
 import { Redirect, router, usePathname } from 'expo-router';
+import { StartupLoadingStage } from '@/design-system/components/feedback/StartupLoadingBoundary';
 
 import { resolveProtectedAccessGate } from './resolve-entry-route';
 import { sanitizeReturnRoute } from './navigation-context';
@@ -99,7 +101,9 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
     return <Redirect href="/security/settings" />;
   }
   if (!gate && pathname === '/security/unlock') {
-    return <Redirect href="/(tabs)/home" />;
+    return Platform.OS === 'ios'
+      ? <UnlockNavigationLoading />
+      : <Redirect href="/(tabs)/home" />;
   }
   const canMeasureProtectedRoute =
     hydrated &&
@@ -120,6 +124,22 @@ export function ProtectedRouteGate({ children }: { children: ReactNode }) {
         />
       ) : null}
       {children}
+    </>
+  );
+}
+
+function UnlockNavigationLoading() {
+  const locale = usePreferenceStore((state) => state.locale);
+  const themePreference = usePreferenceStore((state) => state.theme);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
+  return (
+    <>
+      <Redirect href="/(tabs)/home" />
+      <StartupLoadingStage
+        locale={locale}
+        themePreference={themePreference}
+        reducedMotion={reducedMotion}
+      />
     </>
   );
 }
