@@ -8,6 +8,7 @@ export interface IosShortcutScope {
   ownerId: string;
   enrollmentId: string;
   sessionBinding: string;
+  captureNotBefore?: number;
   assertCurrent(): Promise<void>;
   captureEnabled(): Promise<boolean>;
 }
@@ -53,7 +54,9 @@ export function createIosShortcutImport(ports: IosShortcutImportPorts) {
     const state = await ports.queue.load(scope.ownerId);
     await scope.assertCurrent();
     for (const entry of state.pending.filter(
-      (row) => row.submission.sourceChannel === 'ios_shortcut'
+      (row) =>
+        row.submission.sourceChannel === 'ios_shortcut' &&
+        row.submission.events[0]?.metadata?.iosLedger !== 'confirmed_v1'
     )) {
       await scope.assertCurrent();
       const event = entry.submission.events[0];
@@ -135,7 +138,7 @@ export function createIosShortcutImport(ports: IosShortcutImportPorts) {
           const accepted = outcomes.find(
             (row) => row.status === 'accepted' && row.transactionId
           );
-          if (accepted && receipt.acceptedCount > 0) {
+          if (accepted) {
             last = result('saved', receipt.id, accepted.transactionId);
             await ports.queue.markTerminal(scope.ownerId, entry.idempotencyKey);
             continue;

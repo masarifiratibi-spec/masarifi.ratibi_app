@@ -95,7 +95,7 @@ function setup() {
         {
           itemId: id,
           status: 'accepted',
-          transactionId: 'transaction-qa',
+          transactionId: 'transaction-qa' as string | null,
           notificationId: null
         }
       ];
@@ -309,6 +309,14 @@ test('review and rejected receipts cannot appear as saved', async () => {
     updatedAt: 1,
     completedAt: null
   });
+  ctx.ports.outcomes = async () => [
+    {
+      itemId: 'review-qa',
+      status: 'review',
+      transactionId: null,
+      notificationId: null
+    }
+  ];
   expect(
     await ctx.service.confirm(
       ctx.scope,
@@ -335,4 +343,55 @@ test('a reviewed receipt with an accepted transaction is recognized after explic
       '11111111-1111-4111-8111-111111111111'
     )
   ).toMatchObject({ status: 'saved', transactionId: 'transaction-qa' });
+});
+
+test('legacy accepted item proves a save even when its aggregate counter has not reconciled', async () => {
+  const ctx = setup();
+  ctx.ports.submit = async () => ({
+    id: '44444444-4444-4444-8444-444444444444',
+    status: 'complete',
+    acceptedCount: 0,
+    rejectedCount: 0,
+    itemCount: 1,
+    updatedAt: 1,
+    completedAt: 1
+  });
+  await expect(
+    ctx.service.confirm(
+      ctx.scope,
+      candidate,
+      '11111111-1111-4111-8111-111111111111'
+    )
+  ).resolves.toMatchObject({
+    status: 'saved',
+    transactionId: 'transaction-qa'
+  });
+});
+
+test('legacy receipt reconciliation never submits the corrected manual-ledger queue entries', async () => {
+  const ctx = setup();
+  await ctx.queue.enqueue(ctx.scope.ownerId, {
+    idempotencyKey: candidate.sourceItemKey,
+    submission: {
+      schemaVersion: 1,
+      sourceType: 'manual',
+      sourceChannel: 'ios_shortcut',
+      events: [
+        {
+          ...candidate,
+          metadata: {
+            iosLedger: 'confirmed_v1',
+            iosEnrollmentId: ctx.scope.enrollmentId,
+            iosSessionBinding: ctx.scope.sessionBinding
+          }
+        }
+      ]
+    },
+    cursor: Date.parse(candidate.receivedAt),
+    fingerprints: [candidate.sourceItemKey]
+  });
+  await expect(ctx.service.resume(ctx.scope)).resolves.toMatchObject({
+    status: 'idle'
+  });
+  expect(ctx.submitted).toHaveLength(0);
 });

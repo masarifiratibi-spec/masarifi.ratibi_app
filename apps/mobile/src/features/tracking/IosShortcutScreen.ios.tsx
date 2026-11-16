@@ -12,8 +12,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
-import { useAccounts } from '@/features/core-finance/core-finance-queries';
-import { accountAllowsAutomaticTracking } from '@/domain/core-finance';
+import {
+  useAccounts,
+  useCategories
+} from '@/features/core-finance/core-finance-queries';
 import {
   translate,
   currentLocale,
@@ -31,6 +33,7 @@ import {
   subscribeIosShortcut
 } from '@/services/platform/ios-shortcut-runtime.ios';
 import type { IosShortcutResult } from '@/services/ios-shortcut-import';
+import { openCategorySelection } from '@/features/categories/category-selection-session';
 
 type CaptureState = Awaited<ReturnType<typeof readIosShortcutState>>;
 export default function IosShortcutScreen() {
@@ -38,9 +41,11 @@ export default function IosShortcutScreen() {
   const owner = useAppShellStore((state) => state.session?.userId);
   const theme = useTheme();
   const accounts = useAccounts();
+  const categories = useCategories();
   const client = useQueryClient();
   const [capture, setCapture] = useState<CaptureState | null>(null);
   const [selected, setSelected] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<
     IosShortcutResult['status'] | 'error' | null
@@ -60,6 +65,7 @@ export default function IosShortcutScreen() {
     setCapture(null);
     setStatus(null);
     setSelected('');
+    setSelectedCategory('');
     let active = true;
     const refresh = () => {
       if (active) void reload();
@@ -87,16 +93,44 @@ export default function IosShortcutScreen() {
       setBusy(false);
     }
   };
-  const candidate = capture?.candidates[0];
+  const confirmation = capture?.confirmation;
+  const candidate = confirmation ?? capture?.candidates[0];
+  const selectedAccountId = confirmation?.accountId ?? selected;
+  const selectedCategoryId = confirmation?.categoryId ?? selectedCategory;
   const eligible = (accounts.data ?? []).filter(
     (account) =>
-      accountAllowsAutomaticTracking(account) &&
+      account.status === 'active' &&
       (!candidate || account.currencyCode === candidate.currency)
   );
+  const eligibleCategories = (categories.data ?? []).filter(
+    (category) =>
+      category.status === 'active' && category.financialType === candidate?.kind
+  );
+  const chosenCategory = eligibleCategories.find(
+    (category) => category.id === selectedCategoryId
+  );
+  const categoryLabel = chosenCategory
+    ? currentLocale() === 'ar'
+      ? chosenCategory.labelAr
+      : chosenCategory.labelEn
+    : translate('coreFinance.transaction.chooseCategory');
+  const chooseCategory = () => {
+    if (!candidate) return;
+    const expectedOwner = owner;
+    openCategorySelection({
+      selectedId: selectedCategory,
+      financialType: candidate.kind,
+      onSelect: (id) => {
+        if (id && useAppShellStore.getState().session?.userId === expectedOwner)
+          setSelectedCategory(id);
+      }
+    });
+  };
   const submit = async (confirm: boolean) => {
     const result = await submitIosShortcut(
       confirm ? candidate?.sourceItemKey : undefined,
-      confirm ? selected : undefined
+      confirm ? selectedAccountId : undefined,
+      confirm ? selectedCategoryId : undefined
     );
     setStatus(result.status);
     if (result.status === 'review') {
@@ -128,6 +162,15 @@ export default function IosShortcutScreen() {
           )}
         </StyledText>
         <StyledText>{translate('tracking.shortcut.notVerified')}</StyledText>
+        {capture?.captureStartsAt ? (
+          <StyledText>
+            {translateDynamic('tracking.shortcut.captureStartsAt', {
+              time: new Date(capture.captureStartsAt).toLocaleString(
+                currentLocale()
+              )
+            })}
+          </StyledText>
+        ) : null}
         {capture?.lastSuccessAt ? (
           <StyledText>
             {translateDynamic('tracking.shortcut.lastSuccess', {
@@ -185,7 +228,15 @@ export default function IosShortcutScreen() {
       {capture?.outcome === 'rejected' ? (
         <StyledText>{translate('tracking.shortcut.rejected')}</StyledText>
       ) : null}
-      {candidate ? (
+      {capture?.outcome === 'duplicate' ? (
+        <StyledText>
+          {translate('tracking.shortcut.status.duplicate')}
+        </StyledText>
+      ) : null}
+      {capture?.legacyPending ? (
+        <StyledText>{translate('tracking.shortcut.legacyPending')}</StyledText>
+      ) : null}
+      {candidate && !capture?.legacyPending ? (
         <SurfaceCard style={styles.card}>
           <StyledText>{translate('tracking.shortcut.confirmBody')}</StyledText>
           <StyledText>
@@ -211,10 +262,12 @@ export default function IosShortcutScreen() {
           {eligible.map((account) => (
             <ActionButton
               key={account.id}
-              accessibilityState={{ selected: selected === account.id }}
-              label={`${selected === account.id ? '✓ ' : ''}${account.name}`}
+              accessibilityState={{
+                selected: selectedAccountId === account.id
+              }}
+              label={`${selectedAccountId === account.id ? '✓ ' : ''}${account.name}`}
               variant="secondary"
-              disabled={busy}
+              disabled={busy || !!confirmation}
               onPress={() => setSelected(account.id)}
             />
           ))}
@@ -223,19 +276,41 @@ export default function IosShortcutScreen() {
               {translate('tracking.shortcut.accountRequired')}
             </StyledText>
           ) : null}
+          <StyledText>
+            {translate('tracking.shortcut.categoryRequired')}
+          </StyledText>
           <ActionButton
-            label={translate('tracking.shortcut.confirm')}
+            label={categoryLabel}
+            disabled={busy || !!confirmation}
+            variant="secondary"
+            onPress={chooseCategory}
+          />
+          <ActionButton
+            label={translate(
+              confirmation
+                ? 'tracking.shortcut.retryConfirmed'
+                : 'tracking.shortcut.confirm'
+            )}
             onPress={() => run(() => submit(true))}
             disabled={
-              busy || !eligible.some((account) => account.id === selected)
+              busy ||
+              !eligible.some((account) => account.id === selectedAccountId) ||
+              !eligibleCategories.some(
+                (category) => category.id === selectedCategoryId
+              )
             }
           />
         </SurfaceCard>
       ) : null}
       {status ? (
-        <StyledText accessibilityLiveRegion="polite">
-          {translateDynamic(`tracking.shortcut.status.${status}`)}
-        </StyledText>
+        <View>
+          <StyledText>
+            {translate('tracking.shortcut.lastActionResult')}
+          </StyledText>
+          <StyledText accessibilityLiveRegion="polite">
+            {translateDynamic(`tracking.shortcut.status.${status}`)}
+          </StyledText>
+        </View>
       ) : null}
       <ActionButton
         label={translate('tracking.shortcut.retry')}

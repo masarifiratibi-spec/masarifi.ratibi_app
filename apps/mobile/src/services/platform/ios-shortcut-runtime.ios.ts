@@ -32,6 +32,9 @@ import {
   registerFinancialProjectionReset
 } from '@/storage/runtime-user-data-reset';
 import { publishTrackingSave } from '../tracking-save-events';
+import { createIosShortcutLedger } from '../ios-shortcut-ledger';
+import { submitIosShortcutLedger } from './ios-shortcut-ledger-http.ios';
+import { translate } from '@/localization/i18n';
 import {
   iosShortcutEnrollmentSlot as enrollmentSlot,
   iosShortcutReceiptSlot as receiptSlot,
@@ -44,7 +47,9 @@ const enrollmentSchema = z
     anchor: z.string().min(1),
     token: z.string().uuid(),
     id: z.string().uuid(),
-    enabled: z.boolean()
+    enabled: z.boolean(),
+    ledgerProtocol: z.literal(1).optional(),
+    ledgerCutoverAt: z.number().int().nonnegative().optional()
   })
   .strict();
 type Enrollment = z.infer<typeof enrollmentSchema>;
@@ -66,7 +71,7 @@ type Staged = {
 };
 const pending = new Map<string, Staged>();
 const listeners = new Set<() => void>();
-let outcome: 'received' | 'rejected' | null = null;
+let outcome: 'received' | 'rejected' | 'duplicate' | null = null;
 let captureRevision = 0;
 let consentRevision = 0;
 let captureBlocked = false;
@@ -164,6 +169,7 @@ async function currentScope(): Promise<{
     scope: {
       ownerId: owner,
       enrollmentId: enrollment.id,
+      captureNotBefore: enrollment.ledgerCutoverAt,
       sessionBinding: await digestStringAsync(
         CryptoDigestAlgorithm.SHA256,
         anchor!
@@ -179,6 +185,9 @@ async function currentScope(): Promise<{
           !captureBlocked &&
           revisionBeforeRead === consentRevision &&
           active?.enabled === true &&
+          active.ledgerProtocol === 1 &&
+          active.ledgerCutoverAt !== undefined &&
+          Date.now() >= active.ledgerCutoverAt &&
           active.id === enrollment.id
         );
       }
@@ -210,14 +219,22 @@ async function enrollCurrentIosShortcut(
   const enrollment: Enrollment =
     previous?.enabled &&
     previous.ownerId === owner &&
-    previous.anchor === anchor
+    previous.anchor === anchor &&
+    previous.ledgerProtocol === 1
       ? previous
       : {
           ownerId: owner,
           anchor,
           token: randomUUID(),
           id: randomUUID(),
-          enabled: true
+          enabled: true,
+          ledgerProtocol: 1,
+          // Invalidate legacy future-dated payloads as well as their enrollment token.
+          ledgerCutoverAt:
+            Math.max(
+              previous?.ownerId === owner ? previous.ledgerCutoverAt ?? 0 : 0,
+              Date.now() + (previous && previous.ledgerProtocol !== 1 ? 60001 : 0)
+            )
         };
   if (revision !== consentRevision) throw Error('ios_shortcut_consent_changed');
   await SecureStore.setItemAsync(enrollmentSlot, JSON.stringify(enrollment));
@@ -264,7 +281,14 @@ export async function receiveIosShortcut(path: string) {
     const input = decodeIosShortcut(path);
     if (!input) return;
     const enrollment = await readEnrollment();
-    if (!enrollment?.enabled || enrollment.token !== input.token) return;
+    if (
+      !enrollment?.enabled ||
+      enrollment.token !== input.token ||
+      enrollment.ledgerProtocol !== 1 ||
+      enrollment.ledgerCutoverAt === undefined ||
+      Date.parse(input.receivedAt) < enrollment.ledgerCutoverAt
+    )
+      return;
     const candidate = await prepareIosShortcut(input);
     if (!candidate) return;
     const current = await readEnrollment();
@@ -302,6 +326,48 @@ export async function readIosShortcutState() {
     )
       pending.delete(id);
   }
+  const queued = await queue.load(scope.ownerId);
+  await scope.assertCurrent();
+  for (const id of pending.keys()) {
+    if (
+      queued.fingerprints.includes(id) &&
+      !queued.pending.some((row) =>
+        row.submission.events.some((event) => event.sourceItemKey === id)
+      )
+    ) {
+      pending.delete(id);
+      outcome = 'duplicate';
+    }
+  }
+  const first = [...pending.values()][0];
+  const prior = first
+    ? queued.pending.find((row) =>
+        row.submission.events.some(
+          (event) => event.sourceItemKey === first.candidate.sourceItemKey
+        )
+      )
+    : undefined;
+  const event = prior?.submission.events[0];
+  const confirmation =
+    event?.metadata?.iosLedger === 'confirmed_v1' &&
+    event.metadata.iosEnrollmentId === enrollment.id &&
+    event.metadata.iosSessionBinding === scope.sessionBinding &&
+    event.accountId &&
+    typeof event.metadata.iosCategoryId === 'string' &&
+    event.amountMinor &&
+    event.currency &&
+    (event.kind === 'income' || event.kind === 'expense')
+      ? {
+          sourceItemKey: event.sourceItemKey,
+          accountId: event.accountId,
+          categoryId: event.metadata.iosCategoryId,
+          amountMinor: event.amountMinor,
+          currency: event.currency,
+          kind: event.kind,
+          receivedAt: event.receivedAt,
+          occurredAt: event.occurredAt
+        }
+      : null;
   const receiptRaw = await SecureStore.getItemAsync(receiptSlot);
   await scope.assertCurrent();
   let lastReceipt: z.infer<typeof receiptSchema> | null = null;
@@ -319,40 +385,65 @@ export async function readIosShortcutState() {
     /* Corrupt or stale receipt metadata never establishes a successful save. */
   }
   return {
-    enabled: enrollment.enabled && !captureBlocked,
-    token: enrollment.enabled && !captureBlocked ? enrollment.token : null,
+    enabled:
+      enrollment.enabled && !captureBlocked && enrollment.ledgerProtocol === 1,
+    token:
+      enrollment.enabled && !captureBlocked && enrollment.ledgerProtocol === 1
+        ? enrollment.token
+        : null,
+    captureStartsAt: enrollment.ledgerCutoverAt ?? null,
     lastSuccessAt: lastReceipt?.lastSuccessAt ?? null,
     lastTransactionId: lastReceipt?.lastTransactionId ?? null,
     candidates: [...pending.values()].map((staged) => staged.candidate),
+    confirmation,
+    legacyPending: !!prior && event?.metadata?.iosLedger !== 'confirmed_v1',
     outcome
   };
 }
-const service = createIosShortcutImport({
-  queue: new SmsImportQueue(),
+const queue = new SmsImportQueue();
+async function shortcutAccounts() {
+  // Confirm can queue offline from the encrypted owner repository. Resume rechecks with the server.
+  try {
+    return await coreFinanceService.listAccounts();
+  } catch {
+    const repository = new CoreFinanceRepository();
+    await repository.hydrate({ preserveDrafts: true });
+    return repository.listAccounts();
+  }
+}
+async function shortcutCategories() {
+  try {
+    return await coreFinanceService.listCategories();
+  } catch {
+    const repository = new CoreFinanceRepository();
+    await repository.hydrate({ preserveDrafts: true });
+    return repository.listCategories();
+  }
+}
+const legacyService = createIosShortcutImport({
+  queue,
   resetState: (owner) => reconcileFinancialReset(owner),
-  async accounts() {
-    // Confirm can queue offline from the encrypted owner repository. Resume rechecks with the server.
-    try {
-      return await coreFinanceService.listAccounts();
-    } catch {
-      const repository = new CoreFinanceRepository();
-      await repository.hydrate({ preserveDrafts: true });
-      return repository.listAccounts();
-    }
-  },
-  submit: async (input, key, owner, assertCaptureIntent) => {
-    const submit = await automaticTrackingService.prepareImportSubmission!(
-      owner,
-      assertCaptureIntent
-    );
-    return submit(input, key, owner);
+  accounts: shortcutAccounts,
+  // Reconcile requests already dispatched by build 12 without submitting another legacy import.
+  submit: async () => {
+    throw Error('ios_shortcut_legacy_read_only');
   },
   receipt: (...args) => automaticTrackingService.getImportSession(...args),
   outcomes: (id) => automaticTrackingService.listImportOutcomes!(id)
 });
+const service = createIosShortcutLedger({
+  queue,
+  resetState: (owner) => reconcileFinancialReset(owner),
+  accounts: shortcutAccounts,
+  categories: shortcutCategories,
+  legacy: (scope) => legacyService.resume(scope),
+  title: () => translate('tracking.shortcut.transactionTitle'),
+  submit: submitIosShortcutLedger
+});
 export async function submitIosShortcut(
   sourceItemKey?: string,
-  accountId?: string
+  accountId?: string,
+  categoryId?: string
 ) {
   const { enrollment, scope } = await currentScope();
   const staged = sourceItemKey ? pending.get(sourceItemKey) : null;
@@ -365,9 +456,11 @@ export async function submitIosShortcut(
       Date.now() - staged.stagedAt > 15 * 60000)
   )
     throw Error('ios_shortcut_input_expired');
+  if (sourceItemKey && (!accountId || !categoryId))
+    throw Error('ios_shortcut_selection_required');
   const result =
-    staged && accountId
-      ? await service.confirm(scope, staged.candidate, accountId)
+    staged && accountId && categoryId
+      ? await service.confirm(scope, staged.candidate, accountId, categoryId)
       : await service.resume(scope);
   await scope.assertCurrent();
   if (

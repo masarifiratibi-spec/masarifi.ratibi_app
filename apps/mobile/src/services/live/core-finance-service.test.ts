@@ -19,6 +19,7 @@ import { SyncRepository } from '@/storage/sync-repository';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { AppState, type AppStateStatus } from 'react-native';
 import { fixtureTransactions } from '@/test-utils/core-finance-fixtures';
+import { createLiveCategoryLifecycleService } from './category-lifecycle-service';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: async () => null, setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 
@@ -497,6 +498,75 @@ beforeEach(() => {
     execAsync: async () => undefined
   } as never);
 });
+
+it.each([
+  ['ledger', 'user_owner-a', 'session-a', true],
+  ['ledger', 'user_owner-b', 'session-a', false],
+  ['ledger', 'user_owner-a', 'session-b', false],
+  ['categories', 'user_owner-a', 'session-a', true],
+  ['categories', 'user_owner-b', 'session-a', false],
+  ['categories', 'user_owner-a', 'session-b', false]
+] as const)(
+  'optional captured actor guard binds %s to owner %s and session %s',
+  async (provider, expectedOwner, expectedSession, allowed) => {
+    if (provider === 'categories') {
+      // A per-test connection fixture keeps the real transaction wrapper intact.
+      const connection = {
+        getFirstAsync: async () => null,
+        getAllAsync: async () => [],
+        runAsync: async () => undefined,
+        execAsync: async () => undefined,
+        withExclusiveTransactionAsync: async (action: (tx: unknown) => Promise<void>): Promise<void> => {
+          await action(connection);
+        }
+      };
+      jest.spyOn(database, 'openDatabase').mockResolvedValue(connection as never);
+    }
+    const seen: unknown[] = [];
+    const request = jest.fn(async () =>
+      response(
+        provider === 'categories'
+          ? { items: [], nextCursor: null }
+          : {
+              items: [],
+              nextCursor: null,
+              ledgerVersion: 1,
+              requestId: 'actor-qa'
+            }
+      )
+    );
+    const options = {
+      baseUrl: 'https://inert.invalid',
+      request,
+      assertActor: async (actor: {
+        userId: string;
+        sessionId?: string;
+        assertCurrent(): Promise<void>;
+      }) => {
+        seen.push([actor.userId, actor.sessionId]);
+        if (
+          actor.userId !== expectedOwner ||
+          actor.sessionId !== expectedSession
+        )
+          throw new HttpError('session_expired', 401);
+      }
+    };
+    const action =
+      provider === 'ledger'
+        ? createLiveLedgerService(options).listTransactions(
+            emptyTransactionFilters
+          )
+        : createLiveCategoryLifecycleService(options).listCategories();
+    if (allowed) {
+      await action;
+      expect(seen).toContainEqual(['user_owner-a', 'session-a']);
+      expect(request).toHaveBeenCalledTimes(1);
+    } else {
+      await expect(action).rejects.toMatchObject({ code: 'session_expired' });
+      expect(request).not.toHaveBeenCalled();
+    }
+  }
+);
 
 it('shares concurrent identical ledger reads but fetches again after completion', async () => {
   let release!: () => void;
@@ -2660,6 +2730,8 @@ jest.mock('@/services/platform/read-recovery-network', () => ({
 it('replays the exact original edit PATCH after a lost response and reconstructed service', async () => {
   const storage = useEditStorage();
   const uuid = jest
+    // Bind to the Jest-mocked module used by the service, not requireActual.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     .spyOn(require('expo-crypto'), 'randomUUID')
     .mockReturnValueOnce('90000000-0000-4000-8000-000000000001')
     .mockReturnValueOnce('90000000-0000-4000-8000-000000000002');
@@ -2761,6 +2833,8 @@ it.each([false, true])('keeps a local-origin identity across online get/list/edi
 });
 
 function useEditStorage() {
+  // Load the Node-only SQLite fixture lazily in the tests that use it.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { DatabaseSync } = require('node:sqlite');
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(
@@ -3202,7 +3276,9 @@ it.each([
     let currentOwner = true;
     let batchNumber = 0;
     const uuid = jest
-      .spyOn(require('expo-crypto'), 'randomUUID')
+      // Bind to the Jest-mocked module used by the service, not requireActual.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    .spyOn(require('expo-crypto'), 'randomUUID')
       .mockImplementation(
         () =>
           `74000000-0000-4000-8000-${String(++batchNumber).padStart(12, '0')}`

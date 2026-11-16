@@ -11,6 +11,8 @@ import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
 import { admitTrackingOwner } from '@/state/tracking-admission';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
 import { StatefulSqlite } from '@/test-utils/stateful-sqlite';
+import type { TransactionInput, Transaction } from '@/domain/core-finance';
+import type { IosShortcutScope } from '../ios-shortcut-import';
 import { resetFinancialProjections } from '@/storage/runtime-user-data-reset';
 import {
   purgeIosShortcutOwner,
@@ -102,6 +104,13 @@ jest.mock('../automatic-tracking-service', () => ({
 }));
 jest.mock('../mocks/core-finance-service', () => ({
   coreFinanceService: {
+    listCategories: async () => [
+      {
+        id: '44444444-4444-4444-8444-444444444444',
+        status: 'active',
+        financialType: 'expense'
+      }
+    ],
     listAccounts: async () => [
       {
         id: '11111111-1111-4111-8111-111111111111',
@@ -113,15 +122,39 @@ jest.mock('../mocks/core-finance-service', () => ({
     ]
   }
 }));
+jest.mock('./ios-shortcut-ledger-http.ios', () => ({
+  submitIosShortcutLedger: async (
+    value: TransactionInput,
+    _operationId: string,
+    scope: IosShortcutScope
+  ) => {
+    await scope.assertCurrent();
+    if (!(await scope.captureEnabled())) throw Error('disabled');
+    await mockAfterDispatch();
+    if (!mockCompleteReceipt) throw Error('ambiguous');
+    return {
+      value: {
+        ...value,
+        id: '33333333-3333-4333-8333-333333333333',
+        source: 'platform_assisted',
+        status: 'posted',
+        syncStatus: 'synced',
+        version: 1
+      } as Transaction,
+      affectedScopes: ['transactions.list']
+    };
+  }
+}));
 jest.mock('../financial-generation', () => ({
   reconcileFinancialReset: () => mockResetBoundary()
 }));
 const now = Date.parse('2026-11-16T12:00:00Z');
 const input = (
   token: string,
-  body = 'Purchase SAR 12.34 at QA SHOP card XX4242'
+  body = 'Purchase SAR 12.34 at QA SHOP card XX4242',
+  receivedAt = now
 ) =>
-  `masarifi://capture-ios?payload=${encodeURIComponent(JSON.stringify({ token, messageId: 'qa-001', sender: 'QA BANK', receivedAt: new Date(now - 1000).toISOString(), body }))}`;
+  `masarifi://capture-ios?payload=${encodeURIComponent(JSON.stringify({ token, messageId: 'qa-001', sender: 'QA BANK', receivedAt: new Date(receivedAt).toISOString(), body }))}`;
 beforeEach(async () => {
   mockDatabase = new StatefulSqlite(['sms_import_queue']);
   mockAfterDispatch = async () => {};
@@ -149,6 +182,29 @@ beforeEach(async () => {
   await resetRuntimeIdentityData({ kind: 'signed-out-preserve' });
 });
 afterEach(() => jest.restoreAllMocks());
+test('legacy enrollment rotates and fences old identities even without retained queue fingerprints', async () => {
+  const oldToken = await enrollIosShortcut();
+  const slot = 'masarifi.iosShortcut.enrollment.v1';
+  const legacy = JSON.parse(mockSecure.get(slot)!);
+  delete legacy.ledgerProtocol;
+  delete legacy.ledgerCutoverAt;
+  mockSecure.set(slot, JSON.stringify(legacy));
+  expect((await readIosShortcutState()).enabled).toBe(false);
+  const token = await enrollIosShortcut();
+  expect(token).not.toBe(oldToken);
+  const boundary = JSON.parse(mockSecure.get(slot)!).ledgerCutoverAt;
+  await disableIosShortcut();
+  const reenabledToken = await enrollIosShortcut();
+  expect(JSON.parse(mockSecure.get(slot)!).ledgerCutoverAt).toBe(boundary);
+  jest.spyOn(Date, 'now').mockReturnValue(now + 70000);
+  // The old decoder admitted timestamps up to one minute in the future.
+  await receiveIosShortcut(input(reenabledToken, undefined, now + 50000));
+  expect((await readIosShortcutState()).candidates).toHaveLength(0);
+  await receiveIosShortcut(input(reenabledToken, undefined, now + 70000));
+  expect((await readIosShortcutState()).candidates).toHaveLength(1);
+  await receiveIosShortcut(input(oldToken, undefined, now + 70000));
+  expect((await readIosShortcutState()).outcome).toBe('rejected');
+});
 test('concurrent receipt persistence and disable retain the receipt with consent revoked', async () => {
   const token = await enrollIosShortcut();
   await receiveIosShortcut(input(token));
@@ -167,7 +223,8 @@ test('concurrent receipt persistence and disable retain the receipt with consent
   };
   const saving = submitIosShortcut(
     capture.sourceItemKey,
-    '11111111-1111-4111-8111-111111111111'
+    '11111111-1111-4111-8111-111111111111',
+    '44444444-4444-4444-8444-444444444444'
   );
   await entered;
   const disabling = disableIosShortcut();
@@ -187,7 +244,8 @@ test('explicit owner cleanup removes enrollment and receipt, while financial res
   mockCompleteReceipt = true;
   await submitIosShortcut(
     capture.sourceItemKey,
-    '11111111-1111-4111-8111-111111111111'
+    '11111111-1111-4111-8111-111111111111',
+    '44444444-4444-4444-8444-444444444444'
   );
   expect((await readIosShortcutState()).lastSuccessAt).toBe(now);
   await resetIosShortcutReceipt('owner-qa', () => {});
@@ -211,6 +269,7 @@ test('backgrounding after dispatch preserves the owned service receipt in the re
   const token = await enrollIosShortcut();
   await receiveIosShortcut(input(token));
   const capture = (await readIosShortcutState()).candidates[0];
+  mockCompleteReceipt = true;
   mockAfterDispatch = async () => {
     Object.defineProperty(AppState, 'currentState', {
       value: 'background',
@@ -221,13 +280,38 @@ test('backgrounding after dispatch preserves the owned service receipt in the re
   await expect(
     submitIosShortcut(
       capture.sourceItemKey,
-      '11111111-1111-4111-8111-111111111111'
+      '11111111-1111-4111-8111-111111111111',
+      '44444444-4444-4444-8444-444444444444'
     )
-  ).resolves.toMatchObject({ status: 'processing' });
+  ).resolves.toMatchObject({ status: 'saved' });
   const queue = await new SmsImportQueue().load('owner-qa');
-  expect(queue.pending[0].sessionId).toBe(
-    '22222222-2222-4222-8222-222222222222'
+  expect(queue.pending).toHaveLength(0);
+  expect(mockSecure.get('masarifi.iosShortcut.receipt.v1')).toContain(
+    '33333333-3333-4333-8333-333333333333'
   );
+});
+
+test('a replay exposes the original immutable confirmation instead of inviting changed account/category choices', async () => {
+  const token = await enrollIosShortcut();
+  await receiveIosShortcut(input(token));
+  const candidate = (await readIosShortcutState()).candidates[0];
+  await expect(
+    submitIosShortcut(
+      candidate.sourceItemKey,
+      '11111111-1111-4111-8111-111111111111',
+      '44444444-4444-4444-8444-444444444444'
+    )
+  ).resolves.toMatchObject({ status: 'queued' });
+  await receiveIosShortcut(input(token));
+  await expect(readIosShortcutState()).resolves.toMatchObject({
+    confirmation: {
+      sourceItemKey: candidate.sourceItemKey,
+      accountId: '11111111-1111-4111-8111-111111111111',
+      categoryId: '44444444-4444-4444-8444-444444444444',
+      amountMinor: 1234,
+      kind: 'expense'
+    }
+  });
 });
 test('a financial projection reset invalidates an already captured confirmation scope', async () => {
   const token = await enrollIosShortcut();
@@ -240,7 +324,8 @@ test('a financial projection reset invalidates an already captured confirmation 
   await expect(
     submitIosShortcut(
       capture.sourceItemKey,
-      '11111111-1111-4111-8111-111111111111'
+      '11111111-1111-4111-8111-111111111111',
+      '44444444-4444-4444-8444-444444444444'
     )
   ).rejects.toThrow();
   expect((await new SmsImportQueue().load('owner-qa')).pending).toHaveLength(0);

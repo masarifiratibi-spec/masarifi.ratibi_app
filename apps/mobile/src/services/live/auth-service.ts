@@ -503,7 +503,14 @@ export async function captureLiveClerkOwner() {
   return { userId: session.userId, assertCurrent };
 }
 
-export async function captureLiveClerkIdentity() {
+export type CapturedClerkIdentity = {
+  userId: string;
+  token: string;
+  sessionId?: string;
+  assertCurrent(): Promise<void>;
+};
+
+export async function captureLiveClerkIdentity(): Promise<CapturedClerkIdentity> {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (!bridge || !session) throw new HttpError('session_expired', 401);
@@ -522,7 +529,7 @@ export async function captureLiveClerkIdentity() {
   const token = await requestClerkToken(bridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   await assertCurrent();
-  return { userId: session.userId, token, assertCurrent };
+  return { userId: session.userId, sessionId: session.id, token, assertCurrent };
 }
 
 // Read-only calls share a pending SDK lookup; Clerk owns valid-token caching.
@@ -539,7 +546,7 @@ let assistantTokenFlight:
 async function captureCachedClerkIdentity(
   allowSameSessionBridgeRefresh: boolean,
   expectedOwnerId?: string
-) {
+): Promise<CapturedClerkIdentity> {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (
@@ -581,7 +588,7 @@ async function captureCachedClerkIdentity(
     const token = await flight.promise;
     if (!token) throw new HttpError('session_expired', 401);
     await assertCurrent();
-    return { userId: session.userId, token, assertCurrent };
+    return { userId: session.userId, sessionId: session.id, token, assertCurrent };
   } finally {
     if (assistantTokenFlight === flight) assistantTokenFlight = undefined;
   }
