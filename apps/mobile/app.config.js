@@ -77,6 +77,7 @@ module.exports = ({ config }) => {
           )
             ? [
                 ...config.plugins,
+                './plugins/with-bank-sms-intent.cjs',
                 'expo-apple-authentication',
                 ['@clerk/expo', { appleSignIn: true }],
                 [

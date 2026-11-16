@@ -183,11 +183,13 @@ function accountFromApi(value: unknown): VersionedAccount {
 export function createLiveAccountService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
   token,
-  request = fetch
+  request = fetch,
+  assertActor
 }: {
   baseUrl?: string;
   token?: () => Promise<string | null>;
   request?: typeof fetch;
+  assertActor?: (actor: Awaited<ReturnType<typeof captureLiveClerkIdentity>>) => Promise<void>;
 } = {}) {
   if (token) configureMobileApiTokenProvider(token);
   const send = async <T>(
@@ -214,7 +216,11 @@ export function createLiveAccountService({
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
-      request,
+      request: assertActor ? async (url, init) => {
+        await identity.assertCurrent();
+        await assertActor(identity);
+        return request(url, init);
+      } : request,
       method,
       signal: options.signal,
       headers: options.operationId

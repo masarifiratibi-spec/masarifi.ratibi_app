@@ -22,6 +22,7 @@ try {
   write('src/features/home/secrets.tsx', "const key = 'sk_live_1234567890123456';");
   write('src/analytics/leak.ts', "analytics.track('x', { amount: 5, transcript: 'secret' });");
   write('src/features/onboarding/ios-claim.tsx', "const text = 'iOS SMS tracking permission';");
+  write('src/features/onboarding/native-import.tsx', "import { enable } from '@/services/platform/bank-sms-setup.ios';");
   write('src/features/home/colors.tsx', "const color = '#008577';");
   write('src/features/home/text.tsx', "export function Title() { return <Text>Welcome home</Text>; }");
   write('src/features/transactions/mutation.ts', "service.createTransaction(input);");
@@ -45,6 +46,7 @@ try {
   }
 
   assert.ok(!violations.some((item) => item.includes('phone-ok.ts')));
+  assert.ok(!violations.some((item) => item.includes('native-import.tsx')));
   assert.ok(!violations.some((item) => item.includes('component.test.tsx')));
   assert.ok(!violations.some((item) => item.includes('guarded.ts')));
 } finally {

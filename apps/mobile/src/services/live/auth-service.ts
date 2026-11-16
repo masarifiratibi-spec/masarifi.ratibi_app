@@ -5,6 +5,8 @@ import {
 import { privacyExportStatusSchema } from '@/domain/settings';
 import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
+import { Platform } from 'react-native';
+import { disableBankSmsForOwner } from '../platform/bank-sms-bridge';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { useAppShellStore } from '@/state/app-shell';
 import { isLogoutOwnerFenced, loadLogoutDisposition, type LogoutDisposition } from '@/storage/app-shell-storage';
@@ -272,6 +274,8 @@ async function signOutClerkSession(
     expectedOwner !== currentSession.userId
   )
     throw new HttpError('session_expired', 401);
+  if (Platform.OS === 'ios' && currentSession)
+    await disableBankSmsForOwner(currentSession.userId);
   const automation = isMobileAutomationEnabled();
   if (!automation && !cleanup) {
     await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
