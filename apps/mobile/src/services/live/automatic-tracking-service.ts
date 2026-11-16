@@ -213,12 +213,14 @@ export function createLiveAutomaticTrackingService({
       idempotencyKey,
       expectedOwnerId,
       assertIntent,
+      assertBeforeDispatch,
       signal,
       preparedIdentity
     }: {
       idempotencyKey?: string;
       expectedOwnerId?: string;
       assertIntent?: () => void | Promise<void>;
+      assertBeforeDispatch?: () => void | Promise<void>;
       signal?: AbortSignal;
       preparedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
     } = {}
@@ -243,6 +245,12 @@ export function createLiveAutomaticTrackingService({
     await assertIntent?.();
     assertReadActive(signal);
     assertTrackingCurrent();
+    if (assertBeforeDispatch) {
+      await identity?.assertCurrent();
+      await assertIntent?.();
+      assertTrackingCurrent();
+      await assertBeforeDispatch();
+    }
     const response = await request(`${baseUrl.replace(/\/$/, '')}${path}`, {
       method,
       ...(signal ? { signal } : {}),
@@ -425,7 +433,10 @@ export function createLiveAutomaticTrackingService({
     idempotencyKey: string,
     expectedOwnerId?: string,
     preparedIdentity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>,
-    assertIntent?: () => Promise<void>
+    guards?: {
+      assertIntent?: () => Promise<void>;
+      assertBeforeDispatch?: () => Promise<void>;
+    }
   ) =>
     importSession(
       resource(
@@ -433,7 +444,7 @@ export function createLiveAutomaticTrackingService({
           idempotencyKey,
           expectedOwnerId,
           preparedIdentity,
-          assertIntent
+          ...guards
         })
       )
     );
@@ -635,7 +646,7 @@ export function createLiveAutomaticTrackingService({
       kind: 'live',
       availability: 'available'
     },
-    async prepareImportSubmission(expectedOwnerId) {
+    async prepareImportSubmission(expectedOwnerId, assertCaptureIntent) {
       const assertAdmission = captureTrackingAdmission(expectedOwnerId);
       const capturedAt = Date.now();
       const identity = await captureLiveClerkIdentity();
@@ -665,7 +676,7 @@ export function createLiveAutomaticTrackingService({
           idempotencyKey,
           expectedOwnerId,
           await currentPreparedIdentity(),
-          assertPrepared
+          { assertIntent: assertPrepared, assertBeforeDispatch: assertCaptureIntent }
         );
       };
       // One admitted pass shares its fresh actor, never a global credential cache.

@@ -14,6 +14,8 @@ export const shellDestinations = [
   '/obligations',
   '/assistant',
   '/tracking',
+  '/capture/ios',
+  '/capture/review',
   '/notifications',
   '/app-update',
   '/notifications/preferences',
@@ -31,6 +33,8 @@ export const shellDestinations = [
 
 type StaticShellDestination = (typeof shellDestinations)[number];
 export type ShellDynamicDestination =
+  | `/capture/review/${string}`
+  | `/capture/duplicates/${string}`
   | `/assistant/${string}`
   | `/assistant/${string}/actions/${string}`
   | `/support/tickets/${string}`
@@ -96,6 +100,12 @@ export function sanitizeReturnRoute(
     return null;
   }
   if (destinationSet.has(route)) return route as StaticShellDestination;
+  if (
+    /^\/capture\/(?:review|duplicates)\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
+      route
+    )
+  )
+    return route as ShellDynamicDestination;
 
   const assistantAction = /^\/assistant\/([^/]+)\/actions\/([^/]+)$/.exec(
     route

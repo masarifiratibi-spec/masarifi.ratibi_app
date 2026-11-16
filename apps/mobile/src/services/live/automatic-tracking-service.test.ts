@@ -114,6 +114,114 @@ function managedRuleResponse() {
 }
 
 describe('live automatic tracking adapter', () => {
+  it('never leaves an SDK validation between final capture consent and HTTP dispatch', async () => {
+    let checked = false,
+      posted = false,
+      enabled = true;
+    registerIdentity({
+      getSession: async () => {
+        if (checked && !posted) enabled = false;
+        return {
+          id: 'session-a',
+          userId: 'owner-a',
+          method: 'google',
+          issuedAt: 1,
+          expiresAt: 99
+        };
+      },
+      getToken: async () => 'fresh-token'
+    });
+    const service = createLiveAutomaticTrackingService({
+      request: async () => {
+        expect(enabled).toBe(true);
+        posted = true;
+        return response({ resource: importSession('received') });
+      }
+    });
+    const prepared = await service.prepareImportSubmission!(
+      'owner-a',
+      async () => {
+        checked = true;
+        if (!enabled) throw Error('ios_shortcut_disabled');
+      }
+    );
+    await expect(
+      prepared(
+        { schemaVersion: 1, sourceType: 'manual', events: [] },
+        'ios:final-dispatch',
+        'owner-a'
+      )
+    ).resolves.toMatchObject({ id: 'session-1' });
+  });
+  it('retains an owned POST receipt if capture consent changes after dispatch', async () => {
+    registerIdentity({
+      getSession: async () => ({
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 99
+      }),
+      getToken: async () => 'fresh-token'
+    });
+    let enabled = true;
+    const service = createLiveAutomaticTrackingService({
+      request: async () => {
+        enabled = false;
+        return response({ resource: importSession('received') });
+      }
+    });
+    const prepared = await service.prepareImportSubmission!(
+      'owner-a',
+      async () => {
+        if (!enabled) throw Error('ios_shortcut_disabled');
+      }
+    );
+    await expect(
+      prepared(
+        { schemaVersion: 1, sourceType: 'manual', events: [] },
+        'ios:receipt-consent',
+        'owner-a'
+      )
+    ).resolves.toMatchObject({ id: 'session-1' });
+  });
+  it('rechecks iOS capture consent after token preparation and before sending HTTP', async () => {
+    registerIdentity({
+      getSession: async () => ({
+        id: 'session-a',
+        userId: 'owner-a',
+        method: 'google',
+        issuedAt: 1,
+        expiresAt: 99
+      }),
+      getToken: async () => 'fresh-token'
+    });
+    let enabled = true;
+    const request = jest.fn(async () =>
+      response({ resource: importSession('received') })
+    );
+    const service = createLiveAutomaticTrackingService({ request });
+    const prepared = await service.prepareImportSubmission!(
+      'owner-a',
+      async () => {
+        if (!enabled) throw Error('ios_shortcut_disabled');
+      }
+    );
+    enabled = false;
+    await expect(
+      prepared(
+        {
+          schemaVersion: 1,
+          sourceType: 'manual',
+          sourceChannel: 'ios_shortcut',
+          events: []
+        },
+        'ios:consent-test',
+        'owner-a'
+      )
+    ).rejects.toThrow('ios_shortcut_disabled');
+    expect(request).not.toHaveBeenCalled();
+  });
   it.each([401, 403])(
     'withholds saved tracking history after an authoritative HTTP %s denial',
     async (status) => {

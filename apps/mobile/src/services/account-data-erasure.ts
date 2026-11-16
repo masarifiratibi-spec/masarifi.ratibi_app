@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { loadDeletionCompletion } from '@/storage/deletion-completion-journal';
 import { useTrackingAdmission } from '@/state/tracking-admission';
 import { useAppShellStore } from '@/state/app-shell';
+import { purgeIosShortcutOwner } from './platform/ios-shortcut-cleanup';
 
 export async function eraseDeletedAccountLocalData(
   ownerId: string
@@ -33,6 +34,8 @@ export async function eraseDeletedAccountLocalData(
       throw new Error('deletion_completion_changed');
     assertCurrent();
   };
+  await assertOwner();
+  await purgeIosShortcutOwner(ownerId, assertOwner);
   await assertOwner();
   await purgeAccountDatabase(ownerId);
   await assertOwner();
