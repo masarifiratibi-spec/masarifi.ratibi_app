@@ -10,6 +10,8 @@
 - [x] Verify iOS source inclusion, Android identity, TypeScript and focused tests. Native Xcode compilation and device acceptance require the separately authorized build.
 - [ ] Verify a real synthetic inbound SMS, exact replay, second account, offline retry, lock behavior, and disabled consent on iPhone. Only call the automation active after verified capture and server receipt.
 
+Device acceptance on build 17, source `21ed4f42`: real inbound synthetic SMS saved one 17.26 SAR Shopping expense through the current server, with a Masarifi save notice observed on the notification/lock screen. Exact inbound replay showed `duplicate` without another expense or balance change; a cold relaunch retained the result. The combined checklist item stays open for second-account, offline, disabled-consent and independently witnessed force-quit/lock scenarios. See [device evidence](../../handoffs/2026-11-17-ios-shortcuts-build17-device-ar.md).
+
 An automation uses one account and one category of the appropriate transaction direction. For an account that needs both income and expense capture, configure distinct filters. The status screen records skips and queued commands without a review queue.
 
 The action receives text. An exact body is deduplicated across the active owner's automations for 24 hours. A parsed bank reference is also checked for 30 days in its selected account. Two identical bodies without a distinguishable identifier can collapse within the text window. Use a fresh synthetic SMS that was never submitted by the previous link-based route for native acceptance.
