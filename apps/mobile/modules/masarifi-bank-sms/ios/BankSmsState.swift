@@ -5,6 +5,9 @@ struct BankSmsTarget: Codable, Equatable {
   let name: String
   let kind: String
   let currency: String?
+  let minorUnitScale: Int?
+  let nameAr: String?
+  let nameEn: String?
 }
 
 struct BankSmsEnrollment: Codable, Equatable {
@@ -17,6 +20,7 @@ struct BankSmsEnrollment: Codable, Equatable {
   let categories: [BankSmsTarget]
   let title: String
   let savedNotificationBody: String?
+  var notificationLocale: String?
 }
 
 struct BankSmsCommand: Codable {

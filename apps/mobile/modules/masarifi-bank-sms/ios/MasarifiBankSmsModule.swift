@@ -9,6 +9,7 @@ private struct Setup: Decodable {
   let revision: Int
   let title: String
   let savedNotificationBody: String?
+  let notificationLocale: String?
   let accounts: [BankSmsTarget]
   let categories: [BankSmsTarget]
 }
@@ -27,7 +28,8 @@ public final class MasarifiBankSmsModule: Module {
           let setup = try JSONDecoder().decode(Setup.self, from: Data(json.utf8))
           try await BankSmsService.shared.configure(owner: setup.owner, session: setup.session,
             publishableKey: setup.publishableKey, generation: setup.generation, revision: setup.revision, title: setup.title,
-            savedNotificationBody: setup.savedNotificationBody, accounts: setup.accounts, categories: setup.categories)
+            savedNotificationBody: setup.savedNotificationBody, notificationLocale: setup.notificationLocale,
+            accounts: setup.accounts, categories: setup.categories)
           promise.resolve()
         } catch { promise.reject("BANK_SMS_SETUP", "Bank SMS setup is unavailable.") }
       }
@@ -37,6 +39,15 @@ public final class MasarifiBankSmsModule: Module {
       Task { @MainActor in
         do { promise.resolve(try BankSmsService.shared.status(owner: owner, session: session)) }
         catch { promise.reject("BANK_SMS_STATUS", "Bank SMS status is unavailable.") }
+      }
+    }
+
+    AsyncFunction("updateNotificationLocale") { (owner: String, session: String, locale: String, promise: Promise) in
+      Task { @MainActor in
+        do {
+          try BankSmsService.shared.updateNotificationLocale(owner: owner, session: session, locale: locale)
+          promise.resolve()
+        } catch { promise.reject("BANK_SMS_LOCALE", "Save notice language could not be updated.") }
       }
     }
 

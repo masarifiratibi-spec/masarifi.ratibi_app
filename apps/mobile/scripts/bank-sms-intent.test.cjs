@@ -86,7 +86,7 @@ test('native save alerts run after successful settlement and use the receipt ID'
   );
   assert.match(
     service,
-    /try settle\(delivery, enrollment: enrollment, transactionId: id\)\s+await notifySaved\(id, enrollment: enrollment\)/
+    /try settle\(delivery, enrollment: enrollment, transactionId: id\)\s+await notifySaved\(id, command: command, enrollment: enrollment\)/
   );
   assert.equal([...service.matchAll(/await notifySaved\(/g)].length, 1);
   assert.match(service, /identifier: "bank-sms-saved-\\\(transactionId\./);

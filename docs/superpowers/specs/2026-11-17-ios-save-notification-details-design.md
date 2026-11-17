@@ -1,0 +1,7 @@
+# iOS save notification details
+
+The owner approved matching the Android notice on iOS: a payment/deposit title with the saved amount and currency, plus category and account, in the app language. The native Shortcuts path continues to notify only after the existing ledger receipt is validated and durable settlement succeeds. Replay, session and consent guards stay in place. No raw SMS appears in the notice.
+
+Use the native notification already proved on build 17, with Foundation formatting and the existing configured account/category IDs. Publish the app currency scale and both category translations to the iOS owner partition. An iOS-only runtime keeps notice language in sync with the app without enabling capture or changing consent. Existing enrollment fields decode compatibly; refreshing choices supplies bilingual labels for upgraded enrollments. Account names remain as named by the customer.
+
+Alternatives considered: generic success text omits the requested information; generating notices in the React foreground would miss native Shortcuts saves while the app is backgrounded. The chosen native path follows the already accepted behavior and needs one authorized AdHoc update for device acceptance. Native formatter fixtures run on the Mac build host before compilation; JS setup/runtime checks and Android identity checks run locally. No Android runtime, server, schema, provider, signing or store change.

@@ -21,6 +21,11 @@ type BankSmsNative = {
   enable(setup: string): Promise<void>;
   status(owner: string, session: string): Promise<BankSmsStatus>;
   disable(owner: string, erase: boolean): Promise<void>;
+  updateNotificationLocale(
+    owner: string,
+    session: string,
+    locale: 'ar' | 'en'
+  ): Promise<void>;
 };
 
 export function bankSmsNative() {

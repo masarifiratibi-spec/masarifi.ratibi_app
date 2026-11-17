@@ -68,7 +68,7 @@ public struct BankSmsChoice: Sendable {
   }
 
   func configure(owner: String, session: String, publishableKey: String,
-                 generation: Int, revision: Int, title: String, savedNotificationBody: String?,
+                 generation: Int, revision: Int, title: String, savedNotificationBody: String?, notificationLocale: String?,
                  accounts: [BankSmsTarget], categories: [BankSmsTarget]) async throws {
     guard self.revision == revision, !owner.isEmpty, !session.isEmpty, publishableKey.hasPrefix("pk_live_"), generation >= 0,
           !accounts.isEmpty, !categories.isEmpty,
@@ -79,7 +79,8 @@ public struct BankSmsChoice: Sendable {
     else { throw BankSmsFailure.unavailable }
     let enrollment = BankSmsEnrollment(owner: owner, session: session, publishableKey: publishableKey,
                                        generation: generation, epoch: UUID(), accounts: accounts,
-                                       categories: categories, title: title, savedNotificationBody: savedNotificationBody)
+                                       categories: categories, title: title, savedNotificationBody: savedNotificationBody,
+                                       notificationLocale: notificationLocale)
     _ = try await refreshSession(enrollment)
     guard self.revision == revision else { throw BankSmsFailure.disabled }
     var state = try store.load()
@@ -105,6 +106,14 @@ public struct BankSmsChoice: Sendable {
     if let date = state.lastSaved { result["lastSaved"] = date.timeIntervalSince1970 * 1000 }
     if let id = state.lastTransactionId { result["lastTransactionId"] = id.uuidString.lowercased() }
     return result
+  }
+
+  func updateNotificationLocale(owner: String, session: String, locale: String) throws {
+    guard ["ar", "en"].contains(locale), !revokedOwners.contains(owner) else { return }
+    var state = try store.load()
+    guard state.owner == owner, state.enrollment?.session == session else { return }
+    state.enrollment?.notificationLocale = locale
+    try store.write(state)
   }
 
   func disable(owner: String, erase: Bool) throws {
@@ -209,7 +218,7 @@ public struct BankSmsChoice: Sendable {
             else { throw BankSmsFailure.auth }
           }
           try settle(delivery, enrollment: enrollment, transactionId: id)
-          await notifySaved(id, enrollment: enrollment)
+          await notifySaved(id, command: command, enrollment: enrollment)
         } catch BankSmsFailure.rejected {
           try settle(delivery, enrollment: enrollment, transactionId: nil)
         }
@@ -232,11 +241,11 @@ public struct BankSmsChoice: Sendable {
     try store.write(state)
   }
 
-  private func notifySaved(_ transactionId: UUID, enrollment: BankSmsEnrollment) async {
+  private func notifySaved(_ transactionId: UUID, command: BankSmsCommand, enrollment: BankSmsEnrollment) async {
     let center = UNUserNotificationCenter.current()
     let settings = await center.notificationSettings()
     guard [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus),
-          (try? admitted(enrollment)) != nil,
+          let current = try? admitted(enrollment), let presentation = current.enrollment,
           clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner else { return }
 
     let content = UNMutableNotificationContent()
@@ -244,6 +253,17 @@ public struct BankSmsChoice: Sendable {
     content.body = enrollment.savedNotificationBody ?? (language == "ar"
       ? "تم تسجيل عملية من الاختصارات."
       : "A transaction from Shortcuts was saved.")
+    if let account = presentation.accounts.first(where: { $0.id == command.accountId }),
+       let category = presentation.categories.first(where: { $0.id == command.categoryId }),
+       let scale = account.minorUnitScale {
+      let locale = presentation.notificationLocale ?? String(language ?? "en")
+      let categoryName = (locale == "ar" ? category.nameAr : category.nameEn) ?? category.name
+      if let notice = BankSmsSavedNotice.make(kind: command.kind, amountMinor: command.amountMinor,
+        currency: command.currency, scale: scale, locale: locale, account: account.name, category: categoryName) {
+        content.title = notice.title
+        content.body = notice.body
+      }
+    }
     content.sound = .default
     let request = UNNotificationRequest(
       identifier: "bank-sms-saved-\(transactionId.uuidString.lowercased())",

@@ -3,6 +3,7 @@ import {
   resolveClientRuntime
 } from '@/config/client-runtime';
 import { currentLocale, translate } from '@/localization/i18n';
+import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useAppShellStore } from '@/state/app-shell';
 import { captureTrackingAdmission } from '@/state/tracking-admission';
 import { reconcileFinancialReset } from '../financial-generation';
@@ -90,13 +91,15 @@ export async function enableBankSms() {
       revision,
       title: translate('tracking.shortcut.transactionTitle'),
       savedNotificationBody: translate('tracking.bankSms.confirmed', locale),
+      notificationLocale: locale,
       accounts: accountRows
         .filter((account) => account.status === 'active')
         .map((account) => ({
           id: account.id,
           name: account.name,
           kind: 'account',
-          currency: account.currencyCode
+          currency: account.currencyCode,
+          minorUnitScale: getCurrencyMinorUnitScale(account.currencyCode)
         })),
       categories: categoryRows
         .filter(
@@ -105,6 +108,8 @@ export async function enableBankSms() {
         .map((category) => ({
           id: categories.serverCategoryId(category.id),
           name: locale === 'ar' ? category.labelAr : category.labelEn,
+          nameAr: category.labelAr,
+          nameEn: category.labelEn,
           kind: category.financialType
         }))
     })

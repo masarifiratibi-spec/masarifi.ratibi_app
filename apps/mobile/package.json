@@ -28,6 +28,7 @@
     "check:client-runtime": "node scripts/check-client-runtime.mjs",
     "check:native-branding": "node scripts/check-native-branding.mjs",
     "eas-build-pre-install": "node scripts/check-client-runtime.mjs && npm install --global npm@11.17.0 --ignore-scripts",
+    "eas-build-post-install": "node scripts/test-bank-sms-notification.cjs",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "typecheck": "tsc --noEmit",
     "test:dependency-security": "node --test scripts/dependency-security.test.cjs scripts/deep-link-decoder.test.mjs"
