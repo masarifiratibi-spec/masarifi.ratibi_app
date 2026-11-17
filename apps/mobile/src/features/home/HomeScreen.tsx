@@ -3,6 +3,7 @@ import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefresh
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   PixelRatio,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -75,7 +76,11 @@ export const HomeScreen = React.memo(function HomeScreen({
         <HomeSummary
           accounts={accounts}
           categories={categories}
-          notice={summary.dataState === 'empty' ? undefined : notice}
+          notice={
+            summary.dataState === 'empty' && Platform.OS !== 'ios'
+              ? undefined
+              : notice
+          }
           selectedAccount={selectedAccount}
           summary={summary}
           todayActivity={todayActivity}
@@ -180,7 +185,11 @@ function QueriedHomeScreen({
         <HomeSummary
           accounts={accounts.data}
           categories={categories.data}
-          notice={homeSummary?.dataState === 'empty' ? undefined : notice}
+          notice={
+            homeSummary?.dataState === 'empty' && Platform.OS !== 'ios'
+              ? undefined
+              : notice
+          }
           selectedAccount={selectedAccount}
           summary={homeSummary}
           todayActivity={activity.data ?? []}

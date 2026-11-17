@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AppState,
   PixelRatio,
+  Platform,
   StyleSheet,
   type AppStateStatus
 } from 'react-native';
@@ -1133,7 +1134,9 @@ it.each([
   }
 );
 
-it('shows the optional notice only with a populated financial summary', () => {
+it.each(['android', 'ios'] as const)('keeps the iOS setup entry on an empty Home and preserves %s notice behavior', (platform) => {
+  const originalPlatform = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
   changeLocale('en');
   const notice = <StyledText>Tracking invitation</StyledText>;
   const ready = renderWithProviders(
@@ -1150,7 +1153,11 @@ it('shows the optional notice only with a populated financial summary', () => {
     />
   );
 
-  expect(screen.queryByText('Tracking invitation')).toBeNull();
+  if (platform === 'ios')
+    expect(screen.getByText('Tracking invitation')).toBeOnTheScreen();
+  else
+    expect(screen.queryByText('Tracking invitation')).toBeNull();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
 });
 
 it.each([
