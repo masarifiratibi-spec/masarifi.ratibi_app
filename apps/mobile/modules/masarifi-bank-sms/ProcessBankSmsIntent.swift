@@ -1,6 +1,6 @@
 import AppIntents
 import Foundation
-import MasarifiBankSms
+internal import MasarifiBankSms
 
 struct BankSmsAccount: AppEntity {
   static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Account")

@@ -104,13 +104,12 @@ test('iOS config copies the intent and the parser into the main application buil
       'utf8'
     );
     assert.equal(parser, bundleBankSmsParser(root));
-    assert.match(
-      readFileSync(
-        join(temporary, 'HelloWorld/ProcessBankSmsIntent.swift'),
-        'utf8'
-      ),
-      /ProcessBankSmsIntent: AppIntent/
+    const intent = readFileSync(
+      join(temporary, 'HelloWorld/ProcessBankSmsIntent.swift'),
+      'utf8'
     );
+    assert.match(intent, /ProcessBankSmsIntent: AppIntent/);
+    assert.match(intent, /^internal import MasarifiBankSms$/m);
   } finally {
     assert.ok(resolve(temporary).startsWith(fixtureRoot + sep));
     rmSync(temporary, { recursive: true, force: true });
