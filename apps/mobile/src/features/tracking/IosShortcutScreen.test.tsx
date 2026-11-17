@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Linking, Platform } from 'react-native';
+import { router } from 'expo-router';
 import IosShortcutScreen from './IosShortcutScreen.ios';
 import { resolveTheme } from '@/design-system/theme';
 import { changeLocale } from '@/localization/i18n';
@@ -17,105 +18,198 @@ jest.mock('@/services/platform/bank-sms-setup.ios', () => ({
   enableBankSms: jest.fn(),
   readBankSmsSetup: jest.fn()
 }));
-
 const readStatus = jest.mocked(readBankSmsSetup);
 const enable = jest.mocked(enableBankSms);
 const disable = jest.mocked(disableBankSms);
 
 beforeEach(() => {
-  readStatus.mockReset();
-  enable.mockReset();
-  disable.mockReset();
+  readStatus.mockReset().mockResolvedValue({ enabled: false, pending: 0 });
+  enable.mockReset().mockResolvedValue(undefined);
+  disable.mockReset().mockResolvedValue(undefined);
   jest.replaceProperty(Platform, 'OS', 'ios');
+  jest.spyOn(Platform, 'Version', 'get').mockReturnValue('27.2');
   jest
     .spyOn(phoneNotificationService, 'getPermission')
     .mockResolvedValue('not_requested');
   changeLocale('en');
   usePreferenceStore.setState({ theme: 'light' });
 });
-
 afterEach(() => {
   jest.restoreAllMocks();
   changeLocale('ar');
   usePreferenceStore.setState({ theme: 'system' });
 });
 
-it('guides setup and shows confirmation only after the first saved transaction', async () => {
-  readStatus.mockResolvedValue({ enabled: false, pending: 0 });
-  enable.mockResolvedValue(undefined);
+it('puts notifications first and guides four stages without the status dashboard', async () => {
   const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const done = jest
+    .spyOn(router, 'replace')
+    .mockImplementation(() => undefined);
   const allowAlerts = jest
     .spyOn(phoneNotificationService, 'requestPermission')
     .mockResolvedValue('granted');
-
   renderWithProviders(<IosShortcutScreen />);
-  expect(screen.getByTestId('shortcut-setup')).toHaveStyle({
-    backgroundColor: resolveTheme('light').colors.surfaces.page
-  });
-  await screen.findByText('SMS capture is off.');
+  fireEvent.press(
+    await screen.findByRole('link', { name: 'Enable notifications' })
+  );
+  expect(
+    screen.getByText(/Get a notification with the amount/)
+  ).toBeOnTheScreen();
+  await screen.findByText('Notifications are on.');
+  expect(allowAlerts).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-
   readStatus.mockResolvedValue({ enabled: true, pending: 0 });
-  fireEvent.press(screen.getByRole('button', { name: 'Allow capture' }));
-  await screen.findByText('SMS capture is allowed.');
-  expect(enable).toHaveBeenCalledTimes(1);
-
+  fireEvent.press(
+    screen.getByRole('switch', { name: /Allow transaction recording/ })
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+  );
   fireEvent.press(screen.getByRole('button', { name: 'Next' }));
-  expect(screen.getByText('Step 2 of 3')).toBeOnTheScreen();
+  await waitFor(() =>
+    expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+      min: 1,
+      max: 4,
+      now: 2
+    })
+  );
   expect(screen.getByText('Choose Message.')).toBeOnTheScreen();
   fireEvent.press(screen.getByRole('button', { name: 'Open Shortcuts' }));
   expect(openURL).toHaveBeenCalledWith('shortcuts://');
-
   fireEvent.press(screen.getByRole('button', { name: 'Next' }));
-  expect(screen.getByText('Step 3 of 3')).toBeOnTheScreen();
-  expect(screen.getByText('Choose Process Bank SMS.')).toBeOnTheScreen();
-  expect(
-    screen.queryByText('A transaction from Shortcuts was saved.')
-  ).toBeNull();
-  expect(
-    screen.getByText(/^Waiting for the first transaction\./)
-  ).toBeOnTheScreen();
+  expect(screen.getByText(/SMS Text.+Content/)).toBeOnTheScreen();
+  fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+  expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+    min: 1,
+    max: 4,
+    now: 2
+  });
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+    min: 1,
+    max: 4,
+    now: 4
+  });
+  expect(screen.getByText(/Confirm Before Run/)).toBeOnTheScreen();
+  expect(screen.queryByText('Tracking status')).toBeNull();
+  for (const name of [
+    'Check status',
+    'View transactions',
+    'Refresh accounts and categories',
+    'Disable capture in this app'
+  ]) {
+    expect(screen.queryByRole('button', { name })).toBeNull();
+  }
+  fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  expect(done).toHaveBeenCalledWith('/(tabs)/home');
+});
 
+it('opens Settings after permanent denial without blocking capture setup', async () => {
+  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
+  jest
+    .mocked(phoneNotificationService.getPermission)
+    .mockResolvedValue('permanently_denied');
+  const openSettings = jest
+    .spyOn(Linking, 'openSettings')
+    .mockResolvedValue(undefined);
+  renderWithProviders(<IosShortcutScreen />);
+  fireEvent.press(
+    await screen.findByRole('link', { name: 'Notification settings' })
+  );
+  await waitFor(() => expect(openSettings).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+});
+
+it('starts from stage one for returning users and keeps consent reversible there', async () => {
   readStatus.mockResolvedValue({
     enabled: true,
     pending: 0,
     lastSaved: Date.UTC(2026, 10, 17),
     outcome: 'saved'
   });
-  fireEvent.press(screen.getByRole('button', { name: 'Check status' }));
-  await screen.findByText('A transaction from Shortcuts was saved.');
-  fireEvent.press(screen.getByRole('button', { name: 'Allow save alerts' }));
-  await screen.findByText('Save alerts are allowed on this iPhone.');
-  expect(allowAlerts).toHaveBeenCalledTimes(1);
-  expect(screen.getByText(/^Last confirmed financial save:/)).toBeOnTheScreen();
-
-  readStatus.mockResolvedValue({ enabled: false, pending: 0 });
-  fireEvent.press(
-    screen.getByRole('button', { name: 'Disable capture in this app' })
-  );
+  renderWithProviders(<IosShortcutScreen />);
   await waitFor(() =>
-    expect(screen.getByText('SMS capture is off.')).toBeOnTheScreen()
+    expect(screen.getByRole('switch')).toHaveAccessibilityState({
+      checked: true
+    })
+  );
+  expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+    now: 1,
+    min: 1,
+    max: 4
+  });
+  expect(
+    screen.queryByText('A transaction from Shortcuts was saved.')
+  ).toBeNull();
+  readStatus.mockResolvedValue({ enabled: false, pending: 0 });
+  fireEvent.press(screen.getByRole('switch'));
+  await waitFor(() =>
+    expect(screen.getByRole('switch')).toHaveAccessibilityState({
+      checked: false
+    })
   );
   expect(disable).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Step 1 of 3')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
 });
 
-it('renders the Arabic setup in dark mode and allows a failed read to be retried', async () => {
-  changeLocale('ar');
-  usePreferenceStore.setState({ theme: 'dark' });
-  readStatus.mockRejectedValueOnce(new Error('unavailable'));
-  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
-
+it('retries a failed setup read without hiding the notification link or granting consent', async () => {
+  readStatus
+    .mockRejectedValueOnce(new Error('unavailable'))
+    .mockResolvedValue({ enabled: true, pending: 0 });
   renderWithProviders(<IosShortcutScreen />);
-  expect(screen.getByTestId('shortcut-setup')).toHaveStyle({
-    backgroundColor: resolveTheme('dark').colors.surfaces.page
-  });
-  expect(screen.getByText('إعداد تتبع الرسائل')).toBeOnTheScreen();
-  expect(screen.getByText('الخطوة ١ من ٣')).toBeOnTheScreen();
-  await screen.findByText(/^تعذّر قراءة حالة التتبع\./);
-  fireEvent.press(screen.getByRole('button', { name: 'تحقّق من الحالة' }));
-  await screen.findByText('تم السماح بالتقاط الرسائل.');
-  fireEvent.press(screen.getByRole('button', { name: 'التالي' }));
-  expect(screen.getByText('الخطوة ٢ من ٣')).toBeOnTheScreen();
-  expect(screen.getByText('اختر «رسالة» (Message).')).toBeOnTheScreen();
+  const retry = await screen.findByRole('button', { name: 'Try again' });
+  expect(
+    screen.getByRole('link', { name: 'Enable notifications' })
+  ).toBeOnTheScreen();
+  fireEvent.press(retry);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+  );
+  expect(
+    screen.getByRole('link', { name: 'Enable notifications' })
+  ).toBeOnTheScreen();
+  expect(enable).not.toHaveBeenCalled();
 });
+
+it('keeps the older iOS Automation-tab instructions and Run Immediately option', async () => {
+  jest.spyOn(Platform, 'Version', 'get').mockReturnValue('18.0');
+  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
+  renderWithProviders(<IosShortcutScreen />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+  );
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  await screen.findByText('In Shortcuts, open the Automation tab and tap +.');
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  expect(
+    screen.getByText('Choose Run Immediately, then tap Next.')
+  ).toBeOnTheScreen();
+  expect(screen.queryByText(/Confirm Before Run/)).toBeNull();
+});
+
+it.each([
+  ['ar', 'light'],
+  ['ar', 'dark'],
+  ['en', 'light'],
+  ['en', 'dark']
+] as const)(
+  'supports the %s notification link on the %s surface',
+  async (locale, theme) => {
+    changeLocale(locale);
+    usePreferenceStore.setState({ theme });
+    renderWithProviders(<IosShortcutScreen />);
+    expect(screen.getByTestId('shortcut-setup')).toHaveStyle({
+      backgroundColor: resolveTheme(theme).colors.surfaces.page
+    });
+    await screen.findByRole('link', {
+      name: locale === 'ar' ? 'تفعيل الإشعارات' : 'Enable notifications'
+    });
+    expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
+      min: 1,
+      max: 4,
+      now: 1
+    });
+  }
+);
