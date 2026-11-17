@@ -22,8 +22,14 @@ struct BankSmsSavedNotice {
     let formatted = scale == 0 ? whole : whole + (formatter.decimalSeparator ?? ".") +
       String(repeating: "0", count: max(0, scale - fraction.count)) + fraction
     let direction = kind == "income" ? (arabic ? "إيداع" : "Deposit") : (arabic ? "دفع" : "Payment")
-    return Self(title: "\(direction) · \(formatted)\u{00a0}\(currency)",
-                body: [label(category), label(account)].filter { !$0.isEmpty }.joined(separator: "\n"))
+    // Notification text has no view-level writing-direction prop. Set each
+    // paragraph's base direction and isolate the Latin amount/currency together.
+    let paragraph = arabic ? "\u{200f}" : "\u{200e}"
+    let money = "\u{2066}\(formatted)\u{00a0}\(currency)\u{2069}"
+    let lines = [label(category), label(account)].filter { !$0.isEmpty }.map {
+      "\(paragraph)\u{2068}\($0)\u{2069}"
+    }
+    return Self(title: "\(paragraph)\(direction) · \(money)", body: lines.joined(separator: "\n"))
   }
 
   private static func label(_ value: String) -> String {
