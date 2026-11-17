@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  AppState,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
 import { router } from 'expo-router';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -7,6 +14,8 @@ import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { IconBadge } from '@/design-system/icons';
+import type { NotificationPermissionState } from '@/domain/notifications';
+import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import { radius } from '@/design-system/tokens';
 import {
   translate,
@@ -52,6 +61,31 @@ const steps = [
   }
 ] as const;
 
+const modernSteps = [
+  steps[0],
+  {
+    ...steps[1],
+    description: 'tracking.bankSms.triggerBodyModern',
+    instructions: [
+      'tracking.bankSms.messageTrigger',
+      'tracking.bankSms.bankFilter',
+      'tracking.bankSms.appAlertTrigger',
+      'tracking.bankSms.runImmediatelyModern'
+    ]
+  },
+  {
+    ...steps[2],
+    description: 'tracking.bankSms.actionBodyModern',
+    instructions: [
+      'tracking.bankSms.actionName',
+      'tracking.bankSms.actionInput',
+      'tracking.bankSms.appAlertInput',
+      'tracking.bankSms.actionDestination',
+      'tracking.bankSms.actionFinish'
+    ]
+  }
+] as const;
+
 type Status = Awaited<ReturnType<typeof readBankSmsSetup>>;
 type SetupState = Status | 'loading' | 'unavailable';
 
@@ -69,11 +103,16 @@ function ShortcutSetup() {
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState<SetupState>('loading');
   const [busy, setBusy] = useState(false);
+  const [noticePermission, setNoticePermission] =
+    useState<NotificationPermissionState>('unavailable');
+  const [requestingNotice, setRequestingNotice] = useState(false);
   const [error, setError] = useState<MessageKey>();
   const setup = typeof status === 'object' ? status : undefined;
   const enabled = setup?.enabled === true;
   const lastSaved = setup?.lastSaved;
-  const current = steps[step];
+  const uiSteps =
+    Number.parseInt(String(Platform.Version), 10) >= 27 ? modernSteps : steps;
+  const current = uiSteps[step];
   const lastStep = steps.length - 1;
   const mute = { color: colors.textSecondary };
   const permissionLabel =
@@ -101,8 +140,12 @@ function ShortcutSetup() {
     async (initial = false) => {
       const request = ++statusRequests.revision;
       try {
-        const value = await readBankSmsSetup();
+        const [value, permission] = await Promise.all([
+          readBankSmsSetup(),
+          phoneNotificationService.getPermission()
+        ]);
         if (statusRequests.revision !== request) return;
+        setNoticePermission(permission);
         setStatus(value);
         if (initial && value.enabled && value.lastSaved)
           setStep(steps.length - 1);
@@ -150,6 +193,22 @@ function ShortcutSetup() {
       await Linking.openURL('shortcuts://');
     } catch {
       setError('tracking.bankSms.openFailed');
+    }
+  }
+
+  async function enableSaveNotices() {
+    setRequestingNotice(true);
+    setError(undefined);
+    try {
+      if (noticePermission === 'permanently_denied') {
+        await Linking.openSettings();
+      } else {
+        setNoticePermission(await phoneNotificationService.requestPermission());
+      }
+    } catch {
+      setError('tracking.bankSms.savedAlertSettingsFailed');
+    } finally {
+      setRequestingNotice(false);
     }
   }
 
@@ -313,6 +372,29 @@ function ShortcutSetup() {
             />
             {enabled ? (
               <View style={styles.heading}>
+                {noticePermission !== 'unavailable' ? (
+                  <StyledText variant="caption" style={mute}>
+                    {translate(
+                      noticePermission === 'granted'
+                        ? 'tracking.bankSms.savedAlertEnabled'
+                        : 'tracking.bankSms.savedAlertExplanation'
+                    )}
+                  </StyledText>
+                ) : null}
+                {noticePermission !== 'granted' &&
+                noticePermission !== 'unavailable' ? (
+                  <ActionButton
+                    label={translate(
+                      noticePermission === 'permanently_denied'
+                        ? 'tracking.bankSms.savedAlertSettings'
+                        : 'tracking.bankSms.allowSavedAlerts'
+                    )}
+                    variant="secondary"
+                    loading={requestingNotice}
+                    disabled={busy}
+                    onPress={() => void enableSaveNotices()}
+                  />
+                ) : null}
                 <ActionButton
                   label={translate('tracking.bankSms.refreshChoices')}
                   variant="quiet"

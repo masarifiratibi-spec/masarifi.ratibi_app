@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
     'SWIFT_INCLUDE_PATHS' => '$(inherited) "${SYMROOT}/${CONFIGURATION}${EFFECTIVE_PLATFORM_NAME}/"'
   }
   s.source_files = '*.swift'
-  s.frameworks = ['JavaScriptCore', 'Security', 'CryptoKit']
+  s.frameworks = ['JavaScriptCore', 'Security', 'CryptoKit', 'UserNotifications']
   s.dependency 'ExpoModulesCore'
   s.dependency 'ClerkExpo'
 end

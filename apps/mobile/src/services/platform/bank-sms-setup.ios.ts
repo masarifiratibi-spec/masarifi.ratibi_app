@@ -89,6 +89,7 @@ export async function enableBankSms() {
       generation,
       revision,
       title: translate('tracking.shortcut.transactionTitle'),
+      savedNotificationBody: translate('tracking.bankSms.confirmed', locale),
       accounts: accountRows
         .filter((account) => account.status === 'active')
         .map((account) => ({

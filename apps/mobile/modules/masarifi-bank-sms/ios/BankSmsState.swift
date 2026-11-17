@@ -16,6 +16,7 @@ struct BankSmsEnrollment: Codable, Equatable {
   let accounts: [BankSmsTarget]
   let categories: [BankSmsTarget]
   let title: String
+  let savedNotificationBody: String?
 }
 
 struct BankSmsCommand: Codable {

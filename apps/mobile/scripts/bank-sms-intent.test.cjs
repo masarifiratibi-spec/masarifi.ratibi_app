@@ -66,6 +66,32 @@ test('the native capture pod reuses ClerkExpo’s single ClerkKit linkage', () =
   assert.match(spec, /'SWIFT_INCLUDE_PATHS'.+SYMROOT/);
 });
 
+test('parses supported text supplied by a financial app alert', () => {
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const expense = context.masarifiClassifyBankSms(
+    'Card purchase SAR 17.26 at QA SHOP',
+    captureAt,
+    'Asia/Riyadh'
+  );
+  assert.equal(expense.amountMinor, 1726);
+  assert.equal(expense.currency, 'SAR');
+  assert.equal(expense.kind, 'expense');
+});
+
+test('native save alerts run after successful settlement and use the receipt ID', () => {
+  const service = readFileSync(
+    join(root, 'modules/masarifi-bank-sms/ios/BankSmsService.swift'),
+    'utf8'
+  );
+  assert.match(
+    service,
+    /try settle\(delivery, enrollment: enrollment, transactionId: id\)\s+await notifySaved\(id, enrollment: enrollment\)/
+  );
+  assert.equal([...service.matchAll(/await notifySaved\(/g)].length, 1);
+  assert.match(service, /identifier: "bank-sms-saved-\\\(transactionId\./);
+});
+
 test('iOS config copies the intent and the parser into the main application build phases once', async () => {
   const fixtureRoot = resolve(root, '../../coverage');
   mkdirSync(fixtureRoot, { recursive: true });

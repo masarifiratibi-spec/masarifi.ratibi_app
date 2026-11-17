@@ -2,6 +2,7 @@ import ClerkKit
 import CryptoKit
 import Foundation
 import JavaScriptCore
+import UserNotifications
 
 private struct ExpoClerkHeaders: ClerkRequestMiddleware {
   func prepare(_ request: inout URLRequest) async throws {
@@ -67,7 +68,8 @@ public struct BankSmsChoice: Sendable {
   }
 
   func configure(owner: String, session: String, publishableKey: String,
-                 generation: Int, revision: Int, title: String, accounts: [BankSmsTarget], categories: [BankSmsTarget]) async throws {
+                 generation: Int, revision: Int, title: String, savedNotificationBody: String?,
+                 accounts: [BankSmsTarget], categories: [BankSmsTarget]) async throws {
     guard self.revision == revision, !owner.isEmpty, !session.isEmpty, publishableKey.hasPrefix("pk_live_"), generation >= 0,
           !accounts.isEmpty, !categories.isEmpty,
           accounts.allSatisfy({ UUID(uuidString: $0.id) != nil && $0.currency != nil }),
@@ -77,7 +79,7 @@ public struct BankSmsChoice: Sendable {
     else { throw BankSmsFailure.unavailable }
     let enrollment = BankSmsEnrollment(owner: owner, session: session, publishableKey: publishableKey,
                                        generation: generation, epoch: UUID(), accounts: accounts,
-                                       categories: categories, title: title)
+                                       categories: categories, title: title, savedNotificationBody: savedNotificationBody)
     _ = try await refreshSession(enrollment)
     guard self.revision == revision else { throw BankSmsFailure.disabled }
     var state = try store.load()
@@ -207,6 +209,7 @@ public struct BankSmsChoice: Sendable {
             else { throw BankSmsFailure.auth }
           }
           try settle(delivery, enrollment: enrollment, transactionId: id)
+          await notifySaved(id, enrollment: enrollment)
         } catch BankSmsFailure.rejected {
           try settle(delivery, enrollment: enrollment, transactionId: nil)
         }
@@ -227,6 +230,28 @@ public struct BankSmsChoice: Sendable {
       state.lastTransactionId = transactionId
     }
     try store.write(state)
+  }
+
+  private func notifySaved(_ transactionId: UUID, enrollment: BankSmsEnrollment) async {
+    let center = UNUserNotificationCenter.current()
+    let settings = await center.notificationSettings()
+    guard [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus),
+          (try? admitted(enrollment)) != nil,
+          clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner else { return }
+
+    let content = UNMutableNotificationContent()
+    let language = Locale.preferredLanguages.first?.split(separator: "-").first
+    content.body = enrollment.savedNotificationBody ?? (language == "ar"
+      ? "تم تسجيل عملية من الاختصارات."
+      : "A transaction from Shortcuts was saved.")
+    content.sound = .default
+    let request = UNNotificationRequest(
+      identifier: "bank-sms-saved-\(transactionId.uuidString.lowercased())",
+      content: content,
+      trigger: nil
+    )
+    // A delivery error cannot change an already committed transaction.
+    try? await center.add(request)
   }
 
   private func admitted(_ enrollment: BankSmsEnrollment) throws -> BankSmsState {

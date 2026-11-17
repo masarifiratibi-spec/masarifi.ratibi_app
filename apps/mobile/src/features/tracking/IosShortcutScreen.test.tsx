@@ -8,6 +8,7 @@ import {
   enableBankSms,
   readBankSmsSetup
 } from '@/services/platform/bank-sms-setup.ios';
+import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 
@@ -26,6 +27,9 @@ beforeEach(() => {
   enable.mockReset();
   disable.mockReset();
   jest.replaceProperty(Platform, 'OS', 'ios');
+  jest
+    .spyOn(phoneNotificationService, 'getPermission')
+    .mockResolvedValue('not_requested');
   changeLocale('en');
   usePreferenceStore.setState({ theme: 'light' });
 });
@@ -40,6 +44,9 @@ it('guides setup and shows confirmation only after the first saved transaction',
   readStatus.mockResolvedValue({ enabled: false, pending: 0 });
   enable.mockResolvedValue(undefined);
   const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const allowAlerts = jest
+    .spyOn(phoneNotificationService, 'requestPermission')
+    .mockResolvedValue('granted');
 
   renderWithProviders(<IosShortcutScreen />);
   expect(screen.getByTestId('shortcut-setup')).toHaveStyle({
@@ -77,6 +84,9 @@ it('guides setup and shows confirmation only after the first saved transaction',
   });
   fireEvent.press(screen.getByRole('button', { name: 'Check status' }));
   await screen.findByText('A transaction from Shortcuts was saved.');
+  fireEvent.press(screen.getByRole('button', { name: 'Allow save alerts' }));
+  await screen.findByText('Save alerts are allowed on this iPhone.');
+  expect(allowAlerts).toHaveBeenCalledTimes(1);
   expect(screen.getByText(/^Last confirmed financial save:/)).toBeOnTheScreen();
 
   readStatus.mockResolvedValue({ enabled: false, pending: 0 });
