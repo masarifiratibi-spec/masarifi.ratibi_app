@@ -56,6 +56,16 @@ test('the parser exposes separate stable identities for two purchases with diffe
   assert.notEqual(parse(text.replace('QA0001', 'QA0002')).referenceIdentity, first.referenceIdentity);
 });
 
+test('the native capture pod reuses ClerkExpo’s single ClerkKit linkage', () => {
+  const spec = readFileSync(
+    join(root, 'modules/masarifi-bank-sms/ios/MasarifiBankSms.podspec'),
+    'utf8'
+  );
+  assert.match(spec, /s\.dependency 'ClerkExpo'/);
+  assert.doesNotMatch(spec, /\bspm_dependency\s*\(/);
+  assert.match(spec, /'SWIFT_INCLUDE_PATHS'.+SYMROOT/);
+});
+
 test('iOS config copies the intent and the parser into the main application build phases once', async () => {
   const fixtureRoot = resolve(root, '../../coverage');
   mkdirSync(fixtureRoot, { recursive: true });

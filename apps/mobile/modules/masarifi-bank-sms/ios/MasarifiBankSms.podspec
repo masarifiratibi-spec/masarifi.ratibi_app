@@ -9,13 +9,15 @@ Pod::Spec.new do |s|
   s.platforms = { :ios => '17.0' }
   s.swift_version = '5.10'
   s.static_framework = true
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'SWIFT_COMPILATION_MODE' => 'wholemodule' }
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+    'SWIFT_COMPILATION_MODE' => 'wholemodule',
+    # ClerkExpo owns the Swift package product. Resolve its module from the
+    # same build directory React Native uses for Swift package modules.
+    'SWIFT_INCLUDE_PATHS' => '$(inherited) "${SYMROOT}/${CONFIGURATION}${EFFECTIVE_PLATFORM_NAME}/"'
+  }
   s.source_files = '*.swift'
   s.frameworks = ['JavaScriptCore', 'Security', 'CryptoKit']
   s.dependency 'ExpoModulesCore'
   s.dependency 'ClerkExpo'
-  spm_dependency(s,
-    url: 'https://github.com/clerk/clerk-ios.git',
-    requirement: { :kind => 'exactVersion', :version => '1.5.2' },
-    products: ['ClerkKit'])
 end
