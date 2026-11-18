@@ -34,7 +34,16 @@ import CoreText
     precondition(bounded.body.count <= 240)
     precondition(bounded.body.hasSuffix("Bank Spoof\u{2069}"), bounded.body)
     precondition(!bounded.body.contains("\u{202e}"), bounded.body)
-    precondition(BankSmsSavedNotice.make(kind: "transfer", amountMinor: 1, currency: "SAR", scale: 2,
+
+    let transfer = BankSmsSavedNotice.make(kind: "transfer", amountMinor: 1921, currency: "SAR", scale: 2,
+      locale: "ar", account: "QA Bank", category: "QA Cash")
+    precondition(transfer?.title.contains("تحويل") == true)
+    precondition(transfer?.body.contains("QA Cash") == true)
+    let refund = BankSmsSavedNotice.make(kind: "refund", amountMinor: 250, currency: "SAR", scale: 2,
+      locale: "en", account: "QA Bank", category: "")
+    precondition(refund?.title.contains("Refund") == true)
+    precondition(refund?.body.contains("QA Bank") == true)
+    precondition(BankSmsSavedNotice.make(kind: "adjustment", amountMinor: 1, currency: "SAR", scale: 2,
       locale: "en", account: "QA", category: "Shopping") == nil)
     precondition(BankSmsSavedNotice.make(kind: "expense", amountMinor: 0, currency: "SAR", scale: 2,
       locale: "en", account: "QA", category: "Shopping") == nil)

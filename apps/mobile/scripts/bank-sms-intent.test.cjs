@@ -86,7 +86,7 @@ test('native save alerts run after successful settlement and use the receipt ID'
   );
   assert.match(
     service,
-    /try settle\(delivery, enrollment: enrollment, transactionId: id\)\s+await notifySaved\(id, command: command, enrollment: enrollment\)/
+    /try settle\(delivery, enrollment: enrollment, transactionId: id, receipt: receipt\)\s+await notifySaved\(id, command: command, enrollment: enrollment\)/
   );
   assert.equal([...service.matchAll(/await notifySaved\(/g)].length, 1);
   assert.match(service, /identifier: "bank-sms-saved-\\\(transactionId\./);
@@ -149,5 +149,121 @@ test('iOS config copies the intent and the parser into the main application buil
   } finally {
     assert.ok(resolve(temporary).startsWith(fixtureRoot + sep));
     rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('routes same-currency card messages before delivery, with bank, role and shortcut conflicts checked', () => {
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const a = { id: 'a', currency: 'SAR', institution: 'QAALFA', lastFour: '4242', automaticRouting: true };
+  const b = { id: 'b', currency: 'SAR', institution: 'QABETA', lastFour: '8181', automaticRouting: true };
+  const purchase = 'Purchase SAR 18.41 at QA SHOP card XX4242 Ref: QA261118A01';
+  const arabic = 'QABETA شراء بمبلغ ٢٤٫٦٢ SAR لدى متجر تجريبي بطاقة XX٨١٨١ الرقم المرجعي: QA261118B01';
+  const salary = 'Salary SAR 51.13 credited to account XX7373 Ref: QA261118S01';
+  const route = (text, options = {}) => context.masarifiClassifyBankSms(
+    text, captureAt, 'Asia/Riyadh', { accounts: [a, b], ...options }
+  )?.accountId ?? null;
+  assert.equal(route(purchase), 'a');
+  assert.equal(route(arabic), 'b');
+  assert.equal(route(arabic, { accountId: 'a' }), null);
+  assert.equal(route('QABETA ' + purchase), null);
+  assert.equal(route(purchase.replace('SAR', 'USD')), null);
+  assert.equal(route(purchase.replace('card XX4242', '')), null);
+  assert.equal(route(purchase, { accounts: [a, { ...b, lastFour: '4242' }] }), null);
+  assert.equal(route('QAALFA ' + purchase, { accounts: [a, { ...b, lastFour: '4242' }] }), 'a');
+  assert.equal(route(purchase, { accounts: [{ ...a, automaticRouting: false }] }), null);
+  assert.equal(route(salary), null);
+  assert.equal(route(salary, { accountId: 'a', accountEnding: '7373' }), 'a');
+  assert.equal(route(salary, { accountId: 'a', accountEnding: '٧٣٧٣' }), 'a');
+  assert.equal(route(salary, { accountId: 'a', accountEnding: '4242' }), null);
+  assert.equal(route(purchase, { accountId: 'a', accountEnding: '4242' }), null);
+  assert.equal(route(purchase, { accounts: [{ id: 'old', currency: 'SAR' }], accountId: 'old' }), 'old');
+});
+
+test('routes configured Shortcuts with only SMS text, including accounting-specific paths', () => {
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const accounts = [
+    { id: 'bank', currency: 'SAR', issuer: 'QAALFA', lastFour: '4242', accountEnding: '7373', cashAccountId: 'cash', automaticRouting: true },
+    { id: 'other', currency: 'SAR', issuer: 'QABETA', lastFour: '8181', accountEnding: '9292', automaticRouting: true },
+    { id: 'cash', currency: 'SAR', type: 'cash' },
+    { id: 'uae', currency: 'AED', issuer: 'QAUAE', lastFour: '4242', accountEnding: '4242', automaticRouting: true },
+    { id: 'egypt', currency: 'EGP', issuer: 'QAEG', accountEnding: '4242', automaticRouting: true }
+  ];
+  const categories = [
+    ...['expense', 'fee', 'restaurant'].map(id => ({ id, kind: 'expense' })),
+    ...['income', 'salary'].map(id => ({ id, kind: 'income' }))
+  ];
+  const preferences = { expenseId: 'expense', incomeId: 'income', feeId: 'fee', salaryId: 'salary', merchants: { 'qa cafe': 'restaurant' } };
+  const parse = (text, overrides = {}) => context.masarifiClassifyBankSms(
+    text, captureAt, 'Asia/Riyadh', { accounts, categories, preferences, ...overrides }
+  );
+  const route = (text, kind, accountId, categoryId = null, destinationAccountId = null) => {
+    const parsed = parse(text);
+    assert.ok(parsed, text);
+    assert.equal(parsed.kind, kind, text);
+    assert.equal(parsed.accountId, accountId, text);
+    assert.equal(parsed.categoryId, categoryId, text);
+    assert.equal(parsed.destinationAccountId, destinationAccountId, text);
+    return parsed;
+  };
+  const purchase = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', 'expense', 'bank', 'restaurant');
+  assert.equal(purchase.bankReference, 'QA00001');
+  route('QABETA شراء بمبلغ ١٢٫٣٤ SAR لدى متجر تجريبي بطاقة XX٨١٨١', 'expense', 'other', 'expense');
+  route('QAUAE Card purchase AED 12.34 at QA SHOP card XX4242', 'expense', 'uae', 'expense');
+  route('QAUAE Bill payment AED 12.34 from account XX4242', 'expense', 'uae', 'expense');
+  route('Salary SAR 51.13 credited to account XX7373', 'income', 'bank', 'salary');
+  route('Fee SAR 3.11 card XX4242', 'expense', 'bank', 'fee');
+  route('Cash withdrawal SAR 19.21 from account XX7373', 'transfer', 'bank', null, 'cash');
+  route('Cash deposit SAR 19.22 to account XX7373', 'transfer', 'cash', null, 'bank');
+  route('External deposit EGP 19.22 to account XX4242', 'income', 'egypt', 'income');
+  route('QAEG إيداع من طرف خارجي ١٩٫٢٢ جنيه في حساب XX4242', 'income', 'egypt', 'income');
+  const shortReference = route('QAALFA شراء SAR 12.34 بطاقة XX4242 مرجع: QA00007', 'expense', 'bank', 'expense');
+  assert.equal(shortReference.bankReference, 'QA00007');
+  const sender = route('QAALFA Outgoing transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA00002', 'transfer', 'bank', null, 'other');
+  const receiver = route('QABETA Incoming transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA00002', 'transfer', 'bank', null, 'other');
+  assert.equal(sender.referenceIdentity, receiver.referenceIdentity);
+  route('Outgoing external transfer SAR 19.23 from account XX7373 Ref: QA00004', 'expense', 'bank', 'expense');
+  route('Incoming external transfer SAR 19.23 to account XX7373 Ref: QA00005', 'income', 'bank', 'income');
+  const refund = route('Refund SAR 2.50 to card XX4242 original reference QA00001 Ref: QA00003', 'refund', 'bank');
+  assert.equal(refund.originalReference, purchase.bankReference);
+  route('Reversal SAR 12.34 to card XX4242 original reference QA00001 Ref: QA00006', 'reversal', 'bank');
+
+  for (const expectedSkip of [
+    'QABETA Purchase SAR 12.34 at QA SHOP card XX4242',
+    'Purchase SAR 12.34 at QA SHOP',
+    'Cash deposit EGP 19.22 to account XX4242',
+    'Deposit EGP 19.22 to account XX4242',
+    'Outgoing transfer SAR 19.23 from account XX7373 to account XX9292',
+    'Outgoing transfer SAR 19.23 from account XX7373 Ref: QA00002',
+    'Refund SAR 2.50 to card XX4242 Ref: QA00003',
+    'Pending refund SAR 2.50 to card XX4242 original reference QA00001 Ref: QA00003',
+    'Purchase SAR 12.34 at QA SHOP card XX4242 additional fee SAR 2.10',
+    'Declined purchase SAR 12.34 at QA SHOP card XX4242',
+    'Your OTP is 654321 for purchase SAR 12.34 with card XX4242',
+    'Available balance SAR 500.00 on card XX4242',
+    'Offer: purchase SAR 12.34 to get a discount'
+  ]) assert.equal(parse(expectedSkip), null, expectedSkip);
+  assert.equal(parse('Cash withdrawal SAR 19.21 from account XX7373', { accounts: accounts.filter(a => a.id !== 'cash') }), null);
+  assert.equal(parse('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', { categoryId: 'fee' }).categoryId, 'fee');
+});
+
+test('checks the shared Saudi, Emirati, and Egyptian fixtures against enrolled account routing', () => {
+  const fixtures = require('../../../packages/transaction-parser/corpus.json');
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const accounts = ['SAR', 'AED', 'EGP'].map(currency => ({
+    id: currency, currency, lastFour: '4242', accountEnding: '4242', automaticRouting: true
+  }));
+  const expected = {
+    'sa-pos-ar': ['expense', 'SAR'],
+    'sa-online-ar': ['expense', 'SAR'],
+    'ae-card-en': ['expense', 'AED'],
+    'ae-card-spaced-en': ['expense', 'AED'],
+    'sa-salary-en': ['income', 'SAR']
+  };
+  for (const fixture of fixtures) {
+    const result = context.masarifiClassifyBankSms(fixture.text, captureAt, 'Asia/Riyadh', { accounts });
+    assert.deepEqual(result && [result.kind, result.accountId], expected[fixture.id] ?? null, fixture.id);
   }
 });

@@ -4,6 +4,10 @@ enum BankSmsFailure: Error, Equatable {
   case disabled, auth, generation, rejected, unavailable, receipt
 }
 
+private struct BankSmsRemoteError: Decodable {
+  let code: String?
+}
+
 struct BankSmsRemoteGeneration: Decodable {
   let status: String
   let generation: Int
@@ -21,6 +25,8 @@ private struct BankSmsLedgerResult: Decodable {
       let accountIds: [String]
       let categoryId: String?
       let occurredAt: String
+      let version: Int
+      let originalTransactionId: UUID?
     }
     struct Posting: Decodable {
       let accountId: String
@@ -69,6 +75,12 @@ struct BankSmsLedger {
     case 200...299: return data
     case 401, 403: throw BankSmsFailure.auth
     case 400, 404, 422: throw BankSmsFailure.rejected
+    case 409:
+      let code = (try? JSONDecoder().decode(BankSmsRemoteError.self, from: data))?.code
+      if let code, ["VERSION_CONFLICT", "TRANSACTION_NOT_EDITABLE", "TRANSACTION_HAS_DEPENDENTS",
+                    "REVERSAL_EXISTS", "REFUND_EXCEEDS_AVAILABLE", "CURRENCY_MISMATCH",
+                    "ACCOUNT_NOT_POSTABLE", "CATEGORY_INVALID"].contains(code) { throw BankSmsFailure.rejected }
+      throw BankSmsFailure.unavailable
     default: throw BankSmsFailure.unavailable
     }
   }
@@ -80,14 +92,56 @@ struct BankSmsLedger {
     return state.generation
   }
 
+  func currentOriginal(_ original: BankSmsOriginal, account: String, token: String) async throws -> BankSmsOriginal {
+    let reply = try await data(request("api/v1/transactions/\(original.id.uuidString.lowercased())", token: token))
+    let detail = try JSONDecoder().decode(BankSmsLedgerResult.Details.self, from: reply)
+    let row = detail.transaction
+    guard row.id == original.id, row.kind == "expense", row.status == "confirmed", row.source == "platform_assisted",
+          row.accountIds == [account], row.amountMinor == original.amountMinor, row.currency == original.currency,
+          detail.postings.count == 1, let posting = detail.postings.first,
+          posting.accountId == account, posting.amountMinor == -original.amountMinor,
+          posting.clearingState == "confirmed", posting.postingRole == "source"
+    else { throw BankSmsFailure.rejected }
+    return BankSmsOriginal(id: row.id, version: row.version, amountMinor: row.amountMinor, currency: row.currency)
+  }
+
   @MainActor func post(_ command: BankSmsCommand, key: UUID, generation: Int, token: String,
-                       authorize: () throws -> Void) async throws -> UUID {
-    var request = request("api/v1/transactions", token: token)
+                       authorize: () throws -> Void) async throws -> BankSmsOriginal {
+    let path: String
+    let body: Data
+    if let original = command.original {
+      let refund = command.kind == "refund"
+      path = "api/v1/transactions/\(original.id.uuidString.lowercased())/\(refund ? "refunds" : "reverse")"
+      var fields: [String: Any] = ["expectedVersion": original.version, "occurredAt": command.occurredAt, "reason": command.title]
+      if refund {
+        fields["amountMinor"] = command.amountMinor
+        fields["accountId"] = command.accountId
+      }
+      body = try JSONSerialization.data(withJSONObject: fields)
+    } else if let destination = command.destinationAccountId {
+      path = "api/v1/transfers"
+      let fields: [String: Any] = [
+        "sourceAccountId": command.accountId, "destinationAccountId": destination,
+        "amountMinor": command.amountMinor, "currency": command.currency, "feeMinor": 0,
+        "occurredAt": command.occurredAt, "title": command.title, "source": command.source
+      ]
+      body = try JSONSerialization.data(withJSONObject: fields)
+    } else {
+      path = "api/v1/transactions"
+      let fields: [String: Any] = [
+        "kind": command.kind, "accountId": command.accountId,
+        "categoryId": command.categoryId.map { $0 as Any } ?? NSNull(),
+        "amountMinor": command.amountMinor, "currency": command.currency,
+        "occurredAt": command.occurredAt, "title": command.title, "source": command.source
+      ]
+      body = try JSONSerialization.data(withJSONObject: fields)
+    }
+    var request = request(path, token: token)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue(key.uuidString.lowercased(), forHTTPHeaderField: "Idempotency-Key")
     request.setValue(String(generation), forHTTPHeaderField: "X-Financial-Generation")
-    request.httpBody = try JSONEncoder().encode(command)
+    request.httpBody = body
     let reply: Data = try await withCheckedThrowingContinuation { next in
       do {
         try Task.checkCancellation()
@@ -104,16 +158,31 @@ struct BankSmsLedger {
     let detail = try JSONDecoder().decode(BankSmsLedgerResult.self, from: reply).transaction
     let row = detail.transaction
     let commandDate = Self.date(command.occurredAt)
-    guard row.status == "confirmed", row.kind == command.kind, row.source == command.source,
+    guard row.status == "confirmed", row.kind == command.kind,
           row.amountMinor == command.amountMinor, row.currency == command.currency,
-          row.accountIds == [command.accountId], row.categoryId == command.categoryId,
-          let commandDate, Self.date(row.occurredAt) == commandDate,
-          detail.postings.count == 1, let posting = detail.postings.first,
-          posting.accountId == command.accountId, posting.clearingState == "confirmed",
-          posting.postingRole == (command.kind == "expense" ? "source" : "destination"),
-          posting.amountMinor == (command.kind == "expense" ? -command.amountMinor : command.amountMinor)
+          row.originalTransactionId == command.original?.id,
+          let commandDate, Self.date(row.occurredAt) == commandDate
     else { throw BankSmsFailure.receipt }
-    return row.id
+
+    let account = command.accountId
+    let amount = command.amountMinor
+    func matches(_ id: String, _ role: String, _ value: Int64) -> Bool {
+      detail.postings.contains { $0.accountId == id && $0.postingRole == role &&
+        $0.amountMinor == value && $0.clearingState == "confirmed" }
+    }
+    if let destination = command.destinationAccountId {
+      guard row.source == command.source, row.categoryId == nil,
+            Set(row.accountIds) == Set([account, destination]), detail.postings.count == 2,
+            matches(account, "source", -amount), matches(destination, "destination", amount)
+      else { throw BankSmsFailure.receipt }
+    } else {
+      let role = command.original == nil ? (command.kind == "expense" ? "source" : "destination") : command.kind
+      guard row.accountIds == [account], row.categoryId == command.categoryId,
+            command.original != nil || row.source == command.source,
+            detail.postings.count == 1, matches(account, role, command.kind == "expense" ? -amount : amount)
+      else { throw BankSmsFailure.receipt }
+    }
+    return BankSmsOriginal(id: row.id, version: row.version, amountMinor: row.amountMinor, currency: row.currency)
   }
 
   private static func date(_ value: String) -> Date? {

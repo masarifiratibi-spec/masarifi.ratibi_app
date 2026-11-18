@@ -1,6 +1,36 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
+export type BankSmsAccountLink = {
+  accountEnding?: string;
+  issuer?: string;
+  cashAccountId?: string;
+};
+export type BankSmsConfiguration = {
+  expenseId?: string;
+  incomeId?: string;
+  feeId?: string;
+  salaryId?: string;
+  links?: Record<string, BankSmsAccountLink>;
+};
+type BankSmsChoice = {
+  id: string;
+  name: string;
+  kind: string;
+  nameAr?: string;
+  nameEn?: string;
+};
+export type BankSmsAccountChoice = BankSmsChoice &
+  BankSmsAccountLink & {
+    currency: string;
+    institution?: string;
+    type: string;
+    automaticRouting: boolean;
+    lastFour?: string;
+  };
 type BankSmsStatus = {
+  accounts?: BankSmsAccountChoice[];
+  categories?: BankSmsChoice[];
+  preferences?: Omit<BankSmsConfiguration, 'links'>;
   enabled: boolean;
   pending: number;
   lastSaved?: number;

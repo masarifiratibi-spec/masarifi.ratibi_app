@@ -12,6 +12,8 @@ private struct Setup: Decodable {
   let notificationLocale: String?
   let accounts: [BankSmsTarget]
   let categories: [BankSmsTarget]
+  let preferences: BankSmsPreferences?
+  let refreshOnly: Bool?
 }
 
 public final class MasarifiBankSmsModule: Module {
@@ -29,7 +31,8 @@ public final class MasarifiBankSmsModule: Module {
           try await BankSmsService.shared.configure(owner: setup.owner, session: setup.session,
             publishableKey: setup.publishableKey, generation: setup.generation, revision: setup.revision, title: setup.title,
             savedNotificationBody: setup.savedNotificationBody, notificationLocale: setup.notificationLocale,
-            accounts: setup.accounts, categories: setup.categories)
+            accounts: setup.accounts, categories: setup.categories, preferences: setup.preferences,
+            refreshOnly: setup.refreshOnly == true)
           promise.resolve()
         } catch { promise.reject("BANK_SMS_SETUP", "Bank SMS setup is unavailable.") }
       }

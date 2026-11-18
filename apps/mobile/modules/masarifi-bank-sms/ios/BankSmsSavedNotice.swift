@@ -6,7 +6,7 @@ struct BankSmsSavedNotice {
 
   static func make(kind: String, amountMinor: Int64, currency: String, scale: Int,
                    locale: String, account: String, category: String) -> Self? {
-    guard ["income", "expense"].contains(kind), amountMinor > 0, amountMinor <= 9_007_199_254_740_991,
+    guard ["income", "expense", "transfer", "refund", "reversal"].contains(kind), amountMinor > 0, amountMinor <= 9_007_199_254_740_991,
           (0...4).contains(scale),
           currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil else { return nil }
     let arabic = locale == "ar"
@@ -21,7 +21,14 @@ struct BankSmsSavedNotice {
     let fraction = String(amountMinor % divisor)
     let formatted = scale == 0 ? whole : whole + (formatter.decimalSeparator ?? ".") +
       String(repeating: "0", count: max(0, scale - fraction.count)) + fraction
-    let direction = kind == "income" ? (arabic ? "إيداع" : "Deposit") : (arabic ? "دفع" : "Payment")
+    let direction: String
+    switch kind {
+    case "transfer": direction = arabic ? "تحويل" : "Transfer"
+    case "refund": direction = arabic ? "استرداد" : "Refund"
+    case "reversal": direction = arabic ? "عكس عملية" : "Reversal"
+    case "income": direction = arabic ? "إيداع" : "Deposit"
+    default: direction = arabic ? "دفع" : "Payment"
+    }
     // Notification text has no view-level writing-direction prop. Set each
     // paragraph's base direction and isolate the Latin amount/currency together.
     let paragraph = arabic ? "\u{200f}" : "\u{200e}"

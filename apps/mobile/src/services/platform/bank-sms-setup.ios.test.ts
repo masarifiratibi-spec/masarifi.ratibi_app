@@ -1,5 +1,5 @@
 import { changeLocale } from '@/localization/i18n';
-import { completeBankSmsSetup, disableBankSms, enableBankSms, readBankSmsSetup } from './bank-sms-setup.ios';
+import { completeBankSmsSetup, disableBankSms, enableBankSms, readBankSmsSetup, refreshEnabledBankSms } from './bank-sms-setup.ios';
 import { synchronizeBankSmsNotificationLocale } from './bank-sms-notice-locale.ios';
 
 let setup: Record<string, unknown>;
@@ -20,6 +20,14 @@ const mockNative = {
   }
 };
 let mockSession = { status: 'authenticated', userId: 'owner' };
+
+jest.mock('@/storage/voice-category-preference-repository', () => ({
+  VoiceCategoryPreferenceRepository: class {
+    async listActiveForOwner() {
+      return [{ merchantKey: 'qa shop', categoryId: 'category' }];
+    }
+  }
+}));
 
 jest.mock('@/storage/app-shell-storage', () => ({
   createAppShellStorage: () => ({
@@ -59,7 +67,7 @@ jest.mock('../live/auth-service', () => ({
 jest.mock('../live/account-service', () => ({
   createLiveAccountService: () => ({
     listAccounts: async () => [
-      { id: 'account', name: 'QA Bank', status: 'active', currencyCode: 'KWD' }
+      { id: 'account', name: 'QA Bank', status: 'active', currencyCode: 'KWD', type: 'bank', automaticTrackingEnabled: true, institution: 'QA', lastFour: '0123' }
     ]
   })
 }));
@@ -105,8 +113,9 @@ it('publishes the app locale, both category labels and the currency scale for na
   await enableBankSms();
   expect(setup).toMatchObject({
     notificationLocale: 'ar',
+    preferences: { expenseId: 'server-category', merchants: { 'qa shop': 'server-category' } },
     accounts: [
-      { id: 'account', name: 'QA Bank', currency: 'KWD', minorUnitScale: 3 }
+      { id: 'account', name: 'QA Bank', currency: 'KWD', minorUnitScale: 3, automaticRouting: true, lastFour: '0123', institution: 'QA' }
     ],
     categories: [
       {
@@ -136,4 +145,27 @@ it('drops presentation work when the owner changes during the session-anchor rea
   mockSession = { status: 'authenticated', userId: 'other-owner' };
   await updating;
   expect(notificationLocale).toBeUndefined();
+});
+
+it('saves explicit account bindings and preserves completed setup during refresh', async () => {
+  mockCompleted = true;
+  mockNative.status.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    accounts: [{ id: 'account', accountEnding: '0789', issuer: 'QA' }]
+  } as Awaited<ReturnType<typeof mockNative.status>>);
+  await enableBankSms({
+    expenseId: 'server-category',
+    links: { account: { accountEnding: ' ١٢٣٤ ', issuer: ' QABANK ' } }
+  });
+  expect(setup).toMatchObject({
+    accounts: [{ id: 'account', accountEnding: '1234', issuer: 'QABANK' }],
+    preferences: { expenseId: 'server-category' }
+  });
+  await refreshEnabledBankSms();
+  expect(setup).toMatchObject({
+    refreshOnly: true,
+    accounts: [{ id: 'account', accountEnding: '0789', issuer: 'QA' }]
+  });
+  expect((await readBankSmsSetup()).setupCompleted).toBe(true);
 });

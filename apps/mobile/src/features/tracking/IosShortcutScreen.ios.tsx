@@ -31,6 +31,8 @@ import {
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
+import type { BankSmsConfiguration } from '@/services/platform/bank-sms-bridge.ios';
+import { BankSmsSetupFields } from './BankSmsSetupFields.ios';
 
 const steps = [
   {
@@ -82,6 +84,7 @@ function ShortcutSetup() {
   const scroll = useRef<ScrollView>(null);
   const requests = useRef({ revision: 0 }).current;
   const [step, setStep] = useState(0);
+  const [configuration, setConfiguration] = useState<BankSmsConfiguration>();
   const [status, setStatus] = useState<SetupState>('loading');
   const [busy, setBusy] = useState(false);
   const [noticePermission, setNoticePermission] =
@@ -156,6 +159,7 @@ function ShortcutSetup() {
     setError(undefined);
     try {
       await (allowed ? enableBankSms() : disableBankSms());
+      if (!allowed) setConfiguration(undefined);
       await refresh();
     } catch {
       setError('tracking.bankSms.setupFailed');
@@ -187,7 +191,8 @@ function ShortcutSetup() {
     setError(undefined);
     try {
       // Publish current account/category choices as part of the explicit setup step.
-      await enableBankSms();
+      await enableBankSms(configuration);
+      setConfiguration(undefined);
       const setup = await refresh();
       if (setup?.enabled) goTo(1);
     } catch {
@@ -349,6 +354,10 @@ function ShortcutSetup() {
                   onValueChange={(value) => void setConsent(value)}
                 />
               </View>
+              {typeof status === 'object' && status.enabled && status.accounts ? (
+                <BankSmsSetupFields setup={status} value={configuration}
+                  disabled={busy} onChange={setConfiguration} />
+              ) : null}
               {status === 'loading' ? (
                 <StyledText variant="caption" style={muted}>
                   {translate('tracking.bankSms.checking')}

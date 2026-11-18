@@ -44,7 +44,7 @@ struct BankSmsCategoryQuery: EntityQuery {
 
 struct ProcessBankSmsIntent: AppIntent {
   static var title: LocalizedStringResource = "Process Bank SMS"
-  static var description = IntentDescription("Save a supported bank message to your selected Masarifi account.")
+  static var description = IntentDescription("Save a supported bank message to its matching Masarifi account.")
   static var openAppWhenRun = false
   static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
@@ -52,12 +52,21 @@ struct ProcessBankSmsIntent: AppIntent {
   @Parameter(title: "Account") var account: BankSmsAccount?
   @Parameter(title: "Category") var category: BankSmsCategory?
 
+  @Parameter(title: "Income Category") var incomeCategory: BankSmsCategory?
+  @Parameter(title: "Account Number Ending") var accountEnding: String?
+
   static var parameterSummary: some ParameterSummary {
-    Summary("Process \(\.$smsText) in \(\.$account) as \(\.$category)")
+    Summary("Process \(\.$smsText)") {
+      \.$category
+      \.$account
+      \.$incomeCategory
+      \.$accountEnding
+    }
   }
 
   func perform() async throws -> some IntentResult {
-    await BankSmsService.shared.receive(smsText, accountId: account?.id, categoryId: category?.id)
+    await BankSmsService.shared.receive(smsText, accountId: account?.id, categoryId: category?.id,
+                                        incomeCategoryId: incomeCategory?.id, accountEnding: accountEnding)
     return .result()
   }
 }

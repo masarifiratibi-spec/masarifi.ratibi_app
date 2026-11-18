@@ -3,10 +3,12 @@ import {
   resolveClientRuntime
 } from '@/config/client-runtime';
 import { currentLocale, translate } from '@/localization/i18n';
+import { supportsAutomaticTrackingAccountType } from '@/domain/core-finance';
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useAppShellStore } from '@/state/app-shell';
 import { captureTrackingAdmission } from '@/state/tracking-admission';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
+import { VoiceCategoryPreferenceRepository } from '@/storage/voice-category-preference-repository';
 import { reconcileFinancialReset } from '../financial-generation';
 import { createLiveAccountService } from '../live/account-service';
 import {
@@ -14,7 +16,12 @@ import {
   readLogoutSessionAnchor
 } from '../live/auth-service';
 import { createLiveCategoryLifecycleService } from '../live/category-lifecycle-service';
-import { bankSmsNative, disableBankSmsForOwner } from './bank-sms-bridge.ios';
+import { knownMerchantCategories } from '../voice-category-service';
+import {
+  bankSmsNative,
+  disableBankSmsForOwner,
+  type BankSmsConfiguration
+} from './bank-sms-bridge.ios';
 
 async function scope() {
   const native = bankSmsNative();
@@ -69,8 +76,32 @@ export async function completeBankSmsSetup() {
   await current.assertCurrent();
 }
 
-export async function enableBankSms() {
+export async function enableBankSms(configuration?: BankSmsConfiguration) {
+  await publishBankSms(configuration, false);
+}
+
+export async function refreshEnabledBankSms() {
+  await publishBankSms(undefined, true);
+}
+
+function ending(value?: string) {
+  const digits = value
+    ?.trim()
+    .replace(/[٠-٩۰-۹]/g, (digit) =>
+      String(digit.charCodeAt(0) - (digit >= '۰' ? 0x06f0 : 0x0660))
+    );
+  if (digits && !/^\d{4}$/.test(digits)) throw Error('bank_sms_invalid_ending');
+  return digits || undefined;
+}
+
+async function publishBankSms(
+  configuration: BankSmsConfiguration | undefined,
+  refreshOnly: boolean
+) {
   const current = await scope();
+  const revision = await current.native.revision();
+  const previous = await current.native.status(current.owner, current.anchor);
+  if (refreshOnly && !previous.enabled) return;
   const actor = await captureLiveClerkIdentity();
   if (actor.userId !== current.owner || actor.sessionId !== current.anchor)
     throw Error('bank_sms_session_changed');
@@ -86,15 +117,58 @@ export async function enableBankSms() {
   };
   const { generation } = await reconcileFinancialReset(current.owner);
   await current.assertCurrent();
-  const revision = await current.native.revision();
   const accounts = createLiveAccountService({ assertActor });
   const categories = createLiveCategoryLifecycleService({ assertActor });
-  const [accountRows, categoryRows] = await Promise.all([
+  const [accountRows, categoryRows, merchantPreferences] = await Promise.all([
     accounts.listAccounts(),
-    categories.listCategories()
+    categories.listCategories(),
+    new VoiceCategoryPreferenceRepository().listActiveForOwner(current.owner)
   ]);
   await current.assertCurrent();
   const locale = currentLocale();
+  const activeCategories = categoryRows.filter(
+    (category) => category.status === 'active' && category.financialType
+  );
+  const activeAccounts = accountRows.filter(
+    (account) => account.status === 'active'
+  );
+  const defaults = configuration ?? previous.preferences;
+  const links =
+    configuration?.links ??
+    Object.fromEntries(
+      (previous.accounts ?? []).map((account) => [account.id, account])
+    );
+  const categoryId = (
+    kind: 'income' | 'expense',
+    key: string,
+    selected?: string
+  ) => {
+    const choices = activeCategories.filter(
+      (category) => category.financialType === kind
+    );
+    const category =
+      choices.find(
+        (choice) => categories.serverCategoryId(choice.id) === selected
+      ) ??
+      choices.find((choice) => choice.systemKey === key || choice.id === key) ??
+      choices[0];
+    return category ? categories.serverCategoryId(category.id) : undefined;
+  };
+  const merchants = Object.fromEntries(
+    [
+      ...Object.entries(knownMerchantCategories),
+      ...merchantPreferences.map(
+        ({ merchantKey, categoryId }) => [merchantKey, categoryId] as const
+      )
+    ].flatMap(([key, id]) => {
+      const category = activeCategories.find(
+        (choice) =>
+          choice.financialType === 'expense' &&
+          (choice.id === id || choice.systemKey === id)
+      );
+      return category ? [[key, categories.serverCategoryId(category.id)]] : [];
+    })
+  );
   await current.native.enable(
     JSON.stringify({
       owner: current.owner,
@@ -105,34 +179,54 @@ export async function enableBankSms() {
       title: translate('tracking.shortcut.transactionTitle'),
       savedNotificationBody: translate('tracking.bankSms.confirmed', locale),
       notificationLocale: locale,
-      accounts: accountRows
-        .filter((account) => account.status === 'active')
-        .map((account) => ({
+      refreshOnly,
+      preferences: {
+        expenseId: categoryId('expense', 'shopping', defaults?.expenseId),
+        incomeId: categoryId('income', 'other-income', defaults?.incomeId),
+        salaryId: categoryId('income', 'salary', defaults?.salaryId),
+        feeId: categoryId('expense', 'fees', defaults?.feeId),
+        merchants
+      },
+      accounts: activeAccounts.map((account) => {
+        const link = links[account.id];
+        return {
           id: account.id,
           name: account.name,
           kind: 'account',
           currency: account.currencyCode,
+          automaticRouting:
+            account.automaticTrackingEnabled &&
+            supportsAutomaticTrackingAccountType(account.type),
+          type: account.type,
+          lastFour: account.lastFour,
+          institution: account.institution,
+          accountEnding: ending(link?.accountEnding),
+          issuer: link?.issuer?.trim().slice(0, 64) || undefined,
+          cashAccountId: activeAccounts.find(
+            (candidate) =>
+              candidate.id === link?.cashAccountId &&
+              candidate.type === 'cash' &&
+              candidate.currencyCode === account.currencyCode
+          )?.id,
           minorUnitScale: getCurrencyMinorUnitScale(account.currencyCode)
-        })),
-      categories: categoryRows
-        .filter(
-          (category) => category.status === 'active' && category.financialType
-        )
-        .map((category) => ({
-          id: categories.serverCategoryId(category.id),
-          name: locale === 'ar' ? category.labelAr : category.labelEn,
-          nameAr: category.labelAr,
-          nameEn: category.labelEn,
-          kind: category.financialType
-        }))
+        };
+      }),
+      categories: activeCategories.map((category) => ({
+        id: categories.serverCategoryId(category.id),
+        name: locale === 'ar' ? category.labelAr : category.labelEn,
+        nameAr: category.labelAr,
+        nameEn: category.labelEn,
+        kind: category.financialType
+      }))
     })
   );
   try {
     await current.assertCurrent();
-    await createAppShellStorage().saveTrackingHomeCardDismissed(false);
+    if (!previous.enabled)
+      await createAppShellStorage().saveTrackingHomeCardDismissed(false);
     await current.assertCurrent();
   } catch (error) {
-    await disableBankSmsForOwner(current.owner);
+    if (!refreshOnly) await disableBankSmsForOwner(current.owner);
     throw error;
   }
 }

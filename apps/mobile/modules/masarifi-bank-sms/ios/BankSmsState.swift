@@ -5,9 +5,24 @@ struct BankSmsTarget: Codable, Equatable {
   let name: String
   let kind: String
   let currency: String?
+  let automaticRouting: Bool?
+  let lastFour: String?
+  let institution: String?
+  let type: String?
+  let accountEnding: String?
+  let issuer: String?
+  let cashAccountId: String?
   let minorUnitScale: Int?
   let nameAr: String?
   let nameEn: String?
+}
+
+struct BankSmsPreferences: Codable, Equatable {
+  let expenseId: String?
+  let incomeId: String?
+  let feeId: String?
+  let salaryId: String?
+  let merchants: [String: String]
 }
 
 struct BankSmsEnrollment: Codable, Equatable {
@@ -18,6 +33,7 @@ struct BankSmsEnrollment: Codable, Equatable {
   let epoch: UUID
   let accounts: [BankSmsTarget]
   let categories: [BankSmsTarget]
+  let preferences: BankSmsPreferences?
   let title: String
   let savedNotificationBody: String?
   var notificationLocale: String?
@@ -28,10 +44,21 @@ struct BankSmsCommand: Codable {
   let amountMinor: Int64
   let currency: String
   let accountId: String
-  let categoryId: String
+  let categoryId: String?
+  let destinationAccountId: String?
+  var original: BankSmsOriginal?
+  var originalVersionReady: Bool? = nil
+  var automatic: Bool? = nil
   let title: String
   let occurredAt: String
   var source: String = "platform_assisted"
+}
+
+struct BankSmsOriginal: Codable {
+  let id: UUID
+  let version: Int
+  let amountMinor: Int64
+  let currency: String
 }
 
 struct BankSmsDelivery: Codable {
@@ -41,11 +68,14 @@ struct BankSmsDelivery: Codable {
   let expires: Date
   let created: Date
   var pending: BankSmsCommand?
+  var bankReferenceDigest: String? = nil
+  var original: BankSmsOriginal? = nil
 }
 
 struct BankSmsState: Codable {
   var enrollment: BankSmsEnrollment?
   var owner: String?
+  var generation: Int?
   var deliveries: [BankSmsDelivery] = []
   var outcome: String?
   var lastSaved: Date?
