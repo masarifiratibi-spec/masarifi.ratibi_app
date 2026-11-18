@@ -1,11 +1,21 @@
 import Foundation
 
 enum BankSmsFailure: Error, Equatable {
-  case disabled, auth, generation, rejected, unavailable, receipt
+  case disabled, auth, recentAuth, generation, rejected, unavailable, receipt
 }
 
 private struct BankSmsRemoteError: Decodable {
   let code: String?
+}
+
+private struct BankSmsRemoteAccount: Decodable {
+  let id: String
+  let type: String
+  let currency: String
+  let status: String
+  let automaticTrackingEnabled: Bool
+  let lastFour: String?
+  let institutionName: String?
 }
 
 struct BankSmsRemoteGeneration: Decodable {
@@ -49,13 +59,14 @@ private final class RejectLedgerRedirects: NSObject, URLSessionTaskDelegate {
 
 struct BankSmsLedger {
   private let origin = URL(string: "https://api.masarifiratibi.com")!
-  private let http: URLSession = {
-    let config = URLSessionConfiguration.ephemeral
-    config.httpShouldSetCookies = false
-    config.timeoutIntervalForRequest = 8
-    config.timeoutIntervalForResource = 12
-    return URLSession(configuration: config, delegate: RejectLedgerRedirects(), delegateQueue: nil)
-  }()
+  private let http: URLSession
+
+  init(configuration: URLSessionConfiguration = .ephemeral) {
+    configuration.httpShouldSetCookies = false
+    configuration.timeoutIntervalForRequest = 8
+    configuration.timeoutIntervalForResource = 12
+    http = URLSession(configuration: configuration, delegate: RejectLedgerRedirects(), delegateQueue: nil)
+  }
 
   private func request(_ path: String, token: String) -> URLRequest {
     var request = URLRequest(url: origin.appendingPathComponent(path))
@@ -73,7 +84,10 @@ struct BankSmsLedger {
     guard let response = response as? HTTPURLResponse else { throw BankSmsFailure.unavailable }
     switch response.statusCode {
     case 200...299: return data
-    case 401, 403: throw BankSmsFailure.auth
+    case 401: throw BankSmsFailure.auth
+    case 403:
+      let code = (try? JSONDecoder().decode(BankSmsRemoteError.self, from: data))?.code
+      throw code == "RECENT_AUTH_REQUIRED" ? BankSmsFailure.recentAuth : BankSmsFailure.auth
     case 400, 404, 422: throw BankSmsFailure.rejected
     case 409:
       let code = (try? JSONDecoder().decode(BankSmsRemoteError.self, from: data))?.code
@@ -90,6 +104,16 @@ struct BankSmsLedger {
     let state = try JSONDecoder().decode(BankSmsRemoteGeneration.self, from: reply)
     guard state.status == "ready", state.generation >= 0 else { throw BankSmsFailure.unavailable }
     return state.generation
+  }
+
+  func checkAccount(_ admission: BankSmsAccountAdmission, currency: String, token: String) async throws {
+    let reply = try await data(request("api/v1/accounts/\(admission.id)", token: token))
+    let account = try JSONDecoder().decode(BankSmsRemoteAccount.self, from: reply)
+    guard account.id == admission.id, account.currency == currency, account.status == "active",
+          account.type == admission.type, account.lastFour == admission.lastFour,
+          account.institutionName == admission.institution,
+          account.type == "cash" || account.automaticTrackingEnabled
+    else { throw BankSmsFailure.rejected }
   }
 
   func currentOriginal(_ original: BankSmsOriginal, account: String, token: String) async throws -> BankSmsOriginal {
@@ -155,7 +179,8 @@ struct BankSmsLedger {
         }.resume()
       } catch { next.resume(throwing: error) }
     }
-    let detail = try JSONDecoder().decode(BankSmsLedgerResult.self, from: reply).transaction
+    guard let detail = (try? JSONDecoder().decode(BankSmsLedgerResult.self, from: reply))?.transaction
+    else { throw BankSmsFailure.receipt }
     let row = detail.transaction
     let commandDate = Self.date(command.occurredAt)
     guard row.status == "confirmed", row.kind == command.kind,

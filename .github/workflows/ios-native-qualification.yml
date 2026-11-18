@@ -7,6 +7,9 @@ on:
       - .github/workflows/ios-native-qualification.yml
       - apps/mobile/modules/masarifi-bank-sms/ios/BankSmsSavedNotice.swift
       - apps/mobile/scripts/fixtures/bank-sms-saved-notice.swift
+      - apps/mobile/scripts/fixtures/bank-sms-ledger.swift
+      - apps/mobile/modules/masarifi-bank-sms/ios/BankSmsLedger.swift
+      - apps/mobile/modules/masarifi-bank-sms/ios/BankSmsState.swift
       - apps/mobile/scripts/test-bank-sms-notification.cjs
   workflow_dispatch:
     inputs:
@@ -45,6 +48,12 @@ jobs:
         env:
           EAS_BUILD_PLATFORM: ios
         run: node apps/mobile/scripts/test-bank-sms-notification.cjs
+      - name: Check native ledger request and receipt contracts
+        run: |
+          root=apps/mobile/modules/masarifi-bank-sms/ios
+          xcrun swiftc "$root/BankSmsState.swift" "$root/BankSmsLedger.swift" \
+            apps/mobile/scripts/fixtures/bank-sms-ledger.swift -o "$RUNNER_TEMP/bank-sms-ledger-tests"
+          "$RUNNER_TEMP/bank-sms-ledger-tests"
 
   device-compile:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app && !inputs.export_ad_hoc

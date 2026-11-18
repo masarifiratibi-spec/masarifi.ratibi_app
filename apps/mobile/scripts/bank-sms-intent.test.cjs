@@ -86,10 +86,10 @@ test('native save alerts run after successful settlement and use the receipt ID'
   );
   assert.match(
     service,
-    /try settle\(delivery, enrollment: enrollment, transactionId: id, receipt: receipt\)\s+await notifySaved\(id, command: command, enrollment: enrollment\)/
+    /try settle\(delivery, enrollment: enrollment, notice: notice, receipt: receipt\)\s+await deliverNotice\(delivery.key, enrollment: enrollment\)/
   );
   assert.equal([...service.matchAll(/await notifySaved\(/g)].length, 1);
-  assert.match(service, /identifier: "bank-sms-saved-\\\(transactionId\./);
+  assert.match(service, /let identifier = "bank-sms-saved-\\\(transactionId\./);
 });
 
 test('iOS config copies the intent and the parser into the main application build phases once', async () => {
@@ -209,6 +209,12 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   };
   const purchase = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', 'expense', 'bank', 'restaurant');
   assert.equal(purchase.bankReference, 'QA00001');
+  const recast = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 account XX7373 Ref: qa00001', 'expense', 'bank', 'restaurant');
+  const fresh = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00999', 'expense', 'bank', 'restaurant');
+  const unrelated = route('QABETA Purchase SAR 12.34 at QA Cafe card XX8181 Ref: QA00001', 'expense', 'other', 'restaurant');
+  assert.equal(purchase.stableReferenceIdentity, recast.stableReferenceIdentity);
+  assert.notEqual(purchase.stableReferenceIdentity, fresh.stableReferenceIdentity);
+  assert.notEqual(purchase.stableReferenceIdentity, unrelated.stableReferenceIdentity);
   route('QABETA شراء بمبلغ ١٢٫٣٤ SAR لدى متجر تجريبي بطاقة XX٨١٨١', 'expense', 'other', 'expense');
   route('QAALFA شراء SAR 18.41 لدى أرامكو بطاقة XX4242', 'expense', 'bank', 'fee');
   route('QAUAE Card purchase AED 12.34 at QA SHOP card XX4242', 'expense', 'uae', 'expense');
@@ -224,6 +230,7 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   const sender = route('QAALFA Outgoing transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA00002', 'transfer', 'bank', null, 'other');
   const receiver = route('QABETA Incoming transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA00002', 'transfer', 'bank', null, 'other');
   assert.equal(sender.referenceIdentity, receiver.referenceIdentity);
+  assert.equal(sender.stableReferenceIdentity, receiver.stableReferenceIdentity);
   route('Outgoing external transfer SAR 19.23 from account XX7373 Ref: QA00004', 'expense', 'bank', 'expense');
   route('Incoming external transfer SAR 19.23 to account XX7373 Ref: QA00005', 'income', 'bank', 'income');
   const refund = route('Refund SAR 2.50 to card XX4242 original reference QA00001 Ref: QA00003', 'refund', 'bank');
@@ -234,6 +241,12 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     'QABETA Purchase SAR 12.34 at QA SHOP card XX4242',
     'Purchase SAR 12.34 at QA SHOP',
     'Cash deposit EGP 19.22 to account XX4242',
+    'Bill payment SAR 12.34 to account XX7373',
+    'Bill payment SAR 12.34 for account XX7373',
+    'Cash deposit SAR 20.35 from third party to account XX7373 Ref: QA001236',
+    'Cash deposit SAR 20.35 from account XX7373 Ref: QA001238',
+    'QAALFA Outgoing external transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA001235',
+    'Outgoing transfer SAR 19.23 from account XX7373 Ref: QA001237 not an external transfer',
     'Deposit EGP 19.22 to account XX4242',
     'Outgoing transfer SAR 19.23 from account XX7373 to account XX9292',
     'Outgoing transfer SAR 19.23 from account XX7373 Ref: QA00002',
@@ -247,6 +260,8 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   ]) assert.equal(parse(expectedSkip), null, expectedSkip);
   assert.equal(parse('Cash withdrawal SAR 19.21 from account XX7373', { accounts: accounts.filter(a => a.id !== 'cash') }), null);
   assert.equal(parse('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', { categoryId: 'fee' }).categoryId, 'fee');
+  assert.equal(parse('Salary SAR 51.13 credited to account XX7373', { accountId: 'bank', categoryId: 'expense' }), null);
+  assert.equal(parse('Purchase SAR 12.34 at QA SHOP', { accounts: [accounts[0]], accountId: 'bank', categoryId: 'expense' }).accountId, 'bank');
 });
 
 test('checks the shared Saudi, Emirati, and Egyptian fixtures against enrolled account routing', () => {

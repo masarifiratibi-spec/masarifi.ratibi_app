@@ -76,12 +76,36 @@ export async function completeBankSmsSetup() {
   await current.assertCurrent();
 }
 
-export async function enableBankSms(configuration?: BankSmsConfiguration) {
-  await publishBankSms(configuration, false);
+let configurationQueue = Promise.resolve();
+let configurationRevision = 0;
+
+function serializeConfiguration(
+  configuration: BankSmsConfiguration | undefined,
+  refreshOnly: boolean
+) {
+  // Capture the owner and consent generation before waiting behind a refresh.
+  const requested = scope();
+  const requestedRevision = configurationRevision;
+  const assertRequested = () => {
+    if (requestedRevision !== configurationRevision)
+      throw Error('bank_sms_disabled');
+  };
+  const pending = configurationQueue.then(async () => {
+    const current = await requested;
+    assertRequested();
+    await publishBankSms(current, configuration, refreshOnly, assertRequested);
+  });
+  void requested.catch(() => undefined);
+  configurationQueue = pending.catch(() => undefined);
+  return pending;
 }
 
-export async function refreshEnabledBankSms() {
-  await publishBankSms(undefined, true);
+export function enableBankSms(configuration?: BankSmsConfiguration) {
+  return serializeConfiguration(configuration, false);
+}
+
+export function refreshEnabledBankSms() {
+  return serializeConfiguration(undefined, true);
 }
 
 function ending(value?: string) {
@@ -95,10 +119,12 @@ function ending(value?: string) {
 }
 
 async function publishBankSms(
+  current: Awaited<ReturnType<typeof scope>>,
   configuration: BankSmsConfiguration | undefined,
-  refreshOnly: boolean
+  refreshOnly: boolean,
+  assertRequested: () => void
 ) {
-  const current = await scope();
+  await current.assertCurrent();
   const revision = await current.native.revision();
   const previous = await current.native.status(current.owner, current.anchor);
   if (refreshOnly && !previous.enabled) return;
@@ -169,6 +195,7 @@ async function publishBankSms(
       return category ? [[key, categories.serverCategoryId(category.id)]] : [];
     })
   );
+  assertRequested();
   await current.native.enable(
     JSON.stringify({
       owner: current.owner,
@@ -232,6 +259,7 @@ async function publishBankSms(
 }
 
 export async function disableBankSms() {
+  configurationRevision++;
   const current = await scope();
   await current.assertCurrent();
   await disableBankSmsForOwner(current.owner);

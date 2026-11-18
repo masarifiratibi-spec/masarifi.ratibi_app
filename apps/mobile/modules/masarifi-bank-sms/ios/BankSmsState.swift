@@ -39,6 +39,26 @@ struct BankSmsEnrollment: Codable, Equatable {
   var notificationLocale: String?
 }
 
+struct BankSmsAccountAdmission: Codable, Equatable {
+  let id: String
+  let type: String?
+  let lastFour: String?
+  let institution: String?
+  let accountEnding: String?
+  let issuer: String?
+  let cashAccountId: String?
+
+  init(_ target: BankSmsTarget) {
+    id = target.id
+    type = target.type
+    lastFour = target.lastFour
+    institution = target.institution
+    accountEnding = target.accountEnding
+    issuer = target.issuer
+    cashAccountId = target.cashAccountId
+  }
+}
+
 struct BankSmsCommand: Codable {
   let kind: String
   let amountMinor: Int64
@@ -47,8 +67,10 @@ struct BankSmsCommand: Codable {
   let categoryId: String?
   let destinationAccountId: String?
   var original: BankSmsOriginal?
+  var originalReferenceDigest: String? = nil
   var originalVersionReady: Bool? = nil
   var automatic: Bool? = nil
+  var accountAdmission: [BankSmsAccountAdmission]? = nil
   let title: String
   let occurredAt: String
   var source: String = "platform_assisted"
@@ -61,6 +83,11 @@ struct BankSmsOriginal: Codable {
   let currency: String
 }
 
+struct BankSmsPendingNotice: Codable {
+  let transactionId: UUID
+  let command: BankSmsCommand
+}
+
 struct BankSmsDelivery: Codable {
   let key: UUID
   let textDigest: String
@@ -68,6 +95,8 @@ struct BankSmsDelivery: Codable {
   let expires: Date
   let created: Date
   var pending: BankSmsCommand?
+  var pendingNotice: BankSmsPendingNotice? = nil
+  var stableReferenceDigest: String? = nil
   var bankReferenceDigest: String? = nil
   var original: BankSmsOriginal? = nil
 }

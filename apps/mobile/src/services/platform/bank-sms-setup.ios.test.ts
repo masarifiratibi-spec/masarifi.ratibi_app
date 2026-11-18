@@ -169,3 +169,49 @@ it('saves explicit account bindings and preserves completed setup during refresh
   });
   expect((await readBankSmsSetup()).setupCompleted).toBe(true);
 });
+
+it('serializes explicit account settings behind an in-flight background refresh', async () => {
+  let finishRefresh!: () => void;
+  const refreshReply = new Promise<void>(resolve => { finishRefresh = resolve; });
+  let started!: () => void;
+  const refreshStarted = new Promise<void>(resolve => { started = resolve; });
+  const nativeEnable = jest.spyOn(mockNative, 'enable')
+    .mockImplementationOnce(async () => { started(); await refreshReply; });
+  try {
+    const refresh = refreshEnabledBankSms();
+    await refreshStarted;
+    const save = enableBankSms({ links: { account: { accountEnding: '1234' } } });
+    expect(nativeEnable).toHaveBeenCalledTimes(1);
+    finishRefresh();
+    await Promise.all([refresh, save]);
+    expect(nativeEnable).toHaveBeenCalledTimes(2);
+    expect(setup).toMatchObject({
+      refreshOnly: false,
+      accounts: [{ id: 'account', accountEnding: '1234' }]
+    });
+  } finally {
+    finishRefresh();
+    nativeEnable.mockRestore();
+  }
+});
+
+it('drops queued setup writes when the user turns capture off', async () => {
+  let finishRefresh!: () => void;
+  const refreshReply = new Promise<void>(resolve => { finishRefresh = resolve; });
+  let started!: () => void;
+  const refreshStarted = new Promise<void>(resolve => { started = resolve; });
+  const nativeEnable = jest.spyOn(mockNative, 'enable')
+    .mockImplementationOnce(async () => { started(); await refreshReply; });
+  try {
+    const refresh = refreshEnabledBankSms();
+    await refreshStarted;
+    const save = expect(enableBankSms()).rejects.toThrow('bank_sms_disabled');
+    await disableBankSms();
+    finishRefresh();
+    await Promise.all([refresh, save]);
+    expect(nativeEnable).toHaveBeenCalledTimes(1);
+  } finally {
+    finishRefresh();
+    nativeEnable.mockRestore();
+  }
+});
