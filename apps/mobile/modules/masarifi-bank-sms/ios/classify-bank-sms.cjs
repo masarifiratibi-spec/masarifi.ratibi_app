@@ -1,8 +1,8 @@
 const { defaultSnapshot, discoverFinancialMessage, normalizeFinancialText } = require('./parser');
 
 const transferAliases = {
-  'action.transfer.sent': ['outgoing external transfer', 'تحويل خارجي صادر', 'حوالة خارجية صادرة'],
-  'action.transfer.received': ['incoming external transfer', 'تحويل خارجي وارد', 'حوالة خارجية واردة']
+  'action.transfer.sent': ['outgoing external transfer', 'تحويل خارجي صادر', 'حوالة خارجية صادرة', 'حوالة صادرة'],
+  'action.transfer.received': ['incoming external transfer', 'تحويل خارجي وارد', 'حوالة خارجية واردة', 'حوالة واردة']
 };
 const snapshot = {
   ...defaultSnapshot,
@@ -19,7 +19,16 @@ const evidenceRequired = {
 };
 const words = value => normalizeFinancialText(value).toLowerCase().match(/[\p{L}\p{N}]+/gu)?.join(' ') || '';
 const issuer = account => words(account.issuer || account.institution || '');
-const merchantKey = value => value.trim().toLocaleLowerCase('en').normalize('NFKC').replace(/\s+/g, ' ');
+const merchantKey = value => normalizeFinancialText(value).toLowerCase();
+
+function merchantCategory(merchant, categories) {
+  if (!merchant || !categories) return undefined;
+  const key = merchantKey(merchant);
+  const matches = new Set(Object.entries(categories)
+    .filter(([label]) => merchantKey(label) === key)
+    .map(([, id]) => id));
+  return matches.size === 1 ? matches.values().next().value : undefined;
+}
 
 function resolveHints(accounts, hints, selected) {
   if (!hints.length) return null;
@@ -44,7 +53,7 @@ function categoryFor(c, kind, merchant, routing) {
   const explicit = kind === 'income' ? routing.incomeCategoryId || routing.categoryId : routing.categoryId;
   const configured = kind === 'income'
     ? [explicit, c.subtype === 'salary' && preferences?.salaryId, preferences?.incomeId]
-    : [explicit, c.subtype === 'fee' && preferences?.feeId, merchant && preferences?.merchants?.[merchantKey(merchant)], preferences?.expenseId];
+    : [explicit, c.subtype === 'fee' && preferences?.feeId, merchantCategory(merchant, preferences?.merchants), preferences?.expenseId];
   return configured.find(id => id && routing.categories.some(category => category.id === id && category.kind === kind));
 }
 
@@ -146,7 +155,7 @@ module.exports = function classifyBankSms(text, receivedAt, timeZone, routing) {
     c.subtype === 'salary' ? 'income' : expenses.filter(subtype => subtype !== 'bill_payment').includes(c.subtype) ? 'expense' : null;
   if (!kind) return null;
   const merchant = expenses.includes(c.subtype) && c.subtype !== 'fee'
-    ? c.merchant?.split(/\s+(?:ref\.?|reference|الرقم المرجعي)\s*[:#]?/iu)[0].trim() || null : null;
+    ? c.merchant?.split(/\s+(?:ref\.?|reference|الرقم المرجعي)(?=\s|[:#]|$)|\s+(?:ب?بطاقة|حساب)\s*[:#-]?\s*[x*•]*\d{4,12}/iu)[0].trim() || null : null;
   const categoryId = routing?.categories && ['expense', 'income'].includes(kind)
     ? categoryFor(c, kind, merchant, routing) : null;
   if (routing?.categories && ['expense', 'income'].includes(kind) && !categoryId) return null;

@@ -194,7 +194,7 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     ...['expense', 'fee', 'restaurant'].map(id => ({ id, kind: 'expense' })),
     ...['income', 'salary'].map(id => ({ id, kind: 'income' }))
   ];
-  const preferences = { expenseId: 'expense', incomeId: 'income', feeId: 'fee', salaryId: 'salary', merchants: { 'qa cafe': 'restaurant' } };
+  const preferences = { expenseId: 'expense', incomeId: 'income', feeId: 'fee', salaryId: 'salary', merchants: { 'qa cafe': 'restaurant', 'أرامكو': 'fee' } };
   const parse = (text, overrides = {}) => context.masarifiClassifyBankSms(
     text, captureAt, 'Asia/Riyadh', { accounts, categories, preferences, ...overrides }
   );
@@ -210,6 +210,7 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   const purchase = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', 'expense', 'bank', 'restaurant');
   assert.equal(purchase.bankReference, 'QA00001');
   route('QABETA شراء بمبلغ ١٢٫٣٤ SAR لدى متجر تجريبي بطاقة XX٨١٨١', 'expense', 'other', 'expense');
+  route('QAALFA شراء SAR 18.41 لدى أرامكو بطاقة XX4242', 'expense', 'bank', 'fee');
   route('QAUAE Card purchase AED 12.34 at QA SHOP card XX4242', 'expense', 'uae', 'expense');
   route('QAUAE Bill payment AED 12.34 from account XX4242', 'expense', 'uae', 'expense');
   route('Salary SAR 51.13 credited to account XX7373', 'income', 'bank', 'salary');
