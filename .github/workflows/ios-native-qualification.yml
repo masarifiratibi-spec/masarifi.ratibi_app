@@ -90,7 +90,7 @@ jobs:
             -configuration Release -destination 'generic/platform=iOS' \
             -derivedDataPath "$output" CODE_SIGNING_ALLOWED=NO build \
             > "$RUNNER_TEMP/masarifi-xcodebuild.log" 2>&1; then
-            rg -n 'error:|\*\* BUILD FAILED \*\*' "$RUNNER_TEMP/masarifi-xcodebuild.log" | tail -n 60 || true
+            grep -En 'error:|\*\* BUILD FAILED \*\*' "$RUNNER_TEMP/masarifi-xcodebuild.log" | tail -n 60 || true
             tail -n 30 "$RUNNER_TEMP/masarifi-xcodebuild.log"
             exit 1
           fi
