@@ -23,6 +23,7 @@ import {
 } from '@/localization/i18n';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
 import {
+  completeBankSmsSetup,
   disableBankSms,
   enableBankSms,
   readBankSmsSetup
@@ -166,7 +167,16 @@ function ShortcutSetup() {
   async function next() {
     if (!enabled || busy) return;
     if (step === lastStep) {
-      router.replace('/(tabs)/home');
+      setBusy(true);
+      setError(undefined);
+      try {
+        await completeBankSmsSetup();
+        router.replace('/(tabs)/home');
+      } catch {
+        setError('tracking.bankSms.setupFailed');
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (step > 0) {

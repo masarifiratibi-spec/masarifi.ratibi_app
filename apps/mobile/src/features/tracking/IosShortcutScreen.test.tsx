@@ -5,6 +5,7 @@ import IosShortcutScreen from './IosShortcutScreen.ios';
 import { resolveTheme } from '@/design-system/theme';
 import { changeLocale } from '@/localization/i18n';
 import {
+  completeBankSmsSetup,
   disableBankSms,
   enableBankSms,
   readBankSmsSetup
@@ -14,6 +15,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 
 jest.mock('@/services/platform/bank-sms-setup.ios', () => ({
+  completeBankSmsSetup: jest.fn(),
   disableBankSms: jest.fn(),
   enableBankSms: jest.fn(),
   readBankSmsSetup: jest.fn()
@@ -23,7 +25,8 @@ const enable = jest.mocked(enableBankSms);
 const disable = jest.mocked(disableBankSms);
 
 beforeEach(() => {
-  readStatus.mockReset().mockResolvedValue({ enabled: false, pending: 0 });
+  jest.mocked(completeBankSmsSetup).mockReset().mockResolvedValue(undefined);
+  readStatus.mockReset().mockResolvedValue({ enabled: false, pending: 0, setupCompleted: false });
   enable.mockReset().mockResolvedValue(undefined);
   disable.mockReset().mockResolvedValue(undefined);
   jest.replaceProperty(Platform, 'OS', 'ios');
@@ -58,7 +61,7 @@ it('puts notifications first and guides four stages without the status dashboard
   await screen.findByText('Notifications are on.');
   expect(allowAlerts).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
+  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
   fireEvent.press(
     screen.getByRole('switch', { name: /Allow transaction recording/ })
   );
@@ -102,11 +105,12 @@ it('puts notifications first and guides four stages without the status dashboard
     expect(screen.queryByRole('button', { name })).toBeNull();
   }
   fireEvent.press(screen.getByRole('button', { name: 'Done' }));
-  expect(done).toHaveBeenCalledWith('/(tabs)/home');
+  await waitFor(() => expect(done).toHaveBeenCalledWith('/(tabs)/home'));
+  expect(completeBankSmsSetup).toHaveBeenCalledTimes(1);
 });
 
 it('opens Settings after permanent denial without blocking capture setup', async () => {
-  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
+  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
   jest
     .mocked(phoneNotificationService.getPermission)
     .mockResolvedValue('permanently_denied');
@@ -125,6 +129,7 @@ it('starts from stage one for returning users and keeps consent reversible there
   readStatus.mockResolvedValue({
     enabled: true,
     pending: 0,
+    setupCompleted: false,
     lastSaved: Date.UTC(2026, 10, 17),
     outcome: 'saved'
   });
@@ -142,7 +147,7 @@ it('starts from stage one for returning users and keeps consent reversible there
   expect(
     screen.queryByText('A transaction from Shortcuts was saved.')
   ).toBeNull();
-  readStatus.mockResolvedValue({ enabled: false, pending: 0 });
+  readStatus.mockResolvedValue({ enabled: false, pending: 0, setupCompleted: false });
   fireEvent.press(screen.getByRole('switch'));
   await waitFor(() =>
     expect(screen.getByRole('switch')).toHaveAccessibilityState({
@@ -156,7 +161,7 @@ it('starts from stage one for returning users and keeps consent reversible there
 it('retries a failed setup read without hiding the notification link or granting consent', async () => {
   readStatus
     .mockRejectedValueOnce(new Error('unavailable'))
-    .mockResolvedValue({ enabled: true, pending: 0 });
+    .mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
   renderWithProviders(<IosShortcutScreen />);
   const retry = await screen.findByRole('button', { name: 'Try again' });
   expect(
@@ -174,7 +179,7 @@ it('retries a failed setup read without hiding the notification link or granting
 
 it('keeps the older iOS Automation-tab instructions and Run Immediately option', async () => {
   jest.spyOn(Platform, 'Version', 'get').mockReturnValue('18.0');
-  readStatus.mockResolvedValue({ enabled: true, pending: 0 });
+  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
   renderWithProviders(<IosShortcutScreen />);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()

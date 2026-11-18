@@ -6,6 +6,7 @@ import { currentLocale, translate } from '@/localization/i18n';
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useAppShellStore } from '@/state/app-shell';
 import { captureTrackingAdmission } from '@/state/tracking-admission';
+import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { reconcileFinancialReset } from '../financial-generation';
 import { createLiveAccountService } from '../live/account-service';
 import {
@@ -52,8 +53,20 @@ async function scope() {
 export async function readBankSmsSetup() {
   const current = await scope();
   const state = await current.native.status(current.owner, current.anchor);
+  const setupCompleted = await createAppShellStorage()
+    .loadTrackingHomeCardDismissed()
+    .catch(() => false);
   await current.assertCurrent();
-  return state;
+  return { ...state, setupCompleted };
+}
+
+export async function completeBankSmsSetup() {
+  const current = await scope();
+  const state = await current.native.status(current.owner, current.anchor);
+  await current.assertCurrent();
+  if (!state.enabled) throw Error('bank_sms_unavailable');
+  await createAppShellStorage().saveTrackingHomeCardDismissed(true);
+  await current.assertCurrent();
 }
 
 export async function enableBankSms() {
@@ -116,6 +129,8 @@ export async function enableBankSms() {
   );
   try {
     await current.assertCurrent();
+    await createAppShellStorage().saveTrackingHomeCardDismissed(false);
+    await current.assertCurrent();
   } catch (error) {
     await disableBankSmsForOwner(current.owner);
     throw error;
@@ -126,4 +141,6 @@ export async function disableBankSms() {
   const current = await scope();
   await current.assertCurrent();
   await disableBankSmsForOwner(current.owner);
+  await current.assertCurrent();
+  await createAppShellStorage().saveTrackingHomeCardDismissed(false);
 }

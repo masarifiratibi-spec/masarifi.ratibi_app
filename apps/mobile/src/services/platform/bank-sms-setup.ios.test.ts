@@ -1,10 +1,12 @@
 import { changeLocale } from '@/localization/i18n';
-import { enableBankSms } from './bank-sms-setup.ios';
+import { completeBankSmsSetup, disableBankSms, enableBankSms, readBankSmsSetup } from './bank-sms-setup.ios';
 import { synchronizeBankSmsNotificationLocale } from './bank-sms-notice-locale.ios';
 
 let setup: Record<string, unknown>;
 let notificationLocale: string | undefined;
+let mockCompleted = false;
 const mockNative = {
+  status: jest.fn(async () => ({ enabled: true, pending: 0 })),
   revision: async () => 0,
   enable: async (json: string) => {
     setup = JSON.parse(json);
@@ -18,6 +20,13 @@ const mockNative = {
   }
 };
 let mockSession = { status: 'authenticated', userId: 'owner' };
+
+jest.mock('@/storage/app-shell-storage', () => ({
+  createAppShellStorage: () => ({
+    loadTrackingHomeCardDismissed: async () => mockCompleted,
+    saveTrackingHomeCardDismissed: async (completed: boolean) => { mockCompleted = completed; }
+  })
+}));
 
 jest.mock('./bank-sms-bridge.ios', () => ({
   bankSmsNative: () => mockNative,
@@ -70,9 +79,26 @@ jest.mock('../live/category-lifecycle-service', () => ({
 }));
 
 beforeEach(() => {
+  mockCompleted = false;
+  mockNative.status.mockReset().mockResolvedValue({ enabled: true, pending: 0 });
   changeLocale('ar');
   notificationLocale = undefined;
   mockSession = { status: 'authenticated', userId: 'owner' };
+});
+
+it('persists completion only after finishing the enabled guide and clears it on disabling', async () => {
+  await enableBankSms();
+  expect((await readBankSmsSetup()).setupCompleted).toBe(false);
+  await completeBankSmsSetup();
+  expect((await readBankSmsSetup()).setupCompleted).toBe(true);
+  await disableBankSms();
+  expect((await readBankSmsSetup()).setupCompleted).toBe(false);
+});
+
+it('requires capture consent before recording guide completion', async () => {
+  mockNative.status.mockResolvedValue({ enabled: false, pending: 0 });
+  await expect(completeBankSmsSetup()).rejects.toThrow('bank_sms_unavailable');
+  expect(mockCompleted).toBe(false);
 });
 
 it('publishes the app locale, both category labels and the currency scale for native save notices', async () => {
