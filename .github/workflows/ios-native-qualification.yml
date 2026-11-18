@@ -14,6 +14,18 @@ on:
         description: Compile the full iOS app for a physical device without signing
         type: boolean
         default: false
+      export_ad_hoc:
+        description: Export one signed Ad Hoc build from the protected signing environment
+        type: boolean
+        default: false
+      ios_build_number:
+        description: Build number for a signed Ad Hoc export
+        type: string
+        required: false
+      recipient_certificate:
+        description: Base64 public certificate for encrypting the IPA
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -35,7 +47,7 @@ jobs:
         run: node apps/mobile/scripts/test-bank-sms-notification.cjs
 
   device-compile:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app && !inputs.export_ad_hoc
     runs-on: macos-15
     timeout-minutes: 35
     defaults:
@@ -57,20 +69,7 @@ jobs:
       - name: Load the existing Ad Hoc build configuration
         run: |
           xcodebuild -version
-          node <<'NODE'
-          const { appendFileSync } = require('node:fs');
-          const { build } = require('./eas.json');
-          const profile = build['ios-ad-hoc'];
-          if (profile.extends !== 'production' || profile.distribution !== 'internal') {
-            throw new Error('Unexpected iOS Ad Hoc profile');
-          }
-          for (const [key, value] of Object.entries({ ...build.production.env, ...profile.env })) {
-            if (!/^(EXPO_PUBLIC_|MASARIFI_)[A-Z0-9_]+$/.test(key) || /[\r\n]/.test(value)) {
-              throw new Error('Unexpected profile variable');
-            }
-            appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
-          }
-          NODE
+          node scripts/load-ios-ad-hoc-build-env.cjs
       - name: Install the locked dependencies
         run: |
           npm run eas-build-pre-install
@@ -103,3 +102,55 @@ jobs:
           test -s "$app/main.jsbundle"
           test -d "$app/Metadata.appintents"
           printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"
+
+  ad-hoc-export:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.export_ad_hoc
+    needs: notice
+    environment: ios-ad-hoc-signing
+    concurrency:
+      group: ios-ad-hoc-signing
+      cancel-in-progress: false
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+        shell: bash
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      EAS_BUILD_PLATFORM: ios
+      EAS_BUILD_PROFILE: ios-ad-hoc
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+      - name: Load the existing Ad Hoc build configuration
+        run: |
+          xcodebuild -version
+          node scripts/load-ios-ad-hoc-build-env.cjs
+      - name: Generate the iOS project from locked dependencies
+        run: |
+          npm run eas-build-pre-install
+          npm ci --no-audit --no-fund
+          npx --no-install expo prebuild --platform ios --no-install
+          pod install --project-directory=ios
+      - name: Sign, verify and encrypt the IPA
+        env:
+          IOS_CERT_P12_B64: ${{ secrets.IOS_CERT_P12_B64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROFILE_B64: ${{ secrets.IOS_PROFILE_B64 }}
+          IOS_BUILD_NUMBER: ${{ inputs.ios_build_number }}
+          RECIPIENT_CERT_B64: ${{ inputs.recipient_certificate }}
+        run: bash scripts/export-ios-ad-hoc-on-mac.sh
+      - name: Save the encrypted IPA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-masarifi-ios-ad-hoc
+          path: ${{ runner.temp }}/Masarifi.ipa.p7m
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
