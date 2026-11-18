@@ -9,6 +9,11 @@ on:
       - apps/mobile/scripts/fixtures/bank-sms-saved-notice.swift
       - apps/mobile/scripts/test-bank-sms-notification.cjs
   workflow_dispatch:
+    inputs:
+      compile_app:
+        description: Compile the full iOS app for a physical device without signing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,3 +33,73 @@ jobs:
         env:
           EAS_BUILD_PLATFORM: ios
         run: node apps/mobile/scripts/test-bank-sms-notification.cjs
+
+  device-compile:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app
+    runs-on: macos-15
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/mobile
+        shell: bash
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      EAS_BUILD_PLATFORM: ios
+      EAS_BUILD_PROFILE: ios-ad-hoc
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+      - name: Load the existing Ad Hoc build configuration
+        run: |
+          xcodebuild -version
+          node <<'NODE'
+          const { appendFileSync } = require('node:fs');
+          const { build } = require('./eas.json');
+          const profile = build['ios-ad-hoc'];
+          if (profile.extends !== 'production' || profile.distribution !== 'internal') {
+            throw new Error('Unexpected iOS Ad Hoc profile');
+          }
+          for (const [key, value] of Object.entries({ ...build.production.env, ...profile.env })) {
+            if (!/^(EXPO_PUBLIC_|MASARIFI_)[A-Z0-9_]+$/.test(key) || /[\r\n]/.test(value)) {
+              throw new Error('Unexpected profile variable');
+            }
+            appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          }
+          NODE
+      - name: Install the locked dependencies
+        run: |
+          npm run eas-build-pre-install
+          npm ci --no-audit --no-fund
+      - name: Generate the iOS project and install CocoaPods
+        run: |
+          npx --no-install expo prebuild --platform ios --no-install
+          pod install --project-directory=ios
+      - name: Compile the Release app for iPhone
+        run: |
+          shopt -s nullglob
+          workspaces=(ios/*.xcworkspace)
+          [[ "${#workspaces[@]}" -eq 1 ]]
+          scheme="$(basename "${workspaces[0]}" .xcworkspace)"
+          output="$RUNNER_TEMP/masarifi-ios-build"
+          started="$SECONDS"
+          if ! xcodebuild -workspace "${workspaces[0]}" -scheme "$scheme" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$output" CODE_SIGNING_ALLOWED=NO build \
+            > "$RUNNER_TEMP/masarifi-xcodebuild.log" 2>&1; then
+            rg -n 'error:|\*\* BUILD FAILED \*\*' "$RUNNER_TEMP/masarifi-xcodebuild.log" | tail -n 60 || true
+            tail -n 30 "$RUNNER_TEMP/masarifi-xcodebuild.log"
+            exit 1
+          fi
+          apps=("$output"/Build/Products/Release-iphoneos/*.app)
+          [[ "${#apps[@]}" -eq 1 ]]
+          app="${apps[0]}"
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" == 'com.masarifi.mobile' ]]
+          test -s "$app/MasarifiBankSmsParser.js"
+          test -s "$app/main.jsbundle"
+          test -d "$app/Metadata.appintents"
+          printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"
