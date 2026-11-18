@@ -93,8 +93,8 @@ public struct BankSmsChoice: Sendable {
                                        generation: generation,
                                        epoch: matching?.epoch ?? UUID(),
                                        accounts: accounts,
-                                       categories: categories, title: title, savedNotificationBody: savedNotificationBody,
-                                       notificationLocale: notificationLocale, preferences: preferences)
+                                       categories: categories, preferences: preferences, title: title, savedNotificationBody: savedNotificationBody,
+                                       notificationLocale: notificationLocale)
     _ = try await refreshSession(enrollment)
     guard self.revision == revision else { throw BankSmsFailure.disabled }
     var state = try store.load()
