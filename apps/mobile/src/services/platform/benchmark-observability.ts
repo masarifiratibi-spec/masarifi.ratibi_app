@@ -27,6 +27,11 @@ export const performanceStages = [
   'ledger.today',
   'storage.draft.read',
   'storage.draft.write',
+  'tracking.mode',
+  'tracking.deviceRegistration',
+  'tracking.installation',
+  'tracking.sourceSave',
+  'tracking.confirmed',
   'sync.core'
 ] as const;
 export type PerformanceStage = (typeof performanceStages)[number];

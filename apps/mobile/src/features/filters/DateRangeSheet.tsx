@@ -525,10 +525,7 @@ function BackAction({
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
-      style={[
-        styles.back,
-        { alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start' }
-      ]}
+      style={[styles.back, { alignSelf: 'flex-start' }]}
     >
       <DesignIcon
         name="back"

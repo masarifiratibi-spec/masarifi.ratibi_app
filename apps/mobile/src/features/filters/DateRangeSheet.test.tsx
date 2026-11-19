@@ -171,7 +171,7 @@ it('renders the 7 date range options in Arabic RTL with instruction text', () =>
 
   fireEvent.press(screen.getByTestId('date-period-option-custom'));
   expect(screen.getByLabelText('رجوع')).toHaveStyle({
-    alignSelf: 'flex-end'
+    alignSelf: 'flex-start'
   });
 });
 

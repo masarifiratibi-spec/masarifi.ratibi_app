@@ -1,3 +1,7 @@
+import {
+  measurePerformance,
+  recordPerformanceTiming
+} from '@/services/platform/performance-timing';
 import React, {
   useCallback,
   useEffect,
@@ -302,6 +306,7 @@ function TrackingStatusContent() {
 
   function queueSourceChange(source: 'sms' | 'notification', enabled: boolean) {
     if (updating) return;
+    const started = performance.now();
     const request = ++sourceCommands.requests[source];
     const configurationRequest = ++sourceCommands.configurationRequest;
     const admissionRevision = sourceCommands.admissionRevision;
@@ -424,6 +429,11 @@ function TrackingStatusContent() {
         }
         assertIntent();
         await showSavedSources(sources, mode, assertIntent);
+        if (enabled)
+          recordPerformanceTiming(
+            'tracking.confirmed',
+            performance.now() - started
+          );
         if (configurationRequest === sourceCommands.configurationRequest)
           void resyncAutomaticTracking()
             .then(() => {
@@ -838,7 +848,9 @@ async function enableTrackingSource(
       source === 'sms' ? 'notification' : 'sms'
     );
     assertIntent();
-    await automaticTrackingService.setMode('automatic_clear');
+    await measurePerformance('tracking.mode', () =>
+      automaticTrackingService.setMode('automatic_clear')
+    );
     assertIntent();
   }
   if (source === 'notification') {
@@ -851,7 +863,9 @@ async function enableTrackingSource(
       throw error;
     }
   }
-  const sources = await trackingSourcePreferences.set(source, true);
+  const sources = await measurePerformance('tracking.sourceSave', () =>
+    trackingSourcePreferences.set(source, true)
+  );
   assertIntent();
   return sources;
 }

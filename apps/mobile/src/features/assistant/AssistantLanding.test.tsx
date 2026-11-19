@@ -217,6 +217,9 @@ describe('AssistantLanding', () => {
         />
       );
 
+      expect(screen.getAllByTestId(/^suggestion-card-/).map(card => card.props.testID)).toEqual([
+        'suggestion-card-spending', 'suggestion-card-highest', 'suggestion-card-weekly', 'suggestion-card-budget'
+      ]);
       expect(
         screen.getByText(translate('assistant.suggestions.spending')).props
           .numberOfLines

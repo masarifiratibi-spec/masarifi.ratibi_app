@@ -376,11 +376,13 @@ export function TrackingSetupGuide({
                 <ActionButton
                   testID="tracking-guide-open-settings"
                   label={
-                    selectedEnabled
-                      ? 'tracking.setup.enabled'
-                      : selected === 'alerts'
-                        ? 'tracking.setup.alerts.open'
-                        : `tracking.setup.${selected}.enable`
+                    opening && selected !== 'alerts'
+                      ? 'tracking.setup.activating'
+                      : selectedEnabled
+                        ? 'tracking.setup.enabled'
+                        : selected === 'alerts'
+                          ? 'tracking.setup.alerts.open'
+                          : `tracking.setup.${selected}.enable`
                   }
                   disabled={selectedEnabled}
                   style={selectedEnabled ? styles.completedAction : undefined}

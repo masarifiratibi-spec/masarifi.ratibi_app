@@ -105,34 +105,13 @@ export function AssistantSuggestedQuestions({
 
   return (
     <View testID="assistant-suggested-questions" style={styles.container}>
-      {/* Row 1 */}
-      <View style={[styles.row, stacked && styles.stackedRow]}>
-        {isRtl ? (
-          <>
-            {renderCard(cards[1])}
-            {renderCard(cards[0])}
-          </>
-        ) : (
-          <>
-            {renderCard(cards[0])}
-            {renderCard(cards[1])}
-          </>
-        )}
+      <View style={[styles.row, { direction }, stacked && styles.stackedRow]}>
+        {renderCard(cards[0])}
+        {renderCard(cards[1])}
       </View>
-
-      {/* Row 2 */}
-      <View style={[styles.row, stacked && styles.stackedRow]}>
-        {isRtl ? (
-          <>
-            {renderCard(cards[3])}
-            {renderCard(cards[2])}
-          </>
-        ) : (
-          <>
-            {renderCard(cards[2])}
-            {renderCard(cards[3])}
-          </>
-        )}
+      <View style={[styles.row, { direction }, stacked && styles.stackedRow]}>
+        {renderCard(cards[2])}
+        {renderCard(cards[3])}
       </View>
     </View>
   );
@@ -145,7 +124,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     row: {
       flexDirection: 'row',
-      direction: 'ltr',
       gap: spacing.sm
     },
     stackedRow: { flexDirection: 'column' },

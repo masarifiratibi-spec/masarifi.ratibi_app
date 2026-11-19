@@ -259,7 +259,8 @@ export function AccountListScreen() {
                 {
                   backgroundColor: theme.colors.surfaces.card,
                   borderColor: theme.colors.borders.subtle,
-                  flexDirection: isRtl ? 'row-reverse' : 'row'
+                  direction,
+                  flexDirection: 'row'
                 }
               ]}
             >

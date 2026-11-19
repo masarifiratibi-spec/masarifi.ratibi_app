@@ -1,3 +1,4 @@
+import { measurePerformance } from './platform/performance-timing';
 import type { TrackingSourceState } from './tracking-source-preferences';
 import { z } from 'zod';
 import {
@@ -174,11 +175,9 @@ export function createLiveTrackingConsentPorts(
       if (!registration || registration.platform !== 'android')
         throw new HttpError('provider_unavailable', 503);
       const input = registrationSchema.parse(registration);
-      const value = await send(
-        scope,
-        'POST',
-        '/api/v1/me/devices/register',
-        input
+      const value = await measurePerformance(
+        'tracking.deviceRegistration',
+        () => send(scope, 'POST', '/api/v1/me/devices/register', input)
       );
       z.object({
         deviceId: z.string().uuid(),
@@ -196,11 +195,13 @@ export function createLiveTrackingConsentPorts(
         `/api/v1/tracking/rule-snapshot?deviceId=${encodeURIComponent(scope.deviceId)}`
       ),
     putConsent: (scope, body) =>
-      configuration(
-        scope,
-        'PUT',
-        `/api/v1/tracking/installations/${encodeURIComponent(scope.deviceId)}`,
-        body
+      measurePerformance('tracking.installation', () =>
+        configuration(
+          scope,
+          'PUT',
+          `/api/v1/tracking/installations/${encodeURIComponent(scope.deviceId)}`,
+          body
+        )
       )
   };
 }
