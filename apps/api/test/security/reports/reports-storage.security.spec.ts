@@ -28,7 +28,7 @@ describe('ReportsStorage security', () => {
       await expect(storage.sign(key, 120)).resolves.toBe(
         `http://storage.local/qa-report-files${path}`,
       );
-      expect(new URL(String(fetcher.mock.calls[0][0])).origin).toBe(
+      expect(new URL(String(fetcher.mock.calls[0]?.[0])).origin).toBe(
         'http://masarifi-qa-report-storage:8080',
       );
     } finally {
