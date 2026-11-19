@@ -74,6 +74,22 @@ struct BankSmsCommand: Codable {
   let title: String
   let occurredAt: String
   var source: String = "platform_assisted"
+
+  func checkedAccounts(in targets: [BankSmsTarget]) throws -> [BankSmsAccountAdmission] {
+    let ids = [accountId, destinationAccountId].compactMap { $0 }
+    let accounts = try ids.map { id -> BankSmsAccountAdmission in
+      guard let target = targets.first(where: { $0.id == id }), target.currency == currency,
+            automatic != true || target.automaticRouting == true || target.type == "cash"
+      else { throw BankSmsFailure.rejected }
+      return BankSmsAccountAdmission(target)
+    }
+    guard automatic == true else { return [] } // Older explicit-account Shortcuts omit this flag.
+    if let accountAdmission, Set(accountAdmission.map(\.id)) != Set(ids) ||
+        accountAdmission.count != accounts.count || !accounts.allSatisfy(accountAdmission.contains) {
+      throw BankSmsFailure.rejected
+    }
+    return accounts
+  }
 }
 
 struct BankSmsOriginal: Codable {
@@ -109,6 +125,12 @@ struct BankSmsState: Codable {
   var outcome: String?
   var lastSaved: Date?
   var lastTransactionId: UUID?
+
+  mutating func moveToBack(_ key: UUID) {
+    guard let index = deliveries.firstIndex(where: { $0.key == key }), index != deliveries.count - 1 else { return }
+    let delivery = deliveries.remove(at: index)
+    deliveries.append(delivery)
+  }
 }
 
 struct BankSmsStore {
@@ -134,5 +156,15 @@ struct BankSmsStore {
 
   func write(_ state: BankSmsState) throws {
     try JSONEncoder().encode(state).write(to: file(), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+  }
+}
+
+extension BankSmsDelivery {
+  func matchesReference(_ reference: String?, stable: String?, bank: String?, currency: String) -> Bool {
+    if let stable, let stableReferenceDigest { return stable == stableReferenceDigest }
+    if let reference, reference == referenceDigest { return true }
+    // Earlier purchases stored the account-scoped, case-folded reference for refunds.
+    guard let bank, bank == bankReferenceDigest else { return false }
+    return (pending?.currency ?? original?.currency) == currency
   }
 }

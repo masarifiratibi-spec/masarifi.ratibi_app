@@ -203,10 +203,10 @@ public struct BankSmsChoice: Sendable {
       let textDigest = digest(parsed.textIdentity)
       let referenceDigest = parsed.referenceIdentity.map { digest("\(account.id):\($0)") }
       let stableReferenceDigest = parsed.stableReferenceIdentity.map(digest)
+      let expenseReference = parsed.bankReference.map { bankReference($0, account: account.id) }
       if state.deliveries.contains(where: { delivery in
         (delivery.textDigest == textDigest && now.timeIntervalSince(delivery.created) < replayWindow) ||
-          (stableReferenceDigest != nil && delivery.stableReferenceDigest == stableReferenceDigest) ||
-          (referenceDigest != nil && delivery.referenceDigest == referenceDigest)
+          delivery.matchesReference(referenceDigest, stable: stableReferenceDigest, bank: expenseReference, currency: parsed.currency)
       }) {
         state.outcome = "duplicate"
         try store.write(state)
@@ -233,7 +233,7 @@ public struct BankSmsChoice: Sendable {
       state.deliveries.append(BankSmsDelivery(key: UUID(), textDigest: textDigest, referenceDigest: referenceDigest,
                                              expires: now.addingTimeInterval(retention),
                                              created: now, pending: command, stableReferenceDigest: stableReferenceDigest,
-                                             bankReferenceDigest: parsed.bankReference.map { bankReference($0, account: account.id) }))
+                                             bankReferenceDigest: expenseReference))
       state.outcome = "queued"
       try store.write(state)
       await retry()
@@ -293,6 +293,8 @@ public struct BankSmsChoice: Sendable {
             guard matches.count == 1, let source = matches.first else { throw BankSmsFailure.rejected }
             if source.pending != nil {
               deferred.insert(delivery.key)
+              current.moveToBack(delivery.key)
+              try store.write(current)
               continue
             }
             guard let original = source.original, original.currency == command.currency,
@@ -301,7 +303,8 @@ public struct BankSmsChoice: Sendable {
             else { throw BankSmsFailure.rejected }
             command.original = original
           }
-          for account in command.accountAdmission ?? [] {
+          let admissions = try command.checkedAccounts(in: current.enrollment?.accounts ?? [])
+          for account in admissions {
             try await ledger.checkAccount(account, currency: command.currency, token: token)
           }
           if let original = command.original, command.originalVersionReady != true {
@@ -328,7 +331,7 @@ public struct BankSmsChoice: Sendable {
               }
             }
             guard accepts(command.accountId), command.destinationAccountId.map(accepts) ?? true,
-                  (command.accountAdmission ?? []).allSatisfy({ admission in
+                  admissions.allSatisfy({ admission in
                     setup.accounts.contains { BankSmsAccountAdmission($0) == admission }
                   }),
                   command.categoryId.map({ id in setup.categories.contains(where: { $0.id == id && $0.kind == command.kind }) }) ?? true
@@ -344,6 +347,11 @@ public struct BankSmsChoice: Sendable {
           deferred.insert(delivery.key)
         } catch BankSmsFailure.recentAuth {
           deferred.insert(delivery.key)
+        }
+        if deferred.contains(delivery.key) {
+          var latest = try admitted(enrollment)
+          latest.moveToBack(delivery.key)
+          try store.write(latest)
         }
       }
     } catch {
@@ -378,6 +386,10 @@ public struct BankSmsChoice: Sendable {
       try store.write(current)
     } catch {
       // Keep a confirmed receipt queued if iOS cannot accept the notification.
+      if var state = try? admitted(enrollment) {
+        state.moveToBack(key)
+        try? store.write(state)
+      }
     }
   }
 

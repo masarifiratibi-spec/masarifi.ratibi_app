@@ -1,13 +1,14 @@
 const { defaultSnapshot, discoverFinancialMessage, normalizeFinancialText } = require('./parser');
 
-const transferAliases = {
+const smsAliases = {
+  'lifecycle.failed': ['not completed', 'not processed', 'not successful', 'لم يكتمل', 'لم تكتمل', 'لم يتم تنفيذ', 'لم يتم اتمام'],
   'action.transfer.sent': ['outgoing external transfer', 'تحويل خارجي صادر', 'حوالة خارجية صادرة', 'حوالة صادرة'],
   'action.transfer.received': ['incoming external transfer', 'تحويل خارجي وارد', 'حوالة خارجية واردة', 'حوالة واردة']
 };
 const snapshot = {
   ...defaultSnapshot,
-  rules: defaultSnapshot.rules.map(rule => transferAliases[rule.ruleKey]
-    ? { ...rule, any: [...rule.any, ...transferAliases[rule.ruleKey]] } : rule)
+  rules: defaultSnapshot.rules.map(rule => smsAliases[rule.ruleKey]
+    ? { ...rule, any: [...rule.any, ...smsAliases[rule.ruleKey]] } : rule)
 };
 const expenses = ['purchase', 'pos_purchase', 'online_purchase', 'card_purchase', 'bill_payment', 'fee'];
 const evidenceRequired = {
@@ -79,15 +80,10 @@ function route(text, c, routing) {
   const subtype = c.subtype;
   const paired = ['transfer_sent', 'transfer_received'].includes(subtype);
   const affectedSide = c.direction === 'incoming' ? 'destination' : 'source';
-  const debitAccounts = subtype === 'bill_payment'
-    ? new Set(Array.from(text.matchAll(/(?:\bfrom\s+(?:account(?: number)?|acc\.?|acct)|من\s+حساب)\s*[:#-]?\s*[x*•]*(\d{4,12})/giu), match => match[1]))
-    : null;
-  const hints = c.instruments.filter(hint =>
-    (!paired || hint.side === affectedSide) &&
-    (!debitAccounts || hint.role === 'card' || debitAccounts.has(hint.suffix))
-  );
-  if (debitAccounts && !hints.length) return null;
-  if (subtype === 'withdrawal' && hints.some(hint => hint.side === 'destination')) return null;
+  const needsSide = paired || subtype === 'bill_payment';
+  const hints = c.instruments.filter(hint => hint.side ? hint.side === affectedSide : !needsSide);
+  if (!hints.length && (needsSide || c.instruments.length)) return null;
+  if (subtype === 'withdrawal' && c.instruments.some(hint => hint.side === 'destination')) return null;
   const legacyEnding = routing.accountEnding && normalizeFinancialText(routing.accountEnding);
   let account;
   if (legacyEnding) {
@@ -111,12 +107,17 @@ function route(text, c, routing) {
   if (expenses.includes(subtype) && c.direction === 'outgoing') return { kind: 'expense', account };
   if (subtype === 'salary' && c.direction === 'incoming') return { kind: 'income', account };
   if (subtype === 'withdrawal' || subtype === 'deposit') {
-    if (subtype === 'deposit' && /^(?:(?:third party|external) deposit|(?:تم )?ايداع من طرف خارجي)(?: |$)/u.test(message))
+    if (subtype === 'deposit' && /^(?:(?:third party|external) deposit|(?:تم )?ايداع من طرف خارجي)(?: |$)/u.test(message)) {
+      if (c.instruments.some(hint => hint.side === 'source' && accounts.some(candidate => {
+        const ending = hint.role === 'card' ? candidate.lastFour : candidate.accountEnding;
+        return ending && hint.suffix.endsWith(ending);
+      }))) return null;
       return { kind: 'income', account };
+    }
     const cashDeposit = /^(?:cash deposit|cash deposited|(?:تم )?ايداع نقدي)(?: |$)/u.test(message);
     if (subtype === 'deposit' && (!cashDeposit ||
         /(?:^| )(?:third party|external|طرف خارجي)(?: |$)/u.test(message) ||
-        /\bfrom\s+(?:account|acct|acc)\b|من\s+حساب/iu.test(text))) return null;
+        /(?:^| )(?:from|by|من|بواسطة|عن طريق)(?: |$)/u.test(message))) return null;
     const cash = accounts.find(candidate => candidate.id === account.cashAccountId && candidate.type === 'cash');
     if (!cash || cash.id === account.id) return null;
     return subtype === 'withdrawal'

@@ -146,6 +146,20 @@ private final class LedgerProtocol: URLProtocol {
     """
     var delivery = try JSONDecoder().decode(BankSmsDelivery.self, from: Data(oldDelivery.utf8))
     precondition(delivery.pending?.accountId == account && delivery.stableReferenceDigest == nil)
+    var upgraded = delivery.pending!
+    upgraded.automatic = true
+    let reconstructed = try upgraded.checkedAccounts(in: [target])
+    precondition(reconstructed == [admission])
+    delivery.bankReferenceDigest = "account-scoped-ref"
+    precondition(delivery.matchesReference(nil, stable: "new", bank: "account-scoped-ref", currency: "SAR"))
+    precondition(!delivery.matchesReference(nil, stable: "new", bank: "other-account-ref", currency: "SAR"))
+    precondition(!delivery.matchesReference(nil, stable: "new", bank: "account-scoped-ref", currency: "AED"))
+    var queue = BankSmsState()
+    let next = BankSmsDelivery(key: UUID(), textDigest: "other", referenceDigest: nil,
+                               expires: Date(), created: Date(), pending: nil)
+    queue.deliveries = [delivery, next]
+    queue.moveToBack(delivery.key)
+    precondition(queue.deliveries.first?.key == next.key)
     delivery.pending = nil
     delivery.pendingNotice = BankSmsPendingNotice(transactionId: transaction, command: command)
     let saved = try JSONEncoder().encode(delivery)

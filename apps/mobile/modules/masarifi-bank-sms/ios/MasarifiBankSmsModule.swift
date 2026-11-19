@@ -63,6 +63,9 @@ public final class MasarifiBankSmsModule: Module {
       }
     }
 
+    OnCreate {
+      Task { @MainActor in await BankSmsService.shared.retry() }
+    }
     OnAppEntersForeground {
       Task { @MainActor in await BankSmsService.shared.retry() }
     }

@@ -184,9 +184,13 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending(?:\s+with)?)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
     const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
     const prefix=lower.slice(0,m.index).trimEnd();
-    const side=['transfer_sent','transfer_received','withdrawal'].includes(result.subtype)
-      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى|الي)$/u.test(prefix) ? 'destination' : undefined
-      : undefined;
+    let side;
+    if (['transfer_sent','transfer_received','withdrawal'].includes(result.subtype) || input.channel === 'ios_app_intent') {
+      if (/(?:\bfrom|من)$/u.test(prefix)) side = 'source';
+      else if (/(?:\bto|إلى|الى|الي)$/u.test(prefix)) side = 'destination';
+      else if (input.channel === 'ios_app_intent' && result.subtype === 'bill_payment' &&
+               /(?:\busing|\bwith|\bvia|بواسطة|عن طريق)$/u.test(prefix)) side = 'source';
+    }
     result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix,...(side?{side}:{})});
   }
   const merchant = text.match(/(?:\bat\b|\bby\b|لدي|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\b(?:card|account)\s*[:#-]?\s*[xX*•]*\d|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];

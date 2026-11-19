@@ -219,6 +219,9 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   route('QAALFA شراء SAR 18.41 لدى أرامكو بطاقة XX4242', 'expense', 'bank', 'fee');
   route('QAUAE Card purchase AED 12.34 at QA SHOP card XX4242', 'expense', 'uae', 'expense');
   route('QAUAE Bill payment AED 12.34 from account XX4242', 'expense', 'uae', 'expense');
+  route('Bill payment SAR 12.34 using card XX4242', 'expense', 'bank', 'expense');
+  route('Bill payment SAR 12.34 from account XX7373 to card XX8181', 'expense', 'bank', 'expense');
+  route('Salary SAR 51.13 from account XX9292 to account XX7373', 'income', 'bank', 'salary');
   route('Salary SAR 51.13 credited to account XX7373', 'income', 'bank', 'salary');
   route('Fee SAR 3.11 card XX4242', 'expense', 'bank', 'fee');
   route('Cash withdrawal SAR 19.21 from account XX7373', 'transfer', 'bank', null, 'cash');
@@ -243,6 +246,18 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     'Cash deposit EGP 19.22 to account XX4242',
     'Bill payment SAR 12.34 to account XX7373',
     'Bill payment SAR 12.34 for account XX7373',
+    'Bill payment SAR 12.34 to card XX4242',
+    'Bill payment SAR 12.34 for card XX4242',
+    'Fee SAR 12.34 to account XX7373',
+    'Cash deposit SAR 20.35 from card XX4242',
+    'Cash deposit SAR 20.35 from Ahmed to account XX7373',
+    'Cash deposit SAR 20.35 by Ahmed to account XX7373',
+    'External deposit SAR 20.35 from account XX7373',
+    'External deposit SAR 20.35 from account XX7373 to account XX9292',
+    'Salary SAR 51.13 from account XX7373',
+    'Refund SAR 2.50 from card XX4242 original reference QA00001 Ref: QA00003',
+    'Purchase SAR 12.34 at QA SHOP card XX4242 was not completed',
+    'QAALFA شراء SAR 12.34 بطاقة XX4242 لم تكتمل العملية',
     'Cash deposit SAR 20.35 from third party to account XX7373 Ref: QA001236',
     'Cash deposit SAR 20.35 from account XX7373 Ref: QA001238',
     'QAALFA Outgoing external transfer SAR 19.23 from account XX7373 to account XX9292 Ref: QA001235',
