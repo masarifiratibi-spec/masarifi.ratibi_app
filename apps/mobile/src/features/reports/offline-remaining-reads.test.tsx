@@ -9,6 +9,10 @@ import { emptyTransactionFilters } from '@/domain/core-finance';
 import * as reportQueries from './report-queries';
 import * as planningQueries from '@/features/financial-planning/financial-planning-queries';
 import * as coreQueries from '@/features/core-finance/core-finance-queries';
+import * as reportDate from './useReportAnchorDate';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { usePreferenceStore } from '@/state/preferences';
+import { within } from '@testing-library/react-native';
 import { ReportsScreen } from './ReportsScreen';
 import { BudgetTransactionsScreen } from '@/features/budgets/BudgetTransactionsScreen';
 import { financialPlanningService } from '@/services/financial-planning-service';
@@ -116,3 +120,41 @@ it('waits for the actual budget scope instead of requesting a fictitious1970 tra
     view.unmount();
   }
 });
+
+it.each(['today', 'past', 'denied', 'partial', 'expired'] as const)(
+  'uses an available Home amount during report loading only for a readable matching scope (%s)',
+  (scenario) => {
+    changeLocale('en');
+    const today = localDateInTimeZone(Date.now(), usePreferenceStore.getState().timeZone);
+    jest.spyOn(reportDate, 'useReportAnchorDate').mockReturnValue(scenario === 'past' ? '2021-01-01' : today);
+    jest.spyOn(reportQueries, 'useReport').mockReturnValue({
+      ...snapshot(undefined, false), isPending: true
+    } as never);
+    jest.spyOn(reportQueries, 'useNetWorthTrend').mockReturnValue({
+      ...snapshot(undefined, false), isPending: true
+    } as never);
+    jest.spyOn(coreQueries, 'useHomeBalanceSummary').mockReturnValue({
+      ...snapshot({
+        currencyCode: usePreferenceStore.getState().baseCurrencyCode,
+        dataState: scenario === 'partial' ? 'partial' : 'ready',
+        totalBalanceMinor: -12345, isEstimated: true
+      }, scenario === 'denied'),
+      error: scenario === 'denied' ? { status: 403 } : null,
+      dataUpdatedAt: Date.now() - (scenario === 'expired' ? 61_000 : 0),
+      isFetching: true
+    } as never);
+    const view = renderWithProviders(<ReportsScreen />);
+    try {
+      const card = within(view.getByTestId('reports-net-worth'));
+      if (scenario === 'today') {
+        expect(card.getByText(/123\.45/)).toBeOnTheScreen();
+        expect(card.getByText(translate('reports.state.estimated'))).toBeOnTheScreen();
+        expect(card.getByText(translate('coreFinance.state.refreshingSnapshot'))).toBeOnTheScreen();
+      } else {
+        expect(card.queryByText(/123\.45/)).toBeNull();
+      }
+    } finally {
+      view.unmount();
+    }
+  }
+);

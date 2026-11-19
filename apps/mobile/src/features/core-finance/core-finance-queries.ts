@@ -83,7 +83,8 @@ export function useHomeSummary(
 
 export function useHomeBalanceSummary(
   currency: string,
-  accountId: string | null
+  accountId: string | null,
+  enabled = true
 ) {
   const owner = useAppShellStore((state) => state.session?.userId ?? null);
   const select = useCallback(
@@ -125,6 +126,7 @@ export function useHomeBalanceSummary(
         return { accounts, balances };
       }),
     select,
+    enabled,
     staleTime: 0
   });
   // A failed select retains its previous result; it must never cross account scopes.

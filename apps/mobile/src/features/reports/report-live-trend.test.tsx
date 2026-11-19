@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fixtureAccounts } from '@/test-utils/core-finance-fixtures';
 import { createLiveLedgerService } from '@/services/live/core-finance-service';
 import {
   registerLiveClerkBridge,
@@ -23,7 +24,11 @@ jest.mock('@/services/mocks/core-finance-service', () => ({
   }
 }));
 
-it('loads a trend through the live ledger page contract', async () => {
+it.each(['SAR', 'USD'])('reads the live ledger and requests rates only when an account requires conversion (%s)', async (currencyCode) => {
+  jest.clearAllMocks();
+  jest.mocked(coreFinanceService.listAccounts).mockResolvedValue([
+    { ...fixtureAccounts[0], status: 'active', currencyCode }
+  ]);
   registerLiveClerkBridge({
     getSession: async () => ({
       id: 'session',
@@ -82,9 +87,11 @@ it('loads a trend through the live ledger page contract', async () => {
       expect(view.result.current.isSuccess).toBe(true);
     });
     expect(view.result.current.data).toHaveLength(10);
+    expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(currencyCode === 'SAR' ? 0 : 1);
     expect(request).toHaveBeenCalledTimes(1);
     view.rerender({ timeframe: 'week' });
     await waitFor(() => expect(view.result.current.data).toHaveLength(7));
+    expect(coreFinanceService.getHomeSummary).toHaveBeenCalledTimes(currencyCode === 'SAR' ? 0 : 1);
     expect(request).toHaveBeenCalledTimes(1);
   } finally {
     view.unmount();
