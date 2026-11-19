@@ -1771,6 +1771,7 @@ const ar: MessageCatalog = {
     'تم تعديل هذه الميزانية في شاشة أخرى. أعد التحميل وحاول مجددًا.',
   'planning.salary.amount': 'مبلغ الراتب المتوقع',
   'planning.salary.emptyTitle': 'خطط من راتب إلى راتب',
+  'planning.salary.offlineWithoutProfile': 'اتصل بالإنترنت للتحقق من إعدادات الراتب.',
   'planning.salary.emptySubtitle':
     'أضف تفاصيل راتبك لمعرفة المتبقي ومقدار الصرف اليومي المناسب.',
   'planning.salary.setupSubtitle':

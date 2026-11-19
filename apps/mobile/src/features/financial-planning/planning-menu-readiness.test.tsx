@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient } from '@tanstack/react-query';
 
 import MoreRoute from '@app/(tabs)/more';
@@ -156,9 +156,11 @@ it('opens both planning destinations offline on a first visit without requiring 
     );
     view.rerender(h.wrap(<SalaryOverviewScreen />));
     expect(
-      await screen.findByText(translate('planning.state.offlineRead'))
+      await screen.findByText(translate('planning.salary.offlineWithoutProfile'))
     ).toBeOnTheScreen();
     expect(screen.queryByText(translate('planning.state.error'))).toBeNull();
+    expect(screen.queryByText(translate('planning.salary.setup'))).toBeNull();
+    expect(screen.queryByText('0')).toBeNull();
     view.rerender(h.wrap(<ObligationOverviewScreen />));
     expect(await screen.findByTestId('obligations-hero')).toBeOnTheScreen();
     expect(
@@ -297,6 +299,76 @@ it('retries a failed menu preload when the salary screen opens', async () => {
       await screen.findByText(translate('planning.salary.setup'))
     ).toBeOnTheScreen();
     expect(screen.queryByText(translate('planning.state.error'))).toBeNull();
+  } finally {
+    view.unmount();
+    h.client.clear();
+  }
+});
+
+it('refreshes a cached salary through the server and retries a temporary failure with one read', async () => {
+  const h = fixture();
+  const view = render(h.wrap(<SalaryOverviewScreen />));
+  const today = localDateInTimeZone(Date.now(), 'Asia/Riyadh');
+  const key = financialPlanningKeys.salary(today, 'Asia/Riyadh');
+  try {
+    await screen.findByText(translate('planning.salary.setup'));
+    const initialReads = h.request.mock.calls.length;
+    h.server.unavailable = true;
+    await act(async () => { await h.client.refetchQueries({ queryKey: key, exact: true }); });
+    await screen.findByText(translate('coreFinance.state.refreshFailedSnapshot'));
+    expect(h.request).toHaveBeenCalledTimes(initialReads + 1);
+    h.server.unavailable = false;
+    fireEvent.press(screen.getByText(translate('planning.action.retry')));
+    await waitFor(() => {
+      expect(h.client.getQueryState(key)?.status).toBe('success');
+      expect(screen.queryByText(translate('coreFinance.state.refreshFailedSnapshot'))).toBeNull();
+    });
+    expect(h.request).toHaveBeenCalledTimes(initialReads + 2);
+  } finally {
+    view.unmount();
+    h.client.clear();
+  }
+});
+
+it('checks the summary again after an offline salary read even with a warm online snapshot', async () => {
+  const h = fixture();
+  const view = render(h.wrap(<SalaryOverviewScreen />));
+  const today = localDateInTimeZone(Date.now(), 'Asia/Riyadh');
+  const key = financialPlanningKeys.salary(today, 'Asia/Riyadh');
+  try {
+    await screen.findByText(translate('planning.salary.setup'));
+    const initialReads = h.request.mock.calls.length;
+    jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(false);
+    await act(async () => { await h.client.refetchQueries({ queryKey: key, exact: true }); });
+    await screen.findByText(translate('planning.salary.offlineWithoutProfile'));
+    expect(h.request).toHaveBeenCalledTimes(initialReads);
+    jest.mocked(readRecoveryNetwork.isOnline).mockResolvedValue(true);
+    h.server.unavailable = true;
+    fireEvent.press(screen.getByText(translate('planning.action.retry')));
+    await screen.findByText(translate('planning.state.error'));
+    expect(screen.queryByText(translate('planning.salary.offlineWithoutProfile'))).toBeNull();
+    h.server.unavailable = false;
+    fireEvent.press(screen.getByText(translate('planning.action.retry')));
+    await screen.findByText(translate('planning.salary.setup'));
+    expect(h.request).toHaveBeenCalledTimes(initialReads + 2);
+  } finally {
+    view.unmount();
+    h.client.clear();
+  }
+});
+
+it.each([400, 401, 403, 503])('reports HTTP %s on first salary read and recovers on retry', async (status) => {
+  const h = fixture();
+  h.request.mockResolvedValueOnce(new Response('{}', { status }));
+  const view = render(h.wrap(<SalaryOverviewScreen />));
+  try {
+    await screen.findByText(translate('planning.state.error'));
+    expect(screen.queryByText(translate('planning.salary.editSettings'))).toBeNull();
+    expect(screen.queryByText(translate('planning.salary.setup'))).toBeNull();
+    expect(screen.queryByText('—')).toBeNull();
+    fireEvent.press(screen.getByText(translate('planning.action.retry')));
+    await screen.findByText(translate('planning.salary.setup'));
+    expect(h.request).toHaveBeenCalledTimes(2);
   } finally {
     view.unmount();
     h.client.clear();

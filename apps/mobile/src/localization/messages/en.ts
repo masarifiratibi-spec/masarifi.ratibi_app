@@ -1839,6 +1839,7 @@ const en = {
   'planning.state.saved': 'Saved',
   'planning.salary.amount': 'Expected salary amount',
   'planning.salary.emptyTitle': 'Plan from payday to payday',
+  'planning.salary.offlineWithoutProfile': 'Connect to the internet to check your salary settings.',
   'planning.salary.emptySubtitle':
     'Add your salary details to track what remains and see a practical daily spending amount.',
   'planning.salary.setupSubtitle':

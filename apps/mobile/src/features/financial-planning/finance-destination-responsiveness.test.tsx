@@ -60,7 +60,7 @@ it('keeps category search mounted after a first read fails and through retry', a
 });
 
 it.each(['salary', 'obligations'] as const)(
-  'keeps the %s cards and controls after a first read fails',
+  'shows a recoverable first-read error for %s',
   async (kind) => {
     jest
       .spyOn(
@@ -79,8 +79,11 @@ it.each(['salary', 'obligations'] as const)(
       await view.findByText(translate('planning.state.error'));
       if (kind === 'salary') {
         expect(
-          view.getByText(translate('planning.salary.cycleDetails'))
-        ).toBeOnTheScreen();
+          view.queryByText(translate('planning.salary.cycleDetails'))
+        ).toBeNull();
+        expect(view.queryByText('—')).toBeNull();
+        expect(view.queryByText(translate('planning.salary.editSettings'))).toBeNull();
+        expect(view.getByText(translate('planning.action.retry'))).toBeOnTheScreen();
         expect(
           view.queryByText(translate('planning.salary.emptySubtitle'))
         ).toBeNull();
@@ -98,8 +101,8 @@ it.each(['salary', 'obligations'] as const)(
         expect(
           view.queryByText(translate('planning.obligation.noUpcoming'))
         ).toBeNull();
+        expect(view.getAllByText('—').length).toBeGreaterThan(0);
       }
-      expect(view.getAllByText('—').length).toBeGreaterThan(0);
       expect(view.queryByText(/^0(?:\.00)?$/)).toBeNull();
     } finally {
       view.unmount();

@@ -1,9 +1,6 @@
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { StyledText } from '@/components/StyledText';
-import {
-  hasReadableSnapshot,
-  isAuthoritativeReadDenial
-} from '@/services/read-snapshot';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -16,6 +13,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { StateView } from '@/design-system/components/feedback/StateView';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, elevation, spacing } from '@/design-system/tokens';
@@ -86,7 +84,11 @@ export function SalaryOverviewScreen() {
 
   const data = query.data;
   const pending = !data && (query.isPending || query.isLoading);
-  const needsSetup = data !== undefined && !data.profileId;
+  const needsSetup =
+    data !== undefined && data.dataState !== 'offline' && !data.profileId;
+  const offlineWithoutProfile = data?.dataState === 'offline' && !data.profileId;
+  const readFailed = !pending && (!hasReadableSnapshot(query) || (offlineWithoutProfile && query.isError));
+  const retryRead = () => { void query.refetch({ cancelRefetch: false }); };
   const money = (calc?: Calculation<MoneyValue>) =>
     calc === undefined
       ? '—'
@@ -107,13 +109,27 @@ export function SalaryOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {query.isError && isAuthoritativeReadDenial(query.error) ? (
-        <PlanningState state="error" onRetry={() => void query.refetch()} />
+      {readFailed ? (
+        <PlanningState state="error" onRetry={retryRead} />
+      ) : offlineWithoutProfile ? (
+        <StateView
+          state="offline"
+          title={translate('planning.salary.offlineWithoutProfile')}
+          actionLabel={translate('planning.action.retry')}
+          onAction={retryRead}
+        />
       ) : (
         <View style={styles.screenStack} accessibilityState={{ busy: pending }}>
-          {query.isError ? <FinancialRefreshStatus query={query} /> : null}
-          {!pending && (!data || !hasReadableSnapshot(query)) ? (
-            <PlanningState state="error" onRetry={() => void query.refetch()} />
+          {query.isError ? (
+            <>
+              <FinancialRefreshStatus query={query} />
+              <ActionButton
+                label={translate('planning.action.retry')}
+                variant="secondary"
+                disabled={query.isFetching}
+                onPress={retryRead}
+              />
+            </>
           ) : null}
           {data?.dataState === 'offline' ? (
             <StyledText variant="caption" accessibilityLiveRegion="polite">
@@ -170,7 +186,7 @@ export function SalaryOverviewScreen() {
             nextSalaryDate={nextSalaryDate}
           />
 
-          {data && !needsSetup ? (
+          {data?.profileId ? (
             <>
               <ActionButton
                 label={translate('planning.salary.confirmReceipt')}
