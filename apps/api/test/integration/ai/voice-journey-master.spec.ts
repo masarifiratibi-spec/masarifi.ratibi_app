@@ -311,7 +311,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       const worker = new AiWorker(
         repository,
         storage as never,
-        new AiGateway({ apiKey: 'offline-fixture', fetcher }),
+        new AiGateway({
+          circuit: repository,
+          apiKey: 'offline-fixture',
+          fetcher,
+        }),
         config as never,
       );
       try {
@@ -633,7 +637,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       await new AiWorker(
         repository,
         storage as never,
-        new AiGateway({ apiKey: 'offline-fixture', fetcher }),
+        new AiGateway({
+          circuit: repository,
+          apiKey: 'offline-fixture',
+          fetcher,
+        }),
         config as never,
       ).runJob('voice.transcribe_extract');
       const upstreamResults: PromiseSettledResult<Response>[] = await Promise.allSettled(

@@ -1,5 +1,6 @@
+import { createTestGateway } from '../../ai-test-gateway';
 import { createHash } from 'node:crypto';
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { AiWorker } from '../../../src/ai/ai.worker';
 import type { VoiceEventDecision } from '../../../src/ai/voice-batch';
 
@@ -190,7 +191,7 @@ it.each(
         completeWork: () => Promise.resolve(),
       };
       let request = '';
-      const gateway = new AiGateway({
+      const gateway = createTestGateway({
         apiKey: 'local-nonfunctional-key',
         fetcher: (_url, init) => {
           if (typeof init?.body !== 'string') throw new Error('LOCAL_REQUEST_BODY_INVALID');

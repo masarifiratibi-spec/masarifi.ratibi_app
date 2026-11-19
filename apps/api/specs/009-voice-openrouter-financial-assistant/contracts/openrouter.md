@@ -132,7 +132,7 @@ fresh deadline per attempt, bounds the request.
 
 Client disconnect or worker shutdown aborts native fetch. Partial provider text is
 discarded; a safe cancellation code and available terminal usage are recorded.
-Five retryable failures/60 seconds opens the process-local route circuit for 30
+Five retryable failures/60 seconds open the shared workload circuit for 30
 seconds. One half-open probe is allowed; success closes, failure reopens. Circuit
 state never affects core finance readiness.
 

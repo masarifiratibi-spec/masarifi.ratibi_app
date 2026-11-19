@@ -21,7 +21,7 @@ async function main() {
   const {AiWorker}=load(path.join(root,'ai/ai.worker.js'));
   const config=new PlatformConfigService(new ConfigService(validateEnvironment(process.env)));
   const pool=new PoolService(config); const repository=new AiRepository(pool);
-  const storage=new AiStorage(config); const gateway=new AiGateway({apiKey:config.get('OPENROUTER_API_KEY')});
+  const storage=new AiStorage(config); const gateway=new AiGateway({circuit:repository,apiKey:config.get('OPENROUTER_API_KEY')});
   const worker=new AiWorker(repository,storage,gateway,config);
   assert.equal(typeof worker.process,'function','COMPILED_PROCESS_CAPABILITY_MISSING');
   const controller=new AbortController(); worker.abortController=controller;

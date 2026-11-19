@@ -56,16 +56,23 @@ interface CompletionInput<T> {
   onDispatchFailure?: (responseReceived: boolean) => Promise<void>;
 }
 
+export interface AiCircuit {
+  acquireCircuit(workload: string, leaseMs: number): Promise<string | null>;
+  finishCircuit(
+    workload: string,
+    token: string,
+    outcome: 'success' | 'retryable' | 'neutral',
+  ): Promise<void>;
+}
+
 export class AiGateway {
   private static readonly MAX_REQUEST_BYTES = 18 * 1024 * 1024;
   private readonly fetcher: Fetcher;
   private readonly now: () => number;
-  private failures: number[] = [];
-  private openUntil = 0;
-  private probing = false;
 
   constructor(
     private readonly options: {
+      circuit: AiCircuit;
       apiKey?: string;
       fetcher?: Fetcher;
       now?: () => number;
@@ -81,7 +88,6 @@ export class AiGateway {
     if (input.signal?.aborted) throw new AiGatewayError('AI_WORK_CANCELLED');
     if (!this.options.apiKey) throw new AiGatewayError('AI_UNAVAILABLE');
     this.assertRoute(input.route);
-    this.enterCircuit();
     const startedAt = this.now();
     const deadline = startedAt + input.route.limits.timeoutMs;
     const recover =
@@ -95,6 +101,12 @@ export class AiGateway {
     for (let index = 0; index < candidates.length; index += 1) {
       const candidate = candidates[index];
       if (!candidate) break;
+      const circuit = this.options.circuit;
+      const workload = input.route.workload;
+      const token = await circuit
+        .acquireCircuit(workload, input.route.limits.timeoutMs)
+        .catch(() => null);
+      if (!token) throw new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
       const attemptStarted = this.now();
       try {
         if (input.signal?.aborted) throw new AiGatewayError('AI_WORK_CANCELLED');
@@ -109,7 +121,8 @@ export class AiGateway {
           startedAt,
         );
         this.observe(input, candidate, index, attemptStarted, 'success');
-        this.onSuccess();
+        // A billed, valid result must not be replayed if the database goes away.
+        await circuit.finishCircuit(workload, token, 'success').catch(() => undefined);
         return result;
       } catch (error) {
         last =
@@ -117,7 +130,13 @@ export class AiGateway {
             ? error
             : new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
         this.observe(input, candidate, index, attemptStarted, 'failure', last.code);
-        this.onFailure(last.retryable);
+        const recorded = await circuit
+          .finishCircuit(workload, token, last.retryable ? 'retryable' : 'neutral')
+          .then(
+            () => true,
+            () => false,
+          );
+        if (!recorded) break;
         if (recover && last.code !== 'AI_TEMPORARILY_UNAVAILABLE') break;
         if (!last.retryable || index === candidates.length - 1) break;
       }
@@ -450,28 +469,6 @@ export class AiGateway {
     ) {
       throw new AiGatewayError('AI_ROUTE_POLICY_INVALID');
     }
-  }
-
-  private enterCircuit(): void {
-    if (this.openUntil === 0) return;
-    if (this.now() < this.openUntil || this.probing) {
-      throw new AiGatewayError('AI_TEMPORARILY_UNAVAILABLE', true);
-    }
-    this.probing = true;
-  }
-
-  private onSuccess(): void {
-    this.failures = [];
-    this.openUntil = 0;
-    this.probing = false;
-  }
-
-  private onFailure(retryable: boolean): void {
-    this.probing = false;
-    if (!retryable) return;
-    const cutoff = this.now() - 60_000;
-    this.failures = [...this.failures.filter((time) => time >= cutoff), this.now()];
-    if (this.failures.length >= 5) this.openUntil = this.now() + 30_000;
   }
 }
 

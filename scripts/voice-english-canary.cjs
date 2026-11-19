@@ -399,6 +399,7 @@ async function main() {
     const save = repo.saveVoiceResult.bind(repo);
     repo.saveVoiceResult = (...args) => saveCanaryResult(save, args, evidence);
     const gateway = new AiGateway({
+      circuit: repo,
       apiKey: config.getRequired("OPENROUTER_API_KEY"),
       fetcher: guardedFetcher(digest(bytes), fetch),
     });

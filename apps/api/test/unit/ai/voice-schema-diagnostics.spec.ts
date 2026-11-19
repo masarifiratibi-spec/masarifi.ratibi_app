@@ -1,4 +1,5 @@
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import { createTestGateway } from '../../ai-test-gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import {
   VOICE_BATCH_OUTPUT_SCHEMA,
   decideVoiceBatch,
@@ -44,7 +45,7 @@ function completion(content: unknown, patch = {}) {
 
 async function invoke(envelope: unknown) {
   let dispatches = 0;
-  const gateway = new AiGateway({
+  const gateway = createTestGateway({
     apiKey: 'synthetic',
     fetcher: () => {
       dispatches++;
