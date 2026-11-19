@@ -760,6 +760,10 @@ export function createLiveReportsService(
       await local.saveAttempt(value);
       return { value, affectedScopes: ['reports.attempts'] };
     },
+    async deletePdfFile(id, isCurrent) {
+      await send('DELETE', `/api/v1/reports/${encodeURIComponent(id)}`, undefined, undefined, isCurrent);
+      if (isCurrent()) attempts.delete(id);
+    },
     async getAttempt(id, context) {
       const saved = (await local.listAttempts()).find(
         (attempt) => attempt.id === id

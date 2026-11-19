@@ -21,7 +21,8 @@ jest.mock('@/services/reports-service', () => ({
   reportsService: {
     previewOutput: jest.fn(),
     requestOutput: jest.fn(),
-    getAttempt: jest.fn()
+    getAttempt: jest.fn(),
+    deletePdfFile: jest.fn()
   }
 }));
 jest.mock('@/services/platform/report-pdf-file', () => ({
@@ -377,6 +378,69 @@ test.each([
     expect(reportsService.requestOutput).not.toHaveBeenCalled();
   }
 );
+
+test('isolated staging creates one download, opens the file and deletes it after confirmation', async () => {
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  const oldFlag = process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+  const { Platform } = require('react-native');
+  const platform = jest.replaceProperty(Platform, 'OS', 'android');
+  process.env.EXPO_PUBLIC_API_URL =
+    'https://api.staging.masarifiratibi.com/qa-reports';
+  process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = 'true';
+  const ready = {
+    id: 'attempt-1',
+    status: 'ready',
+    downloadUrl: 'https://example.test/report',
+    downloadUrlExpiresAt: Date.now() + 60000
+  };
+  jest.mocked(reportsService.getAttempt).mockResolvedValue(ready as never);
+  jest
+    .mocked(files.saveReportPdf)
+    .mockResolvedValue({
+      uri: 'content://file',
+      cacheUri: 'file:///cache/file',
+      bytes: 1000,
+      name: 'report.pdf'
+    });
+  const tap = (key: Parameters<typeof translate>[0]) =>
+    fireEvent.press(screen.getByRole('button', { name: translate(key) }));
+  try {
+    renderWithProviders(<ReportPdfExport input={input} />);
+    tap('reports.pdf.files');
+    tap('reports.pdf.createFile');
+    await screen.findByText(translate('reports.pdf.fileReady'));
+    expect(reportsService.requestOutput).toHaveBeenCalledTimes(1);
+    expect(reportsService.requestOutput).toHaveBeenCalledWith(
+      { kind: 'download', previewId: 'current-preview' },
+      expect.any(String),
+      expect.any(Function)
+    );
+    tap('reports.pdf.saveFile');
+    await screen.findByText(translate('reports.pdf.success'));
+    expect(files.saveReportPdf).toHaveBeenCalledTimes(1);
+    tap('reports.pdf.open');
+    await waitFor(() => {
+      expect(files.openReportPdf).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: translate('reports.pdf.deleteFile') })).toBeEnabled();
+    });
+    tap('reports.pdf.deleteFile');
+    expect(reportsService.deletePdfFile).not.toHaveBeenCalled();
+    tap('reports.pdf.confirmDelete');
+    await screen.findByText(translate('reports.pdf.fileDeleted'));
+    expect(reportsService.deletePdfFile).toHaveBeenCalledWith(
+      'attempt-1',
+      expect.any(Function)
+    );
+    expect(screen.queryByText(translate('reports.pdf.saveFile'))).toBeNull();
+  } finally {
+    platform.restore();
+    if (oldUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = oldUrl;
+    if (oldFlag === undefined)
+      delete process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+    else process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = oldFlag;
+  }
+});
 
 test('changing the report account invalidates an open confirmation', () => {
   let switchAccount!: () => void;

@@ -90,4 +90,5 @@ export interface ReportsService {
     isConfirmationCurrent?: () => boolean
   ): Promise<MutationResult<ReportOutputAttempt>>;
   getAttempt(id: string, context?: ReadContext): Promise<ReportOutputAttempt>;
+  deletePdfFile?(id: string, isCurrent: () => boolean): Promise<void>;
 }

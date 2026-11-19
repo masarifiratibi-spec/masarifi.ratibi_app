@@ -40,6 +40,15 @@ module.exports = ({ config }) => {
       }
     };
   }
+  if (process.env.EAS_BUILD_PROFILE === 'staging-report-files') {
+    return {
+      ...config,
+      name: 'Masarifi QA PDF',
+      scheme: 'masarifi-dev',
+      android: { ...config.android, package: 'com.masarifi.mobile.dev', googleServicesFile: './google-services.dev.json' },
+      ios: { ...config.ios, bundleIdentifier: 'com.masarifi.mobile.dev' }
+    };
+  }
   const variant = process.env.MASARIFI_APP_VARIANT;
   const privacy = variant === 'staging-development-privacy';
   const privacyApi = 'https://api.staging.masarifiratibi.com/dev-privacy';
