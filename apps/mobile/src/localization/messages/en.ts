@@ -79,6 +79,13 @@ const en = {
   'reports.pdf.policyPending':
     'PDF email delivery needs the approved server update.',
   'reports.pdf.download': 'Email report PDF',
+  'reports.pdf.reviewHint': 'Choose Email report PDF to review the period and verified email before sending.',
+  'reports.pdf.confirmTitle': 'Email this PDF report?',
+  'reports.pdf.confirmDetails': 'Financial summary · {{type}} · {{period}}',
+  'reports.pdf.confirmRecipient': 'Verified account email',
+  'reports.pdf.confirmSend': 'Send PDF',
+  'reports.analytics.budgetScope': '{{month}} · {{currency}} · All accounts',
+  'reports.analytics.noActiveBudget': 'No active budget in this currency',
   'reports.pdf.emailWaitTitle': 'This may take some time',
   'reports.pdf.emailPreparing':
     'Requesting your report as a PDF attachment to your account email.',

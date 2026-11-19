@@ -75,6 +75,13 @@ const ar: MessageCatalog = {
     'تعمل التقارير دون اتصال. اتصل بالإنترنت لإرسال تقرير PDF إلى بريدك.',
   'reports.pdf.policyPending': 'يتطلب إرسال تقرير PDF تحديث الخادم المعتمد.',
   'reports.pdf.download': 'إرسال تقرير PDF إلى بريدي',
+  'reports.pdf.reviewHint': 'عند اختيار إرسال PDF، ستراجع الفترة والبريد الموثّق قبل تأكيد الإرسال.',
+  'reports.pdf.confirmTitle': 'هل تريد إرسال تقرير PDF بالبريد؟',
+  'reports.pdf.confirmDetails': 'الملخص المالي ({{type}}) · {{period}}',
+  'reports.pdf.confirmRecipient': 'البريد الموثّق للحساب',
+  'reports.pdf.confirmSend': 'إرسال PDF',
+  'reports.analytics.budgetScope': '{{month}} · {{currency}} · جميع الحسابات',
+  'reports.analytics.noActiveBudget': 'لا توجد ميزانية نشطة بهذه العملة',
   'reports.pdf.emailWaitTitle': 'قد يستغرق هذا بعض الوقت',
   'reports.pdf.emailPreparing':
     'جارٍ طلب تجهيز التقرير وإرساله إلى بريد حسابك بصيغة PDF مرفق.',
