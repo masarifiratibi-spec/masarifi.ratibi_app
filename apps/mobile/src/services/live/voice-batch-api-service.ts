@@ -594,6 +594,7 @@ export function createVoiceBatchApi(options: {
       return finish(b, operation, value);
     }
     let bytes: ArrayBuffer | undefined;
+    let freshUpload = false;
     if (!operation.createBody && !operation.sessionId) {
       try {
         bytes = await readAudio(b, operation);
@@ -626,9 +627,13 @@ export function createVoiceBatchApi(options: {
           .object({
             session: z.object({
               id: z.string().uuid(),
+              status: z.string().optional(),
               version: z.number().int().positive()
             }),
-            upload: z.object({ path: z.string() })
+            upload: z.object({
+              method: z.string().optional(),
+              path: z.string()
+            })
           })
           .parse(
             await send(
@@ -639,6 +644,15 @@ export function createVoiceBatchApi(options: {
               'voice-create:' + operation.id
             )
           );
+        // Only this invocation has the original bytes on a first create.
+        // An idempotent create replay can return an old upload slot.
+        freshUpload =
+          bytes !== undefined &&
+          !operation.retryAfterAt &&
+          created.session.status === 'uploaded' &&
+          created.upload.method === 'PUT' &&
+          created.upload.path ===
+            '/api/v1/voice/sessions/' + created.session.id + '/audio';
         operation = await update(b, operation, {
           sessionId: created.session.id,
           version: created.session.version,
@@ -674,10 +688,15 @@ export function createVoiceBatchApi(options: {
       );
     }
     // Read authoritative state before resending any uncertain upload/process request.
-    const server = await result(b, session);
-    if (terminal(server.status)) return finish(b, operation, server);
-    if (server.status === 'uploading') {
-      if (operation.retryAfterAt && operation.retryAfterAt > Date.now()) {
+    if (freshUpload) captureSessions.set(id, { ...b, session });
+    const server = freshUpload ? undefined : await result(b, session);
+    if (server && terminal(server.status)) return finish(b, operation, server);
+    if (!server || server.status === 'uploading') {
+      if (
+        server &&
+        operation.retryAfterAt &&
+        operation.retryAfterAt > Date.now()
+      ) {
         // Quota entitlements can change while queued. Recheck at most once a minute,
         // including journals written by the earlier reset-time-only implementation.
         if (operation.retryAfterAt > Date.now() + quotaRetryMs)
@@ -687,12 +706,14 @@ export function createVoiceBatchApi(options: {
         return server;
       }
       if (!operation.processBody) {
-        bytes = bytes ?? (await readAudio(b, operation));
-        if (
-          bytesToHex(sha256(new Uint8Array(bytes))) !==
-          operation.createBody?.contentHash
-        )
-          throw new VoiceCaptureError('analysis_failed');
+        if (!bytes) {
+          bytes = await readAudio(b, operation);
+          if (
+            bytesToHex(sha256(new Uint8Array(bytes))) !==
+            operation.createBody?.contentHash
+          )
+            throw new VoiceCaptureError('analysis_failed');
+        }
         const uploaded = z
           .object({
             id: z.string().uuid(),
