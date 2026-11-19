@@ -84,7 +84,7 @@ it.each(['ar', 'en'] as const)(
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/features/transactions/AccountPicker', () => ({
-  AccountPicker: () => null
+  AccountScopePicker: () => null
 }));
 jest.mock('@/services/platform/voice-recorder-service', () => ({
   voiceRecorderService: {

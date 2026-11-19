@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import { DesignIcon } from '@/design-system/icons';
 import { colorTokens, radius, spacing } from '@/design-system/tokens';
-import { AccountPicker } from '@/features/transactions/AccountPicker';
+import { AccountScopePicker } from '@/features/transactions/AccountPicker';
 import { translate } from '@/localization/i18n';
 import { useCoreFinanceViewState } from '@/state/core-finance-view-state';
 import { usePreferenceStore } from '@/state/preferences';
@@ -66,8 +66,7 @@ export function AccountScopeSheet({
 
         {/* 2. Search & Account List */}
         <View style={styles.pickerContainer}>
-          <AccountPicker
-            appearance="grouped"
+          <AccountScopePicker
             selectedId={selectedAccountId ?? undefined}
             onSelect={(account) => choose(account.id)}
           />
