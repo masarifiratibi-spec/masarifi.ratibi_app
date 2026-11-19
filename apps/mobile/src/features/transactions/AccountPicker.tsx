@@ -9,6 +9,7 @@ import { AccountRow } from '@/features/accounts/AccountRow';
 import { projectAccount } from '@/features/accounts/account-presentation';
 import {
   useAccountBalances,
+  useHomeAccountBalances,
   useAccounts
 } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
@@ -18,23 +19,35 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { useTheme } from '@/state/theme-context';
 
-export function AccountPicker({
-  selectedId,
-  selectedIds = [],
-  excludedIds = [],
-  currencyCode,
-  appearance = 'cards',
-  onSelect
-}: {
+type AccountPickerProps = {
   selectedId?: string;
   selectedIds?: string[];
   excludedIds?: string[];
   currencyCode?: string;
   appearance?: 'cards' | 'grouped';
   onSelect?: (account: Account) => void;
-}) {
-  const accounts = useAccounts(true);
+};
+
+export function AccountPicker(props: AccountPickerProps) {
   const balances = useAccountBalances(true);
+  return <AccountPickerRows {...props} balances={balances} />;
+}
+
+export function AccountScopePicker(props: Pick<AccountPickerProps, 'selectedId' | 'onSelect'>) {
+  const balances = useHomeAccountBalances();
+  return <AccountPickerRows {...props} appearance="grouped" balances={balances} />;
+}
+
+function AccountPickerRows({
+  selectedId,
+  selectedIds = [],
+  excludedIds = [],
+  currencyCode,
+  appearance = 'cards',
+  onSelect,
+  balances
+}: AccountPickerProps & { balances: ReturnType<typeof useAccountBalances> }) {
+  const accounts = useAccounts(true);
   const [search, setSearch] = useState('');
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const direction = usePreferenceStore((state) => state.direction);
@@ -187,28 +200,31 @@ export function AccountPicker({
           }
         />
       }
-      renderItem={({ item, index }) => (
-        <AccountRow
-          presentation={projectAccount(
-            item,
-            balanceByAccount.get(item.id),
-            hideBalances && !revealed
-          )}
-          selected={selectedId === item.id || selectedIds.includes(item.id)}
-          groupedPosition={
-            grouped
-              ? filtered.length === 1
-                ? 'only'
-                : index === 0
-                  ? 'first'
-                  : index === filtered.length - 1
-                    ? 'last'
-                    : 'middle'
-              : undefined
-          }
-          onPress={() => onSelect?.(item)}
-        />
-      )}
+      renderItem={({ item, index }) => {
+        const balance = balanceByAccount.get(item.id);
+        return (
+          <AccountRow
+            presentation={projectAccount(
+              item,
+              balance?.currencyCode === item.currencyCode ? balance : undefined,
+              hideBalances && !revealed
+            )}
+            selected={selectedId === item.id || selectedIds.includes(item.id)}
+            groupedPosition={
+              grouped
+                ? filtered.length === 1
+                  ? 'only'
+                  : index === 0
+                    ? 'first'
+                    : index === filtered.length - 1
+                      ? 'last'
+                      : 'middle'
+                : undefined
+            }
+            onPress={() => onSelect?.(item)}
+          />
+        );
+      }}
     />
   );
 }

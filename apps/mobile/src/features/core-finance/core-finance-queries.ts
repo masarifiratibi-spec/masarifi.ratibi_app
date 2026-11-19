@@ -1,4 +1,5 @@
 import {
+  queryOptions,
   useMutation,
   useInfiniteQuery,
   useQuery,
@@ -81,6 +82,31 @@ export function useHomeSummary(
   });
 }
 
+function homeBalanceSourceOptions(owner: string | null) {
+  return queryOptions({
+    queryKey: coreFinanceKeys.homeBalanceSource(owner),
+    queryFn: ({ signal }) =>
+      readForQueryOwner(owner, async () => {
+        const [accounts, balances] = await Promise.all([
+          coreFinanceService.listAccounts(false, { signal }),
+          coreFinanceService.listAccountBalances(false, { signal })
+        ]);
+        return { accounts, balances };
+      }),
+    staleTime: 0
+  });
+}
+
+const selectHomeAccountBalances = (source: HomeBalanceSource) => source.balances;
+
+export function useHomeAccountBalances() {
+  const owner = useAppShellStore((state) => state.session?.userId ?? null);
+  return useQuery({
+    ...homeBalanceSourceOptions(owner),
+    select: selectHomeAccountBalances
+  });
+}
+
 export function useHomeBalanceSummary(
   currency: string,
   accountId: string | null,
@@ -114,21 +140,7 @@ export function useHomeBalanceSummary(
     },
     [currency, accountId]
   );
-  const query = useQuery({
-    // Selection is a projection of the same authoritative balances, not a new read.
-    queryKey: coreFinanceKeys.homeBalanceSource(owner),
-    queryFn: ({ signal }) =>
-      readForQueryOwner(owner, async () => {
-        const [accounts, balances] = await Promise.all([
-          coreFinanceService.listAccounts(false, { signal }),
-          coreFinanceService.listAccountBalances(false, { signal })
-        ]);
-        return { accounts, balances };
-      }),
-    select,
-    enabled,
-    staleTime: 0
-  });
+  const query = useQuery({ ...homeBalanceSourceOptions(owner), select, enabled });
   // A failed select retains its previous result; it must never cross account scopes.
   const scoped =
     query.data?.accountId === accountId && query.data.currency === currency
