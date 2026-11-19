@@ -104,6 +104,8 @@ const rateLimits: Readonly<Record<string, { limit: number; windowSeconds: number
   support: { limit: 30, windowSeconds: 60 },
   evidence: { limit: 120, windowSeconds: 60 },
   privacy: { limit: 10, windowSeconds: 3600 },
+  'deletion-read': { limit: 60, windowSeconds: 60 },
+  'retention-read': { limit: 60, windowSeconds: 60 },
   deletion: { limit: 6, windowSeconds: 3600 },
   retention: { limit: 20, windowSeconds: 3600 },
   incidents: { limit: 30, windowSeconds: 3600 },
@@ -119,6 +121,8 @@ function rateCategory(operation: string): string {
   )
     return 'evidence';
   if (operation.includes('Incident')) return 'incidents';
+  if (operation === 'listDeletionRequests') return 'deletion-read';
+  if (operation === 'listRetentionPolicies') return 'retention-read';
   if (operation.includes('Deletion')) return 'deletion';
   if (operation.includes('PrivacyExport')) return 'privacy';
   if (operation.includes('Retention')) return 'retention';

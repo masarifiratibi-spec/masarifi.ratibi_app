@@ -324,7 +324,7 @@ export class SafeExceptionFilter implements ExceptionFilter {
     const domainCode = exceptionDomainCode(exception, status);
     const domainResponse =
       exception instanceof HttpException && typeof exception.getResponse() === 'object'
-        ? (exception.getResponse() as { currentVersion?: unknown })
+        ? (exception.getResponse() as { currentVersion?: unknown; retryAfter?: unknown })
         : undefined;
     if (
       domainCode &&
@@ -359,6 +359,10 @@ export class SafeExceptionFilter implements ExceptionFilter {
           ? { resourceId: createHash('sha256').update(operation).digest('hex').slice(0, 16) }
           : {}),
       });
+    }
+    const retryAfter = domainResponse?.retryAfter;
+    if (status === 429 && typeof retryAfter === 'number' && Number.isSafeInteger(retryAfter) && retryAfter > 0) {
+      response.setHeader('Retry-After', String(retryAfter));
     }
     response.status(status).json(envelope);
   }

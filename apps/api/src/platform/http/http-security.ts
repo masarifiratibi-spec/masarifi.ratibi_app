@@ -15,6 +15,7 @@ export function configureHttpSecurity(app: INestApplication, config: PlatformCon
   app.use(helmet());
   app.enableCors({
     credentials: true,
+    exposedHeaders: ['Retry-After'],
     origin: (
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,

@@ -163,6 +163,20 @@ describe('SecurityService boundaries', () => {
     expect(repository.execute).toHaveBeenCalledWith(expect.objectContaining(input));
   });
 
+  it.each([
+    ['listDeletionRequests', 'deletion-read', 60, 60],
+    ['actOnDeletionRequest', 'deletion', 6, 3600],
+    ['listRetentionPolicies', 'retention-read', 60, 60],
+    ['updateRetentionPolicy', 'retention', 20, 3600],
+  ] as const)('bounds %s independently of the other operations', async (operation, bucket, limit, window) => {
+    repository.consumeRateLimit.mockResolvedValueOnce(false);
+    await expect(service.execute({
+      operation, permission: 'privacy.deletions.read', principal,
+      body: {}, query: {}, params: {}, requestId: 'rate-bucket',
+    })).rejects.toMatchObject({ status: 429, response: { retryAfter: window } });
+    expect(repository.consumeRateLimit).toHaveBeenLastCalledWith(principal, bucket, limit, window, null);
+  });
+
   it('returns a stable 429 when immutable database evidence reaches its bound', async () => {
     repository.consumeRateLimit.mockResolvedValueOnce(false);
     await expect(

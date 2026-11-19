@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { http, HttpResponse } from "msw";
 import { LocaleProvider } from "@/core/localization/provider";
+import RetentionPage from "@/app/admin/data-requests/retention/page";
+import { RetentionDetailRoute } from "./PrivacyViews";
 import { mockServer } from "@/mocks/server";
 import { DeletionDetailRoute, DeletionRequestsRoute, ExportRequestsRoute, RetentionPoliciesRoute } from "./PrivacyViews";
 
@@ -58,6 +60,17 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(async (root) => act(async () => root.unmount())));
   document.body.replaceChildren();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
+});
+
+describe("retention route selection", () => {
+  test("opens the list without a policy and the selected detail from its link", async () => {
+    const list = await RetentionPage({ searchParams: Promise.resolve({}) });
+    expect(list.type).toBe(RetentionPoliciesRoute);
+    const id = "13000000-0000-4000-8000-000000000049";
+    const detail = await RetentionPage({ searchParams: Promise.resolve({ policy: id }) });
+    expect(detail.type).toBe(RetentionDetailRoute);
+    expect(detail.props.policyId).toBe(id);
+  });
 });
 
 describe("live account deletion views", () => {
