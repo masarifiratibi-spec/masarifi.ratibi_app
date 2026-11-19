@@ -105,6 +105,7 @@ export function useNetWorthTrend({
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
   const client = useQueryClient();
+  const owner = useAppShellStore((state) => state.session?.userId);
   return useQuery({
     queryKey: reportKeys.netWorth(
       anchorDate,
@@ -116,26 +117,35 @@ export function useNetWorthTrend({
     ),
     queryFn: async ({ signal }) => {
       const filters = { ...emptyTransactionFilters, accountIds };
-      const owner = useAppShellStore.getState().session?.userId;
-      const [accounts, home, transactions] = await Promise.all([
-        client.fetchQuery({
-          queryKey: coreFinanceKeys.accounts(false, owner ?? null),
-          staleTime: Infinity,
-          queryFn: ({ signal: active }) =>
-            readForQueryOwner(owner ?? null, () => coreFinanceService.listAccounts(false, { signal: active }))
-        }),
-        client.fetchQuery({
+      const accountRead = client.fetchQuery({
+        queryKey: coreFinanceKeys.accounts(false, owner ?? null),
+        staleTime: Infinity,
+        queryFn: ({ signal: active }) =>
+          readForQueryOwner(owner ?? null, () => coreFinanceService.listAccounts(false, { signal: active }))
+      });
+      const ratesRead = accountRead.then(async (accounts) => {
+        const needsRates = accounts.some((account) =>
+          account.status === 'active' && account.currencyCode !== currencyCode &&
+          (!accountIds.length || accountIds.includes(account.id))
+        );
+        if (!needsRates) return new Map<string, number>();
+        assertReadActive(signal);
+        const home = await client.fetchQuery({
           queryKey: coreFinanceKeys.home(currencyCode, filters),
           staleTime: Infinity,
-          queryFn: ({ signal: active }) =>
-            coreFinanceService.getHomeSummary(currencyCode, filters, {
-              signal: active
-            })
-        }),
+          queryFn: ({ signal: active }) => readForQueryOwner(owner ?? null, () =>
+            coreFinanceService.getHomeSummary(currencyCode, filters, { signal: active }))
+        });
+        return new Map(home.components.map((component) => [component.accountId, component.rate]));
+      });
+      const [accounts, ratesByAccount, transactions] = await Promise.all([
+        accountRead,
+        ratesRead,
         client.fetchQuery({
           queryKey: ['reports', 'history', owner ?? null],
           staleTime: Infinity,
-          queryFn: ({ signal: active }) => allTransactions(active)
+          queryFn: ({ signal: active }) =>
+            readForQueryOwner(owner ?? null, () => allTransactions(active))
         })
       ]);
       assertReadActive(signal);
@@ -154,12 +164,7 @@ export function useNetWorthTrend({
         accountIds,
         currencyCode,
         pointInstants,
-        ratesByAccount: new Map(
-          home.components.map((component) => [
-            component.accountId,
-            component.rate
-          ])
-        ),
+        ratesByAccount,
         transactions
       });
     }

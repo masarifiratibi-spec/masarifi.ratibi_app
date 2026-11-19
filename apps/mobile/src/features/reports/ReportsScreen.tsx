@@ -4,7 +4,11 @@ import { useReportAnchorDate } from './useReportAnchorDate';
 import React, { useContext, useMemo, useState } from 'react';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
-import { hasReadableSnapshot } from '@/services/read-snapshot';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial,
+  offlineSnapshot
+} from '@/services/read-snapshot';
 import {
   Pressable,
   ScrollView,
@@ -33,7 +37,6 @@ import {
   spacing
 } from '@/design-system/tokens';
 import {
-  emptyTransactionFilters,
   safeMinorSum,
   type Account
 } from '@/domain/core-finance';
@@ -46,7 +49,7 @@ import type { FinancialReport, ReportBreakdownItem } from '@/domain/reports';
 import { AccountScopeSheet } from '@/features/accounts/AccountScopeSheet';
 import {
   useAccounts,
-  useHomeSummary
+  useHomeBalanceSummary
 } from '@/features/core-finance/core-finance-queries';
 import { useBudgets } from '@/features/budgets/budget-queries';
 import { formatMonthPeriod } from '@/utils/format-month-period';
@@ -54,7 +57,6 @@ import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
 import { formatDaySpan, type DatePeriod } from '@/features/filters/date-period';
 import { translate, translateDynamic } from '@/localization/i18n';
 import {
-  applyAccountScope,
   useCoreFinanceViewState
 } from '@/state/core-finance-view-state';
 import { usePreferenceStore } from '@/state/preferences';
@@ -107,10 +109,8 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
     (account: Account) => account.id === selectedAccountId
   );
   const currencyCode = selectedAccount?.currencyCode ?? baseCurrencyCode;
-  const home = useHomeSummary(
-    currencyCode,
-    applyAccountScope(emptyTransactionFilters, selectedAccountId)
-  );
+  const isToday = anchorDate === localDateInTimeZone(Date.now(), timeZone);
+  const home = useHomeBalanceSummary(currencyCode, selectedAccountId, isToday);
   const reportInput = useReportInput(
     'monthly',
     anchorDate,
@@ -131,9 +131,26 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
 
   const onPerformanceLayout = useScreenPerformance(
     'reports',
-    [accounts, home, reportQuery, trendQuery],
+    isToday ? [accounts, home, reportQuery, trendQuery] : [accounts, reportQuery, trendQuery],
     JSON.stringify(reportInput) + timeframe
   );
+  const denied = [accounts, home, reportQuery, trendQuery].some((read) =>
+    isAuthoritativeReadDenial(read.error)
+  );
+  const trend =
+    !denied && hasReadableSnapshot(reportQuery) && hasReadableSnapshot(trendQuery)
+      ? trendQuery.data
+      : undefined;
+  const savedOffline = home.isPaused || offlineSnapshot(home.data);
+  const balanceAge = Date.now() - home.dataUpdatedAt;
+  const currentBalance =
+    !denied && isToday && hasReadableSnapshot(home) &&
+    home.data?.currencyCode === currencyCode && home.data.dataState === 'ready' &&
+    (savedOffline || (balanceAge >= 0 && balanceAge < 60_000 &&
+      localDateInTimeZone(home.dataUpdatedAt, timeZone) === anchorDate))
+      ? home.data
+      : undefined;
+  const showBalanceStatus = !trend?.length && currentBalance !== undefined;
   return (
     <View
       onLayout={onPerformanceLayout}
@@ -200,7 +217,7 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
               actionLabel={translate('reports.action.retry')}
               onAction={() => {
                 void reportQuery.refetch();
-                void home.refetch();
+                if (isToday) void home.refetch();
                 void trendQuery.refetch();
               }}
             />
@@ -211,18 +228,27 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
               currencyCode={currencyCode}
               report={reportQuery.data}
               netWorthMinor={
-                reportQuery.data
-                  ? (trendQuery.data?.at(-1)?.minorUnits ??
-                    home.data?.totalBalanceMinor ??
-                    null)
-                  : null
+                trend?.at(-1)?.minorUnits ?? currentBalance?.totalBalanceMinor ?? null
               }
               stackMetrics={stackMetrics}
               timeframe={timeframe}
-              trend={reportQuery.data ? (trendQuery.data ?? []) : []}
+              trend={trend ?? []}
               trendPending={reportQuery.isPending || trendQuery.isPending}
               trendFeedback={
-                trendQuery.isError && hasReadableSnapshot(trendQuery) ? (
+                showBalanceStatus && !trendQuery.isError ? (
+                  <>
+                    {savedOffline ? (
+                      <DirectionalText direction={direction} style={styles.cardLabel} muted>
+                        {translate('reports.local.basedOn')}
+                      </DirectionalText>
+                    ) : <FinancialRefreshStatus query={home} />}
+                    {currentBalance.isEstimated && (
+                      <DirectionalText direction={direction} style={styles.cardLabel} muted>
+                        {translate('reports.state.estimated')}
+                      </DirectionalText>
+                    )}
+                  </>
+                ) : trendQuery.isError && hasReadableSnapshot(trendQuery) ? (
                   <FinancialRefreshStatus query={trendQuery} />
                 ) : trendQuery.isError ? (
                   <StateView
