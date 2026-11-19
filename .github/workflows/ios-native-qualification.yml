@@ -112,6 +112,7 @@ jobs:
           plutil -extract 'Income Category' raw -o - "$app/ar.lproj/Localizable.strings" | grep -Fxq 'تصنيف الدخل'
           test -s "$app/main.jsbundle"
           test -d "$app/Metadata.appintents"
+          xcrun swift scripts/fixtures/bank-sms-repayment.swift "$app/MasarifiBankSmsParser.js"
           printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"
 
   ad-hoc-export:

@@ -304,6 +304,41 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   assert.equal(parse('Purchase SAR 12.34 at QA SHOP', { accounts: [accounts[0]], accountId: 'bank', categoryId: 'expense' }).accountId, 'bank');
 });
 
+test('records a funded credit card repayment once across two Shortcut inputs and preserves utility expenses', () => {
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const bank = { id: 'bank', type: 'bank', issuer: 'QAALFA', currency: 'SAR', accountEnding: '7373', automaticRouting: true };
+  const card = { id: 'credit', type: 'credit_card', issuer: 'QABETA', currency: 'SAR', lastFour: '8181', automaticRouting: true };
+  const parse = (message, accounts = [bank, card]) => context.masarifiClassifyBankSms(
+    message, captureAt, 'Asia/Riyadh', {
+      accounts, categories: [{ id: 'utilities', kind: 'expense' }], preferences: { expenseId: 'utilities' }
+    }
+  );
+  const sms = 'QAALFA Credit card bill payment SAR 100 from account XX7373 to card XX8181 Ref: QAPAY123';
+  const mirrored = 'QABETA تم سداد فاتورة البطاقة بمبلغ SAR 100 من حساب XX7373 إلى بطاقة XX8181 مرجع: qapay123';
+  const debit = parse(sms);
+  const credit = parse(mirrored);
+  const bill = parse('QAALFA Bill payment SAR 100 from account XX7373 to credit card XX8181 Ref: QAPAY123');
+  for (const result of [debit, credit, bill]) {
+    assert.ok(result);
+    assert.deepEqual([result.kind, result.accountId, result.destinationAccountId, result.categoryId],
+      ['transfer', 'bank', 'credit', null]);
+  }
+  assert.ok(debit.stableReferenceIdentity);
+  assert.equal(debit.stableReferenceIdentity, credit.stableReferenceIdentity);
+  assert.equal(debit.stableReferenceIdentity, bill.stableReferenceIdentity);
+  assert.notEqual(debit.stableReferenceIdentity, parse(sms.replace('QAPAY123', 'QAPAY124')).stableReferenceIdentity);
+  assert.equal(parse(sms.replace(' to card XX8181', '')), null);
+  assert.equal(parse(sms.replace('XX8181', 'XX8181EXTRA')), null);
+  assert.equal(parse(sms.replace('Ref: QAPAY123', '')), null);
+  assert.equal(parse(sms.replace('bill payment', 'bill payment due')), null);
+  assert.equal(parse(sms, [bank, { ...card, type: 'debit_card' }]), null);
+  assert.equal(parse(sms, [bank, { ...card, automaticRouting: false }]), null);
+  assert.equal(parse(sms, [bank, { ...card, currency: 'AED' }]), null);
+  assert.equal(parse(sms, [bank, card, { ...card, id: 'another' }]), null);
+  assert.equal(parse('Electricity bill payment SAR 100 from account XX7373 Ref: QAUTIL123').kind, 'expense');
+});
+
 test('checks the shared Saudi, Emirati, and Egyptian fixtures against enrolled account routing', () => {
   const fixtures = require('../../../packages/transaction-parser/corpus.json');
   const context = vm.createContext({});

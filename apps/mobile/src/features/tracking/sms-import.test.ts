@@ -80,6 +80,142 @@ const options = (patch: Record<string, unknown> = {}) => ({
   ...patch
 });
 describe('financial capture preparation', () => {
+  it.each([
+    'سداد فاتورة البطاقة بمبلغ SAR 100 من حساب XX4242',
+    'Credit card bill payment SAR 100 from account XX4242 to card XX8181',
+    'Credit card payment SAR 100',
+    'تم سداد مبلغ 100 ريال سعودي للبطاقة الائتمانية',
+    'تم سداد مبلغ SAR 100 لبطاقتك الائتمانية',
+    'بطاقة ائتمانية: سداد SAR 100',
+    'Credit card payment of SAR 100 was received at 12:30',
+    'CC Payment Received SAR 100',
+    'Payment of SAR 100 to your credit card',
+    'Payment of SAR 100 received towards your credit card ending 4242',
+    'Payment on your credit card of SAR 100',
+    'Repaid your credit card bill SAR 100',
+    'تسديد مستحقات بطاقتك SAR 100',
+    'سداد البطاقة بمبلغ SAR 100'
+  ])(
+    'keeps a nominal card repayment in transfer review on SMS and notifications: %s',
+    async (body) => {
+      const config = options({
+        accountingPolicy: 'default_account_nominal_v1',
+        sourceAdmissionPolicy: 'financial_content_v1',
+        currencyAccountPolicy: 'source_currency_v1'
+      });
+      const inputs = [
+        message({ body }),
+        {
+          key: '1',
+          packageName: 'com.example.bank',
+          title: 'Bank',
+          text: body,
+          postedAt: message().receivedAt
+        }
+      ];
+      const result = await prepareFinancialMessageImport(inputs, config);
+      expect(result.events).toHaveLength(2);
+      for (const event of result.events) {
+        expect(event.classification).toMatchObject({
+          subtype: 'card_repayment',
+          disposition: 'review',
+          reasonCodes: expect.arrayContaining([
+            'card_repayment_requires_transfer'
+          ])
+        });
+        expect(event.kind).toBeUndefined();
+        expect(event.destinationAccountId).toBeUndefined();
+      }
+      const replay = await prepareFinancialMessageImport(inputs, {
+        ...config,
+        knownFingerprints: new Set(
+          result.events.map((event) => event.sourceItemKey)
+        )
+      });
+      expect(replay.events).toHaveLength(0);
+    }
+  );
+  it('uses a V2 transfer only for an identified paying account and owned credit card', async () => {
+    const input = message({
+      body: 'Credit card bill payment SAR 100 from account XX4242 to card XX8181'
+    });
+    const credit = account({
+      id: '10000000-0000-4000-8000-000000000003',
+      type: 'credit_card',
+      lastFour: '8181'
+    });
+    const [matched] = (
+      await prepareSmsImport(
+        [input],
+        options({ accounts: [account(), credit] })
+      )
+    ).events;
+    expect(matched).toMatchObject({
+      kind: 'transfer',
+      accountId: account().id,
+      destinationAccountId: credit.id,
+      classification: {
+        subtype: 'transfer_sent',
+        disposition: 'capture_candidate'
+      }
+    });
+    const long = await prepareSmsImport(
+      [
+        message({
+          sender: 'ADCBAlert',
+          body: 'Credit card bill payment SAR 100 from account XX4242 to card 1234567890128181'
+        })
+      ],
+      options({
+        accounts: [account(), credit],
+        senderRules: [{ ...sender(), normalizedSender: 'adcbalert' }],
+        bindings: [
+          {
+            provider: 'adcb',
+            role: 'card',
+            suffix: '123456789012',
+            accountId: credit.id
+          }
+        ]
+      })
+    );
+    expect(long.events[0]?.destinationAccountId).toBeUndefined();
+    for (const accounts of [
+      [account()],
+      [account(), { ...credit, type: 'bank' }],
+      [account(), { ...credit, automaticTrackingEnabled: false }]
+    ]) {
+      const [unmatched] = (
+        await prepareSmsImport([input], options({ accounts }))
+      ).events;
+      expect(unmatched).toMatchObject({
+        kind: 'transfer',
+        classification: { subtype: 'card_repayment', disposition: 'review' }
+      });
+      expect(unmatched?.destinationAccountId).toBeUndefined();
+    }
+  });
+  it.each([
+    'سداد فاتورة الكهرباء بمبلغ SAR 100 من حساب XX4242',
+    'Bill payment SAR 100 to Electricity Company with credit card XX4242',
+    'Credit card payment SAR 100 at Market',
+    'Credit card payment of SAR 100 to ACME Stores',
+    'Paid SAR 100 with credit card XX4242',
+    'تم دفع SAR 100 باستخدام بطاقة ائتمانية',
+    'شراء بمبلغ SAR 100 باستخدام البطاقة الائتمانية'
+  ])('keeps utility and purchase spending: %s', async (body) => {
+    const [event] = (
+      await prepareSmsImport(
+        [message({ body })],
+        options({ accountingPolicy: 'default_account_nominal_v1' })
+      )
+    ).events;
+    expect(event?.classification).toMatchObject({
+      direction: 'outgoing',
+      disposition: 'capture_candidate',
+      reasonCodes: []
+    });
+  });
   it('prepares the reported FlexiblePay purchase without using its available balance', async () => {
     const result = await prepareSmsImport(
       [

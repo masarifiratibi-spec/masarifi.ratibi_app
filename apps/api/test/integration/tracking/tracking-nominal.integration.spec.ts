@@ -7,6 +7,7 @@ import { PlatformConfigService } from '../../../src/platform/config/platform-con
 import { SecurityRepository } from '../../../src/security/security.repository';
 import { normalizeNormalizedImport } from '../../../src/tracking/tracking.dto';
 import { TrackingRepository } from '../../../src/tracking/tracking.repository';
+import { TrackingService } from '../../../src/tracking/tracking.service';
 import { TrackingWorker } from '../../../src/tracking/tracking.worker';
 import { EngagementRepository } from '../../../src/engagement/engagement.repository';
 import {
@@ -63,6 +64,9 @@ describeLiveDatabase('nominal default-account tracking', () => {
       device?: string;
       receivedAt?: string;
       component?: 'principal' | 'fee';
+      retainedBody?: string;
+      legacyV2?: boolean;
+      executor?: TrackingWorker;
     } = {},
   ) {
     const native = options.native ?? randomUUID(),
@@ -81,18 +85,23 @@ describeLiveDatabase('nominal default-account tracking', () => {
     void providerReference;
     void originalProviderReference;
     const command = normalizeNormalizedImport({
-      schemaVersion: 3,
+      schemaVersion: options.legacyV2 ? 2 : 3,
       sourceType: channel === 'android_sms' ? 'sms' : 'provider',
       sourceChannel: channel,
       events: [
         {
-          accountingPolicy: 'default_account_nominal_v1',
-          sourceAmountDecimal: parsed.sourceAmountDecimal,
-          activatedAt: new Date(Date.now() - 600000).toISOString(),
+          ...(options.legacyV2
+            ? { kind: 'expense', accountId: account }
+            : {
+                accountingPolicy: 'default_account_nominal_v1',
+                sourceAmountDecimal: parsed.sourceAmountDecimal,
+                activatedAt: new Date(Date.now() - 600000).toISOString(),
+              }),
           sourceItemKey: hash(
             native + '|' + text + '|' + receivedAt + '|' + (options.component ?? 'single'),
           ),
           sender,
+          ...(options.retainedBody ? { body: options.retainedBody } : {}),
           receivedAt,
           occurredAt: classification.occurredAt,
           classification,
@@ -121,15 +130,20 @@ describeLiveDatabase('nominal default-account tracking', () => {
         },
       ],
     });
-    const response = await repository.createImport(principal(), command, {
+    const request = {
       sourceName: null,
       key: 'nominal-' + randomUUID(),
       requestId: randomUUID(),
-    });
+    };
+    const submit = () => repository.createImport(principal(), command, request);
+    const response = await submit();
     const id = String((response.resource as Record<string, unknown>).id);
-    await withFixtureImportWork(pool, owner, () => worker.runJob('import.parse'));
+    await withFixtureImportWork(pool, owner, () =>
+      (options.executor ?? worker).runJob('import.parse'),
+    );
     return {
       id,
+      replay: submit,
       items: (await repository.listOwner(principal(), 'items', null, 100, null, {
         sessionId: id,
       })) as Record<string, unknown>[],
@@ -143,6 +157,194 @@ describeLiveDatabase('nominal default-account tracking', () => {
       )
     ).rows;
   }
+  it.each([
+    ['android_sms', 'سداد فاتورة البطاقة بمبلغ SAR 100 من حساب XX7373'],
+    ['android_notification', 'Credit card bill payment SAR 100 from account XX7373 to card XX8181'],
+  ] as const)(
+    'holds a repayment from %s until the owner chooses an actual credit card',
+    async (channel, text) => {
+      const receivedAt = new Date().toISOString();
+      const { id, items, replay } = await capture(text, {
+        channel,
+        native: 'card-repayment',
+        reference: 'bank-repayment-01',
+        receivedAt,
+      });
+      expect(items[0]?.status).toBe('review');
+      expect(await finances()).toEqual([]);
+      const review = (
+        await pool.query(
+          'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+          [id],
+        )
+      ).rows[0];
+      if (!review) throw new Error('REPAYMENT_REVIEW_EXPECTED');
+      expect(review.reason).toBe('card_repayment_requires_transfer');
+      expect(review.proposed_values.kind).toBe('transfer');
+      expect(review.proposed_values.accountId).toBeUndefined();
+      expect(review.proposed_values.destinationAccountId).toBeUndefined();
+      const secondWorker = new TrackingWorker(repository, ledger, {} as never);
+      const counterpart = await capture(text, {
+        channel: channel === 'android_sms' ? 'android_notification' : 'android_sms',
+        native: 'second-channel',
+        reference: 'bank-repayment-01',
+        receivedAt,
+        executor: secondWorker,
+      });
+      await secondWorker.stop();
+      expect(counterpart.items.find((item) => item.sessionId === counterpart.id)?.status).toBe(
+        'rejected',
+      );
+      expect(
+        (
+          await pool.query('select count(*)::int n from public.review_items where user_id=$1', [
+            owner,
+          ])
+        ).rows[0]?.n,
+      ).toBe(1);
+      const creditCard = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Repayment destination','credit_card','SAR')",
+        [creditCard, owner],
+      );
+      const service = new TrackingService(repository, ledger, {} as never);
+      for (const edit of [
+        { kind: 'expense' },
+        { accountId: account, destinationAccountId: account },
+      ]) {
+        await expect(
+          service.decideReview(review.id, {
+            principal: principal(),
+            body: { decision: 'edit_accept', expectedVersion: Number(review.version), edit },
+            idempotencyKey: randomUUID(),
+            requestId: randomUUID(),
+          }),
+        ).rejects.toMatchObject({ response: { code: 'TRACKING_CREDIT_CARD_TRANSFER_REQUIRED' } });
+      }
+      await service.decideReview(review.id, {
+        principal: principal(),
+        body: {
+          decision: 'edit_accept',
+          expectedVersion: Number(review.version),
+          edit: { accountId: account, destinationAccountId: creditCard },
+        },
+        idempotencyKey: randomUUID(),
+        requestId: randomUUID(),
+      });
+      expect(await finances()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'transfer', account, effect: '-10000' }),
+          expect.objectContaining({ kind: 'transfer', account: creditCard, effect: '10000' }),
+        ]),
+      );
+      expect(await replay()).toMatchObject({ resource: { id } });
+      expect(await counterpart.replay()).toMatchObject({ resource: { id: counterpart.id } });
+      expect(await finances()).toHaveLength(2);
+    },
+  );
+  it('keeps reference-free equal repayments separate and holds cross-channel ambiguity for the owner', async () => {
+    const text = 'Credit card payment SAR 25',
+      receivedAt = new Date().toISOString();
+    for (const native of ['first', 'second']) await capture(text, { native, receivedAt });
+    await capture(text, { native: 'notification', receivedAt, channel: 'android_notification' });
+    const rows = (
+      await pool.query(
+        'select r.reason,i.canonical_identity_hash from public.review_items r join public.import_items i on i.id=r.import_item_id where r.user_id=$1',
+        [owner],
+      )
+    ).rows;
+    expect(rows.map((r) => r.reason).sort()).toEqual([
+      'card_repayment_requires_transfer',
+      'card_repayment_requires_transfer',
+      'duplicate_candidate',
+    ]);
+    expect(new Set(rows.map((r) => r.canonical_identity_hash)).size).toBe(3);
+    expect(await finances()).toEqual([]);
+  });
+  it('keeps an ordinary utility bill paid by credit card as one expense', async () => {
+    await capture('Bill payment SAR 100 to Electricity Company with credit card XX8181');
+    expect(await finances()).toEqual([
+      expect.objectContaining({ kind: 'expense', effect: '-10000' }),
+    ]);
+  });
+  it.each(['تسديد مستحقات بطاقتك SAR 100', 'Credit card repayment SAR 100'])(
+    'requires explicit settlement before accepting receipt-only wording: %s',
+    async (text) => {
+      const { id } = await capture(text);
+      const review = (
+        await pool.query(
+          'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+          [id],
+        )
+      ).rows[0];
+      if (!review) throw new Error('REPAYMENT_REVIEW_EXPECTED');
+      expect(review.proposed_values.classification.status).toBe('unknown');
+      const creditCard = randomUUID();
+      await pool.query(
+        "insert into public.accounts(id,user_id,name,type,currency_code) values($1,$2,'Credit card','credit_card','SAR')",
+        [creditCard, owner],
+      );
+      const service = new TrackingService(repository, ledger, {} as never);
+      const accept = (confirmed: boolean) =>
+        service.decideReview(review.id, {
+          principal: principal(),
+          body: {
+            decision: 'edit_accept',
+            expectedVersion: Number(review.version),
+            edit: {
+              accountId: account,
+              destinationAccountId: creditCard,
+              settlementConfirmed: confirmed,
+            },
+          },
+          idempotencyKey: randomUUID(),
+          requestId: randomUUID(),
+        });
+      await expect(accept(false)).rejects.toMatchObject({
+        response: { code: 'TRACKING_SETTLEMENT_REQUIRED' },
+      });
+      expect(await finances()).toEqual([]);
+      await accept(true);
+      expect((await finances()).map((p) => p.kind)).toEqual(['transfer', 'transfer']);
+    },
+  );
+  it('keeps a declined legacy classification blocked when the retained body alone sounds completed', async () => {
+    const { id, items } = await capture('Declined bill payment SAR 100', {
+      retainedBody: 'Credit card bill payment SAR 100',
+      legacyV2: true,
+    });
+    expect(items.find((item) => item.sessionId === id)?.status).toBe('rejected');
+    expect(await finances()).toEqual([]);
+  });
+  it.each([false, true])(
+    'reviews old queued bill classifications when the original Android body still identifies repayment (V2 %s)',
+    async (legacyV2) => {
+      const { items, replay } = await capture('Bill payment SAR 100', {
+        retainedBody: 'Credit card bill payment SAR 100 from account XX7373',
+        legacyV2,
+      });
+      expect(items[0]?.status).toBe('review');
+      await replay();
+      expect(await finances()).toEqual([]);
+    },
+  );
+  it.each([
+    'Credit card payment SAR 100 failed',
+    'OTP 123456 for credit card payment SAR 100',
+    'Credit card payment due SAR 100',
+    'Special offer: credit card payment SAR 100',
+  ])('keeps old nonsettled evidence non-actionable: %s', async (body) => {
+    const { items } = await capture('Bill payment SAR 100', { retainedBody: body, legacyV2: true });
+    expect(items[0]?.status).toBe('rejected');
+    expect(await finances()).toEqual([]);
+    expect(
+      (
+        await pool.query('select count(*)::int n from public.review_items where user_id=$1', [
+          owner,
+        ])
+      ).rows[0]?.n,
+    ).toBe(0);
+  });
   it('records 50 EGP as numerical 50 SAR on the existing cash default with Shopping', async () => {
     const result = await capture('تم دفع خمسين جنيه');
     expect(result.items[0]?.status).toBe('accepted');

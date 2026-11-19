@@ -13,6 +13,7 @@ const snapshot = {
 };
 const expenses = ['purchase', 'pos_purchase', 'online_purchase', 'card_purchase', 'bill_payment', 'fee'];
 const evidenceRequired = {
+  card_repayment: 'card_repayment_requires_transfer',
   withdrawal: 'cash_destination_required',
   transfer_sent: 'transfer_counterparty_required',
   transfer_received: 'transfer_counterparty_required',
@@ -74,8 +75,32 @@ function route(text, c, routing) {
   const banks = matchedIssuers(text, routing.accounts);
   if (banks.size > 1) return null;
   const bank = banks.values().next().value;
-  const bankAccounts = bank ? accounts.filter(account => issuer(account) === bank) : accounts;
   const message = words(text).slice(bank ? bank.length : 0).trim();
+  // A bank may describe the debit simply as a bill payment to the user's
+  // enrolled credit card. Treat it as a transfer or leave it unrecorded.
+  const creditBill = c.subtype === 'bill_payment' && (
+    /\bto (?:your |the )?credit[ -]card\b/u.test(message) ||
+    c.instruments.some(hint => hint.side === 'destination' && hint.role === 'card' &&
+      routing.accounts.some(target => target.type === 'credit_card' && target.lastFour &&
+        hint.suffix.endsWith(target.lastFour)))
+  );
+  if (c.subtype === 'card_repayment' || creditBill) {
+    if (!c.providerReference || c.instruments.some(hint => !hint.side)) return null;
+    const from = c.instruments.filter(hint => hint.side === 'source');
+    const to = c.instruments.filter(hint => hint.side === 'destination');
+    const source = resolveHints(accounts, from, selected);
+    const destination = resolveHints(accounts, to);
+    if (!source?.automaticRouting || !destination?.automaticRouting || source === destination ||
+        !['bank', 'debit_card', 'savings', 'wallet'].includes(source.type) || destination.type !== 'credit_card' ||
+        (bank && issuer(source) !== bank && issuer(destination) !== bank)) return null;
+    if (routing.accountEnding) {
+      const ending = normalizeFinancialText(routing.accountEnding);
+      if (!selected || !/^\d{4}$/.test(ending) || source.accountEnding !== ending ||
+          !from.some(hint => hint.role === 'account' && hint.suffix.endsWith(ending))) return null;
+    }
+    return { kind: 'transfer', account: source, destination };
+  }
+  const bankAccounts = bank ? accounts.filter(account => issuer(account) === bank) : accounts;
   const externalTransfer = /^(?:outgoing external transfer|incoming external transfer|تحويل خارجي صادر|حوالة خارجية صادرة|حواله خارجيه صادره|تحويل خارجي وارد|حوالة خارجية واردة|حواله خارجيه وارده)(?: |$)/u.test(message);
   if (selected && !bankAccounts.includes(selected)) return null;
   const subtype = c.subtype;
@@ -176,7 +201,8 @@ module.exports = function classifyBankSms(text, receivedAt, timeZone, routing) {
   const c = result.classification;
   if (!result.strong || c.status !== 'completed' || !Number.isSafeInteger(c.amountMinor) ||
       c.amountMinor <= 0 || !/^[A-Z]{3}$/.test(c.currency ?? '') ||
-      c.reasonCodes.some(code => code !== evidenceRequired[c.subtype])) return null;
+      c.reasonCodes.some(code => code !== evidenceRequired[c.subtype] &&
+        !(c.subtype === 'card_repayment' && code === 'action_unknown'))) return null;
 
   const movement = routing && route(normalizeFinancialText(text), c, routing);
   // Keep parser-only qualification independent of any enrolled user's data.

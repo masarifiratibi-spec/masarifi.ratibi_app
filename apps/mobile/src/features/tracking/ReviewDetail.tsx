@@ -60,8 +60,14 @@ function ReviewDetailContent({ id }: { id: string }) {
       />
     );
   const item = query.data;
+  const proposed = item.proposedValues;
+  const confirmReady = canConfirmRepayment(
+    { ...proposed, ...edits },
+    accounts.data ?? []
+  );
   async function resolve(action: 'confirm' | 'ignore' | 'report_wrong') {
     if (resolving || query.isError || query.isFetching) return;
+    if (action === 'confirm' && !confirmReady) return;
     setResolving(true);
     setResolutionError(false);
     try {
@@ -79,7 +85,6 @@ function ReviewDetailContent({ id }: { id: string }) {
       setResolving(false);
     }
   }
-  const proposed = item.proposedValues;
   const currency = stringValue(proposed.currencyCode ?? proposed.currency);
   const accountId = stringValue(proposed.accountId);
   const categoryId = stringValue(proposed.categoryId);
@@ -179,7 +184,7 @@ function ReviewDetailContent({ id }: { id: string }) {
       <ActionButton
         label={translate('tracking.action.confirm')}
         loading={resolving}
-        disabled={query.isError || query.isFetching}
+        disabled={query.isError || query.isFetching || !confirmReady}
         onPress={() => void resolve('confirm')}
       />
       <ActionButton
@@ -200,6 +205,34 @@ function ReviewDetailContent({ id }: { id: string }) {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value ? value : null;
+}
+
+function canConfirmRepayment(
+  values: Record<string, unknown>,
+  accounts: readonly Account[]
+): boolean {
+  const classification = values.classification as
+    { subtype?: string; status?: string } | undefined;
+  if (classification?.subtype !== 'card_repayment') return true;
+  const settled =
+    classification.status === 'completed' ||
+    (['pending', 'unknown'].includes(classification.status ?? '') &&
+      values.settlementConfirmed === true);
+  const active = accounts.filter(
+    (account) =>
+      account.status === 'active' && account.currencyCode === values.currency
+  );
+  return (
+    settled &&
+    values.kind === 'transfer' &&
+    values.accountId !== values.destinationAccountId &&
+    active.some((account) => account.id === values.accountId) &&
+    active.some(
+      (account) =>
+        account.id === values.destinationAccountId &&
+        account.type === 'credit_card'
+    )
+  );
 }
 
 const styles = StyleSheet.create({

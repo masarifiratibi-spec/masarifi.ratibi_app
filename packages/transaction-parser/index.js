@@ -6,7 +6,34 @@ const ENGINE_VERSION = '2.0.0';
 const DIRECTIONS = ['outgoing', 'incoming', 'internal', 'unknown'];
 const STATUSES = ['completed', 'pending', 'failed', 'declined', 'cancelled', 'administrative', 'unknown'];
 const DISPOSITIONS = ['capture_candidate', 'review', 'ignore'];
-const SUBTYPES = ['administrative', 'reversal', 'refund', 'salary', 'pos_purchase', 'online_purchase', 'card_purchase', 'bill_payment', 'withdrawal', 'transfer_sent', 'transfer_received', 'generic_debit', 'purchase', 'payment', 'fee', 'deposit', 'generic_credit'];
+const SUBTYPES = ['administrative', 'reversal', 'refund', 'salary', 'pos_purchase', 'online_purchase', 'card_purchase', 'bill_payment', 'card_repayment', 'withdrawal', 'transfer_sent', 'transfer_received', 'generic_debit', 'purchase', 'payment', 'fee', 'deposit', 'generic_credit'];
+
+// The card must be the object of repayment. A card used as a payment method
+// (including "credit card payment at ...") still represents ordinary spending.
+const arabicCard = '(?:ال)?بطاق(?:ة|تك(?:م)?|تي)(?![\\p{L}])';
+const cardBalance = '(?:فاتورة|رصيد|مديونية|مستحقات|كشف(?: حساب)?)';
+const money = '(?:[A-Z]{2,3} ?)?[\\d,]+(?:\\.\\d+)?(?: ?(?:[A-Z]{2,3}|ريال(?: سعودي)?|درهم|جنيه))?';
+const arabicCardRepayment = new RegExp(
+  `(?<![\\p{L}])(?:[وف]?[لب]?(?:سداد(?:ك|كم)?|تسديد) (?:${cardBalance} )?|دفع ${cardBalance} )${arabicCard}`, 'u');
+const arabicAmountToCard = new RegExp(`(?:سداد|تسديد)(?: مبلغ)? ${money} ل(?:ل)?${arabicCard}`, 'iu');
+const englishCardRepayment = [
+  /\b(?:cc|credit[ -]card) payment (?:of [^.;]{1,40} )?(?:was |has been )?received\b/iu,
+  /\bcredit[ -]card payment\b[^.;]{0,90}\bto (?:your |the )?(?:credit )?card\b/u,
+  new RegExp(`\\b(?:paid|payment|repayment)(?: of)? ${money} (?:(?:was )?received )?(?:towards?|to|for) (?:(?:your|my|the) )?credit[ -]card\\b`, 'iu'),
+  new RegExp(`\\bpayment on (?:your |my |the )?credit[ -]card of ${money}\\b`, 'iu'),
+  /\bcredit[ -]card (?:bill payment|repayment)\b/u,
+  /\b(?:payment|repayment) (?:received )?(?:towards?|to|of|for) (?:(?:your|my|the) )?credit[ -]card\b/u,
+  /\b(?:paid|repaid) (?:(?:your|my|the) )?credit[ -]card (?:bill|balance|statement)\b/u,
+];
+function isCardRepayment(text) {
+  const normalized = normalizeFinancialText(text).toLowerCase();
+  if (arabicCardRepayment.test(normalized) || arabicAmountToCard.test(normalized) ||
+      /بطاق(?:ة|تك) (?:ال)?ائتمانية\s*[:،-]\s*(?:سداد|تسديد)/u.test(normalized) ||
+      englishCardRepayment.some(pattern => pattern.test(normalized)))
+    return true;
+  return /\bcredit[ -]card payment\b/u.test(normalized) &&
+    !/\b(?:at|to|merchant|purchase|using|via|by|with)\b/u.test(normalized);
+}
 
 function normalizeFinancialText(value) {
   return value.normalize('NFKC').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
@@ -173,6 +200,14 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
     result.reasonCodes.push('administrative_or_excluded'); return result;
   }
   if (exclusion) { Object.assign(result,exclusion.effects); result.reasonCodes.push('administrative_or_excluded'); return result; }
+  if (isCardRepayment(text)) {
+    if (['unknown','completed'].includes(result.status) && /\b(?:due|reminder|scheduled|refund|reversal|reversed)\b|تذكير|موعد|مستحق السداد|يرجي|مطلوب|الرجاء|عكس العملية|استرداد/u.test(lower))
+      result.status='pending';
+    if (result.status==='unknown' && !action && !lifecycle && /\brepaid\b|payment received|تم (?:سداد|تسديد)/u.test(lower)) result.status='completed';
+    result.subtype='card_repayment';
+    result.direction='outgoing';
+    result.reasonCodes.push('card_repayment_requires_transfer');
+  }
   const candidates = moneyCandidates(text,snapshot,input.verifiedAccountCurrency);
   if(result.subtype!=='fee' && candidates.some(c=>c.role==='fee' && (c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null))) result.reasonCodes.push('fee_components_required');
   const amounts = candidates.filter(c=>c.role==='transaction' || result.subtype==='fee' && c.role==='fee');
@@ -182,13 +217,14 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
   if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
   for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending(?:\s+with)?)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
+    const end = m.index + m[0].length;
+    const tail = text.slice(end);
+    if (input.channel !== 'ios_app_intent' && /^[\p{L}\p{N}]/u.test(tail)) continue;
     const label = (m[1]||m[2]).toLowerCase();
     let suffix=m[3].replace(/[^0-9]/g,'');
     if (input.channel === 'ios_app_intent') {
-      const end = m.index + m[0].length;
-      const tail = text.slice(end);
       const continuation = tail.match(/^\d*[- ]+(?=[x*•\d])/i);
-      if (/^[x*•]/i.test(tail) ||
+      if (/^\d*[\p{L}*•]/u.test(tail) ||
           continuation && !candidates.some(amount => amount.index === end + continuation[0].length)) {
         result.reasonCodes.push('instrument_ambiguous');
         continue;
@@ -205,7 +241,7 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
     }
     const prefix=lower.slice(0,m.index).trimEnd();
     let side;
-    if (['transfer_sent','transfer_received','withdrawal'].includes(result.subtype) || input.channel === 'ios_app_intent') {
+    if (['transfer_sent','transfer_received','withdrawal','card_repayment'].includes(result.subtype) || input.channel === 'ios_app_intent') {
       if (/(?:\bfrom|من)$/u.test(prefix)) side = 'source';
       else if (/(?:\bto|إلى|الى|الي)$/u.test(prefix)) side = 'destination';
       else if (input.channel === 'ios_app_intent' && result.subtype === 'bill_payment' &&
@@ -275,13 +311,13 @@ function discoverFinancialMessage(input, snapshot = defaultSnapshot, overrides =
   classification.appliedRuleKeys=[...new Set([...classification.appliedRuleKeys,...customRuleKeys])].slice(0,64);
   const monetaryEvidence=moneyCandidates(text,effective,input.verifiedAccountCurrency).some(c=>(c.amountMinor!==null || c.ambiguous && minorUnits(c.raw,3)!==null) &&
     (c.role==='transaction' || classification.subtype==='fee' && c.role==='fee'));
-  const financialEvidence=matched.some(rule=>rule.family==='action') || custom.length>0 &&
+  const financialEvidence=classification.subtype==='card_repayment' || matched.some(rule=>rule.family==='action') || custom.length>0 &&
     (effective.discoveryContexts||[]).some(phrase=>phraseMatches(text,phrase));
   // Discovery grants retention, never source trust, completion or posting authority.
   const strong=classification.disposition!=='ignore' && monetaryEvidence && Boolean(financialEvidence);
   return {strong,classification,customRuleKeys};
 }
-module.exports = {canonicalJson, classifyFinancialMessage,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus,
+module.exports = {canonicalJson, classifyFinancialMessage,isCardRepayment,normalizeFinancialText,validateRuleSnapshot,validateClassification,defaultSnapshot,evidenceCorpus,
   effectiveFinancialSnapshot,compileFinancialDiscoveryPolicy,discoverFinancialMessage};
 
 Object.assign(module.exports, require('./nominal-tracking')(module.exports));

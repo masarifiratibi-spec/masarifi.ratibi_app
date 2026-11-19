@@ -1478,6 +1478,8 @@ const en = {
     'The receiving cash account is needed',
   'tracking.reason.transfer_counterparty_required':
     'The other side of the transfer is unclear',
+  'tracking.reason.card_repayment_requires_transfer':
+    'Choose the paying account and credit card to record the transfer',
   'tracking.reason.original_transaction_required':
     'The original transaction is needed',
   'tracking.reason.credit_origin_required':

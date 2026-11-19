@@ -1425,6 +1425,8 @@ const ar: MessageCatalog = {
     'يجب تحديد الحساب النقدي المستلم',
   'tracking.reason.transfer_counterparty_required':
     'الطرف الآخر للتحويل غير واضح',
+  'tracking.reason.card_repayment_requires_transfer':
+    'اختر حساب السداد والبطاقة الائتمانية لتسجيل التحويل',
   'tracking.reason.original_transaction_required': 'يجب تحديد المعاملة الأصلية',
   'tracking.reason.credit_origin_required': 'مصدر المبلغ المضاف غير واضح',
   'tracking.reason.fee_components_required':
