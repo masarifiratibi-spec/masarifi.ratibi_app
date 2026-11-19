@@ -16,7 +16,10 @@ import {
 } from './reports.period';
 import {
   bindConfirmedMailbox,
+  isPlanningReport,
   parseReportSnapshot,
+  SELECTED_ACCOUNTS_PLANNING_REASON,
+  unavailablePlanningContent,
   type DeliveryChannel,
   type ReportFormat,
   type ReportType,
@@ -52,7 +55,8 @@ export interface ReportsSummaryResponse {
       endDate: string;
       timezone: string;
     };
-    dataState: 'complete' | 'empty';
+    dataState: 'complete' | 'empty' | 'partial';
+    planningUnavailableReason?: typeof SELECTED_ACCOUNTS_PLANNING_REASON;
     evidence: Array<{ kind: 'ledger'; version: number; asOf: string }>;
   };
   summaries: Array<{
@@ -1418,7 +1422,7 @@ export class ReportsRepository {
            from public.v_budget_utilization v
            where v.budget_id=b.id and v.user_id=b.user_id
          ) u on true
-         where b.user_id=$1 and b.status<>'deleted' and b.period_end>=$2::date and b.period_start<=$3::date
+         where b.user_id=$1 and b.status='active' and b.period_end>=$2::date and b.period_start<=$3::date
            and ($4::char(3) is null or b.currency_code=$4)
          group by b.currency_code order by b.currency_code limit 16`,
         [userId, period.startDate, period.endDate, currency],
@@ -1534,14 +1538,20 @@ export class ReportsRepository {
     detailedRows: Record<string, unknown>[];
     dataState: 'complete' | 'empty' | 'partial';
   }> {
+    const minorUnit = (
+      await client.query<{ minor_unit: number }>(
+        'select minor_unit from public.currencies where code=$1',
+        [input.currency],
+      )
+    ).rows[0]?.minor_unit;
+    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
+      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
+    const currencyMinorUnits = { [input.currency]: minorUnit };
+    const planningReport = isPlanningReport(input.reportType);
+    if (input.summary.metadata.planningUnavailableReason)
+      return unavailablePlanningContent(currencyMinorUnits);
     const includePlanning =
-      !input.accountIds?.length &&
-      [
-        'financial_summary',
-        'budget_performance',
-        'obligation_progress',
-        'savings_progress',
-      ].includes(input.reportType);
+      !input.accountIds?.length && (input.reportType === 'financial_summary' || planningReport);
     const planning = includePlanning
       ? await this.readPlanning(client, input.userId, input.period, input.currency)
       : undefined;
@@ -1570,19 +1580,11 @@ export class ReportsRepository {
         }
       : {};
     const reportHasData = planningRows[input.reportType]?.length ?? (hasData || hasPlanning);
-    const minorUnit = (
-      await client.query<{ minor_unit: number }>(
-        'select minor_unit from public.currencies where code=$1',
-        [input.currency],
-      )
-    ).rows[0]?.minor_unit;
-    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
-      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
     return {
       summary: {
         summaries: input.summary.summaries,
         ...(planning ? { planning } : {}),
-        currencyMinorUnits: { [input.currency]: minorUnit },
+        currencyMinorUnits,
       },
       breakdowns,
       detailedRows,
@@ -1598,6 +1600,39 @@ export class ReportsRepository {
     currency: string | null,
     accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
+    const ledgerVersion = safeInteger(
+      (
+        await client.query<{ ledger_version: string }>(
+          `select coalesce(max(b.ledger_version),0)::bigint ledger_version
+           from public.account_balances b join public.accounts a on a.id=b.account_id where a.user_id=$1`,
+          [userId],
+        )
+      ).rows[0]?.ledger_version ?? '0',
+    );
+    const generatedAt = new Date().toISOString();
+    const metadata: Omit<ReportsSummaryResponse['metadata'], 'dataState'> = {
+      schemaVersion: 1,
+      generatedAt,
+      ledgerVersion,
+      reportType,
+      period: period.kind,
+      range: {
+        startDate: period.startDate,
+        endDate: period.endDate,
+        timezone: period.timezone,
+      },
+      evidence: [{ kind: 'ledger', version: ledgerVersion, asOf: generatedAt }],
+    };
+    if (accountIds?.length && isPlanningReport(reportType))
+      return {
+        metadata: {
+          ...metadata,
+          dataState: 'partial',
+          planningUnavailableReason: SELECTED_ACCOUNTS_PLANNING_REASON,
+        },
+        summaries: [],
+        breakdowns: [],
+      };
     // Sum signed postings so account moves cancel and transfer fees stay on their actual account.
     const reportTransactions = `with report_transactions as (
       select t.id,t.user_id,t.kind,t.status,t.deleted_at,t.occurred_at,t.currency_code,
@@ -1687,30 +1722,10 @@ export class ReportsRepository {
       expenseMinor: safeInteger(row.expense_minor),
       transactionCount: safeInteger(row.transaction_count),
     }));
-    const ledgerVersion = safeInteger(
-      (
-        await client.query<{ ledger_version: string }>(
-          `select coalesce(max(b.ledger_version),0)::bigint ledger_version
-           from public.account_balances b join public.accounts a on a.id=b.account_id where a.user_id=$1`,
-          [userId],
-        )
-      ).rows[0]?.ledger_version ?? '0',
-    );
-    const generatedAt = new Date().toISOString();
     return {
       metadata: {
-        schemaVersion: 1,
-        generatedAt,
-        ledgerVersion,
-        reportType,
-        period: period.kind,
-        range: {
-          startDate: period.startDate,
-          endDate: period.endDate,
-          timezone: period.timezone,
-        },
+        ...metadata,
         dataState: summaries.length === 0 ? 'empty' : 'complete',
-        evidence: [{ kind: 'ledger', version: ledgerVersion, asOf: generatedAt }],
       },
       summaries,
       breakdowns,

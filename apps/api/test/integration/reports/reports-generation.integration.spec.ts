@@ -92,7 +92,7 @@ describeLiveDatabase('immutable report generation requests', () => {
   });
 
   it.each([false, true])(
-    'keeps one budget limit across allocations and reports missing exchange rates (%s)',
+    'counts active budgets once across allocations and reports missing exchange rates (%s)',
     async (missingRate) => {
       const owner = `budget_report_${randomUUID()}`;
       const budget = randomUUID();
@@ -114,6 +114,8 @@ describeLiveDatabase('immutable report generation requests', () => {
           await client.query(
             `insert into public.budgets(id,user_id,name,currency_code,period_start,period_end,total_minor,status)
              values ($1,$2,'Report budget','SAR','2026-07-01','2026-07-31',100000,'active'),
+                    (gen_random_uuid(),$2,'Paused budget','SAR','2026-07-01','2026-07-31',240000,'paused'),
+                    (gen_random_uuid(),$2,'Paused only','AED','2026-07-01','2026-07-31',65000,'paused'),
                     (gen_random_uuid(),$2,'Other currency','USD','2026-07-01','2026-07-31',14222,'active'),
                     (gen_random_uuid(),$3,'Other owner','SAR','2026-07-01','2026-07-31',998877,'active')`,
             [budget, owner, userId],
@@ -147,18 +149,19 @@ describeLiveDatabase('immutable report generation requests', () => {
       });
 
       const actor = { ...principal, userId: owner };
-      const capture = async (type: ReportType) => {
+      const capture = async (type: ReportType, currency = 'SAR') => {
         const result = await repository.captureSnapshot(
           actor,
           {
             type,
+            currency,
             periodStart: '2026-07-01',
             periodEnd: '2026-07-31',
             format: 'pdf',
             delivery: 'download',
             recipient: null,
           },
-          `allocated-budget-${type}`,
+          `allocated-budget-${type}-${currency}`,
           'request',
         );
         const { rows } = await pool.query<{ snapshot: ReportSnapshot }>(
@@ -182,6 +185,9 @@ describeLiveDatabase('immutable report generation requests', () => {
         expect(snapshot.dataState).toBe(state);
         expect(snapshot.summary.planning).toMatchObject({ budgets: [sar] });
       }
+      const pausedOnly = await capture('budget_performance', 'AED');
+      expect(pausedOnly.dataState).toBe('empty');
+      expect(pausedOnly.summary.planning).toMatchObject({ budgets: [] });
       const home = await repository.getHome(
         actor,
         resolveReportPeriod('monthly', '2026-07-15', 'Asia/Riyadh'),
@@ -258,6 +264,12 @@ describeLiveDatabase('immutable report generation requests', () => {
             [transactions[index], id, index === 0 ? 500 : 9000],
           );
         }
+        await client.query('set local role masarifi_migration');
+        await client.query(
+          `insert into public.budgets(user_id,name,currency_code,period_start,period_end,total_minor,status)
+           values ($1,'All accounts budget','SAR','2026-08-01','2026-08-31',95000,'active')`,
+          [accountOwner],
+        );
         await client.query('commit');
       } catch (error) {
         await client.query('rollback');
@@ -291,6 +303,45 @@ describeLiveDatabase('immutable report generation requests', () => {
     ]);
     expect(stored.rows[0]?.snapshot.detailedRows.map((row) => row.amountMinor)).toEqual([500]);
     expect(stored.rows[0]?.snapshot.summary.summaries[0]?.income.amountMinor).toBe(500);
+    for (const type of ['budget_performance', 'obligation_progress', 'savings_progress'] as const) {
+      const summary = await repository.getSummary(
+        { ...principal, userId: accountOwner },
+        type,
+        resolveReportPeriod('monthly', '2026-08-04', 'Asia/Dubai'),
+        'SAR',
+        'request',
+        [account],
+      );
+      expect(summary).toMatchObject({
+        metadata: {
+          dataState: 'partial',
+          planningUnavailableReason: 'planning_unavailable_for_selected_accounts',
+        },
+        summaries: [],
+        breakdowns: [],
+      });
+      const planning = await repository.captureSnapshot(
+        { ...principal, userId: accountOwner },
+        { ...command, type },
+        `scoped-${type}`,
+        'request',
+      );
+      const { rows } = await pool.query<{ snapshot: ReportSnapshot }>(
+        'select snapshot from private.report_output_attempts where id=$1',
+        [planning.attemptId],
+      );
+      expect(rows[0]?.snapshot).toMatchObject({
+        dataState: 'partial',
+        summary: {
+          planningUnavailableReason: 'planning_unavailable_for_selected_accounts',
+          accountScope: 'Selected accounts (1)',
+          summaries: [],
+          planning: { budgets: [], obligations: [], savingsGoals: [] },
+        },
+        breakdowns: [],
+        detailedRows: [],
+      });
+    }
     await expect(
       repository.captureSnapshot(principal, command, 'foreign-account-capture', 'request'),
     ).rejects.toMatchObject({ status: 409 });

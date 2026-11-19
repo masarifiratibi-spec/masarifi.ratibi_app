@@ -6,6 +6,7 @@ import PDFDocument from 'pdfkit';
 import { neutralizeCsvCell, renderReport } from '../../../src/reports/reports.renderer';
 import type { ReportSnapshot } from '../../../src/reports/reports.schemas';
 import { writeReportPdf } from '../../../src/reports/reports.pdf';
+import { buildReportPdfSections } from '../../../src/reports/reports.pdf-content';
 
 async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -72,6 +73,35 @@ describe('report renderer', () => {
     expect(pdfBody.subarray(0, 5).toString()).toBe('%PDF-');
     expect(pdfBody.length).toBeGreaterThan(1_000);
     expect(() => renderReport(snapshot, 'json', 20)).toThrow('REPORT_LIMIT_EXCEEDED');
+  });
+
+  it('renders the selected-account planning limitation for old captures without exposing ledger totals', async () => {
+    const legacy: ReportSnapshot = {
+      ...snapshot,
+      reportType: 'budget_performance',
+      summary: { accountScope: 'Selected accounts (1)', summaries: [{ incomeMinor: 12345 }] },
+    };
+    const rendered = renderReport(legacy, 'json', 1_000_000);
+    const scoped = JSON.parse((await readAll(rendered.body)).toString()) as ReportSnapshot;
+    expect(scoped.dataState).toBe('partial');
+    expect(scoped.summary.summaries).toEqual([]);
+    expect(scoped.detailedRows).toEqual([]);
+    expect(buildReportPdfSections(scoped)).toEqual([
+      {
+        title: 'الميزانيات',
+        columns: ['حالة البيانات', 'السبب'],
+        rows: [
+          ['غير متاحة للحسابات المحددة', 'بيانات التخطيط متاحة فقط عند اختيار جميع الحسابات.'],
+        ],
+      },
+    ]);
+    const csv = await readAll(renderReport(scoped, 'csv', 1_000_000).body);
+    expect(csv.toString()).toBe(
+      '\uFEFFdataState,planningUnavailableReason\r\n"partial","planning_unavailable_for_selected_accounts"\r\n',
+    );
+    const oldUnscoped = { ...legacy, summary: { summaries: [{ incomeMinor: 12345 }] } };
+    const oldBody = await readAll(renderReport(oldUnscoped, 'json', 1_000_000).body);
+    expect(JSON.parse(oldBody.toString())).toEqual(oldUnscoped);
   });
 
   it('does not create filenames or headers from snapshot content', () => {

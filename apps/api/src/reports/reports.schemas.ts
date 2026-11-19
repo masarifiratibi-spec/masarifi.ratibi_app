@@ -18,6 +18,26 @@ export type ReportType = (typeof REPORT_TYPES)[number];
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
 export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[number];
 
+export function isPlanningReport(type: ReportType): boolean {
+  return ['budget_performance', 'obligation_progress', 'savings_progress'].includes(type);
+}
+
+export const SELECTED_ACCOUNTS_PLANNING_REASON = 'planning_unavailable_for_selected_accounts';
+
+export function unavailablePlanningContent(currencyMinorUnits: unknown) {
+  return {
+    dataState: 'partial' as const,
+    summary: {
+      summaries: [],
+      planning: { budgets: [], obligations: [], savingsGoals: [] },
+      planningUnavailableReason: SELECTED_ACCOUNTS_PLANNING_REASON,
+      ...(currencyMinorUnits === undefined ? {} : { currencyMinorUnits }),
+    },
+    breakdowns: [],
+    detailedRows: [],
+  };
+}
+
 export interface ReportSnapshot {
   schemaVersion: 1;
   generatedAt: string;

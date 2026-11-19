@@ -1,4 +1,4 @@
-import type { ReportSnapshot } from './reports.schemas';
+import { SELECTED_ACCOUNTS_PLANNING_REASON, type ReportSnapshot } from './reports.schemas';
 
 export interface PdfReportSection {
   title: string;
@@ -152,6 +152,19 @@ export function buildReportPdfSections(snapshot: ReportSnapshot): PdfReportSecti
     ['obligations', 'obligation_progress'],
     ['savingsGoals', 'savings_progress'],
   ] as const) {
+    if (
+      snapshot.reportType === reportType &&
+      snapshot.summary.planningUnavailableReason === SELECTED_ACCOUNTS_PLANNING_REASON
+    )
+      return [
+        {
+          title: label(key),
+          columns: ['حالة البيانات', 'السبب'],
+          rows: [
+            ['غير متاحة للحسابات المحددة', 'بيانات التخطيط متاحة فقط عند اختيار جميع الحسابات.'],
+          ],
+        },
+      ];
     if (snapshot.reportType === 'financial_summary' || snapshot.reportType === reportType)
       fields(label(key), planning[key]);
     if (snapshot.reportType === reportType && Array.isArray(planning[key])) return sections;
