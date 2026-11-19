@@ -58,6 +58,9 @@ describe("live Admin navigation", () => {
     expect(itemIds).toEqual(
       expect.arrayContaining([
         "overview",
+        "users",
+        "access-requests",
+        "audit-logs",
         "health",
         "jobs",
         "imports",
@@ -69,16 +72,9 @@ describe("live Admin navigation", () => {
         "settings",
       ]),
     );
-    expect(itemIds).not.toEqual(
-      expect.arrayContaining([
-        "users",
-        "access-requests",
-        "subscriptions",
-        "payments",
-        "audit-logs",
-        "data-requests",
-      ]),
-    );
+    for (const excluded of ["subscriptions", "payments", "data-requests"]) {
+      expect(itemIds).not.toContain(excluded);
+    }
     expect(getLiveNavigation().every((group) => group.items.length > 0)).toBe(
       true,
     );

@@ -9,6 +9,7 @@ import {
   OPERATIONS_METRICS,
   recordPlatformMetric,
 } from '../platform/observability/platform-metrics';
+import { readHttpMonitoring } from './http-monitoring';
 import type { OperationsJobKey } from './job-registry';
 import { OperationsRepository } from './operations.repository';
 import {
@@ -34,6 +35,7 @@ const READ_KINDS = new Set([
   'flags',
   'maintenance',
   'health',
+  'http-monitoring',
   'queues',
   'performance',
   'job-run',
@@ -73,6 +75,13 @@ export class OperationsService {
     try {
       if (!READ_KINDS.has(kind)) throw new Error('INVALID_KIND');
       const normalized = parseOperationsReadQuery(kind, query);
+      if (kind === 'http-monitoring') {
+        const input = normalized as {
+          range: Parameters<typeof readHttpMonitoring>[0];
+          platform: string;
+        };
+        return await readHttpMonitoring(input.range, input.platform);
+      }
       if (!this.repository.read) throw new Error('REPOSITORY_UNAVAILABLE');
       return await this.repository.read(principal, kind, normalized);
     } catch (error) {

@@ -93,8 +93,10 @@ describe("US4 queue and job views", () => {
   test("does not describe unavailable monitoring telemetry as current", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     try {
+      mockServer.use(http.get("/api/v1/admin/system-health/api", () =>
+        HttpResponse.json({range: "24h", reason: "no_observation", sample: null})));
       const host = await renderView(<ApiMonitoringView />);
-      await expect.poll(() => host.textContent).toContain("Telemetry freshness is unavailable.");
+      await expect.poll(() => host.textContent).toContain("No API observation is available.");
       expect(host.textContent).not.toContain("Telemetry is current");
     } finally { process.env.NEXT_PUBLIC_ENABLE_MOCKS = "true"; }
   });

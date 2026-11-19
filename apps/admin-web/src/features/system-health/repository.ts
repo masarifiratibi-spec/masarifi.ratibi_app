@@ -2,6 +2,7 @@ import { apiClient, liveCursor, rememberLiveCursor, mocksEnabled } from "@/core/
 import { z } from "zod";
 import {
   apiMonitoringSchema,
+  httpObservationSchema,
   databaseMonitoringSchema,
   freshnessSchema,
   healthOverviewSchema,
@@ -188,12 +189,30 @@ export const systemHealthRepository: SystemHealthRepository = {
   async getApiMonitoring(query) {
     if (mocksEnabled())
       return apiClient.get(`/api/v1/admin/system-health/api?${monitoringParams(query)}`, apiMonitoringSchema);
+    const observation = await apiClient.get(`/api/v1/admin/system-health/api?${monitoringParams(query)}`, httpObservationSchema);
+    const { sample } = observation;
+    const staleAt = sample ? Date.parse(sample.observedAt) + 15 * 60_000 : 0;
+    const freshness = sample ? {
+      observedAt: sample.observedAt,
+      staleAt: new Date(staleAt).toISOString(),
+      state: Date.now() >= staleAt ? "stale" as const : "fresh" as const,
+    } : unknownFreshness;
+    const count = sample?.counts.reduce((sum, n) => sum + n, 0) ?? 0;
+    const measurable = sample && (count > 0 || sample.complete);
+    function metric(key: string, label: string, unit: "count" | "percent" | "milliseconds", value: number | null) {
+      return { ...unavailableMetric(key, label, unit, freshness, value), completeness:
+        value === null ? "unavailable" : sample?.complete ? "complete" : "partial" };
+    }
     return apiMonitoringSchema.parse({
-      range: query.range,
-      requestVolume: unavailableMetric("request_volume", "Request volume", "count", unknownFreshness),
-      errorRate: unavailableMetric("error_rate", "Error rate", "percent", unknownFreshness),
-      latency: unavailableMetric("latency", "P95 HTTP latency", "milliseconds", unknownFreshness),
-      series: [], endpoints: [], statusCodes: [], freshness: unknownFreshness,
+      range: observation.range, observedFrom: sample?.from,
+      requestVolume: metric("request_volume", "Completed requests", "count", measurable ? count : null),
+      errorRate: metric("error_rate", "5xx error rate", "percent", sample && count ? 100 * sample.counts[3] / count : null),
+      latency: metric("latency", "P95 HTTP latency", "milliseconds", sample?.p95Ms ?? null),
+      series: [], endpoints: [], freshness,
+      statusCodes: measurable ? sample.counts.map((value, index) => ({ group: `${index + 2}xx`, count: value })) : [],
+      partialReason: observation.reason === "platform_unavailable" ? "Platform-specific request counts are unavailable."
+        : !sample ? "No API observation is available."
+        : !sample.complete ? "Partial coverage of the selected services or time window." : undefined,
     });
   },
   async getDatabaseMonitoring(query) {

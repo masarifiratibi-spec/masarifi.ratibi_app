@@ -151,8 +151,20 @@ describe("BE013 exact live operations mapping", () => {
     await expect(systemHealthRepository.listQueueHealth({ range: "24h", platform: "all" })).rejects.toMatchObject({ code: "contract_mismatch" });
   });
 
+  test("counts completed requests using all status classes in the denominator", async () => {
+    mockServer.use(http.get("/api/v1/admin/system-health/api", () => HttpResponse.json({
+      range: "24h", reason: null, sample: { observedAt, from: observedAt, complete: false, counts: [15, 1, 2, 2], p95Ms: 48 },
+    })));
+    const result = await systemHealthRepository.getApiMonitoring({ range: "24h", platform: "all" });
+    expect(result.requestVolume).toMatchObject({value: 20, completeness: "partial"});
+    expect(result.errorRate.value).toBe(10);
+    expect(result.latency.value).toBe(48);
+    expect(result.statusCodes).toHaveLength(4);
+  });
+
   test("preserves measured latency and only source-provided health rows", async () => {
     mockServer.use(
+      http.get("/api/v1/admin/system-health/api", () => HttpResponse.json({range: "24h", reason: "no_observation", sample: null})),
       http.get("/api/v1/admin/system-health/overview", () =>
         HttpResponse.json({
           status: "degraded",
