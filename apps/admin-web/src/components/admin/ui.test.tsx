@@ -15,6 +15,11 @@ describe("regional overview states", () => {
     expect(markup).not.toContain("unsafe upstream detail");
     expect(markup).not.toContain("protected content");
   });
+  test("explains throttled reads without displaying server details", () => {
+    const markup = renderToStaticMarkup(<ErrorState error={{ code: "rate_limited", message: "private-provider-detail" }} />);
+    expect(markup).toContain("انتظر قليلًا قبل إعادة المحاولة");
+    expect(markup).not.toContain("private-provider-detail");
+  });
   test("asks a stale Admin login to sign in again without displaying raw errors", () => {
     const markup = renderToStaticMarkup(<ErrorState error={{ code: "recent_auth_required", message: "private-provider-detail" }} />);
     expect(markup).toContain("سجّل الدخول مرة أخرى");

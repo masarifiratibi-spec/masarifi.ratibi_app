@@ -152,12 +152,10 @@ export function EmptyState({ title, message }: { title?: string; message?: strin
 function SearchStateIcon() { return <CircleAlert size={28} />; }
 export function ErrorState({ error }: { error?: unknown } = {}) {
   const t = useT();
-  const { locale } = useLocale();
-  const reauthenticate = typeof error === "object" && error !== null && "code" in error && error.code === "recent_auth_required";
-  const message = reauthenticate
-    ? locale === "ar" ? "سجّل الخروج ثم سجّل الدخول مرة أخرى لإكمال هذا الإجراء." : "Sign out and sign in again to complete this action."
-    : t("states.errorMessage");
-  return <div className="state-box error" role="alert"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{message}</p></div>;
+  const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+  const messageKey = code === "rate_limited" ? "states.rateLimited"
+    : code === "recent_auth_required" ? "states.reauthenticate" : "states.errorMessage";
+  return <div className="state-box error" role="alert"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{t(messageKey)}</p></div>;
 }
 export function TableSkeleton() { const t = useT(); return <div className="skeleton-list" aria-label={t("common.loading")}>{[1,2,3,4].map((item) => <span key={item} />)}</div>; }
 export function LoadingState() { const t = useT(); return <div className="state-box" role="status"><LoaderCircle size={28} /><strong>{t("states.loading")}</strong></div>; }
