@@ -1,14 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, Platform } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StyledText } from '@/components/StyledText';
 import type { ReportQuery } from '@/services/contracts/reports-service';
 import { reportsService } from '@/services/reports-service';
 import {
-  saveReportPdf,
+  downloadReportPdf,
   openReportPdf,
-  removeReportPdfCache,
   type SavedReportPdf
 } from '@/services/platform/report-pdf-file';
 import { useAppShellStore } from '@/state/app-shell';
@@ -27,65 +25,84 @@ export function stagingReportFilesEnabled() {
 type Props = {
   owner: string;
   input: ReportQuery;
-  id: string | null;
-  onIdChange: (id: string | null) => void;
-  operation: React.MutableRefObject<string | null>;
 };
 
-export function StagingReportFiles({
-  owner,
-  input,
-  id,
-  onIdChange,
-  operation
-}: Props) {
+export function StagingReportFiles({ owner, input }: Props) {
   const locale = usePreferenceStore((state) => state.locale);
   const [message, setMessage] = useState<MessageKey | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [saved, setSaved] = useState<SavedReportPdf | null>(null);
+  const [id, setId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const operation = useRef<string | null>(null);
   const active = useRef(true);
-  const flight = useRef(false);
   const controller = useRef<AbortController | null>(null);
-  useEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-      controller.current?.abort();
-    };
-  }, []);
-  const current = () =>
-    active.current && useAppShellStore.getState().session?.userId === owner;
+  const current = () => {
+    const session = useAppShellStore.getState().session;
+    return active.current && session?.status === 'authenticated' && session.userId === owner;
+  };
   const check = () => {
     if (!current()) throw Error('REPORT_CONTEXT_CHANGED');
   };
   const clear = () => {
-    onIdChange(null);
+    setId(null);
     operation.current = null;
     setReady(false);
     setConfirm(false);
     setSaved(null);
   };
   async function run(task: (signal: AbortSignal) => Promise<void>) {
-    if (flight.current || !current()) return;
+    if (controller.current || !current()) return;
     const abort = new AbortController();
-    flight.current = true;
     controller.current = abort;
     setBusy(true);
     try {
       await task(abort.signal);
     } catch (error) {
-      if (current()) {
+      if (!abort.signal.aborted && current()) {
         const code = (error as { code?: string })?.code;
-        if (id && (code === 'expired' || code === 'not_found')) clear();
-        setMessage(pdfFailureMessage(error));
+        if (code === 'expired' || code === 'not_found') {
+          clear();
+          setMessage('reports.pdf.fileDeleted');
+        } else setMessage(pdfFailureMessage(error));
       }
     } finally {
-      flight.current = false;
-      if (current()) setBusy(false);
+      if (controller.current === abort) {
+        controller.current = null;
+        if (current()) setBusy(false);
+      }
     }
   }
+  const recover = async (signal: AbortSignal) => {
+    if (!reportsService.findActivePdfFile)
+      throw Error('REPORT_GENERATION_FAILED');
+    const file = await reportsService.findActivePdfFile({ signal }, current);
+    check();
+    if (signal.aborted) return;
+    setId(file?.id ?? null);
+    setReady(file?.status === 'ready');
+    setMessage(
+      file
+        ? file.status === 'ready'
+          ? 'reports.pdf.fileReady'
+          : 'reports.pdf.processing'
+        : null
+    );
+    setLoaded(true);
+  };
+  // This component mounts for each opening of the file dialog.
+  const initialRecovery = useRef(() => run(recover));
+  useEffect(() => {
+    active.current = true;
+    void initialRecovery.current();
+    return () => {
+      active.current = false;
+      controller.current?.abort();
+      controller.current = null;
+    };
+  }, []);
   const refresh = async (reportId: string, signal: AbortSignal) => {
     const attempt = await reportsService.getAttempt(reportId, { signal });
     check();
@@ -115,32 +132,17 @@ export function StagingReportFiles({
       current
     );
     check();
-    onIdChange(value.id);
+    setId(value.id);
     await refresh(value.id, signal);
   }
   const download = async (signal: AbortSignal) => {
     if (!id) return;
     const report = await refresh(id, signal);
     if (report.status !== 'ready') return;
-    if (Platform.OS === 'android') {
-      const file = await saveReportPdf(report, check, signal);
-      try {
-        check();
-        setSaved(file);
-        setMessage('reports.pdf.success');
-      } finally {
-        await removeReportPdfCache(file);
-      }
-    } else {
-      if (
-        !report.downloadUrl ||
-        !report.downloadUrlExpiresAt ||
-        report.downloadUrlExpiresAt <= Date.now() ||
-        new URL(report.downloadUrl).protocol !== 'https:'
-      )
-        throw Error('REPORT_DOWNLOAD_INVALID');
-      await Linking.openURL(report.downloadUrl);
-    }
+    const file = await downloadReportPdf(report, check, signal);
+    check();
+    setSaved(file);
+    setMessage('reports.pdf.success');
   };
   const remove = async () => {
     if (!confirm || !id || !reportsService.deletePdfFile) return;
@@ -155,7 +157,14 @@ export function StagingReportFiles({
       {message && (
         <StyledText accessibilityLiveRegion="polite">{message}</StyledText>
       )}
-      {!id && (
+      {!loaded && (
+        <ActionButton
+          label="reports.pdf.refreshFile"
+          disabled={busy}
+          onPress={() => void run(recover)}
+        />
+      )}
+      {loaded && !id && (
         <ActionButton
           label="reports.pdf.createFile"
           disabled={busy}

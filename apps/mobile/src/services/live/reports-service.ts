@@ -760,6 +760,32 @@ export function createLiveReportsService(
       await local.saveAttempt(value);
       return { value, affectedScopes: ['reports.attempts'] };
     },
+    async findActivePdfFile(context, isCurrent) {
+      // The list is owner-scoped and sorted newest first by the server.
+      const query = new URLSearchParams({ limit: '50' });
+      const seen = new Set<string>();
+      while (isCurrent()) {
+        const page = exact(await read(`/api/v1/reports?${query}`, context), [
+          'items', 'nextCursor', 'requestId'
+        ]);
+        if (!isCurrent()) break;
+        if (!Array.isArray(page.items)) throw new ReportsApiError('contract_mismatch');
+        for (const item of page.items) {
+          const row = object(item);
+          if (row.format !== 'pdf' || row.delivery !== 'download') continue;
+          if (!['queued', 'generating', 'ready'].includes(String(row.status))) continue;
+          if (epoch(row.expiresAt) <= Date.now()) continue;
+          if (typeof row.id !== 'string' || !row.id) throw new ReportsApiError('contract_mismatch');
+          return { id: row.id, status: row.status === 'ready' ? 'ready' : 'scheduled' };
+        }
+        if (page.nextCursor === null) return null;
+        if (typeof page.nextCursor !== 'string' || !page.nextCursor || seen.has(page.nextCursor))
+          throw new ReportsApiError('contract_mismatch');
+        seen.add(page.nextCursor);
+        query.set('cursor', page.nextCursor);
+      }
+      throw new ReportsApiError('report_confirmation_changed');
+    },
     async deletePdfFile(id, isCurrent) {
       await send('DELETE', `/api/v1/reports/${encodeURIComponent(id)}`, undefined, undefined, isCurrent);
       if (isCurrent()) attempts.delete(id);

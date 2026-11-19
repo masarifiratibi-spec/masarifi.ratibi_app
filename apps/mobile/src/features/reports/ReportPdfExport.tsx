@@ -91,8 +91,6 @@ function OwnedReportPdfExport({
   const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
   const [busy, setBusy] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [fileId, setFileId] = useState<string | null>(null);
-  const fileOperation = useRef<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const mounted = useRef(true);
   const flight = useRef<symbol | null>(null);
@@ -311,13 +309,7 @@ function OwnedReportPdfExport({
                 />
               </View>
               {fileMode && owner ? (
-                <StagingReportFiles
-                  owner={owner}
-                  input={input}
-                  id={fileId}
-                  onIdChange={setFileId}
-                  operation={fileOperation}
-                />
+                visible && <StagingReportFiles owner={owner} input={input} />
               ) : (
                 <>
                   <StyledText variant="title" style={styles.copy}>

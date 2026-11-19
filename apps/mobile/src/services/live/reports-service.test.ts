@@ -655,3 +655,17 @@ it('rechecks the confirmation after obtaining the token and before transmitting 
   }, 'email-operation', () => consent)).rejects.toMatchObject({ code: 'report_confirmation_changed' });
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+it('recovers the newest unexpired owner PDF on a fresh service instance across paginated history', async () => {
+  const row = { id: 'old', format: 'pdf', delivery: 'download', status: 'ready', expiresAt: '2099-01-01T00:00:00Z' };
+  const request = jest.fn()
+    .mockResolvedValueOnce(json({ items: [
+      { ...row, status: 'expired' }, { ...row, status: 'failed' }, { ...row, delivery: 'email' },
+      { ...row, format: 'csv' }, { ...row, expiresAt: generatedAt }
+    ], nextCursor: 'cursor/+a' }))
+    .mockResolvedValueOnce(json({ items: [{ ...row, id: 'active', status: 'generating' }, row], nextCursor: null }))
+    .mockResolvedValueOnce(json({ items: [{ ...row, status: 'expired' }], nextCursor: null }));
+  await expect(service(request).findActivePdfFile!({}, () => true)).resolves.toEqual({ id: 'active', status: 'scheduled' });
+  expect(new URL(request.mock.calls[1][0]).searchParams.get('cursor')).toBe('cursor/+a');
+  await expect(service(request).findActivePdfFile!({}, () => true)).resolves.toBeNull();
+});
