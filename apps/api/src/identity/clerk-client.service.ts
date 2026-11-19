@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { createClerkClient, type ClerkClient } from '@clerk/backend';
 import { Injectable } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
@@ -67,11 +69,19 @@ export class ClerkClientService {
   private readonly instanceDomain: string | undefined;
   private readonly adminInvitationRedirectUrl: string | undefined;
 
+  private readonly qaOwner =
+    process.env.MASARIFI_ISOLATED_REPORT_QA === '1'
+      ? readFileSync('/run/secrets/qa-report-owner', 'utf8').trim()
+      : undefined;
+
   constructor(config: PlatformConfigService) {
     this.client = createClerkClient({
       secretKey: config.getRequired('CLERK_SECRET_KEY'),
       ...(config.get('CLERK_PUBLISHABLE_KEY')
         ? { publishableKey: config.get('CLERK_PUBLISHABLE_KEY') }
+        : {}),
+      ...(this.qaOwner !== undefined
+        ? { jwtKey: readFileSync('/run/secrets/qa-clerk-public.pem', 'utf8') }
         : {}),
       telemetry: { disabled: true, debug: false, samplingRate: 0 },
     });
@@ -106,6 +116,13 @@ export class ClerkClientService {
         return { isAuthenticated: false };
       }
       const { userId, sessionId, sessionStatus, factorVerificationAge, sessionClaims } = auth;
+      if (
+        this.qaOwner !== undefined &&
+        (!this.qaOwner ||
+          userId !== this.qaOwner ||
+          sessionClaims.iss !== `https://${this.instanceDomain}`)
+      )
+        return { isAuthenticated: false };
       if (
         typeof userId !== 'string' ||
         typeof sessionId !== 'string' ||
