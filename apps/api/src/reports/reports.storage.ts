@@ -142,6 +142,9 @@ export class ReportsStorage {
       (!this.allowHttp && signed.protocol !== 'https:')
     )
       throw failure();
+    if (process.env.MASARIFI_ISOLATED_REPORT_QA === '1') {
+      signed.pathname = `/qa-report-files${signed.pathname}`;
+    }
     return signed.toString();
   }
 

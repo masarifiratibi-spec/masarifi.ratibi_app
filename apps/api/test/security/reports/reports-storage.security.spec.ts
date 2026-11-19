@@ -17,6 +17,26 @@ describe('ReportsStorage security', () => {
 
   beforeEach(() => fetcher.mockReset());
 
+  it('publishes QA downloads only under the QA prefix and keeps service credentials on its private origin', async () => {
+    const previous = process.env.MASARIFI_ISOLATED_REPORT_QA;
+    try {
+      process.env.MASARIFI_ISOLATED_REPORT_QA = '1';
+      const storage = new ReportsStorage(config as never, fetcher);
+      const key = storage.key(attemptId, 'owner', 'pdf');
+      const path = `/storage/v1/object/sign/report-exports/${key}?token=opaque`;
+      fetcher.mockResolvedValueOnce(Response.json({ signedURL: path }));
+      await expect(storage.sign(key, 120)).resolves.toBe(
+        `http://storage.local/qa-report-files${path}`,
+      );
+      expect(new URL(String(fetcher.mock.calls[0][0])).origin).toBe(
+        'http://masarifi-qa-report-storage:8080',
+      );
+    } finally {
+      if (previous === undefined) delete process.env.MASARIFI_ISOLATED_REPORT_QA;
+      else process.env.MASARIFI_ISOLATED_REPORT_QA = previous;
+    }
+  });
+
   it('uses an owner-hashed fixed key, exact content type, no upsert, and verifies bytes', async () => {
     fetcher
       .mockImplementationOnce(async (_url, init) => {
