@@ -114,6 +114,20 @@ function submit() {
   );
 }
 
+it('preserves the salary currency on edit when the unlinked profile has no matching account', async () => {
+  const save = jest.spyOn(financialPlanningService, 'saveSalaryProfile');
+  open('USD', { ...fixtureSalaryProfile, currencyCode: 'SAR', receivingAccountId: null });
+  try {
+    await ready();
+    edit('planning.salary.source', 'Updated employer');
+    submit();
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(translate('planning.validation.required'));
+  } finally {
+    save.mockRestore();
+  }
+});
+
 it.each(['25.5', 'abc', 'NaN', 'Infinity', '2e1', '0x10', '', '0', '32'])(
   'rejects invalid salary day %s before saving',
   async (day) => {

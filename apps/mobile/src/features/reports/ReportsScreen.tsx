@@ -95,6 +95,8 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   );
   const { scrollOffset, setPeriod, setScrollOffset } = useReportsViewState();
   const { fontScale, width } = useWindowDimensions();
+  const reservePdfSpace = (width > 0 && width < 350 && fontScale >= 1.2) || fontScale >= 1.4;
+  const pdfClearance = Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm;
   const stackMetrics = width < 350 || fontScale >= 1.6;
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
@@ -138,13 +140,12 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
       style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}
     >
       <ScrollView
-        style={{ backgroundColor: theme.colors.surfaces.page }}
+        style={{ backgroundColor: theme.colors.surfaces.page, ...(reservePdfSpace && { marginBottom: pdfClearance }) }}
         contentOffset={{ x: 0, y: scrollOffset }}
         contentContainerStyle={[
           styles.page,
           {
-            paddingBottom:
-              Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm
+            paddingBottom: reservePdfSpace ? spacing.sm : pdfClearance
           }
         ]}
         onMomentumScrollEnd={(event) =>
@@ -1310,9 +1311,6 @@ function ReportAmount({
         {currency}
       </Text>
       <Text
-        adjustsFontSizeToFit
-        minimumFontScale={0.62}
-        numberOfLines={1}
         style={[
           size === 'hero' ? styles.heroAmount : styles.largeAmount,
           { color: amountColor }

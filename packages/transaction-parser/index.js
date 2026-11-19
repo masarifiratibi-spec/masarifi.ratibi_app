@@ -133,7 +133,7 @@ function moneyCandidates(text, snapshot, verifiedAccountCurrency) {
     const before = text.slice(Math.max(0,m.index-60),m.index).toLowerCase();
     const after = text.slice(m.index+m[0].length,m.index+m[0].length+32).toLowerCase();
     // Roles are structural boundaries, not a preference for one currency over another.
-    const role = /(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?\.?|limit)|available\s+(?:balance|credit(?:\s+limit)?)|credit\s+limit|balance|الرصيد|رصيد|الحد\s+الائتماني|حد\s+الائتمان)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
+    const role = /(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?\.?|limit)|available\s+(?:balance|limit|credit(?:\s+limit)?)|credit\s+limit|balance|الرصيد|رصيد|الحد\s+الائتماني|حد\s+الائتمان)[^.;:،,]*[: ]*$/.test(before) ? 'balance' :
       /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
       /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
     const raw = m[2] || m[3];

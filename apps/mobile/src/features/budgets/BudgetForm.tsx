@@ -12,7 +12,6 @@ import { PickerField } from '@/design-system/components/forms/PickerField';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
 import {
-  colorTokens,
   elevation,
   radius,
   spacing
@@ -41,6 +40,7 @@ import {
   hasReadableSnapshot,
   isAuthoritativeReadDenial
 } from '@/services/read-snapshot';
+import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   useBudgetById,
@@ -61,6 +61,7 @@ export function BudgetForm({
   initialPeriodKey,
   onSaved
 }: BudgetFormProps) {
+  const theme = useTheme();
   const existing = useBudgetById(budgetId);
   const categories = useCategories();
   const currencyCode = usePreferenceStore((state) => state.baseCurrencyCode);
@@ -386,7 +387,7 @@ export function BudgetForm({
   )
     return (
       <PlanningScreen
-        backgroundColor={colorTokens.neutral.warmSurface}
+        backgroundColor={theme.colors.surfaces.page}
         titleKey={budgetId ? 'planning.budgets.edit' : 'planning.budgets.new'}
       >
         <PlanningState
@@ -408,7 +409,7 @@ export function BudgetForm({
       <PlanningState state="loading" />
     ) : (
       <PlanningScreen
-        backgroundColor={colorTokens.neutral.warmSurface}
+        backgroundColor={theme.colors.surfaces.page}
         titleKey={budgetId ? 'planning.budgets.edit' : 'planning.budgets.new'}
       >
         <PlanningState state="loading" />
@@ -582,7 +583,7 @@ export function BudgetForm({
   if (embedded) return fields;
   return (
     <PlanningScreen
-      backgroundColor={colorTokens.neutral.warmSurface}
+      backgroundColor={theme.colors.surfaces.page}
       titleKey={budgetId ? 'planning.budgets.edit' : 'planning.budgets.new'}
     >
       {fields}

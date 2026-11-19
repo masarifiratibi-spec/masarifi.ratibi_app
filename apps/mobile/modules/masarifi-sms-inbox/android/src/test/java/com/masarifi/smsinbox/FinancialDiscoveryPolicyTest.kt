@@ -4,6 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun nominalBalanceNoticesRequireMoneyAndRespectExclusions() {
+    val nominal = FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
+    for (channel in listOf("android_sms", "android_notification")) {
+      for (text in listOf("Avl limit: USD 17.95", "الرصيد المتاح: ١٧٫٩٥ ريال")) {
+        assertTrue(nominal.isFinancial(text, "BANK", channel))
+        assertFalse(nominal.isFinancial("OTP 123456 $text", "BANK", channel))
+        assertFalse(nominal.isStrong(text, "BANK", channel))
+      }
+      assertFalse(nominal.isFinancial("Avl limit: 12 items", "BANK", channel))
+    }
+  }
   @Test fun cardRepaymentsReachTheSharedClassifierInBothChannels() {
     val policy = policy()
     for (channel in listOf("android_sms", "android_notification")) {

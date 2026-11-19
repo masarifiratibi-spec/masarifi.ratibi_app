@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -10,7 +10,7 @@ import Svg, {
 
 import { StyledText } from '@/components/StyledText';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
-import { minTouchTarget, radius, spacing } from '@/design-system/tokens';
+import { colorTokens, minTouchTarget, radius, spacing } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
@@ -52,20 +52,20 @@ export function ObligationHeroHeader({
     <View
       accessible={Boolean(accessibilityLabel)}
       accessibilityLabel={accessibilityLabel}
-      style={[styles.header, overview && styles.headerOverview]}
+      style={[styles.header, overview && styles.headerOverview, { backgroundColor: theme.colors.horizon.referenceStart }]}
       testID={testID}
     >
       <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id="obligationHeader" x1="0" x2="1" y1="0" y2="1">
             <Stop offset="0" stopColor={theme.colors.horizon.referenceStart} />
-            <Stop offset="0.58" stopColor={theme.colors.horizon.referenceEnd} />
+            <Stop offset="0.58" stopColor={colorTokens.obligationDetail.heroDark} />
             <Stop
               offset="1"
               stopColor={
                 overview
                   ? theme.colors.horizon.referenceStart
-                  : theme.colors.horizon.referenceEnd
+                  : colorTokens.obligationDetail.heroDark
               }
             />
           </LinearGradient>
@@ -80,13 +80,13 @@ export function ObligationHeroHeader({
         <Circle
           cx={overview ? '7%' : -18}
           cy={overview ? '-20%' : -62}
-          fill={theme.colors.horizon.glow}
+          fill="rgba(0,0,0,0.08)"
           r={overview ? 170 : 190}
         />
         <Circle
           cx={overview ? '22%' : 118}
           cy={overview ? '82%' : 260}
-          fill={referenceGlass}
+          fill="rgba(0,0,0,0.06)"
           r={overview ? 92 : 92}
         />
       </Svg>
@@ -105,7 +105,7 @@ export function ObligationHeroHeader({
           style={[
             styles.headerTitle,
             overview && styles.headerTitleOverview,
-            { color: theme.colors.textInverse },
+            { color: colorTokens.surface.white },
             textDirection
           ]}
         >
@@ -135,7 +135,7 @@ export function ObligationHeroHeader({
               style={[
                 styles.eyebrow,
                 overview && styles.eyebrowOverview,
-                { color: theme.colors.textInverse },
+                { color: colorTokens.surface.white },
                 textDirection
               ]}
             >
@@ -144,14 +144,11 @@ export function ObligationHeroHeader({
           ) : null}
           {amount ? (
             <StyledText
-              adjustsFontSizeToFit
-              minimumFontScale={overview ? 0.58 : 0.68}
-              numberOfLines={1}
               variant="amount"
               style={[
                 styles.heroAmount,
                 overview && styles.heroAmountOverview,
-                { color: theme.colors.textInverse }
+                { color: colorTokens.surface.white }
               ]}
             >
               {amount}
@@ -163,7 +160,7 @@ export function ObligationHeroHeader({
               style={[
                 styles.description,
                 overview && styles.descriptionOverview,
-                { color: theme.colors.textInverse },
+                { color: colorTokens.surface.white },
                 textDirection
               ]}
             >
@@ -175,7 +172,7 @@ export function ObligationHeroHeader({
               style={[
                 styles.meta,
                 overview && styles.metaOverview,
-                { color: theme.colors.textInverse },
+                { color: colorTokens.surface.white },
                 textDirection
               ]}
             >
@@ -209,8 +206,9 @@ export function ObligationMetricStrip({
   testID?: string;
   variant?: 'default' | 'overview';
 }) {
-  const theme = useTheme();
   const overview = variant === 'overview';
+  const { width, fontScale } = useWindowDimensions();
+  const stackMetrics = (width > 0 && width < 350 && fontScale >= 1.2) || fontScale >= 1.5;
   return (
     <View
       accessible={Boolean(accessibilityLabel)}
@@ -219,7 +217,8 @@ export function ObligationMetricStrip({
         styles.metricStrip,
         overview && styles.metricStripOverview,
         {
-          backgroundColor: overview ? 'rgba(255,255,255,0.20)' : referenceGlass,
+          backgroundColor: 'rgba(0,0,0,0.20)',
+          flexDirection: stackMetrics ? 'column' : 'row',
           borderColor: referenceGlassBorder
         }
       ]}
@@ -227,7 +226,7 @@ export function ObligationMetricStrip({
     >
       {metrics.map((metric, index) => (
         <React.Fragment key={metric.label}>
-          {index ? (
+          {index && !stackMetrics ? (
             <View
               style={[
                 styles.metricDivider,
@@ -236,36 +235,30 @@ export function ObligationMetricStrip({
               ]}
             />
           ) : null}
-          <View style={[styles.metric, overview && styles.metricOverview]}>
+          <View style={[styles.metric, overview && styles.metricOverview, stackMetrics && { flex: 0, paddingVertical: spacing.xs }]}>
             {metric.icon ? (
               <DesignIcon
                 name={metric.icon}
                 decorative
-                color={theme.colors.textInverse}
+                color={colorTokens.surface.white}
                 size={overview ? 'control' : 'sm'}
               />
             ) : null}
             <StyledText
-              adjustsFontSizeToFit
-              minimumFontScale={0.5}
-              numberOfLines={1}
               variant="subtitle"
               style={[
                 styles.metricValue,
                 overview && styles.metricValueOverview,
-                { color: theme.colors.textInverse }
+                { color: colorTokens.surface.white }
               ]}
             >
               {metric.value}
             </StyledText>
             <StyledText
-              adjustsFontSizeToFit
-              minimumFontScale={0.72}
-              numberOfLines={1}
               style={[
                 styles.metricLabel,
                 overview && styles.metricLabelOverview,
-                { color: theme.colors.textInverse }
+                { color: colorTokens.surface.white }
               ]}
             >
               {metric.label}
@@ -339,7 +332,6 @@ export function HeaderIconButton({
   onPress: () => void;
   variant?: 'default' | 'overview';
 }) {
-  const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const overview = variant === 'overview';
   return (
@@ -356,7 +348,7 @@ export function HeaderIconButton({
       <DesignIcon
         name={icon}
         decorative
-        color={theme.colors.textInverse}
+        color={colorTokens.surface.white}
         direction={direction}
       />
     </Pressable>
@@ -408,7 +400,7 @@ const styles = StyleSheet.create({
   heroRow: { alignItems: 'center', flexDirection: 'row' },
   heroRowOverview: { minHeight: 106 },
   heroCopy: { flex: 1, gap: spacing.xs / 2 },
-  heroCopyOverview: { gap: 1, maxWidth: '76%' },
+  heroCopyOverview: { gap: 1, maxWidth: '100%' },
   heroCopyLtr: { alignItems: 'flex-start' },
   heroCopyRtl: { alignItems: 'flex-start' },
   eyebrow: { fontSize: 14, lineHeight: 20, opacity: 0.74 },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { notifyManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -79,12 +79,10 @@ test.each(['ar', 'en'] as const)(
         direction: 'ltr',
         alignItems: 'flex-end'
       });
-      expect(
-        StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom
-      ).toBeGreaterThanOrEqual(72);
-      expect(
-        StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom
-      ).toBeLessThanOrEqual(88);
+      const bottomClearance = (StyleSheet.flatten(scroll.props.style).marginBottom ?? 0)
+        + StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom;
+      expect(bottomClearance).toBeGreaterThanOrEqual(72);
+      expect(bottomClearance).toBeLessThanOrEqual(88);
       expect(view.queryByTestId('reports-pdf-dock')).toBeNull();
       expect(view.queryByText(translate('reports.pdf.download'))).toBeNull();
       expect(
@@ -100,6 +98,21 @@ test.each(['ar', 'en'] as const)(
     }
   }
 );
+
+test('keeps duration controls above the PDF action at 327dp and 140% font', async () => {
+  const size = { ...Dimensions.get('window'), width: 327, fontScale: 1.4 };
+  const dimensions = jest.spyOn(Dimensions, 'get').mockReturnValue(size);
+  const view = renderWithProviders(<ReportsScreen />);
+  try {
+    await view.findByTestId('reports-net-worth');
+    const scroll = view.UNSAFE_getByType(ScrollView);
+    expect(StyleSheet.flatten(scroll.props.style).marginBottom).toBeGreaterThanOrEqual(72);
+    expect(view.getByTestId('reports-pdf-fab')).toBeOnTheScreen();
+  } finally {
+    view.unmount();
+    dimensions.mockRestore();
+  }
+});
 
 test('keeps report cards, headings and financial values readable in the dark theme', async () => {
   changeLocale('en');
@@ -236,7 +249,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   const screen = renderWithProviders(<ReportsScreen onBack={jest.fn()} />);
 
   expect(await screen.findByText('صافي الثروة')).toBeTruthy();
-  expect(screen.UNSAFE_getByType(ScrollView).props.style).toEqual({
+  expect(screen.UNSAFE_getByType(ScrollView).props.style).toMatchObject({
     backgroundColor: lightThemeColors.surfaces.page
   });
   expect(screen.getByText('التحليلات')).toBeTruthy();

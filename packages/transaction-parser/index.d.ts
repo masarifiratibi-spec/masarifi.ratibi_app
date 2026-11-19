@@ -44,6 +44,6 @@ export interface NominalTrackingMovement {
   component: 'principal' | 'fee'; sourceAmountDecimal: string; classification: Classification;
 }
 export interface NominalTrackingPolicy { sourceAdmissionPolicy?: 'financial_content_v1' }
-export function discoverNominalTrackingMessage(input:Parameters<typeof classifyFinancialMessage>[0],snapshot?:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[],sources?:readonly {normalizedSender:string;enabled:boolean;trusted:boolean}[],policy?:NominalTrackingPolicy):{strong:boolean;eligibleSource:boolean;classification:Classification;customRuleKeys:string[];sourceAmountDecimal:string|null;movements?:NominalTrackingMovement[]};
+export function discoverNominalTrackingMessage(input:Parameters<typeof classifyFinancialMessage>[0],snapshot?:RuleSnapshot,overrides?:readonly FinancialKeywordOverride[],sources?:readonly {normalizedSender:string;enabled:boolean;trusted:boolean}[],policy?:NominalTrackingPolicy):{strong:boolean;eligibleSource:boolean;classification:Classification;customRuleKeys:string[];sourceAmountDecimal:string|null;balanceObservations:string[];movements?:NominalTrackingMovement[]};
 export function decimalToMinor(value:string,scale:number):number|null;
 export function normalizeNumberWords(text:string):string;

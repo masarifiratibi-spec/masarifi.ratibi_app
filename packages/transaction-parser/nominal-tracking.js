@@ -246,6 +246,7 @@ module.exports = (parser) => {
       effective.rules.some((r) => r.ruleKey === k && r.family === "action"),
     );
     const amounts = [];
+    const balanceObservations = [];
     // Clause boundaries stop balances, references and account IDs from consuming
     // a later movement. Bare numbers require an explicit movement/amount label.
     const aliases = effective.currencies.flatMap((currency) =>
@@ -267,8 +268,16 @@ module.exports = (parser) => {
     )) {
       for (const m of clause.matchAll(pattern)) {
         const before = clause.slice(0, m.index).toLowerCase();
+        const balanceLabel = before.match(/(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?\.?|limit)|available\s+(?:balance|credit(?:\s+limit)?|limit)|credit\s+limit|balance|(?:ال)?رصيد(?:ك)?(?:\s+المتاح)?|الحد\s+الائتماني|حد\s+الائتمان)\s*(?:is|هو)?\s*[:=-]?\s*$/iu);
+        if (balanceLabel) {
+          const value = decimal(m[2].replace(/^[+-]/, ""));
+          if (value !== null && (m[1] || m[3])) {
+            balanceObservations.push((balanceLabel[0] + m[0]).trim());
+          }
+          continue;
+        }
         if (
-          /(?:balance|avl\.?\s*bal\.?|الرصيد|رصيد|reference|ref\.?|مرجع|الرقم المرجعي|card|account|بطاقة|حساب)\s*(?:is|number|رقم)?\s*[:#*x -]*$/iu.test(
+          /(?:reference|ref\.?|مرجع|الرقم المرجعي|card|account|بطاقة|حساب)\s*(?:is|number|رقم)?\s*[:#*x -]*$/iu.test(
             before,
           )
         )
@@ -365,6 +374,7 @@ module.exports = (parser) => {
       ...found,
       classification: c,
       sourceAmountDecimal,
+      balanceObservations: eligibleSource && c.disposition !== "ignore" ? balanceObservations : [],
       eligibleSource,
       strong:
         eligibleSource &&

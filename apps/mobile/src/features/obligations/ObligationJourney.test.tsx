@@ -1,4 +1,5 @@
 import React from 'react';
+import { Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 
@@ -244,22 +245,29 @@ it('keeps obligation rows in the native RTL order without reversing them twice',
   changeLocale('ar');
   usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
 
+  const size = { ...Dimensions.get('window'), width: 400, fontScale: 1 };
+  const dimensions = jest.spyOn(Dimensions, 'get').mockReturnValue(size);
   const screen = renderWithProviders(<ObligationOverviewScreen />);
 
-  expect(await screen.findByTestId('obligations-summary')).toHaveStyle({
-    flexDirection: 'row'
-  });
-  expect(screen.getByTestId('obligations-hero')).toHaveStyle({
-    minHeight: 292
-  });
-  expect(screen.getByTestId('obligations-filters')).toHaveStyle({
-    flexDirection: 'row'
-  });
-  expect(
-    await screen.findByTestId('obligation-row-obligation-car')
-  ).toHaveStyle({
-    flexDirection: 'row'
-  });
+  try {
+    expect(await screen.findByTestId('obligations-summary')).toHaveStyle({
+      flexDirection: 'row'
+    });
+    expect(screen.getByTestId('obligations-hero')).toHaveStyle({
+      minHeight: 292
+    });
+    expect(screen.getByTestId('obligations-filters')).toHaveStyle({
+      flexDirection: 'row'
+    });
+    expect(
+      await screen.findByTestId('obligation-row-obligation-car')
+    ).toHaveStyle({
+      flexDirection: 'row'
+    });
+  } finally {
+    screen.unmount();
+    dimensions.mockRestore();
+  }
 });
 
 it.each([

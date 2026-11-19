@@ -180,26 +180,28 @@ export async function prepareFinancialMessageImport(
       const nominal = discovery as ReturnType<
         typeof discoverNominalTrackingMessage
       >;
-      if (!nominal.strong || !nominal.eligibleSource) {
-        result.skippedFingerprints.push(key);
-        consume();
-        continue;
-      }
-      if (
-        !nominal.movements &&
+      const needsReview = nominal.strong && !nominal.movements &&
         (nominal.sourceAmountDecimal === null ||
           classification.status !== 'completed' ||
-          classification.disposition !== 'capture_candidate')
-      ) {
+          classification.disposition !== 'capture_candidate');
+      if (needsReview || nominal.balanceObservations.length) {
+        const reasons = needsReview
+          ? classification.reasonCodes.length
+            ? classification.reasonCodes
+            : [`lifecycle_${classification.status}`]
+          : [];
         (result.diagnostics ??= []).push({
           sourceItemKey: key,
           sourceChannel: channel,
           receivedAt,
-          sourceText: body.slice(0, 8000),
-          reasonCodes: classification.reasonCodes.length
-            ? classification.reasonCodes
-            : [`lifecycle_${classification.status}`]
+          sourceText: (needsReview ? body : nominal.balanceObservations.join('\n')).slice(0, 8000),
+          reasonCodes: nominal.balanceObservations.length ? [...reasons, 'reported_balance'] : reasons
         });
+      }
+      if (!nominal.strong || !nominal.eligibleSource) {
+        result.skippedFingerprints.push(key);
+        consume();
+        continue;
       }
       if (!nominal.movements && nominal.sourceAmountDecimal === null) {
         result.skippedFingerprints.push(key);
