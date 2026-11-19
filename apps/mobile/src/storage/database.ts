@@ -18,7 +18,7 @@ import { isDeletionOwnerFenced } from './deletion-completion-journal';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
 
 const DATABASE_NAME = 'masarifi.db';
-const CURRENT_SCHEMA_VERSION = 17;
+const CURRENT_SCHEMA_VERSION = 18;
 const LEGACY_OWNER_KEY = 'masarifi.database.legacyOwnerHash';
 const DATABASE_KEY_PREFIX = 'masarifi.database.key.';
 const LEGACY_MIGRATION_TABLE = '_masarifi_migration_state';
@@ -443,6 +443,7 @@ export async function clearDatabaseOwner(
             databaseOwnerHash,
             async (transaction) => {
               await transaction.runAsync('DELETE FROM sms_import_queue');
+              await transaction.runAsync('DELETE FROM sms_diagnostic_archive');
             }
           );
         }
@@ -748,6 +749,16 @@ async function runMigrations(
     `);
 
     const migrations = parseMigrations(`
+    -- migration:18
+    CREATE TABLE IF NOT EXISTS sms_diagnostic_archive (
+      id TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sms_diagnostic_archive_v3 (
+      id TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL
+    );
+
     -- migration:17
     CREATE TABLE IF NOT EXISTS sms_import_queue_v3 (
       id TEXT PRIMARY KEY CHECK (id = 'singleton'),

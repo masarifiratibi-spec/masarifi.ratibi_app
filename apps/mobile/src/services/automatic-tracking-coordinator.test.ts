@@ -176,10 +176,17 @@ it('keeps a removed default tombstone effective if the authoritative refresh fai
 });
 
 let mockDatabase: StatefulSqlite;
-it('durably archives old nominal notifications so a later page can reach new captures', async () => {
+it('advances a full diagnostic queue and captures the next financial notification once', async () => {
   const context = setup({ prepare: prepareFinancialMessageImport });
   context.setOnline(false);
   context.bankNotifications.getAccessState.mockResolvedValue('granted');
+  await context.queue.retainDiagnostics('owner-1', Array.from({ length: 1000 }, (_, i) => ({
+    sourceItemKey: 'prior-' + i,
+    sourceChannel: 'android_notification',
+    receivedAt: i,
+    sourceText: 'retained',
+    reasonCodes: ['legacy_capture_preserved']
+  })));
   await context.queue.saveRules('owner-1', {
     snapshot: defaultSnapshot,
     keywords: [],
@@ -211,11 +218,18 @@ it('durably archives old nominal notifications so a later page can reach new cap
     }
   );
   await context.coordinator.sync();
-  expect((await context.queue.load('owner-1')).diagnostics ?? []).toHaveLength(
-    50
-  );
+  const diagnostics = (await context.queue.load('owner-1')).diagnostics ?? [];
+  expect(diagnostics).toHaveLength(1000);
+  expect(diagnostics.at(-1)?.sourceItemKey).toBe('record-49');
+  expect(mockDatabase.read('sms_diagnostic_archive')).toHaveLength(50);
+  context.dependencies.bankNotifications.acknowledge.mockRejectedValueOnce(new Error('interrupted'));
   await context.coordinator.sync();
-  expect((await context.queue.load('owner-1')).pending).toHaveLength(1);
+  const pending = (await context.queue.load('owner-1')).pending;
+  expect(pending).toHaveLength(1);
+  expect(records.map(record => record.key)).toEqual(['record-50']);
+  const restarted = createAutomaticTrackingCoordinator(context.dependencies as never);
+  await restarted.sync();
+  expect((await context.queue.load('owner-1')).pending).toEqual(pending);
   expect(records).toHaveLength(0);
 });
 it('starts a fresh SMS queue at activation rather than scanning historical messages', async () => {

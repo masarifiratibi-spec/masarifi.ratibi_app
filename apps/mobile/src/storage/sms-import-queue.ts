@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 import {
   validateClassification,
@@ -26,6 +27,13 @@ import {
 } from '@/state/tracking-admission';
 
 const storageKey = 'masarifi.tracking.smsImportQueue.v1';
+const diagnosticWindowSize = 1000;
+type DiagnosticArchive = 'sms_diagnostic_archive' | 'sms_diagnostic_archive_v3';
+type QueueMutation = (
+  state: SmsImportQueueState,
+  transaction: SQLiteDatabase,
+  archive: DiagnosticArchive
+) => void | Promise<void>;
 
 interface StorageLike {
   getItem(key: string): Promise<string | null>;
@@ -192,13 +200,34 @@ export class SmsImportQueue {
     ownerId: string,
     records: readonly TrackingDiagnostic[]
   ): Promise<SmsImportQueueState> {
-    return this.update(ownerId, (state) => {
+    return this.update(ownerId, async (state, transaction, archive) => {
       const saved = new Map(
         (state.diagnostics ?? []).map((item) => [item.sourceItemKey, item])
       );
-      for (const item of records) saved.set(item.sourceItemKey, item);
-      if (saved.size > 1000) throw new Error('tracking_diagnostics_full');
-      state.diagnostics = [...saved.values()];
+      for (const item of records) {
+        diagnosticSchema.parse(item);
+        saved.set(item.sourceItemKey, item);
+      }
+      const diagnostics = [...saved.values()];
+      const overflow = diagnostics.length - diagnosticWindowSize;
+      if (overflow > 0) {
+        // A replayed record may already live in the archive.
+        for (const item of records) {
+          await transaction.runAsync(
+            `DELETE FROM ${archive} WHERE id = ?`,
+            item.sourceItemKey
+          );
+        }
+        // Move evidence out of the hot queue atomically before advancing the native cursor.
+        for (const item of diagnostics.slice(0, overflow)) {
+          await transaction.runAsync(
+            `INSERT INTO ${archive} (id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`,
+            item.sourceItemKey,
+            JSON.stringify(item)
+          );
+        }
+      }
+      state.diagnostics = diagnostics.slice(-diagnosticWindowSize);
     });
   }
 
@@ -216,6 +245,10 @@ export class SmsImportQueue {
         const row = await tx.getFirstAsync<{payload:string}>('SELECT payload FROM '+table+' WHERE id=?','singleton');
         const current = row ? parseState(row.payload,ownerId) : legacy;
         if (!current) continue;
+        const archive = table === 'sms_import_queue'
+          ? 'sms_diagnostic_archive'
+          : 'sms_diagnostic_archive_v3';
+        await tx.runAsync(`DELETE FROM ${archive}`);
         await tx.runAsync('INSERT OR REPLACE INTO '+table+'(id,payload) VALUES (?,?)','singleton',JSON.stringify(reset(current)));
       }
     });
@@ -228,9 +261,10 @@ export class SmsImportQueue {
       const admittedOwner = useTrackingAdmission.getState().admittedOwnerId;
       if (!admittedOwner || (ownerId && ownerId !== admittedOwner))
         throw new Error('tracking_queue_owner_unavailable');
-      await this.updatePartition(admittedOwner, (state) =>
-        Object.assign(state, empty(admittedOwner))
-      );
+      await this.updatePartition(admittedOwner, async (state, transaction, archive) => {
+        await transaction.runAsync(`DELETE FROM ${archive}`);
+        Object.assign(state, empty(admittedOwner), { diagnostics: [] });
+      });
       return;
     }
     const assertCurrent = captureTrackingAdmission(ownerId);
@@ -240,6 +274,7 @@ export class SmsImportQueue {
       await runExclusiveDatabaseTransaction(database, async (transaction) => {
         assertCurrent();
         await transaction.runAsync('DELETE FROM sms_import_queue');
+        await transaction.runAsync('DELETE FROM sms_diagnostic_archive');
       });
     } finally {
       assertCurrent();
@@ -249,7 +284,7 @@ export class SmsImportQueue {
 
   private async update(
     ownerId: string,
-    mutate?: (state: SmsImportQueueState) => void
+    mutate?: QueueMutation
   ): Promise<SmsImportQueueState> {
     if (useTrackingAdmission.getState().nativeLease)
       return this.updatePartition(ownerId, mutate);
@@ -271,7 +306,7 @@ export class SmsImportQueue {
         throw new Error('encrypted queue unavailable');
       const stored = mergePreservedQueue(encrypted, legacyState);
       state = stored ?? empty(ownerId);
-      if (mutate) mutate(state);
+      if (mutate) await mutate(state, transaction, 'sms_diagnostic_archive');
       if (mutate || (!row && stored) || (stored && legacyState)) {
         state = queueSchema.parse(state);
         state.pending = state.pending.map((entry) => ({
@@ -300,7 +335,7 @@ export class SmsImportQueue {
 
   private async updatePartition(
     ownerId: string,
-    mutate?: (state: SmsImportQueueState) => void
+    mutate?: QueueMutation
   ): Promise<SmsImportQueueState> {
     const assertAdmission = captureTrackingAdmission(ownerId);
     const lease = useTrackingAdmission.getState().nativeLease;
@@ -340,7 +375,7 @@ export class SmsImportQueue {
       }
       assertCurrent();
       result = state ?? empty(ownerId);
-      if (mutate) mutate(result);
+      if (mutate) await mutate(result, transaction, 'sms_diagnostic_archive_v3');
       result = queueSchema.parse(result);
       result.pending = result.pending.map((entry) => ({
         ...entry,
@@ -413,6 +448,15 @@ function mergePreservedQueue(
 }
 
 const boundedText = z.string().min(1).max(200);
+const diagnosticSchema = z
+  .object({
+    sourceItemKey: boundedText,
+    sourceChannel: z.enum(['android_sms', 'android_notification']),
+    receivedAt: z.number().int().safe().nonnegative(),
+    sourceText: z.string().max(8000),
+    reasonCodes: z.array(z.string().max(100)).max(32)
+  })
+  .strict();
 const timestamp = z.string().max(40).datetime({ offset: true });
 const eventSchema = z
   .object({
@@ -622,20 +666,7 @@ const queueSchema = z
       })
       .strict()
       .optional(),
-    diagnostics: z
-      .array(
-        z
-          .object({
-            sourceItemKey: boundedText,
-            sourceChannel: z.enum(['android_sms', 'android_notification']),
-            receivedAt: z.number().int().safe().nonnegative(),
-            sourceText: z.string().max(8000),
-            reasonCodes: z.array(z.string().max(100)).max(32)
-          })
-          .strict()
-      )
-      .max(1000)
-      .optional()
+    diagnostics: z.array(diagnosticSchema).max(diagnosticWindowSize).optional()
   })
   .strict();
 
