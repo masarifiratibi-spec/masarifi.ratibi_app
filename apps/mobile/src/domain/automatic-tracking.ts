@@ -68,6 +68,7 @@ export const trackingReasonCodes = [
   'configuration_stale',
   'cash_destination_required',
   'transfer_counterparty_required',
+  'card_repayment_requires_transfer',
   'original_transaction_required',
   'credit_origin_required',
   'fee_components_required',
