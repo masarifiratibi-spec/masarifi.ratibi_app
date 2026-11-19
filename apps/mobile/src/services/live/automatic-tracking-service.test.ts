@@ -1542,10 +1542,8 @@ describe('live automatic tracking adapter', () => {
     expect(request.mock.calls[1]?.[0]).toContain('status=rejected');
   });
 
-  it('reads a pending card repayment review from the live API', async () => {
-    const service = createLiveAutomaticTrackingService({
-      token: async () => 'token',
-      request: jest.fn().mockResolvedValue(response({
+  it('requests pending reviews by default and reads a card repayment', async () => {
+    const request = jest.fn().mockResolvedValue(response({
         items: [{
           id: 'review-1',
           importItemId: 'item-1',
@@ -1557,11 +1555,12 @@ describe('live automatic tracking adapter', () => {
           updatedAt: '2026-11-19T12:00:00Z'
         }],
         nextCursor: null
-      }))
-    });
-    await expect(service.listReviewItems({ status: 'pending' })).resolves.toMatchObject({
+      }));
+    const service = createLiveAutomaticTrackingService({ token: async () => 'token', request });
+    await expect(service.listReviewItems()).resolves.toMatchObject({
       items: [{ detectedEventId: 'item-1', reasonCodes: ['card_repayment_requires_transfer'] }]
     });
+    expect(request.mock.calls[0]?.[0]).toContain('status=pending');
   });
 
   it('maps a blocked-account conflict from a review decision', async () => {

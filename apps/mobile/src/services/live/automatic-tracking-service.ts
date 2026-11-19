@@ -878,7 +878,7 @@ export function createLiveAutomaticTrackingService({
           ? 'rejected'
           : query?.status === 'resolved'
             ? 'accepted'
-            : query?.status;
+            : (query?.status ?? 'pending');
       const response = trackingPage(
         await get(
           listPath('/api/v1/reviews', {
