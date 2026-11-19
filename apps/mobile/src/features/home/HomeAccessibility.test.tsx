@@ -21,7 +21,7 @@ jest.mock('@/features/core-finance/core-finance-queries', () => ({
     isError: false,
     refetch: jest.fn()
   }),
-  useAccountBalances: () => ({
+  useHomeAccountBalances: () => ({
     data: [],
     isLoading: false,
     isError: false,
