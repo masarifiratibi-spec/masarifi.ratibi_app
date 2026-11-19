@@ -4,6 +4,10 @@ struct BankSmsSavedNotice {
   let title: String
   let body: String
 
+  static func maskedBody(locale: String) -> String {
+    locale == "ar" ? "تم حفظ عملية من الاختصارات." : "A transaction from Shortcuts was saved."
+  }
+
   static func make(kind: String, amountMinor: Int64, currency: String, scale: Int,
                    locale: String, account: String, category: String) -> Self? {
     guard ["income", "expense", "transfer", "refund", "reversal"].contains(kind), amountMinor > 0, amountMinor <= 9_007_199_254_740_991,

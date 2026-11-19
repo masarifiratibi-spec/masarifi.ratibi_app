@@ -10,8 +10,9 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { colorTokens, spacing } from '@/design-system/tokens';
 import { useInitialHomeReadiness } from '@/features/shell/InitialHomeLoadingBoundary';
 import { translate } from '@/localization/i18n';
-import { readBankSmsSetup } from '@/services/platform/bank-sms-setup.ios';
+import { readBankSmsSetup, subscribeBankSmsVerification, verifyPendingBankSms } from '@/services/platform/bank-sms-setup.ios';
 import { useAppShellStore } from '@/state/app-shell';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 
@@ -32,7 +33,11 @@ function TrackingSetupCard() {
   const direction = usePreferenceStore((state) => state.direction);
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  const admissionReady = useTrackingAdmission((state) => state.ready);
   const [completed, setCompleted] = useState(false);
+  const [verificationEpoch, setVerificationEpoch] = useState<string>();
+  const [verifying, setVerifying] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -40,9 +45,13 @@ function TrackingSetupCard() {
     async function refresh() {
       const request = ++revision;
       const setup = await readBankSmsSetup().catch(() => null);
-      if (active && revision === request)
+      if (active && revision === request) {
         setCompleted(Boolean(setup?.enabled && setup.setupCompleted));
+        setVerificationEpoch(setup?.enabled ? setup.verificationEpoch : undefined);
+      }
     }
+    if (!admissionReady) return;
+    const verification = subscribeBankSmsVerification(refresh);
     void refresh();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') void refresh();
@@ -50,8 +59,38 @@ function TrackingSetupCard() {
     return () => {
       active = false;
       subscription.remove();
+      verification?.remove();
     };
-  }, []));
+  }, [admissionReady]));
+
+  async function verify() {
+    if (!verificationEpoch || verifying) return;
+    setVerifying(true);
+    setFailed(false);
+    try {
+      await verifyPendingBankSms(verificationEpoch);
+    } catch {
+      setFailed(true);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  if (verificationEpoch)
+    return (
+      <View style={styles.section}>
+        <StyledText accessibilityLiveRegion="polite">
+          {translate('tracking.bankSms.verifyPending')}
+        </StyledText>
+        {failed ? <StyledText accessibilityRole="alert">{translate('tracking.bankSms.verifyFailed')}</StyledText> : null}
+        <ActionButton
+          label={translate('tracking.bankSms.verifyAction')}
+          variant="secondary"
+          loading={verifying}
+          onPress={() => void verify()}
+        />
+      </View>
+    );
 
   if (completed) return null;
 

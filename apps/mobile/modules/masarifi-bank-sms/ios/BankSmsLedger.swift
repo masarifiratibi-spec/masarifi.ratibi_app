@@ -91,7 +91,7 @@ struct BankSmsLedger {
     case 400, 404, 422: throw BankSmsFailure.rejected
     case 409:
       let code = (try? JSONDecoder().decode(BankSmsRemoteError.self, from: data))?.code
-      if let code, ["VERSION_CONFLICT", "TRANSACTION_NOT_EDITABLE", "TRANSACTION_HAS_DEPENDENTS",
+      if let code, ["TRACKING_ACCOUNT_BLOCKED", "VERSION_CONFLICT", "TRANSACTION_NOT_EDITABLE", "TRANSACTION_HAS_DEPENDENTS",
                     "REVERSAL_EXISTS", "REFUND_EXCEEDS_AVAILABLE", "CURRENCY_MISMATCH",
                     "ACCOUNT_NOT_POSTABLE", "CATEGORY_INVALID"].contains(code) { throw BankSmsFailure.rejected }
       throw BankSmsFailure.unavailable
@@ -129,8 +129,8 @@ struct BankSmsLedger {
     return BankSmsOriginal(id: row.id, version: row.version, amountMinor: row.amountMinor, currency: row.currency)
   }
 
-  @MainActor func post(_ command: BankSmsCommand, key: UUID, generation: Int, token: String,
-                       authorize: () throws -> Void) async throws -> BankSmsOriginal {
+  private func ledgerRequest(_ command: BankSmsCommand, key: UUID, generation: Int, token: String,
+                             receiptOnly: Bool) throws -> URLRequest {
     let path: String
     let body: Data
     if let original = command.original {
@@ -160,12 +160,34 @@ struct BankSmsLedger {
       ]
       body = try JSONSerialization.data(withJSONObject: fields)
     }
-    var request = request(path, token: token)
+    let endpoint = receiptOnly ? "api/v1/bank-sms/receipts/\(command.kind)"
+      : command.automatic == true ? "api/v1/bank-sms/automatic/\(command.kind)" : path
+    var request = request(endpoint, token: token)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue(key.uuidString.lowercased(), forHTTPHeaderField: "Idempotency-Key")
     request.setValue(String(generation), forHTTPHeaderField: "X-Financial-Generation")
+    if receiptOnly || command.automatic == true {
+      request.setValue(command.original?.id.uuidString.lowercased(), forHTTPHeaderField: "X-Original-Transaction-Id")
+    }
     request.httpBody = body
+    return request
+  }
+
+  func lookup(_ command: BankSmsCommand, key: UUID, generation: Int, token: String) async throws -> BankSmsOriginal? {
+    let request = try ledgerRequest(command, key: key, generation: generation, token: token, receiptOnly: true)
+    let (reply, response) = try await http.data(for: request)
+    guard let status = (response as? HTTPURLResponse)?.statusCode else { throw BankSmsFailure.unavailable }
+    if status == 404,
+       (try? JSONDecoder().decode(BankSmsRemoteError.self, from: reply))?.code == "LEDGER_RECEIPT_NOT_FOUND" { return nil }
+    // An older server, a conflicting key or a failed lookup cannot prove a receipt is absent.
+    guard status == 200 else { throw BankSmsFailure.unavailable }
+    return try confirmedReceipt(reply, command: command)
+  }
+
+  @MainActor func post(_ command: BankSmsCommand, key: UUID, generation: Int, token: String,
+                       authorize: () throws -> Void) async throws -> BankSmsOriginal {
+    let request = try ledgerRequest(command, key: key, generation: generation, token: token, receiptOnly: false)
     let reply: Data = try await withCheckedThrowingContinuation { next in
       do {
         try Task.checkCancellation()
@@ -174,11 +196,18 @@ struct BankSmsLedger {
           do {
             if let error { throw error }
             guard let data, let response else { throw BankSmsFailure.unavailable }
+            if command.automatic == true, (response as? HTTPURLResponse)?.statusCode == 404 {
+              throw BankSmsFailure.unavailable
+            }
             next.resume(returning: try self.checked(data, response))
           } catch { next.resume(throwing: error) }
         }.resume()
       } catch { next.resume(throwing: error) }
     }
+    return try confirmedReceipt(reply, command: command)
+  }
+
+  private func confirmedReceipt(_ reply: Data, command: BankSmsCommand) throws -> BankSmsOriginal {
     guard let detail = (try? JSONDecoder().decode(BankSmsLedgerResult.self, from: reply))?.transaction
     else { throw BankSmsFailure.receipt }
     let row = detail.transaction

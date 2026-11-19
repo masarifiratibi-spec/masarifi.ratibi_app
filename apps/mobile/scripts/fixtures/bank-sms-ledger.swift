@@ -96,11 +96,9 @@ private final class LedgerProtocol: URLProtocol {
         categoryId: ownTransfer || compensation ? nil : category, destinationAccountId: ownTransfer ? cash : nil,
         original: compensation ? original : nil, automatic: true, accountAdmission: [admission],
         title: "Bank SMS QA", occurredAt: date)
-      let endpoint = ownTransfer ? "/api/v1/transfers" : compensation
-        ? "/api/v1/transactions/\(originalId.uuidString.lowercased())/\(kind == "refund" ? "refunds" : "reverse")"
-        : "/api/v1/transactions"
       LedgerProtocol.respond = { request in
-        precondition(request.httpMethod == "POST" && request.url?.path == endpoint)
+        precondition(request.httpMethod == "POST" && request.url?.path == "/api/v1/bank-sms/automatic/\(kind)")
+        precondition(request.value(forHTTPHeaderField: "X-Original-Transaction-Id") == command.original?.id.uuidString.lowercased())
         precondition(request.value(forHTTPHeaderField: "Idempotency-Key") == key.uuidString.lowercased())
         precondition(request.value(forHTTPHeaderField: "X-Financial-Generation") == "3")
         precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer qa-token")
@@ -127,6 +125,40 @@ private final class LedgerProtocol: URLProtocol {
 
     let command = BankSmsCommand(kind: "expense", amountMinor: 1234, currency: "SAR", accountId: account,
       categoryId: category, destinationAccountId: nil, original: nil, title: "Bank SMS QA", occurredAt: date)
+    LedgerProtocol.respond = { request in
+      precondition(request.url?.path == "/api/v1/bank-sms/receipts/expense")
+      precondition(request.value(forHTTPHeaderField: "X-Financial-Generation") == "3")
+      precondition(request.value(forHTTPHeaderField: "Idempotency-Key") == key.uuidString.lowercased())
+      return (200, try json(["transaction": detail("expense", ids: [account],
+        postings: [posting(account, -1234, "source")], categoryId: category)]))
+    }
+    guard let purchase = try await ledger.lookup(command, key: key, generation: 3, token: "qa-token")
+    else { preconditionFailure("Expected previously committed purchase") }
+    precondition(purchase.id == transaction)
+    let refund = BankSmsCommand(kind: "refund", amountMinor: 1234, currency: "SAR", accountId: account,
+      categoryId: nil, destinationAccountId: nil, original: purchase, title: "Bank SMS QA", occurredAt: date)
+    for matchesOriginal in [true, false] {
+      LedgerProtocol.respond = { request in
+        precondition(request.url?.path == "/api/v1/bank-sms/receipts/refund")
+        precondition(request.value(forHTTPHeaderField: "X-Original-Transaction-Id") == purchase.id.uuidString.lowercased())
+        return (200, try json(["transaction": detail("refund", ids: [account],
+          postings: [posting(account, 1234, "refund")], originalId: matchesOriginal ? purchase.id : UUID())]))
+      }
+      do {
+        _ = try await ledger.lookup(refund, key: UUID(), generation: 3, token: "qa-token")
+        precondition(matchesOriginal)
+      } catch BankSmsFailure.receipt { precondition(!matchesOriginal) }
+    }
+    for (status, code) in [(404, "LEDGER_RECEIPT_NOT_FOUND"), (404, "NOT_FOUND"), (503, "SERVICE_UNAVAILABLE")] {
+      LedgerProtocol.respond = { request in
+        precondition(request.url?.path == "/api/v1/bank-sms/receipts/expense")
+        return (status, try json(["code": code]))
+      }
+      do {
+        let result = try await ledger.lookup(command, key: key, generation: 3, token: "qa-token")
+        precondition(code == "LEDGER_RECEIPT_NOT_FOUND" && result == nil)
+      } catch BankSmsFailure.unavailable { precondition(code != "LEDGER_RECEIPT_NOT_FOUND") }
+    }
     LedgerProtocol.respond = { _ in (403, try json(["code": "RECENT_AUTH_REQUIRED"])) }
     do {
       _ = try await ledger.post(command, key: key, generation: 3, token: "qa-token") {}
@@ -160,11 +192,55 @@ private final class LedgerProtocol: URLProtocol {
     queue.deliveries = [delivery, next]
     queue.moveToBack(delivery.key)
     precondition(queue.deliveries.first?.key == next.key)
-    delivery.pending = nil
-    delivery.pendingNotice = BankSmsPendingNotice(transactionId: transaction, command: command)
+    delivery.receiptOnly = true
+    let unresolved = try JSONDecoder().decode(BankSmsDelivery.self, from: JSONEncoder().encode(delivery))
+    precondition(unresolved.receiptOnly == true && unresolved.pending != nil && unresolved.pendingNotice == nil)
+    delivery.settle(notice: BankSmsPendingNotice(transactionId: purchase.id, command: command), receipt: purchase)
     let saved = try JSONEncoder().encode(delivery)
     let recovered = try JSONDecoder().decode(BankSmsDelivery.self, from: saved)
     precondition(recovered.pending == nil && recovered.pendingNotice?.transactionId == transaction)
+    precondition(recovered.original?.id == purchase.id && recovered.bankReferenceDigest == "account-scoped-ref")
+    // Exercise the production wake loop with a backlog, including permanently blocked work.
+    func pending(_ index: Int) -> BankSmsDelivery {
+      BankSmsDelivery(key: UUID(), textDigest: String(index), referenceDigest: nil,
+                     expires: .distantFuture, created: Date(), pending: command)
+    }
+    var backlog = BankSmsState()
+    let eligible = (0..<17).map(pending)
+    let queuedNotices = (17..<22).map { index -> BankSmsDelivery in
+      var row = pending(index)
+      row.pending = nil
+      row.pendingNotice = BankSmsPendingNotice(transactionId: UUID(), command: command)
+      return row
+    }
+    var authBlocked = pending(22)
+    authBlocked.needsVerification = true
+    var waiting = pending(23)
+    waiting.pending?.originalReferenceDigest = "waiting"
+    authBlocked.bankReferenceDigest = "waiting"
+    backlog.deliveries = [authBlocked, waiting] + eligible + queuedNotices
+    var commandKeys: [UUID] = [], noticeKeys: [UUID] = []
+    try await BankSmsDrain.run(state: { backlog }) { batch in
+      precondition(batch.commands.count <= 16 && batch.notices.count <= 4)
+      commandKeys += batch.commands
+      noticeKeys += batch.notices
+      // Leave attempts pending to model receipt ambiguity and failed notice scheduling.
+    }
+    precondition(commandKeys == eligible.map(\.key) && noticeKeys == queuedNotices.map(\.key))
+    let disk = try JSONEncoder().encode(backlog)
+    backlog = try JSONDecoder().decode(BankSmsState.self, from: disk)
+    precondition(backlog.deliveries[0].needsVerification == true)
+    backlog.deliveries = Array(backlog.deliveries.prefix(2))
+    backlog.deliveries[0].needsVerification = nil
+    var afterVerification: [UUID] = []
+    try await BankSmsDrain.run(state: { backlog }) { batch in
+      afterVerification += batch.commands
+      for key in batch.commands {
+        let index = backlog.deliveries.firstIndex { $0.key == key }!
+        backlog.deliveries[index].pending = nil
+      }
+    }
+    precondition(afterVerification == [authBlocked.key, waiting.key])
     print("Bank SMS native ledger fixtures passed: account opt-out, request bodies, receipt signs and replay keys")
   }
 }

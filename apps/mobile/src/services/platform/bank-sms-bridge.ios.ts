@@ -33,6 +33,7 @@ type BankSmsStatus = {
   preferences?: Omit<BankSmsConfiguration, 'links'>;
   enabled: boolean;
   pending: number;
+  verificationEpoch?: string;
   lastSaved?: number;
   lastTransactionId?: string;
   outcome?:
@@ -47,7 +48,10 @@ type BankSmsStatus = {
 };
 
 type BankSmsNative = {
+  takeForegroundNotice(owner: string, session: string, identifier: string): Promise<string | null>;
   revision(): Promise<number>;
+  addListener(event: 'onVerificationChanged', listener: () => void): { remove(): void };
+  retryVerified(owner: string, session: string, epoch: string): Promise<void>;
   enable(setup: string): Promise<void>;
   status(owner: string, session: string): Promise<BankSmsStatus>;
   disable(owner: string, erase: boolean): Promise<void>;

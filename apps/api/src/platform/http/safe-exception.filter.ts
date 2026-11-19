@@ -98,6 +98,7 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   LEDGER_NOT_AVAILABLE: { status: 409, message: 'Ledger operation is not available' },
   FX_UNAVAILABLE: { status: 404, message: 'Exchange rate is unavailable' },
   IDEMPOTENCY_KEY_REQUIRED: { status: 400, message: 'Idempotency key is required' },
+  LEDGER_RECEIPT_NOT_FOUND: { status: 404, message: 'Ledger receipt not found' },
   IDEMPOTENCY_KEY_REUSED: { status: 409, message: 'Idempotency key was already used' },
   IDEMPOTENCY_IN_PROGRESS: { status: 409, message: 'Idempotent request is in progress' },
   IDEMPOTENCY_REPLAY_UNAVAILABLE: {

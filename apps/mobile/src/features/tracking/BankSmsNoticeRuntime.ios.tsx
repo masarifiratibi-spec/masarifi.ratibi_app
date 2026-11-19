@@ -5,6 +5,7 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { synchronizeBankSmsNotificationLocale } from '@/services/platform/bank-sms-notice-locale.ios';
 import { refreshEnabledBankSms } from '@/services/platform/bank-sms-setup.ios';
+import { BankSmsForegroundNotice } from './BankSmsForegroundNotice.ios';
 
 export function BankSmsNoticeRuntime() {
   const ready = useAppShellStore((state) => state.hydrated);
@@ -49,5 +50,5 @@ export function BankSmsNoticeRuntime() {
       unsubscribe();
     };
   }, [active, client, session]);
-  return null;
+  return active ? <BankSmsForegroundNotice /> : null;
 }

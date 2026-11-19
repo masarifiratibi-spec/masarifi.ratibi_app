@@ -1,11 +1,19 @@
 import { changeLocale } from '@/localization/i18n';
-import { completeBankSmsSetup, disableBankSms, enableBankSms, readBankSmsSetup, refreshEnabledBankSms } from './bank-sms-setup.ios';
+import { completeBankSmsSetup, disableBankSms, enableBankSms, readBankSmsSetup, refreshEnabledBankSms, verifyPendingBankSms } from './bank-sms-setup.ios';
 import { synchronizeBankSmsNotificationLocale } from './bank-sms-notice-locale.ios';
+
+import { requestRecentAuthentication } from '../live/http-client';
+
+const mockAssertActor = jest.fn(async () => undefined);
+jest.mock('../live/http-client', () => ({
+  requestRecentAuthentication: jest.fn()
+}));
 
 let setup: Record<string, unknown>;
 let notificationLocale: string | undefined;
 let mockCompleted = false;
 const mockNative = {
+  retryVerified: jest.fn(async () => undefined),
   status: jest.fn(async () => ({ enabled: true, pending: 0 })),
   revision: async () => 0,
   enable: async (json: string) => {
@@ -61,7 +69,8 @@ jest.mock('../live/auth-service', () => ({
   readLogoutSessionAnchor: async () => 'session',
   captureLiveClerkIdentity: async () => ({
     userId: 'owner',
-    sessionId: 'session'
+    sessionId: 'session',
+    assertCurrent: mockAssertActor
   })
 }));
 jest.mock('../live/account-service', () => ({
@@ -88,6 +97,9 @@ jest.mock('../live/category-lifecycle-service', () => ({
 
 beforeEach(() => {
   mockCompleted = false;
+  jest.mocked(requestRecentAuthentication).mockReset();
+  mockNative.retryVerified.mockClear();
+  mockAssertActor.mockReset().mockResolvedValue(undefined);
   mockNative.status.mockReset().mockResolvedValue({ enabled: true, pending: 0 });
   changeLocale('ar');
   notificationLocale = undefined;
@@ -214,4 +226,19 @@ it('drops queued setup writes when the user turns capture off', async () => {
     finishRefresh();
     nativeEnable.mockRestore();
   }
+});
+
+it('retries a verified command only within its captured Clerk session and enrollment', async () => {
+  mockNative.status.mockResolvedValue({ enabled: true, pending: 1, verificationEpoch: 'epoch' } as Awaited<ReturnType<typeof mockNative.status>>);
+  jest.mocked(requestRecentAuthentication).mockResolvedValueOnce(null).mockResolvedValue('verified');
+  await verifyPendingBankSms('retired');
+  expect(requestRecentAuthentication).not.toHaveBeenCalled();
+  await verifyPendingBankSms('epoch');
+  expect(mockNative.retryVerified).not.toHaveBeenCalled();
+  mockAssertActor.mockRejectedValueOnce(new Error('changed'));
+  await expect(verifyPendingBankSms('epoch')).rejects.toThrow('changed');
+  expect(mockNative.retryVerified).not.toHaveBeenCalled();
+  await verifyPendingBankSms('epoch');
+  expect(mockNative.retryVerified).toHaveBeenCalledTimes(1);
+  expect(mockNative.retryVerified).toHaveBeenCalledWith('owner', 'session', 'epoch');
 });

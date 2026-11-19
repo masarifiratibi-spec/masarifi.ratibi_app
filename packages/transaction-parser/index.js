@@ -182,7 +182,24 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
   else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
   if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
   for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending(?:\s+with)?)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
-    const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
+    const label = (m[1]||m[2]).toLowerCase();
+    let suffix=m[3].replace(/[^0-9]/g,'');
+    if (input.channel === 'ios_app_intent') {
+      const tail = text.slice(m.index + m[0].length);
+      if (/^\d*[- ]\d{4}(?!\d)/.test(tail)) {
+        result.reasonCodes.push('instrument_ambiguous');
+        continue;
+      }
+      const remaining = tail.match(/^\d+/)?.[0];
+      if (remaining) {
+        const digits = suffix + remaining;
+        if (digits.length > 19 || m[3].endsWith('*')) {
+          result.reasonCodes.push('instrument_ambiguous');
+          continue;
+        }
+        suffix = digits.slice(-4);
+      }
+    }
     const prefix=lower.slice(0,m.index).trimEnd();
     let side;
     if (['transfer_sent','transfer_received','withdrawal'].includes(result.subtype) || input.channel === 'ios_app_intent') {

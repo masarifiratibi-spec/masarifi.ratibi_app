@@ -86,8 +86,12 @@ test('native save alerts run after successful settlement and use the receipt ID'
   );
   assert.match(
     service,
-    /try settle\(delivery, enrollment: enrollment, notice: notice, receipt: receipt\)\s+await deliverNotice\(delivery.key, enrollment: enrollment\)/
+    /try settle\(delivery, enrollment: enrollment, notice: notice, receipt: receipt\)/
   );
+  assert.match(service, /for key in batch\.notices\s*\{\s*await deliverNotice\(key, enrollment: enrollment\)/);
+  const state = readFileSync(join(root, 'modules/masarifi-bank-sms/ios/BankSmsState.swift'), 'utf8');
+  assert.match(service, /\.settle\(notice: notice, receipt: receipt\)/);
+  assert.match(state, /pendingNotice = notice/);
   assert.equal([...service.matchAll(/await notifySaved\(/g)].length, 1);
   assert.match(service, /let identifier = "bank-sms-saved-\\\(transactionId\./);
 });
@@ -124,6 +128,10 @@ test('iOS config copies the intent and the parser into the main application buil
     const output = project.writeSync();
     assert.match(output, /ProcessBankSmsIntent\.swift in Sources/);
     assert.match(output, /MasarifiBankSmsParser\.js in Resources/);
+    assert.match(output, /Localizable\.xcstrings in Resources/);
+    const catalog = JSON.parse(readFileSync(join(temporary, 'HelloWorld/Localizable.xcstrings'), 'utf8'));
+    assert.equal(catalog.strings['Income Category'].localizations.ar.stringUnit.value, 'تصنيف الدخل');
+    assert.equal(catalog.strings['Account Number Ending'].localizations.ar.stringUnit.value, 'آخر أرقام الحساب');
     const files = Object.values(project.pbxFileReferenceSection());
     assert.equal(
       files.filter((file) => file.path?.includes('ProcessBankSmsIntent.swift'))
@@ -208,6 +216,7 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     return parsed;
   };
   const purchase = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', 'expense', 'bank', 'restaurant');
+  route('QAALFA Purchase SAR 12.34 at QA Cafe card 1111111199994242', 'expense', 'bank', 'restaurant');
   assert.equal(purchase.bankReference, 'QA00001');
   const recast = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 account XX7373 Ref: qa00001', 'expense', 'bank', 'restaurant');
   const fresh = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00999', 'expense', 'bank', 'restaurant');
@@ -248,6 +257,13 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     'Bill payment SAR 12.34 for account XX7373',
     'Bill payment SAR 12.34 to card XX4242',
     'Bill payment SAR 12.34 for card XX4242',
+    'Purchase SAR 12.34 card 1111111142429999',
+    'Purchase SAR 12.34 card 4242-1234-8888-9999',
+    'Purchase SAR 12.34 card XX4242 was not approved',
+    'Purchase SAR 12.34 card XX4242 never processed',
+    'Purchase SAR 12.34 card XX4242 is awaiting approval',
+    'شراء SAR 12.34 بطاقة XX4242 بانتظار الموافقة',
+    'Cash deposit SAR 14 to account XX7373 depositor: Ahmed',
     'Fee SAR 12.34 to account XX7373',
     'Cash deposit SAR 20.35 from card XX4242',
     'Cash deposit SAR 20.35 from Ahmed to account XX7373',

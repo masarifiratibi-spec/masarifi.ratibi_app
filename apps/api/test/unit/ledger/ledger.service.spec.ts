@@ -40,6 +40,71 @@ function harness(thresholds: Record<string, number> | undefined = { SAR: 50000 }
   };
 }
 
+describe('Bank SMS read-only receipt recovery', () => {
+  const input = {
+    principal,
+    body,
+    receiptGeneration: '3',
+    idempotencyKey: 'bank-qa-key',
+    requestId: 'receipt-qa',
+  };
+  it.each([response, undefined])(
+    'does not attempt a write when the lookup returns %p',
+    async (receipt) => {
+      const { service, repository, security } = harness();
+      repository.replayCompleted.mockResolvedValue(receipt);
+      const lookup = service.bankSms(input, 'income');
+      if (receipt) await expect(lookup).resolves.toBe(receipt);
+      else
+        await expect(lookup).rejects.toMatchObject({
+          response: { code: 'LEDGER_RECEIPT_NOT_FOUND' },
+          status: 404,
+        });
+      expect(repository.replayCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          principal,
+          scope: 'ledger.transaction.create',
+          idempotencyKey: input.idempotencyKey,
+        }),
+        '3',
+      );
+      expect(repository.mutate).not.toHaveBeenCalled();
+      expect(security.consumeRateLimit).not.toHaveBeenCalled();
+    },
+  );
+
+  it('looks up a linked refund by its frozen original and version before reading current eligibility', async () => {
+    const { service, repository } = harness();
+    const original = body.accountId;
+    repository.replayCompleted.mockResolvedValue(response);
+    await expect(
+      service.bankSms(
+        {
+          ...input,
+          body: {
+            accountId: body.accountId,
+            expectedVersion: 2,
+            amountMinor: 1234,
+            occurredAt: body.occurredAt,
+            reason: 'QA refund',
+          },
+        },
+        'refund',
+        original,
+      ),
+    ).resolves.toBe(response);
+    expect(repository.replayCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: 'ledger.transaction.refund',
+        command: expect.objectContaining({ transactionId: original, expectedVersion: 2 }),
+      }),
+      '3',
+    );
+    expect(repository.effect).not.toHaveBeenCalled();
+    expect(repository.mutate).not.toHaveBeenCalled();
+  });
+});
+
 describe('LedgerService create transaction', () => {
   it('rate-limits, applies the configured currency threshold, and delegates one normalized command', async () => {
     const { service, repository, security } = harness();

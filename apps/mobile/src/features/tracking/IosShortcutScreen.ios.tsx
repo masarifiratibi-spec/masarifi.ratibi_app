@@ -92,6 +92,9 @@ function ShortcutSetup() {
   const [requestingNotice, setRequestingNotice] = useState(false);
   const [error, setError] = useState<MessageKey>();
   const enabled = typeof status === 'object' && status.enabled;
+  const incompleteEnding = Object.values(configuration?.links ?? {}).some(
+    ({ accountEnding }) => Boolean(accountEnding && accountEnding.length !== 4)
+  );
   const lastStep = steps.length - 1;
   const current = steps[step];
   const modern = Number.parseInt(String(Platform.Version), 10) >= 27;
@@ -433,7 +436,7 @@ function ShortcutSetup() {
                 else void next();
               }}
               loading={busy}
-              disabled={status !== 'unavailable' && !enabled}
+              disabled={status !== 'unavailable' && (!enabled || (step === 0 && incompleteEnding))}
             />
           </View>
         </View>

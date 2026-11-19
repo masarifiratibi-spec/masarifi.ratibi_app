@@ -3,6 +3,8 @@ import CoreText
 
 @main struct SavedNoticeTests {
   static func main() {
+    precondition(BankSmsSavedNotice.maskedBody(locale: "ar") == "تم حفظ عملية من الاختصارات.")
+    precondition(BankSmsSavedNotice.maskedBody(locale: "en") == "A transaction from Shortcuts was saved.")
     let arabic = BankSmsSavedNotice.make(kind: "expense", amountMinor: 1726, currency: "SAR", scale: 2,
       locale: "ar", account: "QA Bank", category: "التسوق")!
     precondition(arabic.title == "\u{200f}دفع · \u{2066}17.26\u{00a0}SAR\u{2069}", arabic.title)

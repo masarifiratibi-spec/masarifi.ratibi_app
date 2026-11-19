@@ -78,6 +78,10 @@ export function BankSmsSetupFields({
   const categoryName = (choice: (typeof choices)[number]) =>
     (locale === 'ar' ? choice.nameAr : choice.nameEn) ?? choice.name;
   const link = account && draft.links?.[account.id];
+  const incomplete = linked.filter(({ id }) => {
+    const length = draft.links?.[id]?.accountEnding?.length;
+    return length && length !== 4;
+  });
   const cashAccounts = accounts.filter(
     (choice) => choice.type === 'cash' && choice.currency === account?.currency
   );
@@ -115,6 +119,8 @@ export function BankSmsSetupFields({
           <FormField
             label={translate('tracking.bankSms.accountDigits')}
             value={link?.accountEnding ?? ''}
+            errorText={incomplete.some((choice) => choice.id === account.id)
+              ? 'tracking.bankSms.fourDigitsRequired' : undefined}
             keyboardType="number-pad"
             maxLength={4}
             editable={!disabled}
@@ -158,6 +164,11 @@ export function BankSmsSetupFields({
           )}
         </View>
       )}
+      {incomplete.filter((choice) => choice.id !== account?.id).map((choice) => (
+        <StyledText key={choice.id} accessibilityRole="alert">
+          {choice.name} · {translate('tracking.bankSms.fourDigitsRequired')}
+        </StyledText>
+      ))}
       {defaults.map(({ key, kind, label }) => {
         const matching = choices.filter((choice) => choice.kind === kind);
         const active = matching.find((choice) => choice.id === draft[key]);

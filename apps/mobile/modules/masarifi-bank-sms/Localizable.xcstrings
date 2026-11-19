@@ -1,0 +1,94 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Account": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحساب"
+          }
+        }
+      }
+    },
+    "Category": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التصنيف"
+          }
+        }
+      }
+    },
+    "Income Category": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصنيف الدخل"
+          }
+        }
+      }
+    },
+    "Account Number Ending": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر أرقام الحساب"
+          }
+        }
+      }
+    },
+    "SMS Text": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نص الرسالة"
+          }
+        }
+      }
+    },
+    "Process Bank SMS": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معالجة رسالة بنكية"
+          }
+        }
+      }
+    },
+    "Save a supported bank message to its matching Masarifi account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احفظ الرسالة البنكية المدعومة في حساب مصاريفي المطابق."
+          }
+        }
+      }
+    },
+    "Process ${smsText}": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معالجة ${smsText}"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

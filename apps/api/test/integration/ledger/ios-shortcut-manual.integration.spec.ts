@@ -99,6 +99,17 @@ describeLiveDatabase('iOS confirmed manual ledger with automatic tracking opted 
       });
       const replay = await repository.mutate(input());
       expect(replay).toEqual(first);
+      await expect(repository.replayCompleted(input(), '0')).resolves.toEqual(first);
+      await expect(repository.replayCompleted(input(randomUUID()), '0')).resolves.toBeUndefined();
+      await expect(
+        repository.replayCompleted(input(key, command, other), '0'),
+      ).resolves.toBeUndefined();
+      await expect(repository.replayCompleted(input(), '1')).rejects.toMatchObject({
+        response: { code: 'FINANCIAL_GENERATION_STALE' },
+      });
+      await expect(
+        repository.mutate({ ...input(randomUUID()), requireAutomaticTracking: true }),
+      ).rejects.toMatchObject({ response: { code: 'TRACKING_ACCOUNT_BLOCKED' } });
       const beforeSecond = await pool.query<{ count: number; balance: string }>(
         `select (select count(*)::int from public.transactions t where t.user_id=$1 and exists(select 1 from public.transaction_postings p where p.transaction_id=t.id and p.account_id=$2)) count,(select confirmed_minor::text from public.account_balances where account_id=$2) balance`,
         [owner.userId, accounts[kind]],

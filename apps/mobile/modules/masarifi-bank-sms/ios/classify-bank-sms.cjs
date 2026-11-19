@@ -1,7 +1,8 @@
 const { defaultSnapshot, discoverFinancialMessage, normalizeFinancialText } = require('./parser');
 
 const smsAliases = {
-  'lifecycle.failed': ['not completed', 'not processed', 'not successful', 'لم يكتمل', 'لم تكتمل', 'لم يتم تنفيذ', 'لم يتم اتمام'],
+  'lifecycle.failed': ['not completed', 'not processed', 'never processed', 'not successful', 'not approved', 'لم يكتمل', 'لم تكتمل', 'لم يتم تنفيذ', 'لم يتم اتمام', 'لم تتم الموافقة', 'لم يتم قبول'],
+  'lifecycle.pending': ['awaiting approval', 'awaiting authorization', 'بانتظار الموافقة', 'في انتظار الموافقة'],
   'action.transfer.sent': ['outgoing external transfer', 'تحويل خارجي صادر', 'حوالة خارجية صادرة', 'حوالة صادرة'],
   'action.transfer.received': ['incoming external transfer', 'تحويل خارجي وارد', 'حوالة خارجية واردة', 'حوالة واردة']
 };
@@ -117,7 +118,7 @@ function route(text, c, routing) {
     const cashDeposit = /^(?:cash deposit|cash deposited|(?:تم )?ايداع نقدي)(?: |$)/u.test(message);
     if (subtype === 'deposit' && (!cashDeposit ||
         /(?:^| )(?:third party|external|طرف خارجي)(?: |$)/u.test(message) ||
-        /(?:^| )(?:from|by|من|بواسطة|عن طريق)(?: |$)/u.test(message))) return null;
+        /(?:^| )(?:from|by|depositor|deposited by|من|بواسطة|عن طريق|المودع|مودع)(?: |$)/u.test(message))) return null;
     const cash = accounts.find(candidate => candidate.id === account.cashAccountId && candidate.type === 'cash');
     if (!cash || cash.id === account.id) return null;
     return subtype === 'withdrawal'

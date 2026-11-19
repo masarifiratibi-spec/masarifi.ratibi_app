@@ -3,6 +3,7 @@ import CryptoKit
 import Foundation
 import JavaScriptCore
 import UserNotifications
+import UIKit
 
 private struct ExpoClerkHeaders: ClerkRequestMiddleware {
   func prepare(_ request: inout URLRequest) async throws {
@@ -54,10 +55,24 @@ public struct BankSmsChoice: Sendable {
   private let store = BankSmsStore()
   private let ledger = BankSmsLedger()
   private let replayWindow: TimeInterval = 24 * 60 * 60
-  private var draining = false
+  private var drainTask: (epoch: UUID, task: Task<Void, Never>)?
+  private var wakeRequested = false
+  var verificationChanged: (() -> Void)?
   private(set) var revision = 0
   private var revokedOwners = Set<String>()
   private var clerk: Clerk?
+  private var foregroundDetails: [String: (epoch: UUID, expires: Date, notice: BankSmsSavedNotice)] = [:]
+
+  func takeForegroundNotice(owner: String, session: String, identifier: String) -> String? {
+    guard UIApplication.shared.applicationState == .active,
+          let enrollment = try? store.load().enrollment,
+          enrollment.owner == owner, enrollment.session == session,
+          clerk?.session?.id == session, clerk?.session?.user?.id == owner,
+          !revokedOwners.contains(owner),
+          let detail = foregroundDetails.removeValue(forKey: identifier),
+          detail.epoch == enrollment.epoch, detail.expires > Date() else { return nil }
+    return detail.notice.title + "\n" + detail.notice.body
+  }
 
   public func choices(kind: String, identifiers: [String]? = nil) async -> [BankSmsChoice] {
     guard let enrollment = try? store.load().enrollment,
@@ -123,6 +138,10 @@ public struct BankSmsChoice: Sendable {
       return ["enabled": false, "pending": 0]
     }
     var result: [String: Any] = ["enabled": true, "pending": state.deliveries.filter { $0.pending != nil }.count]
+    let cutoff = Date().addingTimeInterval(-replayWindow)
+    if state.deliveries.contains(where: { $0.pending != nil && $0.needsVerification == true && $0.created > cutoff }) {
+      result["verificationEpoch"] = enrollment.epoch.uuidString
+    }
     if let outcome = state.outcome { result["outcome"] = outcome }
     if let date = state.lastSaved { result["lastSaved"] = date.timeIntervalSince1970 * 1000 }
     if let id = state.lastTransactionId { result["lastTransactionId"] = id.uuidString.lowercased() }
@@ -251,12 +270,43 @@ public struct BankSmsChoice: Sendable {
   }
 
   func retry() async {
-    guard !draining else { return }
-    draining = true
-    defer { draining = false }
     guard let state = try? store.load(), let enrollment = state.enrollment,
           !revokedOwners.contains(enrollment.owner),
           state.deliveries.contains(where: { $0.pending != nil || $0.pendingNotice != nil }) else { return }
+    if let running = drainTask {
+      if running.epoch == enrollment.epoch { wakeRequested = true }
+      await running.task.value
+      if running.epoch != enrollment.epoch, (try? admitted(enrollment)) != nil {
+        await retry()
+      }
+      return
+    }
+    let task = Task { @MainActor in
+      repeat {
+        self.wakeRequested = false
+        await self.drain(enrollment)
+      } while self.wakeRequested && !Task.isCancelled && (try? self.admitted(enrollment)) != nil
+      self.drainTask = nil
+    }
+    drainTask = (enrollment.epoch, task)
+    await task.value
+  }
+
+  func retryVerified(owner: String, session: String, epoch: String) async throws {
+    if let drainTask { await drainTask.task.value }
+    var current = try store.load()
+    guard let enrollment = current.enrollment, !revokedOwners.contains(owner), enrollment.owner == owner,
+          enrollment.session == session, enrollment.epoch == UUID(uuidString: epoch) else { throw BankSmsFailure.disabled }
+    for index in current.deliveries.indices where current.deliveries[index].needsVerification == true {
+      current.deliveries[index].needsVerification = nil
+    }
+    try store.write(current)
+    await retry()
+    _ = try admitted(enrollment)
+    verificationChanged?()
+  }
+
+  private func drain(_ enrollment: BankSmsEnrollment) async {
     do {
       var current = try admitted(enrollment)
       let cutoff = Date().addingTimeInterval(-replayWindow)
@@ -268,90 +318,85 @@ public struct BankSmsChoice: Sendable {
         current.deliveries[index].pendingNotice = nil
       }
       try store.write(current)
-      guard current.deliveries.contains(where: { $0.pending != nil || $0.pendingNotice != nil }) else { return }
-      let token = try await token(for: enrollment)
-      let generation = try await ledger.generation(token: token)
-      _ = try admitted(enrollment)
-      guard generation == enrollment.generation else {
-        try disable(owner: enrollment.owner, erase: false)
-        return
-      }
-      let notices = try admitted(enrollment).deliveries.filter { $0.pendingNotice != nil }
-      for delivery in notices.prefix(4) {
-        await deliverNotice(delivery.key, enrollment: enrollment)
-      }
-      var deferred = Set<UUID>()
-      for _ in 0..<16 {
-        current = try admitted(enrollment)
-        guard let delivery = current.deliveries.first(where: { $0.pending != nil && !deferred.contains($0.key) }),
-              var command = delivery.pending else { return }
-        do {
-          if command.original == nil, let reference = command.originalReferenceDigest {
-            let matches = current.deliveries.filter {
-              $0.bankReferenceDigest == reference && ($0.original != nil || $0.pending != nil)
-            }
-            guard matches.count == 1, let source = matches.first else { throw BankSmsFailure.rejected }
-            if source.pending != nil {
-              deferred.insert(delivery.key)
-              current.moveToBack(delivery.key)
-              try store.write(current)
-              continue
-            }
-            guard let original = source.original, original.currency == command.currency,
-                  command.amountMinor <= original.amountMinor,
-                  command.kind != "reversal" || command.amountMinor == original.amountMinor
-            else { throw BankSmsFailure.rejected }
-            command.original = original
-          }
-          let admissions = try command.checkedAccounts(in: current.enrollment?.accounts ?? [])
-          for account in admissions {
-            try await ledger.checkAccount(account, currency: command.currency, token: token)
-          }
-          if let original = command.original, command.originalVersionReady != true {
-            command.original = try await ledger.currentOriginal(original, account: command.accountId, token: token)
-            command.originalVersionReady = true
-            // Freeze the request before sending. A retry after a lost response
-            // must replay the same version and key even if the original changed.
-            var latest = try admitted(enrollment)
-            guard let index = latest.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil })
-            else { throw BankSmsFailure.disabled }
-            latest.deliveries[index].pending = command
-            try store.write(latest)
-          }
-          let receipt = try await ledger.post(command, key: delivery.key, generation: generation, token: token) {
-            let latest = try admitted(enrollment)
-            guard let setup = latest.enrollment,
-                  latest.deliveries.contains(where: { $0.key == delivery.key && $0.pending != nil }),
-                  clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner
-            else { throw BankSmsFailure.auth }
-            func accepts(_ id: String) -> Bool {
-              setup.accounts.contains { target in
-                target.id == id && target.currency == command.currency &&
-                  (command.automatic != true || target.automaticRouting == true || target.type == "cash")
-              }
-            }
-            guard accepts(command.accountId), command.destinationAccountId.map(accepts) ?? true,
-                  admissions.allSatisfy({ admission in
-                    setup.accounts.contains { BankSmsAccountAdmission($0) == admission }
-                  }),
-                  command.categoryId.map({ id in setup.categories.contains(where: { $0.id == id && $0.kind == command.kind }) }) ?? true
-            else { throw BankSmsFailure.rejected }
-          }
-          let id = receipt.id
-          let notice = BankSmsPendingNotice(transactionId: id, command: command)
-          try settle(delivery, enrollment: enrollment, notice: notice, receipt: receipt)
-          await deliverNotice(delivery.key, enrollment: enrollment)
-        } catch BankSmsFailure.rejected {
-          try settle(delivery, enrollment: enrollment, notice: nil)
-        } catch BankSmsFailure.receipt {
-          deferred.insert(delivery.key)
-        } catch BankSmsFailure.recentAuth {
-          deferred.insert(delivery.key)
+      try await BankSmsDrain.run(state: { try admitted(enrollment) }) { batch in
+        let token = try await token(for: enrollment)
+        let generation = try await ledger.generation(token: token)
+        _ = try admitted(enrollment)
+        guard generation == enrollment.generation else {
+          try disable(owner: enrollment.owner, erase: false)
+          return
         }
-        if deferred.contains(delivery.key) {
-          var latest = try admitted(enrollment)
-          latest.moveToBack(delivery.key)
-          try store.write(latest)
+        for key in batch.notices {
+          await deliverNotice(key, enrollment: enrollment)
+        }
+        for key in batch.commands {
+          current = try admitted(enrollment)
+          guard let delivery = current.deliveries.first(where: { $0.key == key }),
+                var command = delivery.pending else { continue }
+          do {
+            if delivery.receiptOnly == true { throw BankSmsFailure.rejected }
+            if command.original == nil, let reference = command.originalReferenceDigest {
+              let matches = current.deliveries.filter {
+                $0.bankReferenceDigest == reference && ($0.original != nil || $0.pending != nil)
+              }
+              guard matches.count == 1, let source = matches.first else { throw BankSmsFailure.rejected }
+              if source.pending != nil { continue }
+              guard let original = source.original, original.currency == command.currency,
+                    command.amountMinor <= original.amountMinor,
+                    command.kind != "reversal" || command.amountMinor == original.amountMinor
+              else { throw BankSmsFailure.rejected }
+              command.original = original
+            }
+            let admissions = try command.checkedAccounts(in: current.enrollment?.accounts ?? [])
+            for account in admissions {
+              try await ledger.checkAccount(account, currency: command.currency, token: token)
+            }
+            if let original = command.original, command.originalVersionReady != true {
+              command.original = try await ledger.currentOriginal(original, account: command.accountId, token: token)
+              command.originalVersionReady = true
+              // Freeze the request before sending. A retry after a lost response
+              // must replay the same version and key even if the original changed.
+              var latest = try admitted(enrollment)
+              guard let index = latest.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil })
+              else { throw BankSmsFailure.disabled }
+              latest.deliveries[index].pending = command
+              try store.write(latest)
+            }
+            let receipt = try await ledger.post(command, key: delivery.key, generation: generation, token: token) {
+              let latest = try admitted(enrollment)
+              guard let setup = latest.enrollment,
+                    latest.deliveries.contains(where: { $0.key == delivery.key && $0.pending != nil }),
+                    clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner
+              else { throw BankSmsFailure.auth }
+              func accepts(_ id: String) -> Bool {
+                setup.accounts.contains { target in
+                  target.id == id && target.currency == command.currency &&
+                    (command.automatic != true || target.automaticRouting == true || target.type == "cash")
+                }
+              }
+              guard accepts(command.accountId), command.destinationAccountId.map(accepts) ?? true,
+                    admissions.allSatisfy({ admission in
+                      setup.accounts.contains { BankSmsAccountAdmission($0) == admission }
+                    }),
+                    command.categoryId.map({ id in setup.categories.contains(where: { $0.id == id && $0.kind == command.kind }) }) ?? true
+              else { throw BankSmsFailure.rejected }
+            }
+            let id = receipt.id
+            let notice = BankSmsPendingNotice(transactionId: id, command: command)
+            try settle(delivery, enrollment: enrollment, notice: notice, receipt: receipt)
+          } catch BankSmsFailure.rejected {
+            try await reconcileRejected(delivery, command: command, enrollment: enrollment, token: token)
+          } catch BankSmsFailure.receipt {
+            // An ambiguous reply retains the frozen command for a later wake.
+            continue
+          } catch BankSmsFailure.recentAuth {
+            var latest = try admitted(enrollment)
+            if let index = latest.deliveries.firstIndex(where: { $0.key == key && $0.pending != nil }) {
+              latest.deliveries[index].needsVerification = true
+              try store.write(latest)
+              verificationChanged?()
+            }
+          }
         }
       }
     } catch {
@@ -361,13 +406,36 @@ public struct BankSmsChoice: Sendable {
     }
   }
 
+  private func reconcileRejected(_ delivery: BankSmsDelivery, command: BankSmsCommand,
+                                 enrollment: BankSmsEnrollment, token: String) async throws {
+    if command.originalReferenceDigest != nil && command.originalVersionReady != true {
+      // A compensation cannot be sent until its original and version are frozen.
+      try settle(delivery, enrollment: enrollment, notice: nil)
+      return
+    }
+    var state = try admitted(enrollment)
+    guard let index = state.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }) else { return }
+    if state.deliveries[index].receiptOnly != true {
+      state.deliveries[index].receiptOnly = true
+      try store.write(state)
+    }
+    let receipt: BankSmsOriginal?
+    do {
+      receipt = try await ledger.lookup(command, key: delivery.key, generation: enrollment.generation, token: token)
+    } catch {
+      // Keep the frozen key read-only on future wakes, including after an app restart.
+      return
+    }
+    guard clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner
+    else { throw BankSmsFailure.auth }
+    let notice = receipt.map { BankSmsPendingNotice(transactionId: $0.id, command: command) }
+    try settle(delivery, enrollment: enrollment, notice: notice, receipt: receipt)
+  }
+
   private func settle(_ delivery: BankSmsDelivery, enrollment: BankSmsEnrollment, notice: BankSmsPendingNotice?, receipt: BankSmsOriginal? = nil) throws {
     var state = try admitted(enrollment)
-    if let index = state.deliveries.firstIndex(where: { $0.key == delivery.key }) {
-      state.deliveries[index].pending = nil
-      state.deliveries[index].pendingNotice = notice
-      if delivery.bankReferenceDigest != nil { state.deliveries[index].original = receipt }
-    }
+    guard let index = state.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }) else { return }
+    state.deliveries[index].settle(notice: notice, receipt: receipt)
     state.outcome = notice == nil ? "skipped" : "saved"
     if let notice {
       state.lastSaved = Date()
@@ -408,19 +476,19 @@ public struct BankSmsChoice: Sendable {
 
     let content = UNMutableNotificationContent()
     let language = Locale.preferredLanguages.first?.split(separator: "-").first
-    content.body = enrollment.savedNotificationBody ?? (language == "ar"
-      ? "تم تسجيل عملية من الاختصارات."
-      : "A transaction from Shortcuts was saved.")
-    if let account = presentation.accounts.first(where: { $0.id == command.accountId }),
+    let locale = presentation.notificationLocale ?? String(language ?? "en")
+    // iOS can redisplay a foreground notification on the lock screen later.
+    content.body = BankSmsSavedNotice.maskedBody(locale: locale)
+    foregroundDetails = foregroundDetails.filter { $0.value.expires > Date() }
+    if UIApplication.shared.applicationState == .active,
+       let account = presentation.accounts.first(where: { $0.id == command.accountId }),
        let scale = account.minorUnitScale {
-      let locale = presentation.notificationLocale ?? String(language ?? "en")
       let category = presentation.categories.first(where: { $0.id == command.categoryId })
       let destination = presentation.accounts.first(where: { $0.id == command.destinationAccountId })
       let categoryName = (locale == "ar" ? category?.nameAr : category?.nameEn) ?? category?.name ?? destination?.name ?? ""
       if let notice = BankSmsSavedNotice.make(kind: command.kind, amountMinor: command.amountMinor,
         currency: command.currency, scale: scale, locale: locale, account: account.name, category: categoryName) {
-        content.title = notice.title
-        content.body = notice.body
+        foregroundDetails[identifier] = (presentation.epoch, Date().addingTimeInterval(8), notice)
       }
     }
     content.sound = .default

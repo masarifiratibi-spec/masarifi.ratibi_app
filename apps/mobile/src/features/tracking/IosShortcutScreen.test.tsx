@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Linking, Platform } from 'react-native';
+import { ActionSheetIOS, Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 import IosShortcutScreen from './IosShortcutScreen.ios';
 import { resolveTheme } from '@/design-system/theme';
@@ -56,7 +56,7 @@ it('puts notifications first and guides four stages without the status dashboard
     await screen.findByRole('link', { name: 'Enable notifications' })
   );
   expect(
-    screen.getByText(/Get a notification with the amount/)
+    screen.getByText(/Get a confirmation after a transaction is saved/)
   ).toBeOnTheScreen();
   await screen.findByText('Notifications are on.');
   expect(allowAlerts).toHaveBeenCalledTimes(1);
@@ -107,6 +107,24 @@ it('puts notifications first and guides four stages without the status dashboard
   fireEvent.press(screen.getByRole('button', { name: 'Done' }));
   await waitFor(() => expect(done).toHaveBeenCalledWith('/(tabs)/home'));
   expect(completeBankSmsSetup).toHaveBeenCalledTimes(1);
+});
+
+it('identifies a partial account suffix before submitting settings', async () => {
+  readStatus.mockResolvedValue({
+    enabled: true, pending: 0, setupCompleted: false,
+    accounts: [{ id: 'bank', name: 'QA Bank', kind: 'account', automaticRouting: true }]
+  });
+  jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+    .mockImplementation((_options, selected) => selected(0));
+  renderWithProviders(<IosShortcutScreen />);
+  fireEvent.press(await screen.findByRole('button', { name: /Link a bank account/ }));
+  const field = screen.getByLabelText('Last four bank account digits (optional)');
+  fireEvent.changeText(field, '١٢٣');
+  expect(screen.getByText('Enter the last four account digits or leave this field empty.')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  expect(enable).not.toHaveBeenCalled();
+  fireEvent.changeText(field, '١٢٣٤');
+  expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
 });
 
 it('opens Settings after permanent denial without blocking capture setup', async () => {

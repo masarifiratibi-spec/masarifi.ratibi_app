@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { AppState, Platform } from 'react-native';
-import { readBankSmsSetup } from '@/services/platform/bank-sms-setup.ios';
+import { readBankSmsSetup, subscribeBankSmsVerification, verifyPendingBankSms } from '@/services/platform/bank-sms-setup.ios';
 
 import { changeLocale, translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
@@ -10,7 +10,9 @@ import { renderWithProviders } from '@/test-utils/render';
 import { HomeTrackingEntry } from './HomeTrackingEntry.ios';
 
 jest.mock('@/services/platform/bank-sms-setup.ios', () => ({
-  readBankSmsSetup: jest.fn()
+  readBankSmsSetup: jest.fn(),
+  subscribeBankSmsVerification: jest.fn(),
+  verifyPendingBankSms: jest.fn()
 }));
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
@@ -94,4 +96,22 @@ it('keeps setup private until sign-in and profile setup are complete', () => {
   useAppShellStore.setState({ profileSetupStatus: 'complete', session: null });
   renderWithProviders(<HomeTrackingEntry />);
   expect(screen.queryByTestId('ios-tracking-home-card')).toBeNull();
+});
+
+it('shows a verification action after Done and clears it after the native queue resumes', async () => {
+  changeLocale('en');
+  const completed = { enabled: true, pending: 0, setupCompleted: true };
+  readStatus.mockResolvedValue(completed);
+  renderWithProviders(<HomeTrackingEntry />);
+  await waitFor(() => expect(screen.queryByTestId('ios-tracking-home-card')).toBeNull());
+  const changed = jest.mocked(subscribeBankSmsVerification).mock.calls[0]![0];
+  readStatus.mockResolvedValue({ ...completed, pending: 1, verificationEpoch: 'enrollment' });
+  await act(async () => { await changed(); });
+  const verify = screen.getByRole('button', { name: 'Verify identity and retry' });
+  expect(screen.queryByTestId('ios-tracking-home-card')).toBeNull();
+  fireEvent.press(verify);
+  await waitFor(() => expect(verifyPendingBankSms).toHaveBeenCalledWith('enrollment'));
+  readStatus.mockResolvedValue(completed);
+  await act(async () => { await changed(); });
+  expect(screen.queryByRole('button')).toBeNull();
 });

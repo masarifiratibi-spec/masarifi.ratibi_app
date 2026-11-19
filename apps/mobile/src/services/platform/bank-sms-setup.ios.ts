@@ -10,6 +10,7 @@ import { captureTrackingAdmission } from '@/state/tracking-admission';
 import { createAppShellStorage } from '@/storage/app-shell-storage';
 import { VoiceCategoryPreferenceRepository } from '@/storage/voice-category-preference-repository';
 import { reconcileFinancialReset } from '../financial-generation';
+import { requestRecentAuthentication } from '../live/http-client';
 import { createLiveAccountService } from '../live/account-service';
 import {
   captureLiveClerkIdentity,
@@ -65,6 +66,25 @@ export async function readBankSmsSetup() {
     .catch(() => false);
   await current.assertCurrent();
   return { ...state, setupCompleted };
+}
+
+export function subscribeBankSmsVerification(listener: () => void) {
+  return bankSmsNative()?.addListener('onVerificationChanged', listener);
+}
+
+export async function verifyPendingBankSms(epoch: string) {
+  const current = await scope();
+  const state = await current.native.status(current.owner, current.anchor);
+  await current.assertCurrent();
+  if (!state.enabled || state.verificationEpoch !== epoch) return;
+  const actor = await captureLiveClerkIdentity();
+  if (actor.userId !== current.owner || actor.sessionId !== current.anchor)
+    throw Error('bank_sms_session_changed');
+  if (!(await requestRecentAuthentication())) return;
+  await actor.assertCurrent();
+  await current.assertCurrent();
+  // The native service obtains a fresh token for this same Clerk session.
+  await current.native.retryVerified(current.owner, current.anchor, epoch);
 }
 
 export async function completeBankSmsSetup() {

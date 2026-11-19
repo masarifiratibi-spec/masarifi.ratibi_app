@@ -19,6 +19,13 @@ private struct Setup: Decodable {
 public final class MasarifiBankSmsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("MasarifiBankSms")
+    Events("onVerificationChanged")
+
+    AsyncFunction("takeForegroundNotice") { (owner: String, session: String, identifier: String, promise: Promise) in
+      Task { @MainActor in
+        promise.resolve(BankSmsService.shared.takeForegroundNotice(owner: owner, session: session, identifier: identifier))
+      }
+    }
 
     AsyncFunction("revision") { (promise: Promise) in
       Task { @MainActor in promise.resolve(BankSmsService.shared.revision) }
@@ -45,6 +52,15 @@ public final class MasarifiBankSmsModule: Module {
       }
     }
 
+    AsyncFunction("retryVerified") { (owner: String, session: String, epoch: String, promise: Promise) in
+      Task { @MainActor in
+        do {
+          try await BankSmsService.shared.retryVerified(owner: owner, session: session, epoch: epoch)
+          promise.resolve()
+        } catch { promise.reject("BANK_SMS_VERIFY", "The bank message could not be retried.") }
+      }
+    }
+
     AsyncFunction("updateNotificationLocale") { (owner: String, session: String, locale: String, promise: Promise) in
       Task { @MainActor in
         do {
@@ -64,7 +80,10 @@ public final class MasarifiBankSmsModule: Module {
     }
 
     OnCreate {
-      Task { @MainActor in await BankSmsService.shared.retry() }
+      Task { @MainActor [weak self] in
+        BankSmsService.shared.verificationChanged = { [weak self] in self?.sendEvent("onVerificationChanged") }
+        await BankSmsService.shared.retry()
+      }
     }
     OnAppEntersForeground {
       Task { @MainActor in await BankSmsService.shared.retry() }

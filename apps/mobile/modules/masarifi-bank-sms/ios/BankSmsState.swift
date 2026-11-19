@@ -111,10 +111,20 @@ struct BankSmsDelivery: Codable {
   let expires: Date
   let created: Date
   var pending: BankSmsCommand?
+  var receiptOnly: Bool? = nil
+  var needsVerification: Bool? = nil
   var pendingNotice: BankSmsPendingNotice? = nil
   var stableReferenceDigest: String? = nil
   var bankReferenceDigest: String? = nil
   var original: BankSmsOriginal? = nil
+
+  mutating func settle(notice: BankSmsPendingNotice?, receipt: BankSmsOriginal?) {
+    pending = nil
+    receiptOnly = nil
+    needsVerification = nil
+    pendingNotice = notice
+    if bankReferenceDigest != nil { original = receipt }
+  }
 }
 
 struct BankSmsState: Codable {
@@ -130,6 +140,42 @@ struct BankSmsState: Codable {
     guard let index = deliveries.firstIndex(where: { $0.key == key }), index != deliveries.count - 1 else { return }
     let delivery = deliveries.remove(at: index)
     deliveries.append(delivery)
+  }
+}
+
+// A wake may span multiple batches. Attempt each key once, including failures.
+struct BankSmsDrain {
+  typealias Batch = (commands: [UUID], notices: [UUID])
+  private var commandsAttempted = Set<UUID>()
+  private var noticesAttempted = Set<UUID>()
+
+  @MainActor static func run(state: @MainActor () throws -> BankSmsState,
+                             process: @MainActor (Batch) async throws -> Void) async throws {
+    var wake = Self()
+    while !Task.isCancelled {
+      let batch = wake.batch(in: try state())
+      guard !batch.commands.isEmpty || !batch.notices.isEmpty else { return }
+      wake.commandsAttempted.formUnion(batch.commands)
+      wake.noticesAttempted.formUnion(batch.notices)
+      try await process(batch)
+      await Task.yield()
+    }
+  }
+
+  private func batch(in state: BankSmsState) -> Batch {
+    let pendingSources = Set(state.deliveries.compactMap { $0.pending == nil ? nil : $0.bankReferenceDigest })
+    let commands = state.deliveries.lazy.filter { row in
+      guard let command = row.pending, row.needsVerification != true, !commandsAttempted.contains(row.key) else { return false }
+      // Reconsider a dependent command after its source settles in this wake.
+      if command.original == nil, let reference = command.originalReferenceDigest, pendingSources.contains(reference) {
+        return false
+      }
+      return true
+    }.prefix(16).map(\.key)
+    let notices = state.deliveries.lazy.filter {
+      $0.pendingNotice != nil && !noticesAttempted.contains($0.key)
+    }.prefix(4).map(\.key)
+    return (Array(commands), Array(notices))
   }
 }
 
