@@ -40,6 +40,15 @@ config.resolver.assetExts.push('wasm');
 
 const originalResolveRequest = config.resolver.resolveRequest;
 if (liveProduction) {
+  const getTransformOptions = config.transformer.getTransformOptions;
+  config.transformer.getTransformOptions = async (entries, options, dependencies) => {
+    const original = await getTransformOptions(entries, options, dependencies);
+    if (options.dev || options.platform !== 'android') return original;
+    return {
+      ...original,
+      transform: { ...original.transform, inlineRequires: true }
+    };
+  };
   const prior = config.resolver.blockList;
   config.resolver.blockList = [
     ...(Array.isArray(prior) ? prior : prior ? [prior] : []),

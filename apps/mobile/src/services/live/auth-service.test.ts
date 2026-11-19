@@ -1105,6 +1105,49 @@ describe('live owner identity mappings', () => {
 });
 
 describe('live profile setup', () => {
+  test.each(['refreshed', 'revoked', 'session-changed'] as const)(
+    'rechecks a rejected cached credential during cold profile setup (%s)',
+    async (outcome) => {
+      const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
+      process.env.EXPO_PUBLIC_API_URL = 'https://inert.invalid';
+      let session = liveSession;
+      let refreshed = false;
+      const bridge = clerkBridge({
+        getSession: async () => session,
+        getToken: async ({ skipCache }: { skipCache: boolean }) => {
+          if (skipCache) refreshed = true;
+          return refreshed ? 'replacement-token' : 'cached-token';
+        }
+      });
+      registerLiveClerkBridge(bridge);
+      const meTokens: string[] = [];
+      const request = jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
+        const token = new Headers(init?.headers).get('Authorization') ?? '';
+        const url = String(input);
+        if (url.endsWith('/me')) {
+          meTokens.push(token);
+          if (outcome === 'session-changed') session = { ...liveSession, id: 'sess_other' };
+          if (token === 'Bearer cached-token' || outcome === 'revoked') {
+            return new Response(JSON.stringify({ code: 'AUTH_TOKEN_INVALID' }), { status: 401 });
+          }
+        }
+        return new Response(JSON.stringify(url.endsWith('/preferences') ? preferences : url.endsWith('/onboarding') ? onboarding : profile));
+      });
+      try {
+        const setup = createLiveIdentityService().getProfileSetup();
+        if (outcome === 'refreshed') await expect(setup).resolves.toHaveProperty('profile');
+        else await expect(setup).rejects.toMatchObject({ code: 'session_expired' });
+        expect(meTokens).toEqual(outcome === 'session-changed'
+          ? ['Bearer cached-token']
+          : ['Bearer cached-token', 'Bearer replacement-token']);
+      } finally {
+        request.mockRestore();
+        if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+        else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
+      }
+    }
+  );
+
   test.each(
     (['getProfile', 'getProfileSetup', 'saveProfileSetup'] as const).flatMap(
       (operation) =>

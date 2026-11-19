@@ -33,7 +33,10 @@ export function resolveEntryRoute(input: EntryRouteInput): string {
       ? !localAccess
       : !isSessionValid(input.session, input.now ?? Date.now())
   ) {
-    return input.firstLaunchOnboardingCompleted
+    const returningOwner =
+      input.session?.userId &&
+      (input.session.status === 'expired' || input.session.status === 'authenticated');
+    return input.firstLaunchOnboardingCompleted || returningOwner
       ? '/(public)/auth-pending'
       : '/welcome';
   }

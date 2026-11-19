@@ -117,6 +117,14 @@ describe('resolveEntryRoute', () => {
     );
   });
 
+  test('returns a previously authenticated owner to sign-in when the local welcome flag is missing', () => {
+    expect(resolveEntryRoute({
+      ...base,
+      firstLaunchOnboardingCompleted: false,
+      session: { ...authenticatedSession, status: 'expired' }
+    })).toBe('/(public)/auth-pending');
+  });
+
   test('treats an expired session as signed out', () => {
     expect(resolveEntryRoute({ ...base, now: 21 })).toBe(
       '/(public)/auth-pending'
