@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { addNotificationReceivedListener } from 'expo-notifications';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Toast } from '@/design-system/components/feedback/TransientFeedback';
 import { spacing } from '@/design-system/tokens';
 import { readLogoutSessionAnchor } from '@/services/live/auth-service';
 import { bankSmsNative } from '@/services/platform/bank-sms-bridge.ios';
 import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import { useTheme } from '@/state/theme-context';
 
 export function BankSmsForegroundNotice() {
@@ -15,10 +16,12 @@ export function BankSmsForegroundNotice() {
   const unlocked = useAppShellStore((state) =>
     !state.privacyLock?.enabled || state.privacyLock.appLockStatus === 'unlocked');
   const showBalances = usePreferenceStore((state) => state.hydrated && !state.hideBalances);
-  const visible = unlocked && showBalances;
+  const admitted = useTrackingAdmission((state) =>
+    state.ready && state.admittedOwnerId === session?.userId);
+  const visible = admitted && unlocked && showBalances;
   const [message, setMessage] = useState<{ text: string; session: typeof session }>();
   const { colors } = useTheme();
-  const { top } = useSafeAreaInsets();
+  const top = useContext(SafeAreaInsetsContext)?.top ?? 0;
 
   useEffect(() => {
     setMessage(undefined);
