@@ -1,7 +1,7 @@
 const { defaultSnapshot, discoverFinancialMessage, normalizeFinancialText } = require('./parser');
 
 const smsAliases = {
-  'lifecycle.failed': ['not completed', 'not processed', 'never processed', 'not successful', 'not approved', 'لم يكتمل', 'لم تكتمل', 'لم يتم تنفيذ', 'لم يتم اتمام', 'لم تتم الموافقة', 'لم يتم قبول'],
+  'lifecycle.failed': ['not completed', 'not processed', 'never processed', 'not successful', 'not approved', 'not been approved', 'not yet approved', 'لم يكتمل', 'لم تكتمل', 'لم يتم تنفيذ', 'لم يتم اتمام', 'لم تتم الموافقة', 'لم يتم قبول'],
   'lifecycle.pending': ['awaiting approval', 'awaiting authorization', 'بانتظار الموافقة', 'في انتظار الموافقة'],
   'action.transfer.sent': ['outgoing external transfer', 'تحويل خارجي صادر', 'حوالة خارجية صادرة', 'حوالة صادرة'],
   'action.transfer.received': ['incoming external transfer', 'تحويل خارجي وارد', 'حوالة خارجية واردة', 'حوالة واردة']
@@ -116,9 +116,20 @@ function route(text, c, routing) {
       return { kind: 'income', account };
     }
     const cashDeposit = /^(?:cash deposit|cash deposited|(?:تم )?ايداع نقدي)(?: |$)/u.test(message);
-    if (subtype === 'deposit' && (!cashDeposit ||
-        /(?:^| )(?:third party|external|طرف خارجي)(?: |$)/u.test(message) ||
-        /(?:^| )(?:from|by|depositor|deposited by|من|بواسطة|عن طريق|المودع|مودع)(?: |$)/u.test(message))) return null;
+    if (subtype === 'deposit') {
+      if (!cashDeposit) return null;
+      // Only the cash movement, currency, destination and reference establish the
+      // user's linked cash as the source. Unknown narrative may identify a depositor.
+      const currency = defaultSnapshot.currencies.find(entry => entry.code === c.currency);
+      const allowed = new Set(words([
+        c.currency, ...(currency?.aliases ?? []), 'cash deposit deposited atm amount to into your bank account number acct acc ending in on at ref reference',
+        'تم ايداع نقدي الصراف الالي مبلغ بمبلغ الي في علي حساب الحساب رقم الرقم المرجعي مرجع'
+      ].join(' ')).split(' '));
+      const reference = c.providerReference && words(c.providerReference);
+      const fields = reference && message.endsWith(' ' + reference)
+        ? message.slice(0, -reference.length).trim() : message;
+      if (fields.split(' ').some(field => !allowed.has(field) && !/^x*\d+$/.test(field))) return null;
+    }
     const cash = accounts.find(candidate => candidate.id === account.cashAccountId && candidate.type === 'cash');
     if (!cash || cash.id === account.id) return null;
     return subtype === 'withdrawal'

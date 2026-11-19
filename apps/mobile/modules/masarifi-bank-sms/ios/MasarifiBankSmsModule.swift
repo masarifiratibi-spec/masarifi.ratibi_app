@@ -80,6 +80,7 @@ public final class MasarifiBankSmsModule: Module {
     }
 
     OnCreate {
+      Task { @MainActor in await BankSmsService.shared.removeOldDetailedNotifications() }
       Task { @MainActor [weak self] in
         BankSmsService.shared.verificationChanged = { [weak self] in self?.sendEvent("onVerificationChanged") }
         await BankSmsService.shared.retry()

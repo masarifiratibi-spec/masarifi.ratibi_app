@@ -63,6 +63,17 @@ public struct BankSmsChoice: Sendable {
   private var clerk: Clerk?
   private var foregroundDetails: [String: (epoch: UUID, expires: Date, notice: BankSmsSavedNotice)] = [:]
 
+  func removeOldDetailedNotifications() async {
+    let center = UNUserNotificationCenter.current()
+    func wasDetailed(_ request: UNNotificationRequest) -> Bool {
+      request.identifier.hasPrefix("bank-sms-saved-") && !request.content.title.isEmpty
+    }
+    let pending = await center.pendingNotificationRequests().filter(wasDetailed)
+    center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier))
+    let delivered = await center.deliveredNotifications().map(\.request).filter(wasDetailed)
+    center.removeDeliveredNotifications(withIdentifiers: delivered.map(\.identifier))
+  }
+
   func takeForegroundNotice(owner: String, session: String, identifier: String) -> String? {
     guard UIApplication.shared.applicationState == .active,
           let enrollment = try? store.load().enrollment,
@@ -363,9 +374,9 @@ public struct BankSmsChoice: Sendable {
               try store.write(latest)
             }
             let receipt = try await ledger.post(command, key: delivery.key, generation: generation, token: token) {
-              let latest = try admitted(enrollment)
+              var latest = try admitted(enrollment)
               guard let setup = latest.enrollment,
-                    latest.deliveries.contains(where: { $0.key == delivery.key && $0.pending != nil }),
+                    let index = latest.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }),
                     clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner
               else { throw BankSmsFailure.auth }
               func accepts(_ id: String) -> Bool {
@@ -380,14 +391,19 @@ public struct BankSmsChoice: Sendable {
                     }),
                     command.categoryId.map({ id in setup.categories.contains(where: { $0.id == id && $0.kind == command.kind }) }) ?? true
               else { throw BankSmsFailure.rejected }
+              // Persist before URLSession dispatch. A lost reply or process death leaves an uncertain key.
+              if latest.deliveries[index].writeAttempted != true {
+                latest.deliveries[index].writeAttempted = true
+                try store.write(latest)
+              }
             }
             let id = receipt.id
             let notice = BankSmsPendingNotice(transactionId: id, command: command)
             try settle(delivery, enrollment: enrollment, notice: notice, receipt: receipt)
           } catch BankSmsFailure.rejected {
             try await reconcileRejected(delivery, command: command, enrollment: enrollment, token: token)
-          } catch BankSmsFailure.receipt {
-            // An ambiguous reply retains the frozen command for a later wake.
+          } catch BankSmsFailure.receipt, BankSmsFailure.commandUnavailable {
+            // A failed account or command endpoint can coexist with healthy unrelated work.
             continue
           } catch BankSmsFailure.recentAuth {
             var latest = try admitted(enrollment)
@@ -415,6 +431,10 @@ public struct BankSmsChoice: Sendable {
     }
     var state = try admitted(enrollment)
     guard let index = state.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }) else { return }
+    if state.deliveries[index].writeAttempted == false {
+      try settle(delivery, enrollment: enrollment, notice: nil)
+      return
+    }
     if state.deliveries[index].receiptOnly != true {
       state.deliveries[index].receiptOnly = true
       try store.write(state)
@@ -422,7 +442,7 @@ public struct BankSmsChoice: Sendable {
     let receipt: BankSmsOriginal?
     do {
       receipt = try await ledger.lookup(command, key: delivery.key, generation: enrollment.generation, token: token)
-    } catch {
+    } catch BankSmsFailure.receipt, BankSmsFailure.commandUnavailable {
       // Keep the frozen key read-only on future wakes, including after an app restart.
       return
     }
@@ -435,7 +455,7 @@ public struct BankSmsChoice: Sendable {
   private func settle(_ delivery: BankSmsDelivery, enrollment: BankSmsEnrollment, notice: BankSmsPendingNotice?, receipt: BankSmsOriginal? = nil) throws {
     var state = try admitted(enrollment)
     guard let index = state.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }) else { return }
-    state.deliveries[index].settle(notice: notice, receipt: receipt)
+    guard state.deliveries[index].settle(notice: notice, receipt: receipt) else { return }
     state.outcome = notice == nil ? "skipped" : "saved"
     if let notice {
       state.lastSaved = Date()

@@ -112,7 +112,7 @@ it('puts notifications first and guides four stages without the status dashboard
 it('identifies a partial account suffix before submitting settings', async () => {
   readStatus.mockResolvedValue({
     enabled: true, pending: 0, setupCompleted: false,
-    accounts: [{ id: 'bank', name: 'QA Bank', kind: 'account', automaticRouting: true }]
+    accounts: [{ id: 'bank', name: 'QA Bank', kind: 'account', type: 'bank', currency: 'SAR', automaticRouting: true }]
   });
   jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
     .mockImplementation((_options, selected) => selected(0));

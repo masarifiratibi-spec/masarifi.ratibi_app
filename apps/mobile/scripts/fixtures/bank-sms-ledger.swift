@@ -157,7 +157,7 @@ private final class LedgerProtocol: URLProtocol {
       do {
         let result = try await ledger.lookup(command, key: key, generation: 3, token: "qa-token")
         precondition(code == "LEDGER_RECEIPT_NOT_FOUND" && result == nil)
-      } catch BankSmsFailure.unavailable { precondition(code != "LEDGER_RECEIPT_NOT_FOUND") }
+      } catch BankSmsFailure.commandUnavailable { precondition(code != "LEDGER_RECEIPT_NOT_FOUND") }
     }
     LedgerProtocol.respond = { _ in (403, try json(["code": "RECENT_AUTH_REQUIRED"])) }
     do {
@@ -177,11 +177,32 @@ private final class LedgerProtocol: URLProtocol {
        "categoryId":"\(category)","title":"QA","occurredAt":"\(date)","source":"platform_assisted"}}
     """
     var delivery = try JSONDecoder().decode(BankSmsDelivery.self, from: Data(oldDelivery.utf8))
-    precondition(delivery.pending?.accountId == account && delivery.stableReferenceDigest == nil)
+    precondition(delivery.pending?.accountId == account && delivery.stableReferenceDigest == nil && delivery.writeAttempted == nil)
     var upgraded = delivery.pending!
     upgraded.automatic = true
     let reconstructed = try upgraded.checkedAccounts(in: [target])
     precondition(reconstructed == [admission])
+    for status in [200, 503] {
+      LedgerProtocol.respond = { _ in (status, Data("{}".utf8)) }
+      do {
+        try await ledger.checkAccount(admission, currency: "SAR", token: "qa-token")
+        preconditionFailure("Expected a per-command account deferral")
+      } catch BankSmsFailure.commandUnavailable {}
+    }
+    LedgerProtocol.respond = { request in
+      if request.url?.path == "/api/v1/bank-sms/automatic/expense" { return (404, Data()) }
+      precondition(request.url?.path == "/api/v1/transactions")
+      return (201, try json(["transaction": detail("expense", ids: [account],
+        postings: [posting(account, -1234, "source")], categoryId: category)]))
+    }
+    var savedKinds: [Bool] = []
+    for item in [upgraded, command] {
+      do {
+        _ = try await ledger.post(item, key: UUID(), generation: 3, token: "qa-token") {}
+        savedKinds.append(item.automatic == true)
+      } catch BankSmsFailure.commandUnavailable { continue }
+    }
+    precondition(savedKinds == [false])
     delivery.bankReferenceDigest = "account-scoped-ref"
     precondition(delivery.matchesReference(nil, stable: "new", bank: "account-scoped-ref", currency: "SAR"))
     precondition(!delivery.matchesReference(nil, stable: "new", bank: "other-account-ref", currency: "SAR"))
@@ -189,10 +210,16 @@ private final class LedgerProtocol: URLProtocol {
     var queue = BankSmsState()
     let next = BankSmsDelivery(key: UUID(), textDigest: "other", referenceDigest: nil,
                                expires: Date(), created: Date(), pending: nil)
+    var unsent = BankSmsDelivery(key: UUID(), textDigest: "unsent", referenceDigest: nil,
+                                 expires: .distantFuture, created: Date(), pending: upgraded)
+    precondition(unsent.writeAttempted == false && unsent.settle(notice: nil, receipt: nil))
+    precondition(unsent.pending == nil && unsent.pendingNotice == nil)
     queue.deliveries = [delivery, next]
     queue.moveToBack(delivery.key)
     precondition(queue.deliveries.first?.key == next.key)
     delivery.receiptOnly = true
+    // Snapshot while the original writer is still committing. A later positive read must still settle.
+    precondition(!delivery.settle(notice: nil, receipt: nil))
     let unresolved = try JSONDecoder().decode(BankSmsDelivery.self, from: JSONEncoder().encode(delivery))
     precondition(unresolved.receiptOnly == true && unresolved.pending != nil && unresolved.pendingNotice == nil)
     delivery.settle(notice: BankSmsPendingNotice(transactionId: purchase.id, command: command), receipt: purchase)

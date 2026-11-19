@@ -96,7 +96,14 @@ describe('Bank SMS read-only receipt recovery', () => {
     expect(repository.replayCompleted).toHaveBeenCalledWith(
       expect.objectContaining({
         scope: 'ledger.transaction.refund',
-        command: expect.objectContaining({ transactionId: original, expectedVersion: 2 }),
+        command: {
+          transactionId: original,
+          expectedVersion: 2,
+          accountId: body.accountId,
+          amountMinor: 1234,
+          occurredAt: body.occurredAt,
+          reason: 'QA refund',
+        },
       }),
       '3',
     );

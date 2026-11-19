@@ -238,7 +238,7 @@ export class LedgerRepository {
               )
             ).rows[0];
             if (!state) throw domainError('IDEMPOTENCY_REPLAY_UNAVAILABLE', 503);
-            if (String(state.generation) !== generation)
+            if (state.generation !== generation)
               throw domainError('FINANCIAL_GENERATION_STALE', 409);
             if (state.cleanup_pending) throw domainError('FINANCIAL_RESET_CLEANUP_PENDING', 409);
           }

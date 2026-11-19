@@ -109,7 +109,7 @@ jobs:
           [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" == 'com.masarifi.mobile' ]]
           test -s "$app/MasarifiBankSmsParser.js"
           test -s "$app/ar.lproj/Localizable.strings"
-          /usr/libexec/PlistBuddy -c 'Print :Income Category' "$app/ar.lproj/Localizable.strings" | grep -Fq 'تصنيف الدخل'
+          plutil -extract 'Income Category' raw -o - "$app/ar.lproj/Localizable.strings" | grep -Fxq 'تصنيف الدخل'
           test -s "$app/main.jsbundle"
           test -d "$app/Metadata.appintents"
           printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
-import { normalizeCreateTransaction } from '../../../src/ledger/ledger.dto';
+import { normalizeCreateTransaction, normalizeRefund } from '../../../src/ledger/ledger.dto';
 import { LedgerRepository } from '../../../src/ledger/ledger.repository';
 import { ledgerDetailSchema } from '../../../../mobile/src/services/live/ledger-api-contract';
 import { createLivePool, describeLiveDatabase, withFixtureOwner } from '../../live-database';
@@ -141,4 +141,70 @@ describeLiveDatabase('iOS confirmed manual ledger with automatic tracking opted 
       });
     },
   );
+
+  it('recovers an automatic purchase after opt-out and uses its original ID for a later refund', async () => {
+    const account = accounts.expense;
+    const setTracking = (enabled: boolean) =>
+      withFixtureOwner(pool, owner.userId, (client) =>
+        client.query('update public.accounts set automatic_tracking_enabled=$2 where id=$1', [
+          account,
+          enabled,
+        ]),
+      );
+    const occurredAt = new Date().toISOString();
+    const purchase = {
+      operation: 'createTransaction',
+      scope: 'ledger.transaction.create',
+      principal: owner,
+      command: normalizeCreateTransaction({
+        kind: 'expense',
+        accountId: account,
+        categoryId: categories.expense,
+        source: 'platform_assisted',
+        amountMinor: 620,
+        currency: 'SAR',
+        occurredAt,
+        title: 'Purchase',
+      }),
+      idempotencyKey: randomUUID(),
+      requestId: randomUUID(),
+      status: 201,
+      requireAutomaticTracking: true,
+    };
+    await setTracking(true);
+    await repository.mutate(purchase); // Simulate a committed response the device never received.
+    await setTracking(false);
+    const recovered = await repository.replayCompleted(purchase, '0');
+    const original = ledgerDetailSchema.parse(recovered?.transaction).transaction;
+    expect(original).toMatchObject({ amountMinor: 620, kind: 'expense' });
+    const refund = {
+      ...purchase,
+      operation: 'refundTransaction',
+      scope: 'ledger.transaction.refund',
+      idempotencyKey: randomUUID(),
+      command: {
+        transactionId: original.id,
+        ...normalizeRefund({
+          expectedVersion: original.version,
+          amountMinor: 200,
+          accountId: account,
+          occurredAt,
+          reason: 'Refund',
+        }),
+      },
+    };
+    await expect(repository.mutate(refund)).rejects.toMatchObject({
+      response: { code: 'TRACKING_ACCOUNT_BLOCKED' },
+    });
+    await expect(repository.replayCompleted(refund, '0')).resolves.toBeUndefined();
+    await setTracking(true);
+    await repository.mutate(refund);
+    await setTracking(false);
+    const linked = await repository.replayCompleted(refund, '0');
+    expect(ledgerDetailSchema.parse(linked?.transaction).transaction).toMatchObject({
+      originalTransactionId: original.id,
+      kind: 'refund',
+      amountMinor: 200,
+    });
+  });
 });

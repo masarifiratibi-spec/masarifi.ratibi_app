@@ -111,6 +111,8 @@ struct BankSmsDelivery: Codable {
   let expires: Date
   let created: Date
   var pending: BankSmsCommand?
+  // A missing field in pre-upgrade data means the request may have been sent.
+  var writeAttempted: Bool? = false
   var receiptOnly: Bool? = nil
   var needsVerification: Bool? = nil
   var pendingNotice: BankSmsPendingNotice? = nil
@@ -118,12 +120,16 @@ struct BankSmsDelivery: Codable {
   var bankReferenceDigest: String? = nil
   var original: BankSmsOriginal? = nil
 
-  mutating func settle(notice: BankSmsPendingNotice?, receipt: BankSmsOriginal?) {
+  @discardableResult mutating func settle(notice: BankSmsPendingNotice?, receipt: BankSmsOriginal?) -> Bool {
+    // A negative lookup can race an uncommitted writer. Keep the original key until confirmation or expiry.
+    guard pending != nil, receiptOnly != true || receipt != nil else { return false }
     pending = nil
+    writeAttempted = nil
     receiptOnly = nil
     needsVerification = nil
     pendingNotice = notice
     if bankReferenceDigest != nil { original = receipt }
+    return true
   }
 }
 

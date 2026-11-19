@@ -1,7 +1,7 @@
 import Foundation
 
 enum BankSmsFailure: Error, Equatable {
-  case disabled, auth, recentAuth, generation, rejected, unavailable, receipt
+  case disabled, auth, recentAuth, generation, rejected, unavailable, commandUnavailable, receipt
 }
 
 private struct BankSmsRemoteError: Decodable {
@@ -75,12 +75,12 @@ struct BankSmsLedger {
     return request
   }
 
-  private func data(_ request: URLRequest) async throws -> Data {
+  private func data(_ request: URLRequest, forCommand: Bool = false) async throws -> Data {
     let (data, response) = try await http.data(for: request)
-    return try checked(data, response)
+    return try checked(data, response, forCommand: forCommand)
   }
 
-  private func checked(_ data: Data, _ response: URLResponse) throws -> Data {
+  private func checked(_ data: Data, _ response: URLResponse, forCommand: Bool = false) throws -> Data {
     guard let response = response as? HTTPURLResponse else { throw BankSmsFailure.unavailable }
     switch response.statusCode {
     case 200...299: return data
@@ -91,11 +91,13 @@ struct BankSmsLedger {
     case 400, 404, 422: throw BankSmsFailure.rejected
     case 409:
       let code = (try? JSONDecoder().decode(BankSmsRemoteError.self, from: data))?.code
+      if code == "FINANCIAL_GENERATION_STALE" { throw BankSmsFailure.generation }
       if let code, ["TRACKING_ACCOUNT_BLOCKED", "VERSION_CONFLICT", "TRANSACTION_NOT_EDITABLE", "TRANSACTION_HAS_DEPENDENTS",
                     "REVERSAL_EXISTS", "REFUND_EXCEEDS_AVAILABLE", "CURRENCY_MISMATCH",
                     "ACCOUNT_NOT_POSTABLE", "CATEGORY_INVALID"].contains(code) { throw BankSmsFailure.rejected }
-      throw BankSmsFailure.unavailable
-    default: throw BankSmsFailure.unavailable
+      throw forCommand ? BankSmsFailure.commandUnavailable : BankSmsFailure.unavailable
+    case 429: throw BankSmsFailure.unavailable
+    default: throw forCommand ? BankSmsFailure.commandUnavailable : BankSmsFailure.unavailable
     }
   }
 
@@ -107,8 +109,9 @@ struct BankSmsLedger {
   }
 
   func checkAccount(_ admission: BankSmsAccountAdmission, currency: String, token: String) async throws {
-    let reply = try await data(request("api/v1/accounts/\(admission.id)", token: token))
-    let account = try JSONDecoder().decode(BankSmsRemoteAccount.self, from: reply)
+    let reply = try await data(request("api/v1/accounts/\(admission.id)", token: token), forCommand: true)
+    guard let account = try? JSONDecoder().decode(BankSmsRemoteAccount.self, from: reply)
+    else { throw BankSmsFailure.commandUnavailable }
     guard account.id == admission.id, account.currency == currency, account.status == "active",
           account.type == admission.type, account.lastFour == admission.lastFour,
           account.institutionName == admission.institution,
@@ -117,8 +120,9 @@ struct BankSmsLedger {
   }
 
   func currentOriginal(_ original: BankSmsOriginal, account: String, token: String) async throws -> BankSmsOriginal {
-    let reply = try await data(request("api/v1/transactions/\(original.id.uuidString.lowercased())", token: token))
-    let detail = try JSONDecoder().decode(BankSmsLedgerResult.Details.self, from: reply)
+    let reply = try await data(request("api/v1/transactions/\(original.id.uuidString.lowercased())", token: token), forCommand: true)
+    guard let detail = try? JSONDecoder().decode(BankSmsLedgerResult.Details.self, from: reply)
+    else { throw BankSmsFailure.commandUnavailable }
     let row = detail.transaction
     guard row.id == original.id, row.kind == "expense", row.status == "confirmed", row.source == "platform_assisted",
           row.accountIds == [account], row.amountMinor == original.amountMinor, row.currency == original.currency,
@@ -181,7 +185,11 @@ struct BankSmsLedger {
     if status == 404,
        (try? JSONDecoder().decode(BankSmsRemoteError.self, from: reply))?.code == "LEDGER_RECEIPT_NOT_FOUND" { return nil }
     // An older server, a conflicting key or a failed lookup cannot prove a receipt is absent.
-    guard status == 200 else { throw BankSmsFailure.unavailable }
+    if status != 200 {
+      do { _ = try checked(reply, response, forCommand: true) }
+      catch BankSmsFailure.rejected { throw BankSmsFailure.commandUnavailable }
+      throw BankSmsFailure.commandUnavailable
+    }
     return try confirmedReceipt(reply, command: command)
   }
 
@@ -197,9 +205,9 @@ struct BankSmsLedger {
             if let error { throw error }
             guard let data, let response else { throw BankSmsFailure.unavailable }
             if command.automatic == true, (response as? HTTPURLResponse)?.statusCode == 404 {
-              throw BankSmsFailure.unavailable
+              throw BankSmsFailure.commandUnavailable
             }
-            next.resume(returning: try self.checked(data, response))
+            next.resume(returning: try self.checked(data, response, forCommand: true))
           } catch { next.resume(throwing: error) }
         }.resume()
       } catch { next.resume(throwing: error) }

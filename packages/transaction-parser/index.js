@@ -186,7 +186,7 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
     let suffix=m[3].replace(/[^0-9]/g,'');
     if (input.channel === 'ios_app_intent') {
       const tail = text.slice(m.index + m[0].length);
-      if (/^\d*[- ]\d{4}(?!\d)/.test(tail)) {
+      if (/^\d*[- ]\d/.test(tail)) {
         result.reasonCodes.push('instrument_ambiguous');
         continue;
       }
