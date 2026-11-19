@@ -22,6 +22,7 @@ export interface Classification {
   releaseId: string; engineVersion: string;
 }
 export function normalizeFinancialText(value: string): string;
+export function isCardRepayment(text: string): boolean;
 export function validateRuleSnapshot(value: unknown): RuleSnapshot;
 export function validateClassification(value: unknown): Omit<Classification, 'providerReference'>;
 /** verifiedAccountCurrency must come from a unique trusted sender/instrument account, never a profile default. */

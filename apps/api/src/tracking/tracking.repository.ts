@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { classifyFinancialMessage, isCardRepayment } from '@masarifi/transaction-parser';
 
 import { HttpException, Injectable } from '@nestjs/common';
 import type { PoolClient, QueryResultRow } from 'pg';
@@ -467,6 +468,29 @@ export class TrackingRepository {
         }
         const requestHash = hashNormalizedCommand(input).replace('sha256:', '');
         const sourceType = input.sourceType;
+        // Old offline submissions sometimes retain the body. Keep the submitted
+        // command hashes stable across retries while tagging the stored evidence.
+        const events =
+          sourceType === 'sms' || input.sourceChannel === 'android_notification'
+            ? input.events.map((event) => {
+                if (!event.body || !isCardRepayment(event.body)) return event;
+                const { providerReference, originalProviderReference, ...parsed } =
+                  classifyFinancialMessage({
+                    text: event.body,
+                    receivedAt: Date.parse(event.receivedAt),
+                  });
+                void providerReference;
+                void originalProviderReference;
+                if (event.classification?.disposition === 'ignore') parsed.disposition = 'ignore';
+                if (
+                  event.classification &&
+                  ['completed', 'unknown'].includes(parsed.status) &&
+                  event.classification.status !== 'completed'
+                )
+                  parsed.status = event.classification.status;
+                return { ...event, classification: { ...parsed, subtype: 'card_repayment' } };
+              })
+            : input.events;
         const row = await this.queryJson(
           client,
           'select private.create_import_session($1,$2,$3,$6,$4,$5::jsonb) result',
@@ -475,7 +499,7 @@ export class TrackingRepository {
             sourceType,
             request.sourceName,
             requestHash,
-            JSON.stringify(input.events),
+            JSON.stringify(events),
             input.schemaVersion,
           ],
         );
@@ -632,14 +656,43 @@ export class TrackingRepository {
     decision: unknown,
     expectedVersion: unknown,
     decisionToken: string,
+    patch: Record<string, unknown> = {},
   ): Promise<Record<string, unknown>> {
-    return this.owner(principal, (client) =>
-      this.queryJson(
+    return this.owner(principal, async (client) => {
+      const claim = await this.queryJson(
         client,
         'select private.claim_review_decision($1,$2::uuid,$3,$4,$5::uuid,120) result',
         [principal.userId, id, decision, expectedVersion, decisionToken],
-      ),
-    );
+      );
+      const proposal = claim.proposed_values as Record<string, unknown> | undefined;
+      if (
+        decision !== 'reject' &&
+        claim.status === 'pending' &&
+        (proposal?.classification as { subtype?: string } | undefined)?.subtype === 'card_repayment'
+      ) {
+        const values = { ...proposal, ...patch };
+        if (
+          (proposal?.classification as { status?: string }).status !== 'completed' &&
+          values.settlementConfirmed !== true
+        )
+          throw new HttpException({ code: 'TRACKING_SETTLEMENT_REQUIRED' }, 400);
+        const eligible =
+          values.kind === 'transfer' &&
+          values.accountId !== values.destinationAccountId &&
+          typeof values.accountId === 'string' &&
+          typeof values.destinationAccountId === 'string' &&
+          values.rememberAccountBinding !== true &&
+          (
+            await client.query(
+              "select 1 from public.accounts src join public.accounts card on card.user_id=src.user_id where src.user_id=$1 and src.id::text=$2 and card.id::text=$3 and src.status='active' and card.status='active' and card.type='credit_card' and card.currency_code=src.currency_code and src.currency_code=$4",
+              [principal.userId, values.accountId, values.destinationAccountId, values.currency],
+            )
+          ).rowCount === 1;
+        if (!eligible)
+          throw new HttpException({ code: 'TRACKING_CREDIT_CARD_TRANSFER_REQUIRED' }, 400);
+      }
+      return claim;
+    });
   }
 
   decideReview(

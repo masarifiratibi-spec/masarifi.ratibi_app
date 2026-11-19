@@ -350,9 +350,10 @@ export async function prepareFinancialMessageImport(
       continue;
     }
     if (!trusted) classification.reasonCodes.push('source_untrusted');
-    const transfer = ['transfer_sent', 'transfer_received'].includes(
-      classification.subtype
-    );
+    const cardRepayment = classification.subtype === 'card_repayment';
+    const transfer =
+      cardRepayment ||
+      ['transfer_sent', 'transfer_received'].includes(classification.subtype);
     const source = transfer
       ? selectAccount(
           classification.currency,
@@ -374,22 +375,25 @@ export async function prepareFinancialMessageImport(
       source &&
       destination &&
       source.id !== destination.id &&
+      (!cardRepayment || destination.type === 'credit_card') &&
       classification.instruments.every((h) => h.side !== undefined);
     const selected = ownedTransfer
       ? classification.direction === 'incoming'
         ? destination
         : source
-      : transfer &&
-          (classification.direction === 'incoming' ? destination : source)
-        ? classification.direction === 'incoming'
-          ? destination
-          : source
-        : selectAccount(
-            classification.currency,
-            classification.instruments,
-            options,
-            provider?.providerKey
-          );
+      : cardRepayment
+        ? source
+        : transfer &&
+            (classification.direction === 'incoming' ? destination : source)
+          ? classification.direction === 'incoming'
+            ? destination
+            : source
+          : selectAccount(
+              classification.currency,
+              classification.instruments,
+              options,
+              provider?.providerKey
+            );
     const cashDestination =
       classification.subtype === 'withdrawal' && selected
         ? selectCashDestination(
@@ -426,6 +430,7 @@ export async function prepareFinancialMessageImport(
     );
     const externalTransfer =
       transfer &&
+      !cardRepayment &&
       selected &&
       !ownedTransfer &&
       !anotherOwnedEndpoint &&
@@ -439,6 +444,18 @@ export async function prepareFinancialMessageImport(
       classification.reasonCodes = classification.reasonCodes.filter(
         (code) => code !== 'transfer_counterparty_required'
       );
+    if (
+      ownedTransfer &&
+      cardRepayment &&
+      classification.status === 'completed' &&
+      classification.reasonCodes.every(
+        (code) => code === 'card_repayment_requires_transfer'
+      )
+    ) {
+      // V2 can send its existing owned-account transfer only with both endpoints proven.
+      classification.subtype = 'transfer_sent';
+      classification.reasonCodes = [];
+    }
     if (cashDestination)
       classification.reasonCodes = classification.reasonCodes.filter(
         (code) => code !== 'cash_destination_required'
@@ -469,9 +486,12 @@ export async function prepareFinancialMessageImport(
         ? 'income'
         : ['refund', 'reversal'].includes(classification.subtype)
           ? 'refund'
-          : ['transfer_sent', 'transfer_received', 'withdrawal'].includes(
-                classification.subtype
-              )
+          : [
+                'transfer_sent',
+                'transfer_received',
+                'withdrawal',
+                'card_repayment'
+              ].includes(classification.subtype)
             ? 'transfer'
             : classification.subtype === 'fee'
               ? 'fee'

@@ -93,7 +93,8 @@ export function TrackingReviewFields({
         translate('coreFinance.transaction.account'),
         accountOptions
       )}
-      {classification?.instruments?.length &&
+      {classification?.subtype !== 'card_repayment' &&
+      classification?.instruments?.length &&
       values.accountId &&
       typeof proposed.sourceProvider === 'string' ? (
         <View style={{ gap: 8 }}>
@@ -135,6 +136,9 @@ export function TrackingReviewFields({
             accountOptions.filter(
               (o) =>
                 o.id !== values.accountId &&
+                (classification?.subtype !== 'card_repayment' ||
+                  accounts.data?.find((a) => a.id === o.id)?.type ===
+                    'credit_card') &&
                 (classification?.subtype !== 'withdrawal' ||
                   accounts.data?.find((a) => a.id === o.id)?.type === 'cash')
             )

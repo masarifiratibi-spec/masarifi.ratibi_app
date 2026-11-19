@@ -53,7 +53,13 @@ internal class FinancialDiscoveryPolicy private constructor(
       it.optString("family") == "exclusion" || it.getJSONObject("effects").optString("disposition") == "ignore"
     }) return false
     val actions = matched.filter { it.optString("family") == "action" }
-    val evidence = actions.isNotEmpty() || custom.any { phrase(text, it) } && contexts.any { phrase(text, it) }
+    // Native admission retains possible repayments for the shared parser, which
+    // checks the payment object and determines lifecycle and posting eligibility.
+    val repayment = (Regex("\\b(?:repaid|repayment)\\b").containsMatchIn(text) &&
+      Regex("\\bcredit[ -]card\\b").containsMatchIn(text)) ||
+      (text.contains("تسديد") && Regex("بطاق(?:ة|تك|تي)").containsMatchIn(text))
+    val evidence = actions.isNotEmpty() || repayment ||
+      custom.any { phrase(text, it) } && contexts.any { phrase(text, it) }
     return evidence && (!requireMoney || money(text, actions.maxByOrNull { it.optInt("priority") }
       ?.getJSONObject("effects")?.optString("subtype") == "fee"))
   }

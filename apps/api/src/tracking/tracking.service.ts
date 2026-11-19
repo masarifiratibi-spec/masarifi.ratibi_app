@@ -609,6 +609,7 @@ export class TrackingService {
       command.decision,
       command.expectedVersion,
       decisionToken,
+      record(command.patch),
     );
     if (command.decision === 'reject')
       return this.repository.decideReview(

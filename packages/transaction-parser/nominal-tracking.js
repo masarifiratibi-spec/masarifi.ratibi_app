@@ -369,7 +369,7 @@ module.exports = (parser) => {
       strong:
         eligibleSource &&
         c.disposition !== "ignore" &&
-        (action || found.customRuleKeys.length > 0),
+        (action || c.subtype === "card_repayment" || found.customRuleKeys.length > 0),
     };
     // Only an explicitly additional, separately labelled fee establishes two
     // movements. A total/included fee or ambiguous second amount stays unresolved.

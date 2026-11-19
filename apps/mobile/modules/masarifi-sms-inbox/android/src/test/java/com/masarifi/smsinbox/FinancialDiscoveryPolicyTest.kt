@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun cardRepaymentsReachTheSharedClassifierInBothChannels() {
+    val policy = policy()
+    for (channel in listOf("android_sms", "android_notification")) {
+      listOf("Credit card bill payment SAR 100", "سداد فاتورة البطاقة بمبلغ SAR 100",
+        "Credit card repayment SAR 100", "تسديد البطاقة SAR 100", "Repaid your credit card bill SAR 100",
+        "Repaid my credit card balance SAR 100", "تسديد مستحقات بطاقتك SAR 100").forEach {
+        assertTrue(it, policy.isFinancial(it, "BANK", channel))
+        assertFalse(it, policy.isFinancial("OTP 123456 $it", "BANK", channel))
+      }
+    }
+  }
   @Test fun abbreviatedAvailableBalanceIsNotPurchaseMoneyForDiscovery() {
     val policy=policy()
     assertFalse(policy.isStrong("Purchase. Avl. Bal. is AED 9000","BANK","android_sms"))

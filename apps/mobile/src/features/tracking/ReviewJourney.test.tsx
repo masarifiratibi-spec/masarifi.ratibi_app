@@ -21,6 +21,63 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('ReviewJourney', () => {
+  it('requires two distinct accounts and settlement before confirming a card repayment', () => {
+    const source = {
+      ...fixtureAccounts[0],
+      id: 'source',
+      name: 'Funding account',
+      currencyCode: 'SAR',
+      status: 'active'
+    };
+    const card = {
+      ...source,
+      id: 'card',
+      name: 'Credit card',
+      type: 'credit_card'
+    };
+    const item = {
+      id: 'review-repayment',
+      status: 'pending',
+      reasonCodes: [],
+      missingFields: [],
+      proposedValues: {
+        kind: 'transfer',
+        currency: 'SAR',
+        amountMinor: 10000,
+        classification: {
+          subtype: 'card_repayment',
+          direction: 'outgoing',
+          status: 'unknown'
+        }
+      }
+    };
+    renderWithQueryData(<ReviewDetail id={item.id} />, [
+      [automaticTrackingKeys.reviewItem(item.id), item],
+      [coreFinanceKeys.accounts(true), [source, card]],
+      [coreFinanceKeys.accounts(false), [source, card]],
+      [coreFinanceKeys.categories(true), []]
+    ]);
+    const confirm = () =>
+      screen.getByLabelText(translate('tracking.action.confirm'));
+    expect(confirm()).toBeDisabled();
+    fireEvent.press(
+      screen.getByLabelText(translate('coreFinance.transaction.account'))
+    );
+    fireEvent.press(screen.getByLabelText(source.name));
+    expect(confirm()).toBeDisabled();
+    fireEvent.press(screen.getByLabelText('الحساب المستلم'));
+    fireEvent.press(screen.getByLabelText(card.name));
+    expect(confirm()).toBeDisabled();
+    fireEvent.press(screen.getByLabelText('تأكيد اكتمال المعاملة'));
+    expect(confirm()).toBeEnabled();
+    fireEvent.press(
+      screen.getByLabelText(
+        translate('coreFinance.transaction.account') + ' ' + source.name
+      )
+    );
+    fireEvent.press(screen.getByLabelText(card.name));
+    expect(confirm()).toBeDisabled();
+  });
   it('lets the owner correct an invalid embedded transaction date', () => {
     const onChange = jest.fn();
     renderWithQueryData(
