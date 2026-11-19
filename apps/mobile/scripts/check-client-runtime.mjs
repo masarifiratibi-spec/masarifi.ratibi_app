@@ -110,6 +110,9 @@ export function validateClientBuildEnvironment(
     throw new Error('unknown release build profile');
   if (environment.EXPO_PUBLIC_RELEASE_CHANNEL !== 'production')
     throw new Error('production requires its release channel');
+  if (environment.EAS_BUILD_PLATFORM === 'android' &&
+      environment.EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING !== 'true')
+    throw new Error('Android customer release requires automatic voice posting');
   if (iosAdHoc && identity?.ios?.bundleIdentifier !== 'com.masarifi.mobile')
     throw new Error('iPhone Ad Hoc requires the retained production bundle');
   const approvedOrigin = environment.MASARIFI_PRODUCTION_API_ORIGIN;

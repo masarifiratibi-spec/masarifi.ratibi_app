@@ -20,6 +20,7 @@ if (System.getenv('MASARIFI_RELEASE_VERSION_NAME')) android.defaultConfig.versio
 def verifyReleaseClientEnvironment = tasks.register('verifyReleaseClientEnvironment', Exec) {
     workingDir rootDir.parentFile
     environment 'NODE_ENV', 'production'
+    environment 'EAS_BUILD_PLATFORM', 'android'
     commandLine 'node', new File(rootDir.parentFile, 'scripts/check-client-runtime.mjs').absolutePath
 }
 tasks.configureEach { task ->
