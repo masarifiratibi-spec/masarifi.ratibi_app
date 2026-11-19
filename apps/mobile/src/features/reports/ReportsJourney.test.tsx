@@ -374,7 +374,7 @@ test('keeps report cards and timeframe controls visible during the first pending
   });
   const read = jest.spyOn(reportsService, 'getReport').mockReturnValue(pending);
   const balances = jest
-    .spyOn(coreFinanceService, 'getHomeSummary')
+    .spyOn(coreFinanceService, 'listAccountBalances')
     .mockImplementation(() => new Promise(() => {}));
   const view = renderWithProviders(<ReportsScreen />);
   try {
@@ -407,7 +407,10 @@ test('keeps report cards and timeframe controls visible during the first pending
 test('shows the financial report and assistant before unrelated balances finish loading', async () => {
   changeLocale('en');
   const spy = jest
-    .spyOn(coreFinanceService, 'getHomeSummary')
+    .spyOn(coreFinanceService, 'listAccountBalances')
+    .mockImplementation(() => new Promise(() => {}));
+  const history = jest
+    .spyOn(coreFinanceService, 'listTransactions')
     .mockImplementation(() => new Promise(() => {}));
   try {
     const view = renderWithProviders(<ReportsScreen />);
@@ -415,8 +418,9 @@ test('shows the financial report and assistant before unrelated balances finish 
     expect(
       view.getByRole('button', { name: 'Explain this report' })
     ).toBeTruthy();
-    expect(view.queryByLabelText('0.00 SAR')).toBeNull();
+    expect(within(view.getByTestId('reports-net-worth')).queryByLabelText('0.00 SAR')).toBeNull();
   } finally {
+    history.mockRestore();
     spy.mockRestore();
   }
 });
@@ -424,7 +428,7 @@ test('shows the financial report and assistant before unrelated balances finish 
 test('keeps the report usable when balances fail and can open analysis from the assistant heading', async () => {
   changeLocale('en');
   const spy = jest
-    .spyOn(coreFinanceService, 'getHomeSummary')
+    .spyOn(coreFinanceService, 'listAccountBalances')
     .mockRejectedValue(new Error('Balances unavailable'));
   try {
     const view = renderWithProviders(<ReportsScreen />);
