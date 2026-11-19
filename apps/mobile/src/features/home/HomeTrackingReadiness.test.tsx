@@ -62,7 +62,7 @@ jest.mock('@/features/core-finance/core-finance-queries', () => ({
   }),
   useAccounts: () => ({ data: [] }),
   useCategories: () => ({ data: [] }),
-  useAccountBalances: () => ({ data: [] })
+  useHomeAccountBalances: () => ({ data: [] })
 }));
 jest.mock('./useHomeTodayActivity', () => ({
   useHomeTodayActivity: () => ({ data: [], isError: false, isFetching: false })
