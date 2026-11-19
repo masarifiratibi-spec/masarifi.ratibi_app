@@ -137,18 +137,14 @@ prompt/completion is stored with usage.
 
 **Source**: [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting).
 
-## Decision 9 — Circuit breaker is local and workload-isolated
+## Decision 9 — Share the workload circuit across workers
 
-Maintain bounded process-local circuit state per route: open after five retryable
-failures in 60 seconds, probe once after 30 seconds, close after a successful
-probe. The database remains the durable source for failure events and route
-enablement. Core finance never imports or awaits this state. In a multi-instance
-deployment each instance fails safe independently; a shared circuit is deferred
-until measurements justify infrastructure.
-
-`ponytail:` process-local circuit limits coordination to one instance; replace
-with an existing shared operations primitive in SPEC-BE-013 only if fleet-level
-outage load proves it necessary.
+Workers acquire admission in PostgreSQL before each dispatch. Five retryable failures
+within 60 seconds open the workload circuit for 30 seconds. A single worker then
+leases the half-open probe for the request timeout. A failed probe reopens the
+circuit, a successful probe closes it, and an abandoned lease expires. A generation
+token prevents a stale response from closing a newer circuit. Core finance has no
+dependency on this state.
 
 ## Decision 10 — Streaming is transport-only; persistence is terminal
 

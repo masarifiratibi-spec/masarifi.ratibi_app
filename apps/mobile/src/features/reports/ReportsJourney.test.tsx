@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, ScrollView, StyleSheet } from 'react-native';
+import { Dimensions, Platform, ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { notifyManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -32,11 +32,8 @@ beforeAll(() => {
 
 // The live API omits budget insights even when a saved budget exists.
 test.each([
-  ['ios', 'ar', 'الميزانيات', null],
-  ['ios', 'en', 'Budgets', null],
-  ['android', 'ar', 'تعيين الميزانية الشهرية', 'اضغط لتعيين الميزانية الشهرية'],
-  ['android', 'en', 'Set monthly budget', 'Tap to set your monthly budget']
-] as const)('opens budgets without assuming missing report data means no budget on %s in %s', async (platform, locale, label, hint) => {
+  ['ios', 'ar'], ['ios', 'en'], ['android', 'ar'], ['android', 'en']
+] as const)('opens the scoped budgets destination when report insights and budget data are unavailable on %s in %s', async (platform, locale) => {
   Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
   changeLocale(locale);
   const report = buildFinancialReport({
@@ -50,19 +47,18 @@ test.each([
     breakdowns: report.breakdowns.filter((breakdown) => breakdown.dimension === 'category'),
     insights: []
   });
+  const budgets = jest.spyOn(financialPlanningService, 'listBudgets').mockRejectedValue(new Error('unavailable'));
   const view = renderWithProviders(<ReportsScreen />);
   try {
-    const card = await view.findByRole('button', { name: label });
-    if (hint === null) {
-      expect(within(card).queryByText(translate('reports.analytics.setBudgetHint'))).toBeNull();
-    } else {
-      expect(within(card).getByText(hint)).toBeOnTheScreen();
-    }
+    const card = await view.findByTestId('reports-budget-card');
+    await within(card).findByText(translate('reports.state.unavailable'));
+    expect(within(card).queryByText(translate('reports.analytics.setBudgetHint'))).toBeNull();
     fireEvent.press(card);
-    expect(router.push).toHaveBeenLastCalledWith('/budgets');
+    expect(router.push).toHaveBeenLastCalledWith(expect.objectContaining({ pathname: '/budgets' }));
   } finally {
     view.unmount();
     read.mockRestore();
+    budgets.mockRestore();
   }
 });
 
@@ -120,12 +116,10 @@ test.each(['ar', 'en'] as const)(
         direction: 'ltr',
         alignItems: Platform.OS === 'ios' && locale === 'ar' ? 'flex-start' : 'flex-end'
       });
-      expect(
-        StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom
-      ).toBeGreaterThanOrEqual(72);
-      expect(
-        StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom
-      ).toBeLessThanOrEqual(88);
+      const bottomClearance = (StyleSheet.flatten(scroll.props.style).marginBottom ?? 0)
+        + StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom;
+      expect(bottomClearance).toBeGreaterThanOrEqual(72);
+      expect(bottomClearance).toBeLessThanOrEqual(88);
       expect(view.queryByTestId('reports-pdf-dock')).toBeNull();
       expect(view.queryByText(translate('reports.pdf.download'))).toBeNull();
       expect(
@@ -141,6 +135,21 @@ test.each(['ar', 'en'] as const)(
     }
   }
 );
+
+test('keeps duration controls above the PDF action at 327dp and 140% font', async () => {
+  const size = { ...Dimensions.get('window'), width: 327, fontScale: 1.4 };
+  const dimensions = jest.spyOn(Dimensions, 'get').mockReturnValue(size);
+  const view = renderWithProviders(<ReportsScreen />);
+  try {
+    await view.findByTestId('reports-net-worth');
+    const scroll = view.UNSAFE_getByType(ScrollView);
+    expect(StyleSheet.flatten(scroll.props.style).marginBottom).toBeGreaterThanOrEqual(72);
+    expect(view.getByTestId('reports-pdf-fab')).toBeOnTheScreen();
+  } finally {
+    view.unmount();
+    dimensions.mockRestore();
+  }
+});
 
 test('keeps report cards, headings and financial values readable in the dark theme', async () => {
   changeLocale('en');
@@ -277,7 +286,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   const screen = renderWithProviders(<ReportsScreen onBack={jest.fn()} />);
 
   expect(await screen.findByText('صافي الثروة')).toBeTruthy();
-  expect(screen.UNSAFE_getByType(ScrollView).props.style).toEqual({
+  expect(screen.UNSAFE_getByType(ScrollView).props.style).toMatchObject({
     backgroundColor: lightThemeColors.surfaces.page
   });
   expect(screen.getByText('التحليلات')).toBeTruthy();
@@ -288,7 +297,7 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   expect(screen.getByText('نسبة التوفير')).toBeTruthy();
   expect(screen.getByText('الميزانية')).toBeTruthy();
   expect(await screen.findByText(
-    Platform.OS === 'ios' ? 'الميزانيات' : 'تعيين الميزانية الشهرية'
+    'تعيين الميزانية الشهرية'
   )).toBeTruthy();
   expect(screen.getByTestId('reports-assistant-card')).toBeTruthy();
   expect(screen.getByText('المساعد الذكي')).toBeTruthy();

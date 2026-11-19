@@ -17,7 +17,7 @@ async function main(){
   const {AiWorker}=load(path.join(root,'ai/ai.worker.js'));
   const config=new PlatformConfigService(new ConfigService(validateEnvironment(process.env)));
   const pool=new PoolService(config);const repository=new AiRepository(pool);
-  const worker=new AiWorker(repository,new AiStorage(config),new AiGateway({apiKey:config.get('OPENROUTER_API_KEY')}),config);
+  const worker=new AiWorker(repository,new AiStorage(config),new AiGateway({circuit:repository,apiKey:config.get('OPENROUTER_API_KEY')}),config);
   try{
     assert.equal(typeof worker.process,'function');assert.equal(typeof worker.voice,'function');assert.equal(worker.timer,undefined);
     await pool.withClient(async c=>{

@@ -96,7 +96,7 @@ it.each([
   }
 );
 
-it('keeps the account selected at recording start when selection changes before release', async () => {
+it('queues the full minute once on native completion using the account selected at recording start', async () => {
   const account = '10000000-0000-4000-8000-000000000001';
   const previousQueue = voiceAnalyzerService.queueBatch;
   const previousRun = voiceAnalyzerService.runBatch;
@@ -108,12 +108,14 @@ it('keeps the account selected at recording start when selection changes before 
   jest
     .spyOn(voiceRecorderService, 'getPermission')
     .mockResolvedValue('granted');
+  let complete!: () => void;
+  const finished = new Promise<void>((resolve) => { complete = resolve; });
   jest
     .spyOn(voiceRecorderService, 'start')
-    .mockResolvedValue({ id: 'account-recording', startedAt: Date.now() });
+    .mockResolvedValue({ id: 'account-recording', startedAt: Date.now(), finished });
   jest.spyOn(voiceRecorderService, 'stop').mockResolvedValue({
     uri: 'file://account.m4a',
-    durationMs: 1000,
+    durationMs: 60_000,
     recordedAt: Date.now(),
     contentType: 'audio/m4a'
   });
@@ -124,7 +126,9 @@ it('keeps the account selected at recording start when selection changes before 
     useCoreFinanceViewState.setState({
       selectedAccountId: '10000000-0000-4000-8000-000000000002'
     });
-    await act(async () => result.current.stop());
+    await act(async () => { complete(); });
+    expect(queue).toHaveBeenCalledTimes(1);
+    expect(queue.mock.calls[0][0]).toMatchObject({ durationMs: 60_000 });
     expect(queue.mock.calls[0][3]).toBe(account);
   } finally {
     unmount();

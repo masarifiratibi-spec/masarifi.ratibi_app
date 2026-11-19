@@ -3,7 +3,14 @@ import { Readable, Transform } from 'node:stream';
 
 import PDFDocument from 'pdfkit';
 
-import { parseReportSnapshot, type ReportFormat, type ReportSnapshot } from './reports.schemas';
+import {
+  isPlanningReport,
+  parseReportSnapshot,
+  SELECTED_ACCOUNTS_PLANNING_REASON,
+  unavailablePlanningContent,
+  type ReportFormat,
+  type ReportSnapshot,
+} from './reports.schemas';
 import { writeReportPdf } from './reports.pdf';
 
 const CSV_COLUMNS = ['occurredAt', 'kind', 'amountMinor', 'currencyCode', 'categoryLabel'] as const;
@@ -46,6 +53,11 @@ function csvCell(value: unknown): string {
 }
 
 function* csv(snapshot: ReportSnapshot): Generator<string> {
+  if (snapshot.summary.planningUnavailableReason === SELECTED_ACCOUNTS_PLANNING_REASON) {
+    yield '\uFEFFdataState,planningUnavailableReason\r\n';
+    yield `${csvCell(snapshot.dataState)},${csvCell(SELECTED_ACCOUNTS_PLANNING_REASON)}\r\n`;
+    return;
+  }
   const type = snapshot.summary.exportType;
   const columns =
     type === 'activity'
@@ -144,6 +156,18 @@ export function renderReport(
   let snapshot: ReportSnapshot;
   try {
     snapshot = parseReportSnapshot(input, maximumBytes);
+    // Earlier selected-account captures stored ledger totals without any planning rows.
+    const { accountScope, planning, summaries } = snapshot.summary;
+    if (
+      isPlanningReport(snapshot.reportType) &&
+      typeof accountScope === 'string' &&
+      /^Selected accounts \([1-9]\d*\)$/.test(accountScope) &&
+      planning === undefined &&
+      Array.isArray(summaries)
+    ) {
+      const content = unavailablePlanningContent(snapshot.summary.currencyMinorUnits);
+      snapshot = { ...snapshot, ...content, summary: { ...content.summary, accountScope } };
+    }
   } catch (error) {
     if (error instanceof Error && error.message === 'REPORT_SNAPSHOT_TOO_LARGE')
       throw new Error('REPORT_LIMIT_EXCEEDED');

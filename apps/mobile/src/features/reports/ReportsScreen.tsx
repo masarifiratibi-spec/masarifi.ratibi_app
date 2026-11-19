@@ -6,7 +6,6 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,7 +32,11 @@ import {
   radius,
   spacing
 } from '@/design-system/tokens';
-import { emptyTransactionFilters, type Account } from '@/domain/core-finance';
+import {
+  emptyTransactionFilters,
+  safeMinorSum,
+  type Account
+} from '@/domain/core-finance';
 import {
   buildFinancialPeriod,
   localDateInTimeZone
@@ -45,6 +48,8 @@ import {
   useAccounts,
   useHomeSummary
 } from '@/features/core-finance/core-finance-queries';
+import { useBudgets } from '@/features/budgets/budget-queries';
+import { formatMonthPeriod } from '@/utils/format-month-period';
 import { DateRangeSheet } from '@/features/filters/DateRangeSheet';
 import { formatDaySpan, type DatePeriod } from '@/features/filters/date-period';
 import { translate, translateDynamic } from '@/localization/i18n';
@@ -90,6 +95,8 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
   );
   const { scrollOffset, setPeriod, setScrollOffset } = useReportsViewState();
   const { fontScale, width } = useWindowDimensions();
+  const reservePdfSpace = (width > 0 && width < 350 && fontScale >= 1.2) || fontScale >= 1.4;
+  const pdfClearance = Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm;
   const stackMetrics = width < 350 || fontScale >= 1.6;
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
@@ -133,13 +140,12 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
       style={{ flex: 1, backgroundColor: theme.colors.surfaces.page }}
     >
       <ScrollView
-        style={{ backgroundColor: theme.colors.surfaces.page }}
+        style={{ backgroundColor: theme.colors.surfaces.page, ...(reservePdfSpace && { marginBottom: pdfClearance }) }}
         contentOffset={{ x: 0, y: scrollOffset }}
         contentContainerStyle={[
           styles.page,
           {
-            paddingBottom:
-              Math.max(insets?.bottom ?? 0, spacing.sm) + 56 + spacing.sm
+            paddingBottom: reservePdfSpace ? spacing.sm : pdfClearance
           }
         ]}
         onMomentumScrollEnd={(event) =>
@@ -230,6 +236,24 @@ export function ReportsScreen({ onBack }: { onBack?: () => void } = {}) {
               onTimeframeChange={setTimeframe}
             />
           )}
+          <SectionTitle direction={direction}>
+            {translate('reports.analytics.budget')}
+          </SectionTitle>
+          <BudgetCard
+            currency={
+              selectedAccountId && !selectedAccount ? undefined : currencyCode
+            }
+            direction={direction}
+            hidden={hideBalances}
+            startDate={
+              reportQuery.data?.period.startDate ??
+              localDateInTimeZone(period.periodStart, timeZone)
+            }
+            endDate={
+              reportQuery.data?.period.endDate ??
+              localDateInTimeZone(period.periodEnd, timeZone)
+            }
+          />
           <AssistantActions
             accountName={selectedAccountId ? selectedAccount?.name : null}
             direction={direction}
@@ -422,14 +446,6 @@ function AnalyticsContent({
   const expense = report?.summary.expense.value?.minorUnits ?? null;
   const netCashFlow = report?.summary.netCashFlow.value?.minorUnits ?? null;
   const savingsRate = report?.summary.savingsRateBasisPoints.value ?? null;
-  const budgetBreakdown = report?.breakdowns.find(
-    (breakdown) => breakdown.dimension === 'budget'
-  );
-  const budgetValue = report?.insights.find(
-    (insight) => insight.kind === 'budget_performance'
-  )?.value.value;
-  const budgetRemaining =
-    typeof budgetValue === 'number' ? undefined : budgetValue?.minorUnits;
 
   return (
     <View
@@ -498,19 +514,6 @@ function AnalyticsContent({
         income={income}
         pending={report === undefined}
         savingsRateBasisPoints={savingsRate}
-      />
-
-      <SectionTitle direction={direction}>
-        {translate('reports.analytics.budget')}
-      </SectionTitle>
-      <BudgetCard
-        currency={currency}
-        direction={direction}
-        hidden={hidden}
-        pending={report === undefined}
-        remainingMinor={
-          budgetBreakdown?.items.length ? budgetRemaining : undefined
-        }
       />
     </View>
   );
@@ -971,34 +974,83 @@ function SavingsRateCard({
   );
 }
 
-function BudgetCard({
+export function BudgetCard({
   currency,
   direction,
   hidden,
-  pending,
-  remainingMinor
+  startDate,
+  endDate
 }: {
-  currency: string;
+  currency?: string;
   direction: 'ltr' | 'rtl';
   hidden: boolean;
-  pending: boolean;
-  remainingMinor?: number;
+  startDate: string;
+  endDate: string;
 }) {
   const theme = useTheme();
-  const hasBudget = remainingMinor !== undefined;
-  // A live report can omit planning data even when saved budgets exist.
-  const neutralNavigation = Platform.OS === 'ios' && !pending && !hasBudget;
-  const label =
-    pending || hasBudget
-      ? translate('reports.insight.budget_performance')
-      : neutralNavigation
-        ? translate('planning.budgets.title')
-        : translate('reports.analytics.setBudget');
+  const locale = usePreferenceStore((state) => state.locale);
+  const month = startDate.slice(0, 7);
+  const periodKey = month === endDate.slice(0, 7) ? month : '';
+  const query = useBudgets(periodKey);
+  const label = translate('planning.budgets.title');
+  let title = label;
+  let detail = '';
+  const scope =
+    periodKey && currency
+      ? translateDynamic('reports.analytics.budgetScope', {
+          month: formatMonthPeriod(periodKey, locale),
+          currency
+        })
+      : '';
+  if (periodKey) {
+    if (!currency || query.isError || (!query.isPending && !query.data)) {
+      detail = translate('reports.state.unavailable');
+    } else if (query.isPending) {
+      detail = translate('planning.state.loading');
+    } else if (query.data) {
+      const budgets = query.data.filter(
+        ({ budget }) =>
+          budget.periodKey === periodKey && budget.status !== 'deleted'
+      );
+      const active = budgets.filter(
+        ({ budget }) =>
+          budget.currencyCode === currency && budget.status === 'active'
+      );
+      if (!budgets.length) {
+        title = translate('reports.analytics.setBudget');
+        detail = translate('reports.analytics.setBudgetHint');
+      } else if (!active.length) {
+        detail = translate('reports.analytics.noActiveBudget');
+      } else {
+        const remaining = active.reduce<number | null>(
+          (sum, { progress }) =>
+            sum === null || progress.remainingMinor.status !== 'available'
+              ? null
+              : safeMinorSum(sum, progress.remainingMinor.value),
+          0
+        );
+        title = translate('reports.insight.budget_performance');
+        detail =
+          remaining === null
+            ? translate('reports.state.unavailable')
+            : hidden
+              ? translate('designSystem.privacy.hidden')
+              : formatMinorAmount(remaining, currency, locale);
+      }
+    }
+  }
   return (
     <Pressable
+      testID="reports-budget-card"
       accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={() => router.push('/budgets')}
+      accessibilityLabel={[title, scope, detail].filter(Boolean).join(', ')}
+      onPress={() =>
+        router.push(
+          periodKey
+            ? { pathname: '/budgets', params: { periodKey } }
+            : '/budgets'
+        )
+      }
       style={[
         styles.card,
         styles.navigationCard,
@@ -1017,7 +1069,7 @@ function BudgetCard({
         ]}
       >
         <AppIcon
-          name="add"
+          name="budget"
           label={label}
           size="md"
           color={theme.colors.content.link}
@@ -1026,27 +1078,24 @@ function BudgetCard({
       </View>
       <View style={styles.navigationCopy}>
         <DirectionalText direction={direction} style={styles.navigationTitle}>
-          {label}
+          {title}
         </DirectionalText>
-        {!neutralNavigation ? (
+        {scope ? (
           <DirectionalText
             direction={direction}
             style={styles.navigationSubtitle}
             muted
           >
-            {pending
-              ? hidden
-                ? translate('designSystem.privacy.hidden')
-                : '—'
-              : hasBudget
-                ? hidden
-                  ? translate('designSystem.privacy.hidden')
-                  : formatMinorAmount(
-                      remainingMinor,
-                      currency,
-                      usePreferenceStore.getState().locale
-                    )
-                : translate('reports.analytics.setBudgetHint')}
+            {scope}
+          </DirectionalText>
+        ) : null}
+        {detail ? (
+          <DirectionalText
+            direction={direction}
+            style={styles.navigationSubtitle}
+            muted
+          >
+            {detail}
           </DirectionalText>
         ) : null}
       </View>
@@ -1262,9 +1311,6 @@ function ReportAmount({
         {currency}
       </Text>
       <Text
-        adjustsFontSizeToFit
-        minimumFontScale={0.62}
-        numberOfLines={1}
         style={[
           size === 'hero' ? styles.heroAmount : styles.largeAmount,
           { color: amountColor }

@@ -109,6 +109,8 @@ function fixture(overrides: Record<string, unknown> = {}) {
     }),
   };
   const routes = {
+    acquireCircuit: jest.fn(() => Promise.resolve('test-token')),
+    finishCircuit: jest.fn(() => Promise.resolve()),
     getRoute: jest.fn((workload: string): Promise<EffectiveAiRoute | null> => {
       if (workload !== 'financial_assistant') throw new Error('WORKLOAD_INVALID');
       return Promise.resolve(route);

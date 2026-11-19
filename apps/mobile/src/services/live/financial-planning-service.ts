@@ -1636,6 +1636,17 @@ export function createLiveFinancialPlanningService({
       ]);
     },
 
+    async archiveSalaryProfile(id, expectedVersion, operationId) {
+      assertBenchmarkRead('DELETE');
+      if (await isPlanningOffline()) throw new FinancialPlanningError('offline_unavailable');
+      const response = await send('DELETE', `/api/v1/salary-profiles/${encodeURIComponent(id)}`, mutation(salarySchema), {
+        operationId, body: { expectedVersion }
+      });
+      return scopes(mapSalaryProfileFromApi(response.resource), [
+        'planning.overview', 'planning.salary.overview', 'home.summary'
+      ]);
+    },
+
     async confirmSalaryReceipt(input, operationId) {
       assertBenchmarkRead('POST');
       const timeZone = input.timeZone ?? usePreferenceStore.getState().timeZone;
@@ -2180,6 +2191,7 @@ export function createLiveFinancialPlanningService({
 
     async setObligationStatus(id, expectedVersion, status, operationId) {
       assertBenchmarkRead('POST');
+      if (status === 'archived' && await isPlanningOffline()) throw new FinancialPlanningError('offline_unavailable');
       const response =
         status === 'archived'
           ? await send(
@@ -2198,6 +2210,7 @@ export function createLiveFinancialPlanningService({
         'planning.overview',
         'planning.obligations',
         `planning.obligation.${id}`,
+        'planning.salary.overview',
         'home.summary'
       ]);
     },

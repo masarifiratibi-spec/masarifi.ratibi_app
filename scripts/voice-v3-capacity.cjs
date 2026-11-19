@@ -562,6 +562,7 @@ async function provider() {
       .toISOString()
       .slice(0, 10);
     const gateway = new AiGateway({
+      circuit: repo,
       apiKey: config.getRequired("OPENROUTER_API_KEY"),
       fetcher: async (url, init) => {
         guardRequest(url, init, schema, audio, report.dispatches);

@@ -71,7 +71,7 @@ export function AccountDetailScreen({ id }: { id: string }) {
     return (
       <ScrollView
         contentContainerStyle={{
-          backgroundColor: colorTokens.raw.F3F5F3,
+          backgroundColor: theme.colors.surfaces.page,
           minHeight: '100%'
         }}
       >
@@ -83,10 +83,10 @@ export function AccountDetailScreen({ id }: { id: string }) {
         />
         <View style={styles.content} accessibilityState={{ busy: true }}>
           <View style={styles.hero}>
-            <StyledText variant="caption">
+            <StyledText variant="caption" style={styles.heroLabel}>
               {translate('coreFinance.accounts.balanceCurrent')}
             </StyledText>
-            <StyledText variant="title">—</StyledText>
+            <StyledText variant="title" style={styles.heroAmount}>—</StyledText>
           </View>
         </View>
       </ScrollView>
@@ -228,7 +228,7 @@ export function AccountDetailScreen({ id }: { id: string }) {
   return (
     <ScrollView
       contentContainerStyle={{
-        backgroundColor: colorTokens.raw.F3F5F3,
+        backgroundColor: theme.colors.surfaces.page,
         minHeight: '100%'
       }}
     >
@@ -522,8 +522,8 @@ function ReferenceAction({
           backgroundColor: colorTokens.raw['1C3934']
         },
         kind === 'secondary' && {
-          backgroundColor: colorTokens.surface.white,
-          borderColor: colorTokens.raw.E2E7E3,
+          backgroundColor: theme.colors.surfaces.card,
+          borderColor: theme.colors.borders.subtle,
           borderWidth: 1
         },
         kind === 'tertiary' && styles.tertiaryAction
@@ -547,7 +547,7 @@ function ReferenceAction({
                 ? colorTokens.surface.white
                 : kind === 'tertiary'
                   ? theme.colors.status.danger
-                  : colorTokens.raw['1C3934'],
+                  : theme.colors.content.primary,
             fontFamily: editorialFontFamilyForLocale(locale, 700)
           }
         ]}

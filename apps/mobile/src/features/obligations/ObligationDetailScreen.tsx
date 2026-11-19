@@ -31,6 +31,7 @@ import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { formatDate, formatMinorAmount } from '@/utils/format-financial-value';
 import { useObligationDetail, usePlanningMutation } from './obligation-queries';
+import { PlanningArchiveAction } from '@/features/financial-planning/PlanningArchiveAction';
 
 export function ObligationDetailScreen({
   obligationId = ''
@@ -298,6 +299,10 @@ export function ObligationDetailScreen({
                   loading={lifecycle.isPending}
                   onPress={() => lifecycle.mutate('completed')}
                 />
+              ) : null}
+              {item.status !== 'archived' && !query.isError ? (
+                <PlanningArchiveAction kind="obligation" id={item.id} version={item.version} name={item.title}
+                  onArchived={() => router.replace('/obligations')} />
               ) : null}
             </SurfaceCard>
           ) : null}

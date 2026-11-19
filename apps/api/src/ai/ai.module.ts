@@ -41,10 +41,11 @@ export class AiModule {}
     AiStorage,
     {
       provide: 'AI_GATEWAY',
-      inject: [PlatformConfigService],
-      useFactory: (config: PlatformConfigService) => {
+      inject: [PlatformConfigService, AiRepository],
+      useFactory: (config: PlatformConfigService, circuit: AiRepository) => {
         const logger = new PlatformLogger();
         return new AiGateway({
+          circuit,
           apiKey: config.get('OPENROUTER_API_KEY'),
           onAttempt: (fields) => {
             logger.info('AI_PROVIDER_ATTEMPT', fields);

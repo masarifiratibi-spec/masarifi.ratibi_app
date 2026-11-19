@@ -216,6 +216,25 @@ describe('financial capture preparation', () => {
       reasonCodes: []
     });
   });
+  it.each(['Avl limit: USD 17.95', 'Available limit: USD 17.95', 'الرصيد المتاح: USD 17.95'])(
+    'preserves %s locally with or without a purchase', async (balance) => {
+      const config = options({ accountingPolicy: 'default_account_nominal_v1' });
+      const result = await prepareSmsImport([message({ body: balance })], config);
+      expect(result.events).toHaveLength(0);
+      expect(result.diagnostics?.[0]).toMatchObject({
+        sourceText: expect.stringContaining('17.95'), reasonCodes: ['reported_balance']
+      });
+      const combined = await prepareSmsImport([message({ body: 'Paid USD 5.25. ' + balance })], config);
+      expect(combined.events).toHaveLength(1);
+      expect(combined.events[0].amountMinor).toBe(-525);
+      expect(combined.events[0].classification?.disposition).toBe('capture_candidate');
+      expect(combined.diagnostics).toEqual(result.diagnostics);
+      const excluded = await prepareSmsImport([message({ body: 'OTP 123456 ' + balance })], config);
+      expect(excluded.events).toHaveLength(0);
+      expect(excluded.diagnostics).toBeUndefined();
+    }
+  );
+
   it('prepares the reported FlexiblePay purchase without using its available balance', async () => {
     const result = await prepareSmsImport(
       [

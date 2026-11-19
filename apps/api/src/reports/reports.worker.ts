@@ -12,7 +12,7 @@ import {
   type ReportWorkClaim,
   type ReportWorkOutcome,
 } from './reports.repository';
-import { parseReportSnapshot } from './reports.schemas';
+import { bindConfirmedMailbox, parseReportSnapshot } from './reports.schemas';
 import { ReportsStorage } from './reports.storage';
 import { ReportsSmtp, ReportsSmtpError } from './reports.smtp';
 import { recordReportBacklog, recordReportBytes, recordReportJob } from './reports.observability';
@@ -228,7 +228,14 @@ export class ReportsWorker implements OnModuleDestroy {
       const identity = claim.recipient ? null : await this.identity?.getIdentityUser(claim.userId);
       const recipient =
         claim.recipient ?? (identity?.primaryEmailVerified ? identity.primaryEmail : null);
-      if (!recipient) throw new ReportsSmtpError('REPORT_RECIPIENT_UNVERIFIED');
+      if (
+        !recipient ||
+        (snapshot.confirmedMailbox &&
+          (!identity?.primaryEmailVerified ||
+            bindConfirmedMailbox(claim.userId, recipient, snapshot.confirmedMailbox.salt).digest !==
+              snapshot.confirmedMailbox.digest))
+      )
+        throw new ReportsSmtpError('REPORT_RECIPIENT_UNVERIFIED');
       const content =
         snapshot.format === 'pdf'
           ? await this.storage.readPdf(

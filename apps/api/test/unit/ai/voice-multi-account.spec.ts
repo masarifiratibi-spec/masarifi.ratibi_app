@@ -19,19 +19,19 @@ const context: BatchContext = {
       alias: 'ACCOUNT-1',
       id: cash,
       kind: 'account',
-      data: { name: 'النقدية / Cash', currency: 'SAR', type: 'cash' },
+      data: { name: 'النقدية / Cash', currency: 'SAR', minorUnit: 2, type: 'cash' },
     },
     {
       alias: 'ACCOUNT-2',
       id: bank,
       kind: 'account',
-      data: { name: 'الراجحي / Al Rajhi', currency: 'SAR', type: 'bank' },
+      data: { name: 'الراجحي / Al Rajhi', currency: 'SAR', minorUnit: 2, type: 'bank' },
     },
     {
       alias: 'ACCOUNT-3',
       id: usd,
       kind: 'account',
-      data: { name: 'Dollar wallet', currency: 'USD', type: 'wallet' },
+      data: { name: 'Dollar wallet', currency: 'USD', minorUnit: 2, type: 'wallet' },
     },
     { alias: 'CATEGORY-1', id: coffee, kind: 'category', data: { kind: 'expense' } },
     { alias: 'CATEGORY-2', id: food, kind: 'category', data: { kind: 'expense' } },
@@ -42,6 +42,7 @@ const event = (patch = {}) => ({
   s: 1,
   k: 'e',
   a: '1000',
+  w: '10',
   c: 'e:SAR',
   b: 'o:',
   g: 'CATEGORY-1',
@@ -81,8 +82,8 @@ describe('Voice independently resolves each owned account', () => {
       expect(
         decide(
           [
-            event({ a: '5000', b: 'e:ACCOUNT-1', g: 'CATEGORY-2' }),
-            event({ s: 2, a: '2000', b: 'e:ACCOUNT-2' }),
+            event({ a: '5000', w: '50', b: 'e:ACCOUNT-1', g: 'CATEGORY-2' }),
+            event({ s: 2, a: '2000', w: '20', b: 'e:ACCOUNT-2' }),
           ],
           context,
           language,
@@ -103,8 +104,8 @@ describe('Voice independently resolves each owned account', () => {
     expect(
       decide([
         event(),
-        event({ s: 2, a: '2500', g: 'CATEGORY-2' }),
-        event({ s: 3, k: 'i', a: '-10000', b: 'e:ACCOUNT-2', g: 'CATEGORY-3' }),
+        event({ s: 2, a: '2500', w: '25', g: 'CATEGORY-2' }),
+        event({ s: 3, k: 'i', a: '-10000', w: '100', b: 'e:ACCOUNT-2', g: 'CATEGORY-3' }),
       ]),
     ).toMatchObject([
       {
@@ -145,7 +146,7 @@ describe('Voice independently resolves each owned account', () => {
           alias: `ACCOUNT-${String(index + 4)}`,
           id: `70000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
           kind: 'account',
-          data: { currency: 'SAR' },
+          data: { currency: 'SAR', minorUnit: 2 },
         })),
       ],
     };
@@ -187,10 +188,12 @@ describe('Voice independently resolves each owned account', () => {
     ]);
   });
   it('orders extracted decisions by spoken occurrence when provider array order differs', () => {
-    expect(decide([event({ s: 2, a: '2500' }), event({ s: 1, a: '1000' })])).toMatchObject([
-      { status: 'eligible', command: { amountMinor: 1000 } },
-      { status: 'eligible', command: { amountMinor: 2500 } },
-    ]);
+    expect(decide([event({ s: 2, a: '2500', w: '25' }), event({ s: 1, a: '1000' })])).toMatchObject(
+      [
+        { status: 'eligible', command: { amountMinor: 1000 } },
+        { status: 'eligible', command: { amountMinor: 2500 } },
+      ],
+    );
   });
   it('keeps repeated distinct expenses while skipping an unsafe amount and internal transfer', () => {
     expect(

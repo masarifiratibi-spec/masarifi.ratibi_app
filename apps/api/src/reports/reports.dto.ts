@@ -158,6 +158,7 @@ export function normalizeCreateReport(value: unknown): {
   format: ReportFormat;
   delivery: DeliveryChannel;
   recipient: string | null;
+  expectedAccountEmail?: string;
   accountIds?: string[];
   currency?: string;
   timezone?: string;
@@ -170,6 +171,7 @@ export function normalizeCreateReport(value: unknown): {
     'format',
     'delivery',
     'recipient',
+    'expectedAccountEmail',
     'accountIds',
     'currency',
     'timezone',
@@ -185,6 +187,10 @@ export function normalizeCreateReport(value: unknown): {
   const recipient =
     input.recipient === undefined || input.recipient === null ? null : email(input.recipient);
   const format = oneOf(input.format, REPORT_FORMATS);
+  const expectedAccountEmail =
+    input.expectedAccountEmail === undefined ? undefined : email(input.expectedAccountEmail);
+  if (expectedAccountEmail && (format !== 'pdf' || delivery !== 'email' || recipient !== null))
+    invalid();
   if (
     (delivery !== 'email' && recipient) ||
     (delivery === 'email' && !recipient && format !== 'pdf')
@@ -213,6 +219,7 @@ export function normalizeCreateReport(value: unknown): {
     format,
     delivery,
     recipient,
+    ...(expectedAccountEmail ? { expectedAccountEmail } : {}),
   };
 }
 

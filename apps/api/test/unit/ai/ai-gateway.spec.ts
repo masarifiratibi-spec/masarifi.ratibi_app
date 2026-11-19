@@ -1,3 +1,4 @@
+import { createTestGateway } from '../../ai-test-gateway';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { AiWorker } from '../../../src/ai/ai.worker';
 import {
@@ -77,7 +78,7 @@ describe('AiGateway', () => {
         usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
       }),
     );
-    const gateway = new AiGateway({ apiKey: 'private-key', fetcher, onAttempt });
+    const gateway = createTestGateway({ apiKey: 'private-key', fetcher, onAttempt });
     await expect(
       gateway.complete({
         route,
@@ -119,7 +120,7 @@ describe('AiGateway', () => {
       jest.useFakeTimers();
       try {
         const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
-        const pending = new AiGateway({
+        const pending = createTestGateway({
           apiKey: 'test',
           fetcher,
           assistantRecovery: true,
@@ -147,7 +148,11 @@ describe('AiGateway', () => {
     try {
       const controller = new AbortController();
       const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
-      const pending = new AiGateway({ apiKey: 'test', fetcher, assistantRecovery: true }).complete({
+      const pending = createTestGateway({
+        apiKey: 'test',
+        fetcher,
+        assistantRecovery: true,
+      }).complete({
         route,
         userContent: '{}',
         schema: {},
@@ -186,7 +191,7 @@ describe('AiGateway', () => {
         );
       });
       const options = { apiKey: 'test', fetcher, assistantRecovery: true };
-      const pending = new AiGateway(options).complete({
+      const pending = createTestGateway(options).complete({
         route,
         userContent: '{"exactEvidence":"preserved"}',
         currentQuestion: 'Analyze my report',
@@ -216,7 +221,7 @@ describe('AiGateway', () => {
     try {
       const fetcher = jest.fn(() => new Promise<Response>(() => undefined));
       const options = { apiKey: 'test', fetcher, assistantRecovery: true };
-      const pending = new AiGateway(options).complete({
+      const pending = createTestGateway(options).complete({
         route,
         userContent: '{}',
         schema: {},
@@ -297,7 +302,7 @@ describe('AiGateway', () => {
     'restricts low reasoning to the supported assistant agent: $name',
     async ({ workload, modelId, optIn, question, expected }) => {
       let sent: Record<string, unknown> = {};
-      const gateway = new AiGateway({
+      const gateway = createTestGateway({
         apiKey: 'synthetic-key',
         fetcher: (_url, init) => {
           sent = requestBody(init);
@@ -436,7 +441,7 @@ describe('AiGateway', () => {
         }
         return Object.values(node).every(compatible);
       };
-      const gateway = new AiGateway({
+      const gateway = createTestGateway({
         apiKey: 'sample-key',
         fetcher: (_url, init) => {
           const body = requestBody(init);
@@ -583,7 +588,7 @@ describe('AiGateway', () => {
         );
       };
       const receipts: unknown[] = [];
-      const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      const result = await createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
         route: voiceRoute,
         voiceBatch: true,
         userContent: [
@@ -680,7 +685,7 @@ describe('AiGateway', () => {
         }),
       );
     };
-    const result = await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+    const result = await createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
       route: voiceRoute,
       userContent: [{ type: 'text', text: '{}' }, audio],
       schema: VOICE_OUTPUT_SCHEMA,
@@ -759,7 +764,7 @@ describe('AiGateway', () => {
       const onReceipt = jest.fn(() => Promise.resolve());
       const onDispatchFailure = jest.fn(() => Promise.resolve());
       await expect(
-        new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+        createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
           route: voiceRoute,
           userContent: '{}',
           schema: {},
@@ -776,48 +781,52 @@ describe('AiGateway', () => {
     },
   );
 
-  it('accounts a real wrong-model Voice receipt before terminal rejection', async () => {
-    const voiceRoute: EffectiveAiRoute = {
-      ...route,
-      workload: 'voice_transcription',
-      primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
-    };
-    const fetcher = jest.fn(() =>
-      Promise.resolve(
-        response({
-          id: 'actual-wrong-model-generation',
-          model: 'google/gemini-3.1-flash-lite',
-          choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
-          usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+  it.each([false, true])(
+    'accounts a wrong-model Voice receipt before terminal rejection (batch=%s)',
+    async (voiceBatch) => {
+      const voiceRoute: EffectiveAiRoute = {
+        ...route,
+        workload: 'voice_transcription',
+        primary: { modelId: 'google/gemini-3.5-flash-lite', provider: 'google-vertex' },
+      };
+      const fetcher = jest.fn(() =>
+        Promise.resolve(
+          response({
+            id: 'actual-wrong-model-generation',
+            model: 'google/gemini-3.1-flash-lite',
+            choices: [{ finish_reason: 'stop', message: { content: '{}' } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+          }),
+        ),
+      );
+      const parse = jest.fn((value: unknown) => value);
+      const onReceipt = jest.fn(() => Promise.resolve());
+      const onDispatchFailure = jest.fn(() => Promise.resolve());
+      await expect(
+        createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
+          route: voiceRoute,
+          voiceBatch,
+          userContent: '{}',
+          schema: {},
+          parse,
+          requestId: 'local-operation',
+          onReceipt,
+          onDispatchFailure,
         }),
-      ),
-    );
-    const parse = jest.fn((value: unknown) => value);
-    const onReceipt = jest.fn(() => Promise.resolve());
-    const onDispatchFailure = jest.fn(() => Promise.resolve());
-    await expect(
-      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
-        route: voiceRoute,
-        userContent: '{}',
-        schema: {},
-        parse,
-        requestId: 'local-operation',
-        onReceipt,
-        onDispatchFailure,
-      }),
-    ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
-    expect(onReceipt).toHaveBeenCalledTimes(1);
-    expect(onReceipt).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: 'google/gemini-3.1-flash-lite',
-        generationId: 'actual-wrong-model-generation',
-        usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
-      }),
-    );
-    expect(parse).not.toHaveBeenCalled();
-    expect(onDispatchFailure).not.toHaveBeenCalled();
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
+      ).rejects.toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: false });
+      expect(onReceipt).toHaveBeenCalledTimes(1);
+      expect(onReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'google/gemini-3.1-flash-lite',
+          generationId: 'actual-wrong-model-generation',
+          usage: { inputTokens: 1, outputTokens: 1, cost: 0 },
+        }),
+      );
+      expect(parse).not.toHaveBeenCalled();
+      expect(onDispatchFailure).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it.each([
     'invalid envelope JSON',
@@ -876,7 +885,7 @@ describe('AiGateway', () => {
     const onReceipt = jest.fn(() => Promise.resolve());
     const onDispatchFailure = jest.fn(() => Promise.resolve());
     await expect(
-      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
         route: voiceRoute,
         userContent: '{}',
         schema: {},
@@ -917,7 +926,7 @@ describe('AiGateway', () => {
     const onReceipt = jest.fn(() => Promise.resolve());
     const onDispatchFailure = jest.fn(() => Promise.resolve());
     await expect(
-      new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+      createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
         route: voiceRoute,
         userContent: '{}',
         schema: {},
@@ -955,7 +964,7 @@ describe('AiGateway', () => {
         }),
       );
     };
-    await new AiGateway({ apiKey: 'synthetic', fetcher }).complete({
+    await createTestGateway({ apiKey: 'synthetic', fetcher }).complete({
       route: { ...route, workload, primary: { modelId, provider: 'google-vertex' }, fallbacks: [] },
       userContent: '{}',
       schema: {},
@@ -981,7 +990,7 @@ describe('AiGateway', () => {
         ),
       );
       await expect(
-        new AiGateway({ apiKey: 'secret', fetcher }).complete({
+        createTestGateway({ apiKey: 'secret', fetcher }).complete({
           route,
           userContent: '{}',
           schema: {},
@@ -1044,7 +1053,7 @@ describe('AiGateway', () => {
             400,
           ),
         );
-      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
         .complete({
           route,
           userContent: 'PRIVATE_CUSTOMER',
@@ -1112,7 +1121,7 @@ describe('AiGateway', () => {
           ),
         ),
       );
-      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
         .complete({
           route,
           userContent: privateText,
@@ -1150,7 +1159,7 @@ describe('AiGateway', () => {
       ),
     );
     const outcome = Promise.race([
-      new AiGateway({ apiKey: 'secret', fetcher })
+      createTestGateway({ apiKey: 'secret', fetcher })
         .complete({
           route,
           userContent: '{}',
@@ -1193,7 +1202,7 @@ describe('AiGateway', () => {
         ),
       ),
     );
-    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+    const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
       .complete({
         route,
         userContent: privateText,
@@ -1232,7 +1241,7 @@ describe('AiGateway', () => {
         ),
       ),
     );
-    const promise = new AiGateway({ apiKey: 'secret', fetcher }).complete({
+    const promise = createTestGateway({ apiKey: 'secret', fetcher }).complete({
       route,
       userContent: '{}',
       schema: {},
@@ -1282,7 +1291,7 @@ describe('AiGateway', () => {
         ),
       ),
     );
-    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+    const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
       .complete({
         route,
         userContent: privateText,
@@ -1327,7 +1336,7 @@ describe('AiGateway', () => {
     'PRIVATE_CUSTOMER',
   ])('drops unrecognized provider text from every diagnostic field: %j', async (body) => {
     const fetcher = jest.fn(() => Promise.resolve(response(body, 400)));
-    const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+    const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
       .complete({
         route,
         userContent: '{}',
@@ -1353,7 +1362,7 @@ describe('AiGateway', () => {
   it('bounds diagnostic bodies and keeps malformed or oversized HTTP 400 non-retryable', async () => {
     for (const body of ['not-json PRIVATE_CUSTOMER', 'PRIVATE_CUSTOMER'.repeat(1000)]) {
       const fetcher = jest.fn(() => Promise.resolve(new Response(body, { status: 400 })));
-      const error: unknown = await new AiGateway({ apiKey: 'secret', fetcher })
+      const error: unknown = await createTestGateway({ apiKey: 'secret', fetcher })
         .complete({
           route,
           userContent: '{}',
@@ -1385,7 +1394,7 @@ describe('AiGateway', () => {
       ),
     );
     await expect(
-      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+      createTestGateway({ apiKey: 'secret', fetcher }).complete({
         route: { ...route, fallbacks: [] },
         userContent: '{}',
         schema: {},
@@ -1417,7 +1426,7 @@ describe('AiGateway', () => {
         }),
       ),
     );
-    const result = await new AiGateway({ apiKey: 'secret', fetcher }).complete({
+    const result = await createTestGateway({ apiKey: 'secret', fetcher }).complete({
       route,
       userContent: '{"question":"safe"}',
       schema: { type: 'object', additionalProperties: false },
@@ -1458,7 +1467,7 @@ describe('AiGateway', () => {
         usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0.000001 },
       }),
     );
-    const result = await new AiGateway({ apiKey: 'secret', fetcher }).complete({
+    const result = await createTestGateway({ apiKey: 'secret', fetcher }).complete({
       route,
       userContent: '{}',
       currentQuestion: 'Latest expense?',
@@ -1512,7 +1521,11 @@ describe('AiGateway', () => {
           }),
         );
       });
-    const result = await new AiGateway({ apiKey: 'secret', fetcher, now: () => clock }).complete({
+    const result = await createTestGateway({
+      apiKey: 'secret',
+      fetcher,
+      now: () => clock,
+    }).complete({
       route,
       userContent: '{}',
       schema: { type: 'object', additionalProperties: false },
@@ -1548,7 +1561,7 @@ describe('AiGateway', () => {
   it('does not dispatch without a key or when policy is weaker than required', async () => {
     const fetcher = jest.fn();
     await expect(
-      new AiGateway({ fetcher }).complete({
+      createTestGateway({ fetcher }).complete({
         route,
         userContent: '{}',
         schema: {},
@@ -1557,7 +1570,7 @@ describe('AiGateway', () => {
       }),
     ).rejects.toThrow('AI_UNAVAILABLE');
     await expect(
-      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+      createTestGateway({ apiKey: 'secret', fetcher }).complete({
         route: { ...route, zdrRequired: false },
         userContent: '{}',
         schema: {},
@@ -1578,7 +1591,7 @@ describe('AiGateway', () => {
           });
         }),
     );
-    const promise = new AiGateway({ apiKey: 'secret', fetcher }).complete({
+    const promise = createTestGateway({ apiKey: 'secret', fetcher }).complete({
       route: { ...route, fallbacks: [], limits: { ...route.limits, timeoutMs: 1000 } },
       userContent: '{}',
       schema: {},
@@ -1611,7 +1624,7 @@ describe('AiGateway', () => {
           }, 4_000);
         }),
     );
-    const promise = new AiGateway({ apiKey: 'secret', fetcher }).complete({
+    const promise = createTestGateway({ apiKey: 'secret', fetcher }).complete({
       route: { ...route, fallbacks: [] },
       userContent: '{}',
       schema: {},
@@ -1629,7 +1642,7 @@ describe('AiGateway', () => {
     controller.abort();
     const fetcher = jest.fn();
     await expect(
-      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+      createTestGateway({ apiKey: 'secret', fetcher }).complete({
         route,
         userContent: '{}',
         schema: {},
@@ -1670,7 +1683,7 @@ describe('AiGateway', () => {
     for (const [index, body] of bodies.entries()) {
       const fetcher = jest.fn(() => Promise.resolve(response(body)));
       await expect(
-        new AiGateway({ apiKey: 'secret', fetcher }).complete({
+        createTestGateway({ apiKey: 'secret', fetcher }).complete({
           route: { ...route, fallbacks: [] },
           userContent: '{}',
           schema: {},
@@ -1698,7 +1711,7 @@ describe('AiGateway', () => {
         ),
       );
       await expect(
-        new AiGateway({ apiKey: 'secret', fetcher }).complete({
+        createTestGateway({ apiKey: 'secret', fetcher }).complete({
           route: { ...route, fallbacks: [] },
           userContent: '{}',
           schema: {},
@@ -1721,7 +1734,7 @@ describe('AiGateway', () => {
       ),
     );
     await expect(
-      new AiGateway({ apiKey: 'secret', fetcher }).complete({
+      createTestGateway({ apiKey: 'secret', fetcher }).complete({
         route: { ...route, fallbacks: [] },
         userContent: [
           {
@@ -1736,23 +1749,28 @@ describe('AiGateway', () => {
     ).resolves.toBeDefined();
   });
 
-  it('opens the circuit after five retryable failures and permits one half-open probe', async () => {
-    let now = 1_000;
-    const fetcher = jest.fn(() => Promise.resolve(response({ error: { code: 503 } }, 503)));
-    const gateway = new AiGateway({ apiKey: 'secret', fetcher, now: () => now });
-    const input = {
-      route: { ...route, fallbacks: [] },
-      userContent: '{}',
-      schema: {},
-      parse: (value: unknown) => value,
-      requestId: 'request-circuit-0001',
-    };
-    for (let attempt = 0; attempt < 5; attempt += 1)
-      await expect(gateway.complete(input)).rejects.toThrow('AI_TEMPORARILY_UNAVAILABLE');
-    await expect(gateway.complete(input)).rejects.toThrow('AI_TEMPORARILY_UNAVAILABLE');
-    expect(fetcher).toHaveBeenCalledTimes(5);
-    now += 30_001;
-    await expect(gateway.complete(input)).rejects.toThrow('AI_TEMPORARILY_UNAVAILABLE');
-    expect(fetcher).toHaveBeenCalledTimes(6);
-  });
+  it.each([null, new Error('db unavailable')])(
+    'blocks provider dispatch when admission fails',
+    async (denied) => {
+      const acquireCircuit = jest.fn(() =>
+        denied ? Promise.reject(denied) : Promise.resolve(null),
+      );
+      const fetcher = jest.fn();
+      const gateway = new AiGateway({
+        apiKey: 'test',
+        fetcher,
+        circuit: { acquireCircuit, finishCircuit: jest.fn() },
+      });
+      await expect(
+        gateway.complete({
+          route,
+          userContent: '{}',
+          schema: {},
+          parse: (value) => value,
+          requestId: 'test',
+        }),
+      ).rejects.toMatchObject({ code: 'AI_TEMPORARILY_UNAVAILABLE', retryable: true });
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
 });

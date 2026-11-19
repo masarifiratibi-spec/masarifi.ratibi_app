@@ -55,9 +55,11 @@ export function SalaryProfileForm() {
   const [error, setError] = useState<string>();
   const [savedPayload, setSavedPayload] = useState<string>();
   const profileLoaded = useRef(false);
-  const selectedAccount = accounts.data?.find(
-    (account: Account) => account.id === (accountId || accounts.data?.[0]?.id)
-  );
+  const selectedAccount = accountId
+    ? accounts.data?.find((account: Account) => account.id === accountId)
+    : accounts.data?.find((account: Account) =>
+        !profile.data || account.currencyCode === profile.data.currencyCode
+      );
   const currencyCode =
     selectedAccount?.currencyCode ??
     profile.data?.currencyCode ??

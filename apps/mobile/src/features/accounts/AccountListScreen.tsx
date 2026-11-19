@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { router } from 'expo-router';
@@ -60,7 +61,8 @@ export function AccountListScreen() {
   const { revealed } = useSensitiveVisibility();
   const hidden = hideBalances && !revealed;
   const isRtl = direction === 'rtl';
-  const largeText = PixelRatio.getFontScale() >= 1.5;
+  const { width } = useWindowDimensions();
+  const stackTotal = PixelRatio.getFontScale() >= 1.5 || (width > 0 && width < 350);
   const balanceByAccount = useMemo(
     () =>
       new Map<string, AccountBalanceProjection>(
@@ -190,7 +192,8 @@ export function AccountListScreen() {
                 styles.physicalLtr,
                 {
                   backgroundColor: theme.colors.surfaces.financialHero,
-                  flexDirection: largeText
+                  alignItems: stackTotal ? 'stretch' : 'center',
+                  flexDirection: stackTotal
                     ? 'column'
                     : isRtl
                       ? 'row-reverse'
@@ -200,7 +203,7 @@ export function AccountListScreen() {
             >
               <View
                 style={[
-                  styles.totalCopy,
+                  stackTotal ? undefined : styles.totalCopy,
                   { alignItems: isRtl ? 'flex-end' : 'flex-start' }
                 ]}
               >
@@ -215,14 +218,13 @@ export function AccountListScreen() {
                 >
                   {translate('coreFinance.accounts.totalBalance')}
                 </Text>
-                <Text
-                  style={[
-                    styles.totalAmount,
-                    { color: theme.colors.content.onFinancialHero }
-                  ]}
-                >
-                  {totalBalance}
-                </Text>
+                <View accessible accessibilityLabel={totalBalance} style={styles.totalMoney}>
+                  {totalBalance.split(/\s+/u).map((part, index) => (
+                    <Text key={index} style={[styles.totalAmount, { color: theme.colors.content.onFinancialHero }]}>
+                      {part}
+                    </Text>
+                  ))}
+                </View>
                 {hasOtherCurrencies ? (
                   <Text
                     style={[
@@ -242,7 +244,7 @@ export function AccountListScreen() {
                   styles.totalCount,
                   {
                     color: theme.colors.content.onFinancialHero,
-                    textAlign: largeText
+                    textAlign: stackTotal
                       ? isRtl
                         ? 'right'
                         : 'left'
@@ -400,7 +402,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22
   },
+  totalMoney: { direction: 'ltr', flexDirection: 'row', flexWrap: 'wrap', columnGap: 6, maxWidth: '100%' },
   totalAmount: {
+    maxWidth: '100%',
     fontSize: 27,
     fontWeight: '700',
     lineHeight: 36,

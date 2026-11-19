@@ -1,4 +1,5 @@
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import { createTestGateway } from '../../ai-test-gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import {
   VOICE_BATCH_OUTPUT_SCHEMA,
   decideVoiceBatch,
@@ -44,7 +45,7 @@ function completion(content: unknown, patch = {}) {
 
 async function invoke(envelope: unknown) {
   let dispatches = 0;
-  const gateway = new AiGateway({
+  const gateway = createTestGateway({
     apiKey: 'synthetic',
     fetcher: () => {
       dispatches++;
@@ -199,6 +200,7 @@ describe('Voice schema failure diagnostics without output retention', () => {
             s: 1,
             k: 'i',
             a: '-100',
+            w: '1',
             c: 'e:SAR',
             b: 'e:ACCOUNT-1',
             g: 'CATEGORY-1',
@@ -215,6 +217,7 @@ describe('Voice schema failure diagnostics without output retention', () => {
         occurrence: 1,
         kind: 'income',
         amountMinor: '-100',
+        spokenAmount: '1',
         currency: 'SAR',
         currencySource: 'explicit',
         accountId: 'ACCOUNT-1',
@@ -239,7 +242,7 @@ describe('Voice schema failure diagnostics without output retention', () => {
           alias: 'ACCOUNT-1',
           id: 'b5b794eb-3bc4-4a6b-9724-a41c5d30b869',
           kind: 'account',
-          data: { currency: 'SAR', name: 'Voice Staging Test' },
+          data: { currency: 'SAR', minorUnit: 2, name: 'Voice Staging Test' },
         },
         {
           alias: 'CATEGORY-1',

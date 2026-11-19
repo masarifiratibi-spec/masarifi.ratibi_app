@@ -449,7 +449,7 @@ describe('live reports strict mapping', () => {
     });
     await expect(
       reports.requestOutput(
-        { kind: 'send_now', previewId: preview.previewId },
+        { kind: 'send_now', previewId: preview.previewId, expectedAccountEmail: 'owner@example.test' },
         'output-key'
       )
     ).resolves.toMatchObject({
@@ -461,6 +461,8 @@ describe('live reports strict mapping', () => {
     expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       periodStart: '2026-08-01',
       periodEnd: '2026-08-31',
+      expectedAccountEmail: 'owner@example.test',
+      recipient: null,
       delivery: 'email'
     });
 
@@ -637,4 +639,19 @@ it('records direct benchmark report transport once while preserving response and
     log.mockRestore();
     restore();
   }
+});
+
+it('rechecks the confirmation after obtaining the token and before transmitting an email request', async () => {
+  const request = jest.fn().mockResolvedValueOnce(json(summary()));
+  let consent = true;
+  const token = jest.fn().mockResolvedValueOnce('read-token').mockImplementationOnce(async () => {
+    consent = false;
+    return 'replacement-session-token';
+  });
+  const live = createLiveReportsService({ baseUrl: 'https://inert.invalid', token, request });
+  const preview = await live.previewOutput({ ...input, language: 'en', detailLevel: 'summary' });
+  await expect(live.requestOutput({
+    kind: 'send_now', previewId: preview.previewId, expectedAccountEmail: 'owner@example.test'
+  }, 'email-operation', () => consent)).rejects.toMatchObject({ code: 'report_confirmation_changed' });
+  expect(request).toHaveBeenCalledTimes(1);
 });

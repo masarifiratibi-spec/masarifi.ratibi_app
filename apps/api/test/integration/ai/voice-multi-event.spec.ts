@@ -49,6 +49,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     s: 1,
     k: 'e',
     a: '1000',
+    w: '10',
     c: 'e:SAR',
     b: 'o:',
     g: 'CATEGORY-1',
@@ -111,9 +112,19 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       timezoneOffsetMinutes: -180,
       defaultAccountId: account,
       references: [
-        { alias: 'ACCOUNT-1', id: account, kind: 'account', data: { currency: 'SAR' } },
-        { alias: 'ACCOUNT-2', id: bank, kind: 'account', data: { currency: 'SAR' } },
-        { alias: 'ACCOUNT-3', id: dollars, kind: 'account', data: { currency: 'USD' } },
+        {
+          alias: 'ACCOUNT-1',
+          id: account,
+          kind: 'account',
+          data: { currency: 'SAR', minorUnit: 2 },
+        },
+        { alias: 'ACCOUNT-2', id: bank, kind: 'account', data: { currency: 'SAR', minorUnit: 2 } },
+        {
+          alias: 'ACCOUNT-3',
+          id: dollars,
+          kind: 'account',
+          data: { currency: 'USD', minorUnit: 2 },
+        },
         { alias: 'CATEGORY-1', id: coffee, kind: 'category', data: { kind: 'expense' } },
         { alias: 'CATEGORY-2', id: food, kind: 'category', data: { kind: 'expense' } },
         { alias: 'CATEGORY-3', id: salary, kind: 'category', data: { kind: 'income' } },
@@ -367,7 +378,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     }
   });
   it('projects waiting, cancelled and failed outcomes without creating financial effects', async () => {
-    const f = await fixture([event(), event({ s: 2 }), event({ s: 3, a: '' })]);
+    const f = await fixture([event(), event({ s: 2 }), event({ s: 3, a: '17000', w: 'سبعة عشر ريال سعودي' })]);
     const repository = new AiRepository(pool);
     const principal = { userId: f.user, sessionId: 'local-fixture', factorAgeSeconds: 0 };
     const waiting = await repository.getVoiceBatchResult(principal, f.session, true);
@@ -455,8 +466,8 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     async (language) => {
       const f = await fixture(
         [
-          event({ a: '5000', b: 'e:ACCOUNT-1', g: 'CATEGORY-2' }),
-          event({ s: 2, a: '2000', b: 'e:ACCOUNT-2' }),
+          event({ a: '5000', w: '50', b: 'e:ACCOUNT-1', g: 'CATEGORY-2' }),
+          event({ s: 2, a: '2000', w: '20', b: 'e:ACCOUNT-2' }),
         ],
         language,
       );
@@ -503,8 +514,8 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
   it('posts three mixed events and exposes only committed effects in the real Reports summary', async () => {
     const f = await fixture([
       event(),
-      event({ s: 2, a: '2500', g: 'CATEGORY-2' }),
-      event({ s: 3, k: 'i', a: '-10000', b: 'e:ACCOUNT-2', g: 'CATEGORY-3' }),
+      event({ s: 2, a: '2500', w: '25', g: 'CATEGORY-2' }),
+      event({ s: 3, k: 'i', a: '-10000', w: '100', b: 'e:ACCOUNT-2', g: 'CATEGORY-3' }),
     ]);
     await finish(f.user);
     const { effects, balances } = await result(f);
@@ -547,7 +558,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       event({ s: 3, b: 'e:ACCOUNT-1', c: 'e:USD' }),
       event({ s: 4, b: 'a:' }),
       event({ s: 5, k: 't', a: '20000' }),
-      event({ s: 6, c: 'e:USD', a: '1200' }),
+      event({ s: 6, c: 'e:USD', a: '1200', w: '12' }),
     ]);
     await finish(f.user);
     const { effects, balances } = await result(f);

@@ -84,6 +84,7 @@ export class AssistantAgentWorker implements OnModuleDestroy {
         const agent = new AssistantAgent(
           this.data,
           new AiGateway({
+            circuit: this.routes,
             apiKey: this.config.get('OPENROUTER_API_KEY'),
             assistantRecovery: true,
             onAttempt: (fields) => {

@@ -112,6 +112,7 @@ export function createLiveReportsService(
       signal: AbortSignal;
       verifiedToken?: string;
       reverified?: boolean;
+      isConfirmationCurrent?: () => boolean;
     }
   ): Promise<unknown> => {
     assertBenchmarkRead(method);
@@ -136,6 +137,11 @@ export function createLiveReportsService(
         (token ? await token() : identity!.token);
       await identity?.assertCurrent();
       if (signal?.aborted) throw new ReportsApiError('offline');
+      if (
+        requestContext.isConfirmationCurrent &&
+        !requestContext.isConfirmationCurrent()
+      )
+        throw new ReportsApiError('report_confirmation_changed');
       response = await measurePerformance('reports.read', () =>
         benchmarkFetch(request, `${baseUrl.replace(/\/$/u, '')}${path}`, {
           method,
@@ -153,7 +159,8 @@ export function createLiveReportsService(
       );
       await identity?.assertCurrent();
       assertReadActive(signal);
-    } catch {
+    } catch (error) {
+      if (error instanceof ReportsApiError) throw error;
       throw new ReportsApiError('offline');
     }
     let value: unknown = null;
@@ -187,6 +194,11 @@ export function createLiveReportsService(
       }
       throw new ReportsApiError('recent_auth_required');
     }
+    if (
+      !response.ok && response.status === 403 &&
+      object(value).code === 'REPORT_RECIPIENT_UNVERIFIED'
+    )
+      throw new ReportsApiError('report_recipient_unverified');
     if (!response.ok)
       throw new ReportsApiError(
         response.status === 401
@@ -208,13 +220,16 @@ export function createLiveReportsService(
     method: string,
     path: string,
     body?: unknown,
-    key?: string
+    key?: string,
+    isConfirmationCurrent?: () => boolean
   ) => {
     const controller = new AbortController();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        sendRequest(method, path, { body, key, signal: controller.signal }),
+        sendRequest(method, path, {
+          body, key, signal: controller.signal, isConfirmationCurrent
+        }),
         new Promise<never>((_resolve, reject) => {
           deadline = setTimeout(
             () => {
@@ -694,7 +709,7 @@ export function createLiveReportsService(
     async previewOutput(input, context) {
       const value = await report(input, context);
       const result = {
-        previewId: `preview:${value.key}:${input.detailLevel}`,
+        previewId: `preview:${value.key}:${input.timeZone}:${input.language}:${input.detailLevel}`,
         ...(input.accountIds?.length
           ? { accountIds: [...new Set(input.accountIds)].sort() }
           : {}),
@@ -704,7 +719,7 @@ export function createLiveReportsService(
       previews.set(result.previewId, result);
       return result;
     },
-    async requestOutput(input, operationId) {
+    async requestOutput(input, operationId, isConfirmationCurrent) {
       if (input.kind === 'retry') {
         await send(
           'POST',
@@ -719,8 +734,11 @@ export function createLiveReportsService(
         throw new ReportsApiError('reports_unavailable');
       const preview = previews.get(input.previewId);
       if (!preview) throw new ReportsApiError('stale_preview');
+      const expectedAccountEmail = input.kind === 'send_now' ? input.expectedAccountEmail : undefined;
+      const download = input.kind === 'download' || input.kind === 'share';
       const body = {
         type: 'financial_summary',
+        ...(expectedAccountEmail ? { expectedAccountEmail } : {}),
         currency: preview.snapshot.currencyCode,
         timezone: preview.snapshot.period.timeZone,
         ...(preview.accountIds?.length
@@ -729,17 +747,13 @@ export function createLiveReportsService(
         periodStart: preview.snapshot.period.startDate,
         periodEnd: preview.snapshot.period.endDate,
         format: 'pdf',
-        delivery:
-          input.kind === 'download' || input.kind === 'share'
-            ? 'download'
-            : 'email',
-        recipient:
-          input.kind === 'download' || input.kind === 'share'
-            ? null
-            : preview.recipientEmail
+        delivery: download ? 'download' : 'email',
+        recipient: download || expectedAccountEmail ? null : preview.recipientEmail
       };
       const accepted = object(
-        await send('POST', '/api/v1/reports', body, operationId)
+        await send(
+          'POST', '/api/v1/reports', body, operationId, isConfirmationCurrent
+        )
       );
       const value = attempt(accepted, preview.snapshot, operationId);
       attempts.set(value.id, value);

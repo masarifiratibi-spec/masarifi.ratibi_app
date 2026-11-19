@@ -79,6 +79,13 @@ const en = {
   'reports.pdf.policyPending':
     'PDF email delivery needs the approved server update.',
   'reports.pdf.download': 'Email report PDF',
+  'reports.pdf.reviewHint': 'Choose Email report PDF to review the period and verified email before sending.',
+  'reports.pdf.confirmTitle': 'Email this PDF report?',
+  'reports.pdf.confirmDetails': 'Financial summary · {{type}} · {{period}}',
+  'reports.pdf.confirmRecipient': 'Verified account email',
+  'reports.pdf.confirmSend': 'Send PDF',
+  'reports.analytics.budgetScope': '{{month}} · {{currency}} · All accounts',
+  'reports.analytics.noActiveBudget': 'No active budget in this currency',
   'reports.pdf.emailWaitTitle': 'This may take some time',
   'reports.pdf.emailPreparing':
     'Requesting your report as a PDF attachment to your account email.',
@@ -1800,6 +1807,11 @@ const en = {
   'planning.state.offline': 'Offline changes stay on this device',
   'planning.state.offlineRead': 'Offline: showing the last saved data.',
   'planning.state.error': 'Planning is unavailable',
+  'planning.salary.archive': 'Archive salary profile',
+  'planning.salary.archiveConfirm': 'Archive {{name}}? It will no longer be used for salary planning. Recorded transactions will be kept.',
+  'planning.obligation.archive': 'Archive obligation',
+  'planning.obligation.archiveConfirm': 'Archive {{name}}? It will leave your active obligations. Previous payments will be kept.',
+  'planning.archiveFailed': 'Could not confirm the archive. Check your connection and refresh before retrying.',
   'planning.state.hidden': 'Values are hidden',
   'planning.reason.missing_data': 'Unavailable until more data is added',
   'planning.reason.missing_rate': 'Unavailable without an exchange rate',
@@ -1837,6 +1849,7 @@ const en = {
   'planning.state.saved': 'Saved',
   'planning.salary.amount': 'Expected salary amount',
   'planning.salary.emptyTitle': 'Plan from payday to payday',
+  'planning.salary.offlineWithoutProfile': 'Connect to the internet to check your salary settings.',
   'planning.salary.emptySubtitle':
     'Add your salary details to track what remains and see a practical daily spending amount.',
   'planning.salary.setupSubtitle':

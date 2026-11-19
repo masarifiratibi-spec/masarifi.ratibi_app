@@ -18,13 +18,20 @@ import { isPlanningOffline } from '@/services/live/planning-offline-read';
 async function planningSnapshot(
   client: QueryClient,
   today: LocalDate,
-  timeZone: string
+  timeZone: string,
+  projectionKey: readonly unknown[]
 ) {
   const owner = useAppShellStore.getState().session?.userId;
   const read = financialPlanningService.getPlanningSnapshot!;
+  const queryKey = ['planning', 'snapshot', owner ?? null, today, timeZone];
+  const source = client.getQueryState(queryKey);
+  // A new projection may reuse the shared summary. Refreshes and retries must reach the server.
+  const projection = client.getQueryState(projectionKey);
+  const refresh = Boolean(projection?.dataUpdatedAt || projection?.errorUpdatedAt) ||
+    source?.status === 'error' || source?.fetchStatus === 'fetching';
   return client.fetchQuery({
-    queryKey: ['planning', 'snapshot', owner ?? null, today, timeZone],
-    staleTime: Infinity,
+    queryKey,
+    staleTime: refresh ? 0 : 60_000,
     queryFn: async ({ signal }) => {
       const result = await read({ today, timeZone }, { signal });
       assertReadActive(signal);
@@ -46,7 +53,9 @@ export async function fetchPlanningOverview(
       { currencyCode, today, timeZone },
       { signal }
     );
-  const snapshot = await planningSnapshot(client, today, timeZone);
+  const snapshot = await planningSnapshot(
+    client, today, timeZone, financialPlanningKeys.overview(currencyCode, today, timeZone)
+  );
   assertReadActive(signal);
   return (
     snapshot.byCurrency[currencyCode] ?? {
@@ -114,7 +123,9 @@ function salaryOverviewOptions(
           { today, timeZone },
           { signal }
         );
-      const snapshot = await planningSnapshot(client, today, timeZone);
+      const snapshot = await planningSnapshot(
+        client, today, timeZone, financialPlanningKeys.salary(today, timeZone)
+      );
       assertReadActive(signal);
       return snapshot.salary;
     }
@@ -333,10 +344,12 @@ export function usePlanningConflict(id: string) {
 export function usePlanningMutation<TVariables, TResult>(
   mutationFn: (
     variables: TVariables
-  ) => Promise<{ value: TResult; affectedScopes: readonly string[] }>
+  ) => Promise<{ value: TResult; affectedScopes: readonly string[] }>,
+  options?: { networkMode: 'always'; retry: false }
 ) {
   const client = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn,
     onMutate: () => useAppShellStore.getState().session?.userId,
     onSuccess: async (result) => {

@@ -9,7 +9,7 @@ const context = {
       alias: 'ACCOUNT-1',
       id: '11111111-1111-4111-8111-111111111111',
       kind: 'account',
-      data: { currency: 'SAR', type: 'cash' },
+      data: { currency: 'SAR', minorUnit: 2, type: 'cash' },
     },
     {
       alias: 'CATEGORY-1',
@@ -23,6 +23,7 @@ const event = (patch = {}) => ({
   occurrence: 1,
   kind: 'expense',
   amountMinor: '2500',
+  spokenAmount: '25',
   currency: '',
   currencySource: 'omitted',
   accountId: '',
@@ -41,6 +42,7 @@ const compactEvent = (patch = {}) => ({
   s: 1,
   k: 'e',
   a: '2500',
+  w: '25',
   c: 'o:',
   b: 'o:',
   g: 'CATEGORY-1',
@@ -119,11 +121,12 @@ describe('Voice expense Shopping fallback', () => {
     expect(
       decideVoiceBatch(
         batch([
-          event({ kind: 'income', amountMinor: '-50000', categoryId: '' }),
+          event({ kind: 'income', amountMinor: '-50000', spokenAmount: '500', categoryId: '' }),
           event({
             occurrence: 2,
             kind: 'income',
             amountMinor: '-50000',
+            spokenAmount: '500',
             categoryId: 'CATEGORY-UNKNOWN',
           }),
           event({ occurrence: 3, categoryId: '', accountSource: 'ambiguous' }),
@@ -228,7 +231,11 @@ describe('Voice batch automatic or silent skip', () => {
   it('does not guess between contradictory candidates for the same spoken occurrence', () => {
     const decisions = decideVoiceBatch(
       parseVoiceBatchProviderOutput(
-        batch([compactEvent({ s: 1 }), compactEvent({ s: 1, a: '3500' }), compactEvent({ s: 2 })]),
+        batch([
+          compactEvent({ s: 1 }),
+          compactEvent({ s: 1, a: '3500', w: '35' }),
+          compactEvent({ s: 2 }),
+        ]),
       ),
       context,
     );
@@ -335,7 +342,7 @@ describe('Voice batch automatic or silent skip', () => {
           compactEvent({ d: 'a:' }),
           compactEvent({ k: 'r' }),
           compactEvent({ k: 't' }),
-          compactEvent({ k: 'i', a: '-500000', g: '' }),
+          compactEvent({ k: 'i', a: '-500000', w: '5000', g: '' }),
           compactEvent({ c: 'e:SAR', b: 'e:ACCOUNT-1', d: 'e:2026-10-04' }),
           compactEvent({ b: 'o:ACCOUNT-1' }),
         ].map((item, index) => ({ ...item, s: index + 1 })),
@@ -425,5 +432,93 @@ describe('Voice batch automatic or silent skip', () => {
       { status: 'skipped', reason: 'currency_mismatch' },
       { status: 'skipped', reason: 'invalid_category' },
     ]);
+  });
+});
+
+describe('spoken amount evidence before ledger acceptance', () => {
+  const decide = (w: unknown, a: string, minorUnit: unknown = 2, k = 'e', currency = 'SAR') =>
+    decideVoiceBatch(
+      parseVoiceBatchProviderOutput(
+        batch([compactEvent({ w, a, k, g: k === 'i' ? '' : 'CATEGORY-1' })]),
+      ),
+      {
+        ...context,
+        references: context.references.map((ref) =>
+          ref.kind === 'account' ? { ...ref, data: { ...ref.data, minorUnit, currency } } : ref,
+        ),
+      },
+    )[0];
+  it.each([
+    ['سبعة عشر', '1700'],
+    ['ثلاثمئة وسبعين', '37000'],
+    ['ثلاثمائة', '30000'],
+    ['ثلاثة ملايين', '300000000'],
+    ['one million', '100000000'],
+    ['ثلاثة ريالات وسبع عشرة هللة', '317'],
+    ['3 ريالات و17 هللة', '317'],
+    ['seventeen halalas', '17'],
+    ['سبعة عشر هللة', '17'],
+    ['ريال واحد', '100'],
+    ['سبعة عشر ريالا', '1700'],
+    ['سبعة عشر ريال سعودي', '1700'],
+    ['سبعة عشر ريالًا سعوديًا', '1700'],
+    ['ثلاثة ريالات ونص', '350'],
+    ['سبع عشرة', '1700'],
+    ['سبعتعش', '1700'],
+    ['سبعين', '7000'],
+    ['مئة وسبعين', '17000'],
+    ['مية وسبعين', '17000'],
+    ['seventeen', '1700'],
+    ['seventy', '7000'],
+    ['one hundred and seventy', '17000'],
+    ['forty-two', '4200'],
+    ['سبعة عشر ونص', '1750'],
+    ['twenty and a quarter', '2025'],
+    ['خمسة وعشرين', '2500'],
+  ])('accepts literal %s as %s minor units', (words, minor) => {
+    expect(decide(words, minor)).toMatchObject({
+      status: 'eligible',
+      command: { amountMinor: Number(minor) },
+    });
+  });
+  it.each([
+    ['سبعة عشر', '17000'],
+    ['سبعة عشر ريالًا سعوديًا', '17000'],
+    ['سبعة عشر ريال قطري', '1700'],
+    ['مئة وسبعين', '1700'],
+    ['سبعين', '1700'],
+    ['seventeen or seventy', '1700'],
+    ['حوالي سبعة عشر', '1700'],
+    ['', '1700'],
+    ['1,700', '17000'],
+    ['one hundred hundred', '10000'],
+    ['seventeen', '-1700'],
+  ])('skips contradictory or ambiguous evidence %s / %s', (words, minor) => {
+    expect(decide(words, minor)).toEqual({ status: 'skipped', reason: 'missing_amount' });
+  });
+  it('validates signed income, database currency precision and exact decimal minor units', () => {
+    expect(decide('سبعة عشر', '-1700', 2, 'i')).toMatchObject({
+      status: 'eligible',
+      command: { kind: 'income', amountMinor: 1700 },
+    });
+    expect(decide('سبعة عشر', '1700', 2, 'i')).toMatchObject({ status: 'skipped' });
+    expect(decide('١٧٫٠٠٥', '17005', 3)).toMatchObject({ status: 'eligible' });
+    expect(decide('١٧٫٠٠٥', '1700', 2)).toMatchObject({ status: 'skipped' });
+    expect(decide('seventeen point zero five', '1705', 2)).toMatchObject({ status: 'eligible' });
+    expect(decide('seventeen', '17', 0)).toMatchObject({ status: 'eligible' });
+    expect(decide('three dollars and fifty cents', '350', 2, 'e', 'USD')).toMatchObject({
+      status: 'eligible',
+    });
+    expect(decide('three dinars and seventeen fils', '3017', 3, 'e', 'KWD')).toMatchObject({
+      status: 'eligible',
+    });
+    expect(decide('seventeen cents', '17', 2, 'e', 'SAR')).toMatchObject({ status: 'skipped' });
+    expect(decide('سبعة عشر هللة', '1700')).toMatchObject({ status: 'skipped' });
+    expect(decide('three dollars and fifty cents', '3', 2, 'e', 'USD')).toMatchObject({
+      status: 'skipped',
+    });
+    expect(decide('90071992547409.91', '9007199254740991')).toMatchObject({ status: 'eligible' });
+    expect(decide('90071992547409.91', '9007199254740990')).toMatchObject({ status: 'skipped' });
+    expect(decide('seventeen', '1700', null)).toMatchObject({ status: 'skipped' });
   });
 });

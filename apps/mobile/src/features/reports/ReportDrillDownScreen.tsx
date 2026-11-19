@@ -2,6 +2,7 @@ import { useReportAnchorDate } from './useReportAnchorDate';
 import React from 'react';
 import {
   PixelRatio,
+  useWindowDimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -191,7 +192,8 @@ function DrillDownRow({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const largeText = PixelRatio.getFontScale() >= 1.5;
+  const { width } = useWindowDimensions();
+  const largeText = PixelRatio.getFontScale() >= 1.5 || (width > 0 && width < 350);
   const label = reportBreakdownItemLabel(breakdownItem);
   const memberLabels = reportBreakdownMemberLabels(breakdownItem);
   const transactionCount = breakdownItem.transactionCount ?? breakdownItem.transactionIds.length;
@@ -267,7 +269,6 @@ function DrillDownRow({
         ]}
       >
         <Text
-          numberOfLines={1}
           style={[
             styles.amountText,
             {
@@ -374,7 +375,8 @@ const styles = StyleSheet.create({
   amountCopy: {
     alignItems: 'flex-end',
     gap: spacing.xs,
-    minWidth: 108
+    maxWidth: '100%',
+    flexShrink: 1
   },
   amountText: {
     ...typography.amount,

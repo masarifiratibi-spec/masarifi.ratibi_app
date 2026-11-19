@@ -23,6 +23,7 @@ import {
 } from '@/features/financial-planning/PlanningScaffold';
 import { currentLocale, translate } from '@/localization/i18n';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useBudgetById } from './budget-queries';
@@ -32,6 +33,7 @@ export function BudgetTransactionsScreen({
 }: {
   budgetId?: string;
 }) {
+  const theme = useTheme();
   const query = useBudgetById(budgetId);
   const categories = useCategories(true);
   const periodKey = query.data?.budget.periodKey ?? '1970-01';
@@ -72,7 +74,7 @@ export function BudgetTransactionsScreen({
   };
 
   return (
-    <PlanningScreen titleKey="planning.budgets.transactions">
+    <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.transactions">
       <FinancialRefreshStatus
         query={{
           dataUpdatedAt: Math.min(

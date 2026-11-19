@@ -1,5 +1,6 @@
+import { createTestGateway } from '../../ai-test-gateway';
 import { createHash } from 'node:crypto';
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { AiWorker } from '../../../src/ai/ai.worker';
 import type { VoiceEventDecision } from '../../../src/ai/voice-batch';
 
@@ -34,6 +35,7 @@ const compact = (patch = {}) => ({
   s: 1,
   k: 'e',
   a: '1000',
+  w: '10',
   c: 'e:SAR',
   b: 'e:ACCOUNT-1',
   g: 'CATEGORY-1',
@@ -151,14 +153,14 @@ it.each(
                 id: cash,
                 kind: 'account',
                 version: 1,
-                data: { name: 'النقدية / Cash', currency: 'SAR' },
+                data: { name: 'النقدية / Cash', currency: 'SAR', minorUnit: 2 },
               },
               {
                 alias: 'ACCOUNT-2',
                 id: bank,
                 kind: 'account',
                 version: 1,
-                data: { name: 'الراجحي / Al Rajhi', currency: 'SAR' },
+                data: { name: 'الراجحي / Al Rajhi', currency: 'SAR', minorUnit: 2 },
               },
               {
                 alias: 'CATEGORY-1',
@@ -190,7 +192,7 @@ it.each(
         completeWork: () => Promise.resolve(),
       };
       let request = '';
-      const gateway = new AiGateway({
+      const gateway = createTestGateway({
         apiKey: 'local-nonfunctional-key',
         fetcher: (_url, init) => {
           if (typeof init?.body !== 'string') throw new Error('LOCAL_REQUEST_BODY_INVALID');
@@ -211,11 +213,11 @@ it.each(
                         events: empty
                           ? []
                           : allSkipped
-                            ? [compact({ a: '' })]
+                            ? [compact({ a: '17000', w: 'سبعة عشر ريالًا سعوديًا' })]
                             : [
-                                compact({ s: 2, b: 'e:ACCOUNT-2', a: '2000' }),
+                                compact({ s: 2, b: 'e:ACCOUNT-2', a: '2000', w: '20' }),
                                 compact(),
-                                compact({ s: 3, k: 'i', a: '-10000', b: 'o:', g: '' }),
+                                compact({ s: 3, k: 'i', a: '-10000', w: '100', b: 'o:', g: '' }),
                                 compact({ s: 4, a: '' }),
                               ],
                       }),
@@ -330,6 +332,7 @@ it.each(
         claim.claim_token,
         'local-audio',
         'local-operation',
+        'سبعة عشر ريالًا سعوديًا',
         'النقدية',
         'الراجحي',
         '1000',

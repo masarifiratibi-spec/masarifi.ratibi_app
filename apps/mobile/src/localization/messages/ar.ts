@@ -75,6 +75,13 @@ const ar: MessageCatalog = {
     'تعمل التقارير دون اتصال. اتصل بالإنترنت لإرسال تقرير PDF إلى بريدك.',
   'reports.pdf.policyPending': 'يتطلب إرسال تقرير PDF تحديث الخادم المعتمد.',
   'reports.pdf.download': 'إرسال تقرير PDF إلى بريدي',
+  'reports.pdf.reviewHint': 'عند اختيار إرسال PDF، ستراجع الفترة والبريد الموثّق قبل تأكيد الإرسال.',
+  'reports.pdf.confirmTitle': 'هل تريد إرسال تقرير PDF بالبريد؟',
+  'reports.pdf.confirmDetails': 'الملخص المالي ({{type}}) · {{period}}',
+  'reports.pdf.confirmRecipient': 'البريد الموثّق للحساب',
+  'reports.pdf.confirmSend': 'إرسال PDF',
+  'reports.analytics.budgetScope': '{{month}} · {{currency}} · جميع الحسابات',
+  'reports.analytics.noActiveBudget': 'لا توجد ميزانية نشطة بهذه العملة',
   'reports.pdf.emailWaitTitle': 'قد يستغرق هذا بعض الوقت',
   'reports.pdf.emailPreparing':
     'جارٍ طلب تجهيز التقرير وإرساله إلى بريد حسابك بصيغة PDF مرفق.',
@@ -1734,6 +1741,11 @@ const ar: MessageCatalog = {
   'planning.state.offline': 'تبقى التغييرات على هذا الجهاز دون اتصال',
   'planning.state.offlineRead': 'دون اتصال: نعرض آخر بيانات محفوظة.',
   'planning.state.error': 'التخطيط غير متاح',
+  'planning.salary.archive': 'أرشفة ملف الراتب',
+  'planning.salary.archiveConfirm': 'هل تريد أرشفة {{name}}؟ سيتوقف استخدامه في تخطيط الراتب، وستبقى العمليات المسجلة محفوظة.',
+  'planning.obligation.archive': 'أرشفة الالتزام',
+  'planning.obligation.archiveConfirm': 'هل تريد أرشفة {{name}}؟ سيُزال من قائمة الالتزامات النشطة، وستبقى الدفعات السابقة محفوظة.',
+  'planning.archiveFailed': 'تعذّر تأكيد الأرشفة. تحقق من الاتصال وحدّث البيانات قبل إعادة المحاولة.',
   'planning.state.hidden': 'القيم مخفية',
   'planning.reason.missing_data': 'غير متاح حتى إضافة بيانات أكثر',
   'planning.reason.missing_rate': 'غير متاح دون سعر صرف',
@@ -1769,6 +1781,7 @@ const ar: MessageCatalog = {
     'تم تعديل هذه الميزانية في شاشة أخرى. أعد التحميل وحاول مجددًا.',
   'planning.salary.amount': 'مبلغ الراتب المتوقع',
   'planning.salary.emptyTitle': 'خطط من راتب إلى راتب',
+  'planning.salary.offlineWithoutProfile': 'اتصل بالإنترنت للتحقق من إعدادات الراتب.',
   'planning.salary.emptySubtitle':
     'أضف تفاصيل راتبك لمعرفة المتبقي ومقدار الصرف اليومي المناسب.',
   'planning.salary.setupSubtitle':

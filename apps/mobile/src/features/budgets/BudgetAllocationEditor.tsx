@@ -19,6 +19,7 @@ import type { BudgetMovePreview } from '@/services/contracts/financial-planning-
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { useBudgetById, usePlanningMutation } from './budget-queries';
@@ -28,6 +29,7 @@ export function BudgetAllocationEditor({
 }: {
   budgetId?: string;
 }) {
+  const theme = useTheme();
   const budget = useBudgetById(budgetId);
   const categories = useCategories();
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
@@ -121,13 +123,13 @@ export function BudgetAllocationEditor({
 
   if (!budgetId)
     return (
-      <PlanningScreen titleKey="planning.budgets.allocation">
+      <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.allocation">
         <PlanningState state="empty" />
       </PlanningScreen>
     );
   if (budget.isLoading || categories.isLoading || (draftEnabled && !draftReady))
     return (
-      <PlanningScreen titleKey="planning.budgets.allocation">
+      <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.allocation">
         <PlanningState state="loading" />
       </PlanningScreen>
     );
@@ -137,7 +139,7 @@ export function BudgetAllocationEditor({
     !budget.data
   )
     return (
-      <PlanningScreen titleKey="planning.budgets.allocation">
+      <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.allocation">
         <PlanningState
           state="error"
           onRetry={() => {
@@ -149,13 +151,13 @@ export function BudgetAllocationEditor({
     );
   if (allocations.length < 2)
     return (
-      <PlanningScreen titleKey="planning.budgets.allocation">
+      <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.allocation">
         <PlanningState state="empty" />
       </PlanningScreen>
     );
 
   return (
-    <PlanningScreen titleKey="planning.budgets.allocation">
+    <PlanningScreen backgroundColor={theme.colors.surfaces.page} titleKey="planning.budgets.allocation">
       {preview ? (
         <>
           {preview.categories

@@ -188,7 +188,7 @@ export function ReportPreviewScreen() {
             <StyledText>
               {fixtureMode
                 ? `${translate('reports.preview.recipient')}: ${recipientEmail ?? translate('reports.preview.notSet')}`
-                : translate('reports.pdf.emailPreparing')}
+                : translate('reports.pdf.reviewHint')}
             </StyledText>
             <StyledText>{reportStateTitle(snapshot.dataState)}</StyledText>
             {(['income', 'expense', 'netCashFlow'] as const).map((metric) => (

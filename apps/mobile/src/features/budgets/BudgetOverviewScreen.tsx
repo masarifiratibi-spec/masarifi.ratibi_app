@@ -15,7 +15,7 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { NavigationRow } from '@/design-system/components/navigation/GroupedList';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { radius, spacing } from '@/design-system/tokens';
 import { safeMinorSum } from '@/domain/core-finance';
 import type { BudgetDetail } from '@/services/contracts/financial-planning-service';
 import {
@@ -31,12 +31,14 @@ import {
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { BudgetForm } from './BudgetForm';
 import { useBudgets, usePlanningMutation } from './budget-queries';
 
 export function BudgetOverviewScreen({ periodKey }: { periodKey?: string }) {
+  const theme = useTheme();
   const timeZone = usePreferenceStore((state) => state.timeZone);
   periodKey ??= localDateInTimeZone(Date.now(), timeZone).slice(0, 7);
   const query = useBudgets(periodKey);
@@ -45,7 +47,7 @@ export function BudgetOverviewScreen({ periodKey }: { periodKey?: string }) {
 
   return (
     <PlanningScreen
-      backgroundColor={colorTokens.neutral.warmSurface}
+      backgroundColor={theme.colors.surfaces.page}
       titleKey="planning.budgets.title"
       action={
         budgets.length
@@ -104,6 +106,7 @@ function BudgetCard({ detail }: { detail: BudgetDetail }) {
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
+  const theme = useTheme();
   const item = detail.budget;
   const lifecycle = usePlanningMutation(
     (status: 'active' | 'paused' | 'deleted') =>
@@ -156,11 +159,11 @@ function BudgetCard({ detail }: { detail: BudgetDetail }) {
           ? translate('reports.state.unavailable')
           : amount(total)}
       </StyledText>
-      <View style={styles.progressTrack}>
+      <View style={[styles.progressTrack, { backgroundColor: theme.colors.borders.subtle }]}>
         <View
           style={[
             styles.progressFill,
-            { width: `${Math.min(100, Math.max(0, percentage))}%` }
+            { backgroundColor: theme.colors.primary, width: `${Math.min(100, Math.max(0, percentage))}%` }
           ]}
         />
       </View>
@@ -251,13 +254,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   progressTrack: {
-    backgroundColor: colorTokens.neutral.warmBorder,
     borderRadius: radius.pill,
     height: 8,
     overflow: 'hidden'
   },
   progressFill: {
-    backgroundColor: colorTokens.teal[600],
     height: '100%'
   },
   metrics: {

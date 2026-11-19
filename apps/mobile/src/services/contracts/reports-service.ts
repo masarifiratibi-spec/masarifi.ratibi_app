@@ -76,12 +76,18 @@ export interface ReportsService {
   requestOutput(
     input:
       | {
-          kind: Exclude<ReportOutputKind, 'scheduled' | 'retry'>;
+          kind: Exclude<ReportOutputKind, 'scheduled' | 'retry' | 'send_now'>;
+          previewId: string;
+        }
+      | {
+          kind: 'send_now';
+          expectedAccountEmail?: string;
           previewId: string;
         }
       | { kind: 'scheduled'; scheduleId: string; scheduledFor: number }
       | { kind: 'retry'; previousAttemptId: string },
-    operationId: string
+    operationId: string,
+    isConfirmationCurrent?: () => boolean
   ): Promise<MutationResult<ReportOutputAttempt>>;
   getAttempt(id: string, context?: ReadContext): Promise<ReportOutputAttempt>;
 }

@@ -274,6 +274,7 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
           s: 1,
           k: recover429 ? 'i' : 'e',
           a: recover429 ? '-100' : '2500',
+          w: recover429 ? 'one' : 'twenty five',
           c: 'o:',
           b: 'o:',
           g: category.alias,
@@ -290,10 +291,10 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
             : [
                 event,
                 { ...event, q: 0.95 }, // Same spoken occurrence extracted twice: one financial effect.
-                { ...event, s: 2, a: '4000' },
-                { ...event, s: 3, a: '12000' },
-                { ...event, s: 4, k: 'r', a: '5000' },
-                { ...event, s: 5, a: '', m: 'Private skipped content' },
+                { ...event, s: 2, a: '4000', w: '40' },
+                { ...event, s: 3, a: '12000', w: '120' },
+                { ...event, s: 4, k: 'r', a: '5000', w: '50' },
+                { ...event, s: 5, a: '', w: '', m: 'Private skipped content' },
               ],
         };
         return Promise.resolve(
@@ -311,7 +312,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       const worker = new AiWorker(
         repository,
         storage as never,
-        new AiGateway({ apiKey: 'offline-fixture', fetcher }),
+        new AiGateway({
+          circuit: repository,
+          apiKey: 'offline-fixture',
+          fetcher,
+        }),
         config as never,
       );
       try {
@@ -633,7 +638,11 @@ describeLiveDatabase('Voice offline journey through real boundaries', () => {
       await new AiWorker(
         repository,
         storage as never,
-        new AiGateway({ apiKey: 'offline-fixture', fetcher }),
+        new AiGateway({
+          circuit: repository,
+          apiKey: 'offline-fixture',
+          fetcher,
+        }),
         config as never,
       ).runJob('voice.transcribe_extract');
       const upstreamResults: PromiseSettledResult<Response>[] = await Promise.allSettled(

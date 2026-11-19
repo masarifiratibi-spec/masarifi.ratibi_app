@@ -15,6 +15,7 @@ import {
 import { registerLiveClerkBridge, type LiveClerkBridge } from './auth-service';
 import { createLiveFinancialPlanningService } from './financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
+import * as offlineRead from './planning-offline-read';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null), setItemAsync: jest.fn(), deleteItemAsync: jest.fn()
@@ -40,6 +41,38 @@ const bridge = {
 } satisfies LiveClerkBridge;
 
 beforeAll(() => registerLiveClerkBridge(bridge));
+
+it('does not dispatch either archive while the device is offline', async () => {
+  const offline = jest.spyOn(offlineRead, 'isPlanningOffline').mockResolvedValue(true);
+  const request = jest.fn();
+  try {
+    const service = createLiveFinancialPlanningService({ baseUrl: 'https://unit.test', request });
+    await expect(service.archiveSalaryProfile(salaryProfileWireFixture.id, 1, 'salary-archive'))
+      .rejects.toMatchObject({ code: 'offline_unavailable' });
+    await expect(service.setObligationStatus(salaryProfileWireFixture.id, 2, 'archived', 'obligation-archive'))
+      .rejects.toMatchObject({ code: 'offline_unavailable' });
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    offline.mockRestore();
+  }
+});
+
+it('archives the reviewed salary profile with its version and idempotency key', async () => {
+  const profile = { ...salaryProfileWireFixture, status: 'archived', version: 2 };
+  const request = jest.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
+    new Response(JSON.stringify({ operationId: '11111111-1111-4111-8111-111111111111',
+      replayed: false, resource: profile })));
+  const service = createLiveFinancialPlanningService({ baseUrl: 'https://unit.test', request });
+  const key = 'archive:salary:' + profile.id + ':1';
+  const result = await service.archiveSalaryProfile(profile.id, 1, key);
+  const [url, init] = request.mock.calls[0];
+  expect(String(url)).toBe('https://unit.test/api/v1/salary-profiles/' + profile.id);
+  expect(init?.method).toBe('DELETE');
+  expect(new Headers(init?.headers).get('Idempotency-Key')).toBe(key);
+  expect(JSON.parse(String(init?.body))).toEqual({ expectedVersion: 1 });
+  expect(result.value.status).toBe('archived');
+  expect(result.affectedScopes).toEqual(expect.arrayContaining(['planning.salary.overview', 'home.summary', 'reports.live']));
+});
 
 it.each(['archived', 'paused', 'completed', 'closed'] as const)(
   'keeps active obligation totals authoritative when the list also contains %s history',

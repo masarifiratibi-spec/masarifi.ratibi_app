@@ -98,6 +98,22 @@ function quotaError(quota: Record<string, unknown>): never {
 export class AiRepository {
   constructor(private readonly pool: PoolService) {}
 
+  async acquireCircuit(workload: string, leaseMs: number): Promise<string | null> {
+    const { rows } = await this.pool.query<{ token: string | null }>(
+      'select private.acquire_ai_circuit($1,$2) token',
+      [workload, leaseMs],
+    );
+    return rows[0]?.token ?? null;
+  }
+
+  async finishCircuit(
+    workload: string,
+    token: string,
+    outcome: 'success' | 'retryable' | 'neutral',
+  ): Promise<void> {
+    await this.pool.query('select private.finish_ai_circuit($1,$2,$3)', [workload, token, outcome]);
+  }
+
   operationId(principal: ClerkPrincipal, scope: string, key: string): string {
     return stableUuid(`${principal.userId}:${scope}:${hashIdempotencyKey(key)}`);
   }

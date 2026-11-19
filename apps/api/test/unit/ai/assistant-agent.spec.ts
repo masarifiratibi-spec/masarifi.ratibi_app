@@ -1,10 +1,11 @@
+import { createTestGateway } from '../../ai-test-gateway';
 import {
   AssistantAgent,
   ASSISTANT_AGENT_SCHEMA,
   renderAssistantAnswer,
 } from '../../../src/ai/assistant-agent';
 import type { AssistantDataQuery } from '../../../src/ai/assistant-agent-data';
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import Ajv from 'ajv';
 
 const claim = {
@@ -74,7 +75,7 @@ describe('requested-day evidence before the first model round', () => {
   ])('answers %s with one grounded model round in %s', async (content, timezone, date) => {
     const reads: Array<{ jobId: string; token: string; query: AssistantDataQuery }> = [];
     let dispatches = 0;
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-requested-day-key',
       fetcher: (_url, init) => {
         dispatches += 1;
@@ -195,7 +196,7 @@ describe('requested-day evidence before the first model round', () => {
     'كم صرفت ﻣﻨﺬ أمس؟',
   ])('keeps existing model-selected scope for ambiguous or wider requests: %s', async (content) => {
     const read = jest.fn(() => Promise.resolve(sample));
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-model-selected-period-key',
       fetcher: () =>
         Promise.resolve(
@@ -262,7 +263,7 @@ it.each([
       status: 'confirmed',
       occurredAt: '2026-10-31T22:30:00Z',
     }));
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-complete-record-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw Error('Expected request JSON');
@@ -776,7 +777,7 @@ it('renders model object markers around known facts as plain text', () => {
 });
 
 it('selects typed facts in the 19 October constrained-decoding and omitted-amount regression', async () => {
-  const gateway = new AiGateway({
+  const gateway = createTestGateway({
     apiKey: 'synthetic-answer-parts-key',
     fetcher: (_url, init) => {
       if (typeof init?.body !== 'string') throw Error('FIXTURE_REQUEST_BODY_MISSING');
@@ -853,7 +854,7 @@ it.each([
     code: 'AI_UNGROUNDED_ANSWER',
   },
 ])('rejects malformed structured model output: $name', async ({ parts, code }) => {
-  const gateway = new AiGateway({
+  const gateway = createTestGateway({
     apiKey: 'synthetic-malformed-parts-key',
     fetcher: () =>
       Promise.resolve(
@@ -891,7 +892,7 @@ it.each([true, false])(
   'does not accept the 19 October incomplete spending reply as a verified fact (repair=%s)',
   async (repair) => {
     let requests = 0;
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-incomplete-fact-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('EXPECTED_REQUEST_BODY');
@@ -1012,7 +1013,7 @@ it.each([
   'checks non-numeric $name without inventing a verified fact',
   async ({ answer, type, data, accepted }) => {
     let requests = 0;
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-named-fact-key',
       fetcher: () => {
         requests += 1;
@@ -1104,7 +1105,7 @@ it('diagnoses parallel reads and grounding repair without exposing financial or 
       scope: 'all_history',
     },
   ];
-  const gateway = new AiGateway({
+  const gateway = createTestGateway({
     apiKey: 'synthetic-test-key',
     fetcher: () => {
       clock += 20;
@@ -1203,7 +1204,7 @@ it.each(['provider', 'cancelled', 'overview'] as const)(
   async (failure) => {
     const diagnostics: unknown[] = [];
     const controller = new AbortController();
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-test-key',
       fetcher: () => {
         if (failure === 'cancelled') controller.abort();
@@ -1244,7 +1245,7 @@ it.each(['provider', 'cancelled', 'overview'] as const)(
 it('keeps a grounded answer when the diagnostic sink fails', async () => {
   const agent = new AssistantAgent(
     { read: () => Promise.resolve(sample) } as never,
-    new AiGateway({
+    createTestGateway({
       apiKey: 'synthetic-test-key',
       fetcher: () =>
         Promise.resolve(
@@ -1291,7 +1292,7 @@ it.each([
   async ({ current, previous, outside }) => {
     let messages: Array<{ role: string; content: string }> = [];
     let reasoning: unknown;
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-test-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
@@ -1426,7 +1427,7 @@ it('keeps a name that resembles a selector available to grounding without extra 
           data: { accounts: { items: [{ alias: 'ACCOUNT-1', name: 'Account- Main' }] } },
         }),
     } as never,
-    new AiGateway({
+    createTestGateway({
       apiKey: 'synthetic-test-key',
       fetcher: () => {
         dispatches += 1;
@@ -1476,7 +1477,7 @@ it.each([true, false])(
     );
     const agent = new AssistantAgent(
       { read } as never,
-      new AiGateway({
+      createTestGateway({
         apiKey: 'synthetic-test-key',
         fetcher: (_url, init) => {
           if (typeof init?.body !== 'string') throw new Error('EXPECTED_REQUEST_BODY');
@@ -1736,7 +1737,7 @@ it.each(
   'does not publish malformed fact marker $marker and attempts bounded repair: corrected=$corrected',
   async ({ marker, corrected }) => {
     const feedback: unknown[] = [];
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');
@@ -1968,7 +1969,7 @@ it('keeps completed financial reads and grounds the answer after two transport s
   try {
     const read = jest.fn(() => Promise.resolve(sample));
     const bodies: string[] = [];
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic',
       assistantRecovery: true,
       fetcher: (_url, init) => {
@@ -2299,7 +2300,7 @@ it.each([
       },
     };
     let round = 0;
-    const gateway = new AiGateway({
+    const gateway = createTestGateway({
       apiKey: 'synthetic-empty-day-key',
       fetcher: (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON request body');

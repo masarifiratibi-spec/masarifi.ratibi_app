@@ -15,7 +15,11 @@ import {
   type ReportPeriodRange,
 } from './reports.period';
 import {
+  bindConfirmedMailbox,
+  isPlanningReport,
   parseReportSnapshot,
+  SELECTED_ACCOUNTS_PLANNING_REASON,
+  unavailablePlanningContent,
   type DeliveryChannel,
   type ReportFormat,
   type ReportType,
@@ -51,7 +55,8 @@ export interface ReportsSummaryResponse {
       endDate: string;
       timezone: string;
     };
-    dataState: 'complete' | 'empty';
+    dataState: 'complete' | 'empty' | 'partial';
+    planningUnavailableReason?: typeof SELECTED_ACCOUNTS_PLANNING_REASON;
     evidence: Array<{ kind: 'ledger'; version: number; asOf: string }>;
   };
   summaries: Array<{
@@ -280,7 +285,10 @@ export class ReportsRepository {
         amount: { amountMinor: safeInteger(row.amount_minor), currency: row.currency_code.trim() },
         occurredAt: row.occurred_at.toISOString(),
       }));
-      return { ...summary, balances, planning, recentItems };
+      const metadata = planning.budgets.some((budget) => budget.spentMinor === null)
+        ? { ...summary.metadata, dataState: 'partial' as const }
+        : summary.metadata;
+      return { ...summary, metadata, balances, planning, recentItems };
     });
   }
 
@@ -293,6 +301,7 @@ export class ReportsRepository {
       format: ReportFormat;
       delivery: DeliveryChannel;
       recipient: null;
+      expectedAccountEmail?: string;
       accountIds?: string[];
       currency?: string;
       timezone?: string;
@@ -416,6 +425,14 @@ export class ReportsRepository {
               },
               format: command.format,
               delivery: command.delivery,
+              ...(command.expectedAccountEmail
+                ? {
+                    confirmedMailbox: bindConfirmedMailbox(
+                      principal.userId,
+                      command.expectedAccountEmail,
+                    ),
+                  }
+                : {}),
               currencyCode: currency,
               dataState: content.dataState,
               evidence: summary.metadata.evidence,
@@ -1389,13 +1406,23 @@ export class ReportsRepository {
     userId: string,
     period: ReportPeriodRange,
     currency: string | null,
-  ): Promise<Record<string, unknown[]>> {
+  ) {
     const budgets = (
-      await client.query<{ currency_code: string; total_minor: string; spent_minor: string }>(
+      await client.query<{
+        currency_code: string;
+        total_minor: string;
+        spent_minor: string | null;
+      }>(
         `select b.currency_code,sum(b.total_minor)::bigint total_minor,
-           coalesce(sum(u.spent_minor),0)::bigint spent_minor
-         from public.budgets b left join public.v_budget_utilization u on u.budget_id=b.id
-         where b.user_id=$1 and b.status<>'deleted' and b.period_end>=$2::date and b.period_start<=$3::date
+           case when bool_or(u.missing_rate) then null
+             else coalesce(sum(u.spent_minor),0)::bigint end spent_minor
+         from public.budgets b
+         left join lateral (
+           select sum(v.spent_minor) spent_minor, bool_or(v.unavailable_reason='missing_rate') missing_rate
+           from public.v_budget_utilization v
+           where v.budget_id=b.id and v.user_id=b.user_id
+         ) u on true
+         where b.user_id=$1 and b.status='active' and b.period_end>=$2::date and b.period_start<=$3::date
            and ($4::char(3) is null or b.currency_code=$4)
          group by b.currency_code order by b.currency_code limit 16`,
         [userId, period.startDate, period.endDate, currency],
@@ -1403,7 +1430,12 @@ export class ReportsRepository {
     ).rows.map((row) => ({
       currency: row.currency_code.trim(),
       budgetMinor: safeInteger(row.total_minor),
-      spentMinor: safeInteger(row.spent_minor),
+      spentMinor: row.spent_minor === null ? null : safeInteger(row.spent_minor),
+      remainingMinor:
+        row.spent_minor === null
+          ? null
+          : safeInteger((BigInt(row.total_minor) - BigInt(row.spent_minor)).toString()),
+      ...(row.spent_minor === null ? { unavailableReason: 'missing_rate' } : {}),
     }));
     const obligations = (
       await client.query<{
@@ -1504,16 +1536,22 @@ export class ReportsRepository {
     summary: Record<string, unknown>;
     breakdowns: Record<string, unknown>[];
     detailedRows: Record<string, unknown>[];
-    dataState: 'complete' | 'empty';
+    dataState: 'complete' | 'empty' | 'partial';
   }> {
+    const minorUnit = (
+      await client.query<{ minor_unit: number }>(
+        'select minor_unit from public.currencies where code=$1',
+        [input.currency],
+      )
+    ).rows[0]?.minor_unit;
+    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
+      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
+    const currencyMinorUnits = { [input.currency]: minorUnit };
+    const planningReport = isPlanningReport(input.reportType);
+    if (input.summary.metadata.planningUnavailableReason)
+      return unavailablePlanningContent(currencyMinorUnits);
     const includePlanning =
-      !input.accountIds?.length &&
-      [
-        'financial_summary',
-        'budget_performance',
-        'obligation_progress',
-        'savings_progress',
-      ].includes(input.reportType);
+      !input.accountIds?.length && (input.reportType === 'financial_summary' || planningReport);
     const planning = includePlanning
       ? await this.readPlanning(client, input.userId, input.period, input.currency)
       : undefined;
@@ -1529,25 +1567,28 @@ export class ReportsRepository {
       ? input.summary.breakdowns
       : [];
     const hasPlanning = planning && Object.values(planning).some((rows) => rows.length > 0);
+    const partialBudget =
+      (input.reportType === 'financial_summary' || input.reportType === 'budget_performance') &&
+      planning?.budgets.some((budget) => budget.spentMinor === null);
     const hasData =
       input.summary.summaries.length > 0 || breakdowns.length > 0 || detailedRows.length > 0;
-    const minorUnit = (
-      await client.query<{ minor_unit: number }>(
-        'select minor_unit from public.currencies where code=$1',
-        [input.currency],
-      )
-    ).rows[0]?.minor_unit;
-    if (!Number.isInteger(minorUnit) || minorUnit === undefined || minorUnit < 0 || minorUnit > 4)
-      throw new Error('REPORT_CURRENCY_METADATA_UNAVAILABLE');
+    const planningRows: Partial<Record<ReportType, unknown[]>> = planning
+      ? {
+          budget_performance: planning.budgets,
+          obligation_progress: planning.obligations,
+          savings_progress: planning.savingsGoals,
+        }
+      : {};
+    const reportHasData = planningRows[input.reportType]?.length ?? (hasData || hasPlanning);
     return {
       summary: {
         summaries: input.summary.summaries,
         ...(planning ? { planning } : {}),
-        currencyMinorUnits: { [input.currency]: minorUnit },
+        currencyMinorUnits,
       },
       breakdowns,
       detailedRows,
-      dataState: hasData || hasPlanning ? 'complete' : 'empty',
+      dataState: partialBudget ? 'partial' : reportHasData ? 'complete' : 'empty',
     };
   }
 
@@ -1559,6 +1600,39 @@ export class ReportsRepository {
     currency: string | null,
     accountIds?: string[],
   ): Promise<ReportsSummaryResponse> {
+    const ledgerVersion = safeInteger(
+      (
+        await client.query<{ ledger_version: string }>(
+          `select coalesce(max(b.ledger_version),0)::bigint ledger_version
+           from public.account_balances b join public.accounts a on a.id=b.account_id where a.user_id=$1`,
+          [userId],
+        )
+      ).rows[0]?.ledger_version ?? '0',
+    );
+    const generatedAt = new Date().toISOString();
+    const metadata: Omit<ReportsSummaryResponse['metadata'], 'dataState'> = {
+      schemaVersion: 1,
+      generatedAt,
+      ledgerVersion,
+      reportType,
+      period: period.kind,
+      range: {
+        startDate: period.startDate,
+        endDate: period.endDate,
+        timezone: period.timezone,
+      },
+      evidence: [{ kind: 'ledger', version: ledgerVersion, asOf: generatedAt }],
+    };
+    if (accountIds?.length && isPlanningReport(reportType))
+      return {
+        metadata: {
+          ...metadata,
+          dataState: 'partial',
+          planningUnavailableReason: SELECTED_ACCOUNTS_PLANNING_REASON,
+        },
+        summaries: [],
+        breakdowns: [],
+      };
     // Sum signed postings so account moves cancel and transfer fees stay on their actual account.
     const reportTransactions = `with report_transactions as (
       select t.id,t.user_id,t.kind,t.status,t.deleted_at,t.occurred_at,t.currency_code,
@@ -1648,30 +1722,10 @@ export class ReportsRepository {
       expenseMinor: safeInteger(row.expense_minor),
       transactionCount: safeInteger(row.transaction_count),
     }));
-    const ledgerVersion = safeInteger(
-      (
-        await client.query<{ ledger_version: string }>(
-          `select coalesce(max(b.ledger_version),0)::bigint ledger_version
-           from public.account_balances b join public.accounts a on a.id=b.account_id where a.user_id=$1`,
-          [userId],
-        )
-      ).rows[0]?.ledger_version ?? '0',
-    );
-    const generatedAt = new Date().toISOString();
     return {
       metadata: {
-        schemaVersion: 1,
-        generatedAt,
-        ledgerVersion,
-        reportType,
-        period: period.kind,
-        range: {
-          startDate: period.startDate,
-          endDate: period.endDate,
-          timezone: period.timezone,
-        },
+        ...metadata,
         dataState: summaries.length === 0 ? 'empty' : 'complete',
-        evidence: [{ kind: 'ledger', version: ledgerVersion, asOf: generatedAt }],
       },
       summaries,
       breakdowns,

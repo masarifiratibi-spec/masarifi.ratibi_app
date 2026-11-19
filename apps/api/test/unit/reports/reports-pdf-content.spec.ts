@@ -109,6 +109,41 @@ describe('customer PDF report content', () => {
     expect(sections.flatMap((section) => section.rows.flat())).toContain('17');
     expect(sections.flatMap((section) => section.rows.flat())).not.toContain('0.00 SAR');
   });
+
+  it('keeps a partial budget limit visible and explains both unavailable amounts in Arabic', () => {
+    const partial: ReportSnapshot = {
+      ...snapshot,
+      dataState: 'partial',
+      summary: {
+        currencyMinorUnits: { SAR: 2 },
+        planning: {
+          budgets: [
+            {
+              currency: 'SAR',
+              budgetMinor: 100000,
+              spentMinor: null,
+              remainingMinor: null,
+              unavailableReason: 'missing_rate',
+            },
+          ],
+          obligations: [],
+        },
+      },
+    };
+    for (const reportType of ['financial_summary', 'budget_performance'] as const) {
+      const budget = buildReportPdfSections({ ...partial, reportType }).find(
+        (s) => s.title === 'الميزانيات',
+      );
+      expect(budget?.rows).toEqual([
+        ['حد الميزانية', '1,000.00 SAR'],
+        ['المصروف', 'غير متاح لعدم توفر سعر الصرف'],
+        ['المتبقي', 'غير متاح لعدم توفر سعر الصرف'],
+      ]);
+    }
+    expect(
+      buildReportPdfSections({ ...partial, reportType: 'obligation_progress', dataState: 'empty' }),
+    ).toEqual([]);
+  });
 });
 
 it('honors snake_case per-row currencies and scales in supported multi-currency summaries', () => {

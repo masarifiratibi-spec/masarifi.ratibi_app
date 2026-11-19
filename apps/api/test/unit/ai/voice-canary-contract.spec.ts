@@ -1,8 +1,9 @@
+import { createTestGateway } from '../../ai-test-gateway';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { parseVoiceWorkerOutput } from '../../../src/ai/ai.schemas';
 import { normalizeVertexVoiceOutput } from '../../../src/ai/voice-provider-schema';
-import { AiGateway, type EffectiveAiRoute } from '../../../src/ai/ai.gateway';
+import type { EffectiveAiRoute } from '../../../src/ai/ai.gateway';
 import { VOICE_OUTPUT_SCHEMA } from '../../../src/ai/ai.schemas';
 
 type Complete = (
@@ -162,7 +163,7 @@ describe('operational Voice canary contract', () => {
         ),
       ),
     );
-    const gateway = new AiGateway({ apiKey: 'offline-placeholder', fetcher });
+    const gateway = createTestGateway({ apiKey: 'offline-placeholder', fetcher });
     const complete: Complete = (request) =>
       gateway.complete({ ...request, route, schema: VOICE_OUTPUT_SCHEMA, requestId: 'offline' });
     const evidence = {};

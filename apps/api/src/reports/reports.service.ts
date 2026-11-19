@@ -119,6 +119,8 @@ export class ReportsService {
         const identity = await this.identity?.getIdentityUser(principal.userId);
         if (
           !identity?.primaryEmail ||
+          (command.expectedAccountEmail &&
+            identity.primaryEmail.toLowerCase() !== command.expectedAccountEmail) ||
           (command.recipient === null && !identity.primaryEmailVerified) ||
           (command.recipient !== null && identity.primaryEmail.toLowerCase() !== command.recipient)
         )

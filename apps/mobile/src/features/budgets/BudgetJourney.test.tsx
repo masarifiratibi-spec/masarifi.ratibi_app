@@ -1,4 +1,6 @@
 import React from 'react';
+import { ScrollView } from 'react-native';
+import { darkThemeColors } from '@/design-system/tokens';
 import { act, fireEvent, waitFor, render } from '@testing-library/react-native';
 import { notifyManager, QueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -30,6 +32,26 @@ beforeAll(() => {
 
 afterAll(() => {
   notifyManager.setNotifyFunction((callback) => callback());
+});
+
+it.each([
+  ['overview', <BudgetOverviewScreen key="overview" />],
+  ['new', <BudgetForm key="new" />],
+  ['edit', <BudgetForm key="edit" budgetId="budget-jan" />],
+  ['allocation', <BudgetAllocationEditor key="allocation" budgetId="budget-jan" />],
+  ['transactions', <BudgetTransactionsScreen key="transactions" budgetId="budget-jan" />]
+] as const)('uses the app dark theme on the %s budget page', (_, element) => {
+  const previous = usePreferenceStore.getState().theme;
+  usePreferenceStore.setState({ theme: 'dark' });
+  const view = renderWithProviders(element);
+  try {
+    expect(view.UNSAFE_getByType(ScrollView).props.style).toMatchObject({
+      backgroundColor: darkThemeColors.surfaces.page
+    });
+  } finally {
+    view.unmount();
+    usePreferenceStore.setState({ theme: previous });
+  }
 });
 
 it('renders budget overview, form, allocation, and transaction states', async () => {
