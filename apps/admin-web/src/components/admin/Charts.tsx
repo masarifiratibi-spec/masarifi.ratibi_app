@@ -14,9 +14,7 @@ export const CHART_SERIES = [
   "var(--chart-series-4)",
 ] as const;
 
-export function ChartCard({ title, subtitle, summary, children }: { title: string; subtitle?: string; summary: string; children: React.ReactNode }) {
-  return <article className="chart-card"><div className="card-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div></div><div className="chart-wrap">{children}</div><p className="sr-only">{summary}</p></article>;
-}
+export { ChartCard } from "./ChartCard";
 
 export function TrendChart({ data, compare = false }: { data: ChartPoint[]; compare?: boolean }) {
   const { direction } = useLocale();
