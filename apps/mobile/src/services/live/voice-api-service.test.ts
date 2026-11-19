@@ -200,6 +200,59 @@ function successfulRequest(
     );
 }
 
+it.each(['create', 'upload', 'upload receipt'] as const)('recovers a 60-second recording across a stalled %s and restart', async (stage) => {
+  jest.useFakeTimers();
+  try {
+    const session = { ...recovery().session, status: 'uploaded', durationMs: 60_000 };
+    const uploadState = { ...recovery(), session, proposal: null, phase: stage === 'upload receipt' ? 'uploaded' : 'awaiting_audio' };
+    let stall = true;
+    let processed = false;
+    const request = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const path = String(url);
+      if (path.startsWith('file:')) return new Response(wav);
+      if (stall && path.endsWith(stage === 'create' ? '/sessions' : '/audio'))
+        return new Promise<Response>(() => {});
+      if (path.endsWith('/sessions')) return json({ session, upload: {
+        method: 'PUT', path: '/api/v1/voice/sessions/' + session.id + '/audio', expiresAt: at
+      } }, 201);
+      if (path.endsWith('/recovery')) return json(processed ? recovery() : uploadState);
+      if (path.endsWith('/audio')) return json(uploadReceipt());
+      if (path.endsWith('/process')) {
+        processed = true;
+        return json({ id: session.id, status: 'queued' }, 202);
+      }
+      if (init?.method === 'GET' && path.endsWith(session.id)) return json(recovery().session);
+      throw new Error('Unexpected voice request: ' + path);
+    });
+    const options = { baseUrl: 'https://api.test', token: async () => 'token', request, sleep: async () => {} };
+    const first = createLiveVoiceApiService(options);
+    const capture = expect(first.transcribe('file:///minute.wav', 'clear_en', 60_000, 'en'))
+      .rejects.toMatchObject({ code: 'processing_timed_out' });
+    await jest.advanceTimersByTimeAsync(stage === 'create' ? 10_001 : 30_001);
+    await capture;
+    const stalledRequest = request.mock.calls.at(-1)?.[1];
+    expect(stalledRequest?.signal?.aborted).toBe(true);
+    stall = false;
+    const restored = createLiveVoiceApiService(options);
+    const previousRequests = request.mock.calls.length;
+    const review = { transcript: { analysisReference: { sessionId: session.id } } };
+    if (stage === 'upload receipt') {
+      await expect(restored.recoverPending?.()).resolves.toMatchObject(review);
+      expect(request.mock.calls.filter(([url]) => String(url).endsWith('/audio'))).toHaveLength(1);
+    } else {
+      await expect(restored.recoverPending?.()).rejects.toMatchObject({ code: 'operation_cancelled' });
+      expect(request.mock.calls.slice(previousRequests).every(([, init]) => init?.method === 'GET')).toBe(true);
+      await expect(restored.recoverPending?.(true)).resolves.toMatchObject(review);
+    }
+    const creates = request.mock.calls.filter(([url]) => String(url).endsWith('/sessions'));
+    expect(new Set(creates.map(([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key'])).size).toBe(1);
+    expect(JSON.parse(String(creates[0][1]?.body)).durationMs).toBe(60_000);
+    expect(request.mock.calls.filter(([url]) => String(url).endsWith('/process'))).toHaveLength(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 it('routes ordinary live capture to transcript and proposal review without automatic financial submission', async () => {
   const request = successfulRequest(undefined, proposal({
     redactedTranscript: 'I spent 25 Saudi riyals on food from Voice Staging Test today',

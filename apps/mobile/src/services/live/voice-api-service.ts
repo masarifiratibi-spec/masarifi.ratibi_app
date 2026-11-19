@@ -808,14 +808,18 @@ export function createLiveVoiceApiService(
         // Preserve unconfirmed evidence before any remote recovery or audio replay.
         return null;
       }
-      if (!operation.sessionId) {
-        if (retryAudio) operation = await uploadAndProcess(binding, operation);
-        else {
-          await discard(binding, operation);
-          throw new VoiceCaptureError('re_record_required');
-        }
-      }
+      const resumeAudio = async (capture: VoiceOperation) => {
+        if (retryAudio) return uploadAndProcess(binding, capture);
+        // Startup can inspect pending audio. Only an explicit retry may send it.
+        if (capture.audioReference && capture.createBody)
+          throw new VoiceCaptureError('operation_cancelled');
+        await discard(binding, capture);
+        throw new VoiceCaptureError('re_record_required');
+      };
+      if (!operation.sessionId) operation = await resumeAudio(operation);
       const result = await recovery(binding, operation.sessionId!);
+      if (result.session.id !== operation.sessionId)
+        throw new VoiceCaptureError('analysis_failed');
       if (
         result.phase === 'cancelled' ||
         result.phase === 'expired' ||
@@ -826,13 +830,7 @@ export function createLiveVoiceApiService(
         });
         throw failedSession(result.session.failureCode);
       }
-      if (result.phase === 'awaiting_audio') {
-        if (retryAudio) operation = await uploadAndProcess(binding, operation);
-        else {
-          await discard(binding, operation);
-          throw new VoiceCaptureError('re_record_required');
-        }
-      }
+      if (result.phase === 'awaiting_audio') operation = await resumeAudio(operation);
       if (result.transactionId && result.phase === 'confirmed') {
         try {
           await update(binding, operation, {
@@ -859,8 +857,14 @@ export function createLiveVoiceApiService(
         if (automaticCapture) return null;
         return remember(binding, operation, result);
       }
-      if (result.phase === 'uploaded')
+      if (result.phase === 'uploaded') {
+        if (operation.phase === 'created')
+          operation = await update(binding, operation, {
+            phase: 'uploaded',
+            sessionVersion: result.session.version
+          });
         operation = await uploadAndProcess(binding, operation);
+      }
       if (result.phase === 'confirming' || result.phase === 'confirmed')
         throw new VoiceCaptureError('recovery_required');
       return poll(binding, operation);
