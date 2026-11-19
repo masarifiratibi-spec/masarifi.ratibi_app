@@ -1,6 +1,6 @@
 # Android and dashboard acceptance, 19 November 2026
 
-Branch `codex/voice-promoted-operating-2026-10-13` started this change at `3fd103c7`. Android reference is the private Redmi 12 5G update 1.0.1 (153). Mobile implementation is in `8352c6e1` and `83845fbd`, Admin and API monitoring in `e512e428`, and the report API and worker in `5d71ca5d`.
+Branch `codex/voice-promoted-operating-2026-10-13` started this change at `3fd103c7`. Android reference is the private Redmi 12 5G update 1.0.1 (153). Mobile implementation is in `8352c6e1` and `83845fbd`, Admin and API monitoring in `e512e428`, the report API and worker in `5d71ca5d` and `307c518c`, and the Admin rate-limit and recent-login response in `b4968b21`.
 
 | Journey | Current evidence | Next physical or hosted observation |
 |---|---|---|
@@ -21,4 +21,28 @@ Monitoring collection, service selection, retention and the aggregate mount are 
 
 The report worker that understands the optional confirmed-mailbox binding must be active before any API can create bound snapshots. Legacy requests and stored snapshots remain readable. New mobile PDF email requests require the matching API. Before rolling that worker back, stop accepting bound requests and drain them on the compatible worker or hold the report queue. Preserve generated files, pending attempts, storage and database state throughout the transition.
 
-The November 14 temporary-support packet has its own source and route pins. The November 19 changes also need the monitoring route and mount, new Admin assets, report API and compatible worker. Any hosted candidate must account for existing VPS overrides and compare the serving preimages before switching routes. The changes in these four source commits add no SQL migration. A previous support-access migration has its own admission procedure and must be checked against the target. [VPS review](../operations/2026-11-14-dashboard-vps-release-draft.md)
+The November 14 temporary-support packet has its own source and route pins. The November 19 changes also need the monitoring route and mount, new Admin assets, report API and compatible worker. Any hosted candidate must account for existing VPS overrides and compare the serving preimages before switching routes. The report and monitoring changes in this review add no SQL migration. A concurrent change on the same branch adds a separate budget-calendar migration. Its rollout is outside this scoped release. A previous support-access migration has its own admission procedure and must be checked against the target. [VPS review](../operations/2026-11-14-dashboard-vps-release-draft.md)
+
+## Private Android candidate
+
+Release 1.0.1 (154) was built from `83845fbd078b82ae1604690518525e5558136297`. The 50,874,697-byte arm64 APK has SHA-256 `c66f38ec3ff3b9bd45d7ddcca9dd924cc913dc8f8509deb7a36ebedaa38a2873`. The release signer matched build 153 on API levels 24, 28, 32, 33, 35 and 36. Qualification verified the constrained manifest, Hermes version 96 and twelve feature markers, R8/DEX retention and 16 KiB native alignment. One React Native Screens library also changed in linked code and data after its fresh compile from pinned inputs. Physical checks belong to the specific installed build.
+
+## Report review follow-up
+
+Commit `307c518c` aligned the PDF and mobile card on active budgets, including a month with both active and paused records. A selected-account request for budget, obligation or savings reports now produces an explicit partial result across the summary API, JSON, CSV and PDF. Unrelated transaction totals are suppressed. The renderer also recognizes previously captured snapshots with the old selected-account representation. All 150 report unit tests and the 11 SQL integration tests on the final report source passed.
+
+The final 307c518c report-generation tests passed 11/11 against exactly the original 187 checksum-verified migrations as well as against 188 migrations. The backend archive (SHA-256 `15860d1dc419df364f5e21126122ecb1850550e3647616a70925a5a243eb2e0b`) includes 11 scoped modules and the worker-first rollback guide. The API typecheck, all three Nest build targets and Linux module imports passed. Independent work on safe-to-spend, calendar boundaries and tracking storage has its own release sequence. Android 154 was built before that work.
+
+## Installed Redmi checkpoint
+
+The ordinary 153→154 update succeeded on the Redmi. The installed APK hash matched the approved file. Both Android profiles retained the same UIDs, data-directory inodes and first install times. A cold launch returned to the signed-in home screen. On the actual Arabic UI, the account-search icon, date Back control, currency rows and salary toggle labels aligned correctly. The report budget matched the sum visible on the linked Budget Overview for the same month. The PDF confirmation showed the period, verified-recipient field and both buttons. Cancel returned to the report without a send. The savings list had no existing goal.
+
+The exact-source local smoke suite passed 285 distinct tests in 15 suites for sign-in and session restoration, manual entry, offline recovery, voice and assistant. Test transport was isolated. One form test needed a longer per-test timeout under load. The offline replay fixture needed the exact matching backend DTO source staged alongside the private Android source snapshot. Both suites passed in full on the repeat.
+
+## Physical follow-up and current VPS comparison
+
+On the Redmi, English and Arabic assistant cards retained the intended order at font scale 1.6. English search, date and currency controls mirrored correctly. The original Arabic locale and font scale 1.0 were restored. With Android permissions already granted, five trials for each source started with both tracking sources off. The median and nearest-rank p95 upper observation bounds were 6.703 s and 7.422 s for SMS and 6.750 s and 7.125 s for notifications. With five samples, each p95 equals the slowest observed trial. The only 153 reference was a single 10.266 s upper observation. A comparable 153 distribution and a production breakdown of per-stage latency remain unavailable. Both original ON preferences survived a cold restart. The PDF confirmation was cancelled and the assistant and voice entry points were visible.
+
+The user chose to preserve a pre-existing manual-entry draft and accept local sync coverage. The ordinary form uses the same draft slot for new entries. No edit, network toggle, creation or deletion took place in the manual preflight.
+
+The user reviewed the dashboard/API review archive with SHA-256 `e7e6d9104c06b3bb5d9ca273b4b6cf5e0cbecc98446f9c17cf8299bbcd47a0ef`. A subsequent read-only comparison through the current Hostinger console checked ten ingress route matches, seven runtime identities and 32 effective module copies. Thirty-one copies differed from the selected local kit and the HTTP-monitoring reader was absent. The staging operations container had no metrics snapshot mount. Four report runtimes used three different mounted repository preimages. The current staging UI, admin API and report API matched the documented routing. The shell returned to an idle prompt and was released to the separate four-fix release. The local review ZIP is sealed; the live comparison is stored separately. These observations predate that separate release.
