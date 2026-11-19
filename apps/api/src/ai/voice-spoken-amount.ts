@@ -24,7 +24,9 @@ function add(value: number, variants: string) {
   'seventeen|سبعتعش|سبعطعش|سبعتاشر|سبعطاشر|سبعتاعش|سبعطاش|سبعتاش|سبعطشر|سبعتشر|سبعتعشر',
   'eighteen|ثمنتعش|تمنتاشر',
   'nineteen|تسعتعش|تسعتاشر',
-].forEach((variants, n) => add(n, variants));
+].forEach((variants, n) => {
+  add(n, variants);
+});
 [
   'twenty|عشرون|عشرين',
   'thirty|ثلاثون|ثلاثين|تلاتين',
@@ -34,7 +36,9 @@ function add(value: number, variants: string) {
   'seventy|سبعون|سبعين',
   'eighty|ثمانون|ثمانين',
   'ninety|تسعون|تسعين',
-].forEach((variants, i) => add((i + 2) * 10, variants));
+].forEach((variants, i) => {
+  add((i + 2) * 10, variants);
+});
 add(100, 'مية|مئة|مائة|ميه');
 add(200, 'مئتان|مئتين|مائتان|مائتين|ميتين');
 add(1000, 'الف');
@@ -78,7 +82,7 @@ function underThousand(phrase: string): number | undefined {
   }
   const english = /^([a-z]+) hundred(?: (?:and )?(.+))?$/.exec(phrase);
   if (!english) return underHundred(phrase);
-  const count = words.get(english[1]!);
+  const count = words.get(english[1] ?? '');
   const tail = english[2] ? underHundred(english[2]) : 0;
   return count && count < 10 && tail !== undefined ? count * 100 + tail : undefined;
 }
@@ -129,25 +133,25 @@ function inDenominations(phrase: string, exponent: number, currency: string): st
   const minor = units[1] && new RegExp('^(.+) (' + units[1] + ')$').exec(phrase);
   const major = new RegExp('^(.+?) (' + units[0] + ')(?: (?:and |و ?)(.+))?$').exec(phrase);
   if (major) {
-    const amount = unsignedMajor(major[1]!, exponent);
+    const amount = unsignedMajor(major[1] ?? '', exponent);
     if (amount === null || !major[3]) return amount;
     const fraction = /^(?:a )?(half|quarter|نصف|نص|ربع)$/.exec(major[3]);
     if (fraction) {
       const part = unsignedMajor(
-        ['half', 'نصف', 'نص'].includes(fraction[1]!) ? '0.5' : '0.25',
+        ['half', 'نصف', 'نص'].includes(fraction[1] ?? '') ? '0.5' : '0.25',
         exponent,
       );
       return part === null ? null : String(BigInt(amount) + BigInt(part));
     }
     if (!units[1]) return null;
     const remainder = new RegExp('^(.+) (' + units[1] + ')$').exec(major[3]);
-    const part = remainder && unsignedMajor(remainder[1]!, 0);
+    const part = remainder && unsignedMajor(remainder[1] ?? '', 0);
     if (part === null || BigInt(part) >= 10n ** BigInt(exponent)) return null;
     return String(BigInt(amount) + BigInt(part));
   }
-  if (minor) return unsignedMajor(minor[1]!, 0);
+  if (minor) return unsignedMajor(minor[1] ?? '', 0);
   const leading = new RegExp('^(?:' + units[0] + ') (.+)$').exec(phrase);
-  return leading ? unsignedMajor(leading[1]!, exponent) : null;
+  return leading ? unsignedMajor(leading[1] ?? '', exponent) : null;
 }
 
 export function spokenAmountMinor(
@@ -184,9 +188,9 @@ function unsignedMajor(phrase: string, exponent: number): string | null {
   // A named fractional part must be exact at the selected currency precision as well.
   const mixedFraction = /^(.*?) (?:and a (half|quarter)|و ?(نصف|نص|ربع))$/.exec(phrase);
   if (mixedFraction) {
-    const major = integerWords(mixedFraction[1]!);
+    const major = integerWords(mixedFraction[1] ?? '');
     if (major === undefined) return null;
-    const hundredths = ['half', 'نصف', 'نص'].includes(mixedFraction[2] ?? mixedFraction[3]!)
+    const hundredths = ['half', 'نصف', 'نص'].includes(mixedFraction[2] ?? mixedFraction[3] ?? '')
       ? 50
       : 25;
     return unsignedMajor(String(major) + '.' + String(hundredths), exponent);
@@ -195,17 +199,17 @@ function unsignedMajor(phrase: string, exponent: number): string | null {
   let whole: string;
   let fraction: string;
   if (decimal) {
-    whole = decimal[1]!;
+    whole = decimal[1] ?? '';
     fraction = decimal[2] ?? '';
   } else {
     const parts = phrase.split(/ (?:point|فاصلة|فاصله) /);
     if (parts.length > 2) return null;
-    const integer = integerWords(parts[0]!);
+    const integer = integerWords(parts[0] ?? '');
     if (integer === undefined) return null;
     whole = String(integer);
     fraction = '';
     if (parts.length === 2) {
-      for (const token of parts[1]!.split(' ')) {
+      for (const token of (parts[1] ?? '').split(' ')) {
         const digit = words.get(token);
         if (digit === undefined || digit > 9) return null;
         fraction += String(digit);
