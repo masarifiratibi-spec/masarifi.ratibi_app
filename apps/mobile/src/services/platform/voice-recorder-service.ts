@@ -327,6 +327,15 @@ export function createVoiceRecorderService(): VoiceRecorderService {
             'recordingStatusUpdate',
             (status) => {
               capture.status = status;
+              // Android resets its duration counter before emitting the native
+              // time-limit event. A delayed JS interval can miss the last sample.
+              if (
+                Platform.OS === 'android' &&
+                status.isFinished && !status.hasError &&
+                !capture.terminal && !capture.cancelled &&
+                capture.startedAt > 0 &&
+                Date.now() - capture.startedAt >= maxDurationMs
+              ) capture.durationMs = maxDurationMs;
               if (status.isFinished || status.hasError) capture.complete();
             }
           );
@@ -338,10 +347,10 @@ export function createVoiceRecorderService(): VoiceRecorderService {
           );
           if (capture.cancelled)
             throw new VoiceCaptureError('recording_interrupted');
+          capture.startedAt = Date.now();
           recorder.record({ forDuration: maxDurationMs / 1000 });
           if (!recorder.getStatus().isRecording || capture.status?.hasError)
             throw new VoiceCaptureError('recording_interrupted');
-          capture.startedAt = Date.now();
           recordVoiceDiagnostic('native-start', {
             recordingId: capture.id,
             phase: 'success'
