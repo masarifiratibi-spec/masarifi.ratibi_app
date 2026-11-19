@@ -106,6 +106,7 @@ const liveDeletionSchema = z.object({
   status: z.enum(["requested", "verified", "cancelled", "processing", "completed", "failed"]),
   requestedAt: z.iso.datetime({ offset: true }),
   coolingOffEndsAt: z.iso.datetime({ offset: true }),
+  retainedCategories: z.array(z.string().max(80)).max(100).optional(),
   completedAt: z.iso.datetime({ offset: true }).nullable(),
   version: z.number().int().positive(),
 }).strict();
