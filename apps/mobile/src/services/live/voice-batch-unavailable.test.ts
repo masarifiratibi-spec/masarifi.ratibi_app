@@ -133,6 +133,73 @@ const expiredUnavailable = () => {
   jest.spyOn(Date, 'now').mockReturnValue(audio.recordedAt + 86400001);
   return unavailable();
 };
+
+it.each([false, true])(
+  'uses the fresh upload slot and reconciles a lost create response (replay=%s)',
+  async (replay) => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const path = '/api/v1/voice/sessions/' + sessionId + '/audio';
+    const calls: string[] = [];
+    let loseResponse = replay;
+    let hash = '';
+    const json = (value: unknown) =>
+      ({ ok: true, status: 200, json: async () => value }) as Response;
+    const request: typeof fetch = async (url, init) => {
+      if (url === audio.uri)
+        return {
+          ok: true,
+          arrayBuffer: async () => new ArrayBuffer(16)
+        } as Response;
+      const endpoint = String(url).split('/').pop()!;
+      calls.push(endpoint);
+      switch (endpoint) {
+        case 'sessions':
+          hash = JSON.parse(String(init?.body)).contentHash;
+          if (loseResponse) {
+            loseResponse = false;
+            throw new Error('lost create response');
+          }
+          return json({
+            session: { id: sessionId, status: 'uploaded', version: 1 },
+            upload: { method: 'PUT', path }
+          });
+        case 'audio':
+          return json({ id: sessionId, version: 2, contentHash: hash });
+        case 'process':
+          return json({ id: sessionId, status: 'queued' });
+        case 'batch':
+          return json({
+            sessionId,
+            batchId: null,
+            status: calls.includes('process') ? 'completed' : 'uploading',
+            ledgerVersion: 0,
+            addedCount: 0,
+            transactionIds: []
+          });
+        default:
+          throw new Error('unexpected endpoint');
+      }
+    };
+    const api = createVoiceBatchApi({
+      baseUrl: 'https://fixture.test',
+      owner: async () => owner,
+      token: async () => 'fixture-token',
+      request
+    });
+    const id = await api.queueBatch(audio, 'ar', -180);
+    if (replay)
+      await expect(api.runBatch(id)).rejects.toThrow('lost create response');
+    expect((await api.runBatch(id)).status).toBe('completed');
+    expect(calls).toEqual([
+      ...(replay ? ['sessions'] : []),
+      'sessions',
+      ...(replay ? ['batch'] : []),
+      'audio',
+      'process',
+      'batch'
+    ]);
+  }
+);
 const unavailable = () =>
   Promise.resolve({
     ok: false,
