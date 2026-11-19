@@ -558,7 +558,7 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
       event({ s: 3, b: 'e:ACCOUNT-1', c: 'e:USD' }),
       event({ s: 4, b: 'a:' }),
       event({ s: 5, k: 't', a: '20000' }),
-      event({ s: 6, c: 'e:USD', a: '1200' }),
+      event({ s: 6, c: 'e:USD', a: '1200', w: '12' }),
     ]);
     await finish(f.user);
     const { effects, balances } = await result(f);
