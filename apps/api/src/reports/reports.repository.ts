@@ -15,6 +15,7 @@ import {
   type ReportPeriodRange,
 } from './reports.period';
 import {
+  bindConfirmedMailbox,
   parseReportSnapshot,
   type DeliveryChannel,
   type ReportFormat,
@@ -280,7 +281,10 @@ export class ReportsRepository {
         amount: { amountMinor: safeInteger(row.amount_minor), currency: row.currency_code.trim() },
         occurredAt: row.occurred_at.toISOString(),
       }));
-      return { ...summary, balances, planning, recentItems };
+      const metadata = planning.budgets.some((budget) => budget.spentMinor === null)
+        ? { ...summary.metadata, dataState: 'partial' as const }
+        : summary.metadata;
+      return { ...summary, metadata, balances, planning, recentItems };
     });
   }
 
@@ -293,6 +297,7 @@ export class ReportsRepository {
       format: ReportFormat;
       delivery: DeliveryChannel;
       recipient: null;
+      expectedAccountEmail?: string;
       accountIds?: string[];
       currency?: string;
       timezone?: string;
@@ -416,6 +421,14 @@ export class ReportsRepository {
               },
               format: command.format,
               delivery: command.delivery,
+              ...(command.expectedAccountEmail
+                ? {
+                    confirmedMailbox: bindConfirmedMailbox(
+                      principal.userId,
+                      command.expectedAccountEmail,
+                    ),
+                  }
+                : {}),
               currencyCode: currency,
               dataState: content.dataState,
               evidence: summary.metadata.evidence,
@@ -1389,12 +1402,22 @@ export class ReportsRepository {
     userId: string,
     period: ReportPeriodRange,
     currency: string | null,
-  ): Promise<Record<string, unknown[]>> {
+  ) {
     const budgets = (
-      await client.query<{ currency_code: string; total_minor: string; spent_minor: string }>(
+      await client.query<{
+        currency_code: string;
+        total_minor: string;
+        spent_minor: string | null;
+      }>(
         `select b.currency_code,sum(b.total_minor)::bigint total_minor,
-           coalesce(sum(u.spent_minor),0)::bigint spent_minor
-         from public.budgets b left join public.v_budget_utilization u on u.budget_id=b.id
+           case when bool_or(u.missing_rate) then null
+             else coalesce(sum(u.spent_minor),0)::bigint end spent_minor
+         from public.budgets b
+         left join lateral (
+           select sum(v.spent_minor) spent_minor, bool_or(v.unavailable_reason='missing_rate') missing_rate
+           from public.v_budget_utilization v
+           where v.budget_id=b.id and v.user_id=b.user_id
+         ) u on true
          where b.user_id=$1 and b.status<>'deleted' and b.period_end>=$2::date and b.period_start<=$3::date
            and ($4::char(3) is null or b.currency_code=$4)
          group by b.currency_code order by b.currency_code limit 16`,
@@ -1403,7 +1426,12 @@ export class ReportsRepository {
     ).rows.map((row) => ({
       currency: row.currency_code.trim(),
       budgetMinor: safeInteger(row.total_minor),
-      spentMinor: safeInteger(row.spent_minor),
+      spentMinor: row.spent_minor === null ? null : safeInteger(row.spent_minor),
+      remainingMinor:
+        row.spent_minor === null
+          ? null
+          : safeInteger((BigInt(row.total_minor) - BigInt(row.spent_minor)).toString()),
+      ...(row.spent_minor === null ? { unavailableReason: 'missing_rate' } : {}),
     }));
     const obligations = (
       await client.query<{
@@ -1504,7 +1532,7 @@ export class ReportsRepository {
     summary: Record<string, unknown>;
     breakdowns: Record<string, unknown>[];
     detailedRows: Record<string, unknown>[];
-    dataState: 'complete' | 'empty';
+    dataState: 'complete' | 'empty' | 'partial';
   }> {
     const includePlanning =
       !input.accountIds?.length &&
@@ -1529,8 +1557,19 @@ export class ReportsRepository {
       ? input.summary.breakdowns
       : [];
     const hasPlanning = planning && Object.values(planning).some((rows) => rows.length > 0);
+    const partialBudget =
+      (input.reportType === 'financial_summary' || input.reportType === 'budget_performance') &&
+      planning?.budgets.some((budget) => budget.spentMinor === null);
     const hasData =
       input.summary.summaries.length > 0 || breakdowns.length > 0 || detailedRows.length > 0;
+    const planningRows: Partial<Record<ReportType, unknown[]>> = planning
+      ? {
+          budget_performance: planning.budgets,
+          obligation_progress: planning.obligations,
+          savings_progress: planning.savingsGoals,
+        }
+      : {};
+    const reportHasData = planningRows[input.reportType]?.length ?? (hasData || hasPlanning);
     const minorUnit = (
       await client.query<{ minor_unit: number }>(
         'select minor_unit from public.currencies where code=$1',
@@ -1547,7 +1586,7 @@ export class ReportsRepository {
       },
       breakdowns,
       detailedRows,
-      dataState: hasData || hasPlanning ? 'complete' : 'empty',
+      dataState: partialBudget ? 'partial' : reportHasData ? 'complete' : 'empty',
     };
   }
 

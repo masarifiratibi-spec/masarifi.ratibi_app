@@ -106,8 +106,17 @@ function fieldRows(
     return Object.entries(record).flatMap(([key, entry]) => {
       if (['currency', 'currencyCode', 'currency_code', 'currencyMinorUnits'].includes(key))
         return [];
+      const missingBudgetRate =
+        Object.hasOwn(record, 'budgetMinor') && record.unavailableReason === 'missing_rate';
+      if (missingBudgetRate && key === 'unavailableReason') return [];
       const path = [...context.path, label(key)];
       if (/(?:Minor|_minor)$/.test(key)) {
+        if (
+          missingBudgetRate &&
+          entry === null &&
+          (key === 'spentMinor' || key === 'remainingMinor')
+        )
+          return [[path.join(' / '), 'غير متاح لعدم توفر سعر الصرف']];
         if (typeof entry !== 'number') throw new Error('REPORT_PDF_AMOUNT_INVALID');
         return [[path.join(' / '), formatReportMoney(entry, currency, context.minorUnits)]];
       }
@@ -145,6 +154,7 @@ export function buildReportPdfSections(snapshot: ReportSnapshot): PdfReportSecti
   ] as const) {
     if (snapshot.reportType === 'financial_summary' || snapshot.reportType === reportType)
       fields(label(key), planning[key]);
+    if (snapshot.reportType === reportType && Array.isArray(planning[key])) return sections;
   }
   if (
     ['financial_summary', 'category_spending'].includes(snapshot.reportType) &&

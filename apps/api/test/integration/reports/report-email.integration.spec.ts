@@ -1,3 +1,4 @@
+import { bindConfirmedMailbox } from '../../../src/reports/reports.schemas';
 import { ReportsSmtpError } from '../../../src/reports/reports.smtp';
 import { ReportsWorker } from '../../../src/reports/reports.worker';
 import type { ReportWorkOutcome } from '../../../src/reports/reports.repository';
@@ -30,7 +31,7 @@ const claim = {
   storageRef: 'reports/key',
   expiresAt: '2026-09-05T00:00:00.000Z',
   attemptCount: 1,
-  recipient: 'owner@example.test',
+  recipient: 'owner@example.test' as string | null,
 };
 const config = {
   getRequired: jest.fn(
@@ -69,6 +70,47 @@ function repositoryFor(result: (value: ReportWorkOutcome) => void, workClaim = c
 }
 
 describe('report email worker', () => {
+  it.each([
+    ['owner@example.test', true, true],
+    ['changed@example.test', true, false],
+    ['owner@example.test', false, false],
+  ] as const)(
+    'checks the confirmed mailbox again before SMTP (%s, verified=%s)',
+    async (primaryEmail, primaryEmailVerified, expectedDelivery) => {
+      const confirmedMailbox = bindConfirmedMailbox(claim.userId, 'owner@example.test');
+      const work = { ...claim, recipient: null, snapshot: { ...snapshot, confirmedMailbox } };
+      const result = jest.fn();
+      const storage = { readPdf: jest.fn().mockResolvedValue(Buffer.from('fixture')) };
+      const smtp = {
+        send: jest
+          .fn()
+          .mockResolvedValue({
+            providerMessageId: 'test',
+            acceptedByServerAt: snapshot.generatedAt,
+          }),
+      };
+      const identity = {
+        getIdentityUser: jest.fn().mockResolvedValue({ primaryEmail, primaryEmailVerified }),
+      };
+      await new ReportsWorker(
+        repositoryFor(result, work) as never,
+        storage as never,
+        config as never,
+        undefined,
+        smtp as never,
+        identity as never,
+      ).runOnce();
+      expect(smtp.send).toHaveBeenCalledTimes(expectedDelivery ? 1 : 0);
+      expect(result).toHaveBeenCalledWith(
+        expect.objectContaining(
+          expectedDelivery
+            ? { status: 'delivered' }
+            : { status: 'failed', errorCode: 'REPORT_RECIPIENT_UNVERIFIED' },
+        ),
+      );
+    },
+  );
+
   it('attaches the requested PDF and records one SMTP acceptance on replay', async () => {
     let outcome: ReportWorkOutcome | undefined;
     const repository = repositoryFor((value) => {

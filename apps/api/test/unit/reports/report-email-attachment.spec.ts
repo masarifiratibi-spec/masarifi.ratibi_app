@@ -147,6 +147,14 @@ test('admits self-addressed email only from the verified authenticated owner ide
     'email-operation-id',
     'r',
   );
+  await expect(
+    service.createReport(
+      principal,
+      { ...command, expectedAccountEmail: 'other@example.test' },
+      'binding-mismatch',
+      'r',
+    ),
+  ).rejects.toMatchObject({ status: 403 });
   identity.getIdentityUser.mockResolvedValue({
     primaryEmail: 'owner@example.test',
     primaryEmailVerified: false,
