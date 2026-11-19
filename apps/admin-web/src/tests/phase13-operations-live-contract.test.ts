@@ -50,6 +50,9 @@ describe("Phase 13 live operations mapping", () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCKS = "false";
     mockServer.use(
       http.get("/api/v1/admin/system-health/overview", () => HttpResponse.json({ status: "operational", services: [{ key: "database", status: "operational", latencyMs: 8, freshness }], partial: false, freshness })),
+      http.get("/api/v1/admin/system-health/api", () =>
+        HttpResponse.json({ range: "24h", sample: null, reason: "no_observation" }),
+      ),
       http.get("/api/v1/admin/performance", () => HttpResponse.json({ range: "24h", budgets: { "operations.jobs": { p50: 10, p95: 20, p99: 30, unit: "milliseconds", status: "within_budget" } }, series: [{ at: observedAt, value: 20 }], freshness })),
       http.get("/api/v1/admin/recovery", () => HttpResponse.json({ items: [{ scope: "database", status: "verified", observedAt, evidenceRef: "evidence/recovery.md", rpoSeconds: 10, rtoSeconds: 30 }], rpoTargetSeconds: 900, rtoTargetSeconds: 7200 })),
       http.get("/api/v1/admin/system-health/providers", () => HttpResponse.json({ items: [{ provider: "database", status: "up", latencyMs: 8, checkedAt: observedAt }], nextCursor: null })),
