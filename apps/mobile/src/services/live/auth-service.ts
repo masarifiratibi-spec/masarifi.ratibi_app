@@ -521,7 +521,7 @@ export async function captureLiveClerkIdentity() {
   const token = await requestClerkToken(bridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   await assertCurrent();
-  return { userId: session.userId, token, assertCurrent };
+  return { userId: session.userId, sessionId: session.id, token, assertCurrent };
 }
 
 // Read-only calls share a pending SDK lookup; Clerk owns valid-token caching.
@@ -580,7 +580,7 @@ async function captureCachedClerkIdentity(
     const token = await flight.promise;
     if (!token) throw new HttpError('session_expired', 401);
     await assertCurrent();
-    return { userId: session.userId, token, assertCurrent };
+    return { userId: session.userId, sessionId: session.id, token, assertCurrent };
   } finally {
     if (assistantTokenFlight === flight) assistantTokenFlight = undefined;
   }
@@ -1108,10 +1108,30 @@ async function defaultIdentityRequest(
     : captureLiveClerkIdentity());
   if (expectedOwnerId && actor.userId !== expectedOwnerId)
     throw new HttpError('session_expired', 401);
-  const result = await requestJson(path, z.unknown(), {
-    ...options,
-    token: actor.token
-  });
+  const send = (token: string) =>
+    requestJson(path, z.unknown(), { ...options, token });
+  let result: unknown;
+  try {
+    result = await send(actor.token);
+  } catch (error) {
+    if (
+      !read ||
+      !['/api/v1/me', '/api/v1/me/preferences', '/api/v1/me/onboarding'].includes(path) ||
+      !(error instanceof HttpError) ||
+      error.status !== 401 ||
+      error.domainCode !== 'AUTH_TOKEN_INVALID'
+    ) {
+      throw error;
+    }
+    // A rejected cached token can precede the end of the Clerk session.
+    // Fence the original session on both sides of the fresh credential lookup.
+    await actor.assertCurrent();
+    const fresh = await captureLiveClerkIdentity();
+    await actor.assertCurrent();
+    if (fresh.sessionId !== actor.sessionId || fresh.userId !== actor.userId) throw error;
+    result = await send(fresh.token);
+    await fresh.assertCurrent();
+  }
   await actor.assertCurrent();
   return result;
 }
