@@ -110,7 +110,7 @@ function moneyCandidates(text, snapshot, verifiedAccountCurrency) {
       /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
       /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
     const raw = m[2] || m[3];
-    candidates.push({ role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
+    candidates.push({ index: m.index, role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
       currency:currency?.code ?? null, supported:currency?.supported ?? false });
   }
   return candidates;
@@ -185,8 +185,11 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
     const label = (m[1]||m[2]).toLowerCase();
     let suffix=m[3].replace(/[^0-9]/g,'');
     if (input.channel === 'ios_app_intent') {
-      const tail = text.slice(m.index + m[0].length);
-      if (/^\d*[- ]\d/.test(tail)) {
+      const end = m.index + m[0].length;
+      const tail = text.slice(end);
+      const continuation = tail.match(/^\d*[- ]+(?=[x*•\d])/i);
+      if (/^[x*•]/i.test(tail) ||
+          continuation && !candidates.some(amount => amount.index === end + continuation[0].length)) {
         result.reasonCodes.push('instrument_ambiguous');
         continue;
       }

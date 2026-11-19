@@ -122,7 +122,7 @@ function route(text, c, routing) {
       // user's linked cash as the source. Unknown narrative may identify a depositor.
       const currency = defaultSnapshot.currencies.find(entry => entry.code === c.currency);
       const allowed = new Set(words([
-        c.currency, ...(currency?.aliases ?? []), 'cash deposit deposited atm amount to into your bank account number acct acc ending in on at ref reference',
+        c.currency, ...(currency?.aliases ?? []), 'cash deposit deposited atm amount of via to into your bank account number acct acc ending in on at ref reference',
         'تم ايداع نقدي الصراف الالي مبلغ بمبلغ الي في علي حساب الحساب رقم الرقم المرجعي مرجع'
       ].join(' ')).split(' '));
       const reference = c.providerReference && words(c.providerReference);
@@ -158,6 +158,7 @@ function route(text, c, routing) {
 
 module.exports = function classifyBankSms(text, receivedAt, timeZone, routing) {
   if (typeof text !== 'string' || text.length > 2000 || !text.trim()) return null;
+  if (/\b(?:not|never)(?:\s+(?:yet|been|successfully))*\s+(?:approved|authori[sz]ed|processed|completed|executed|debited|credited|successful)\b/i.test(text)) return null;
   const parserText = routing
     ? text.replace(/(?<![\p{L}\p{N}])مرجع(?=\s*[:#])/gu, 'الرقم المرجعي')
     : text;

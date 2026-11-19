@@ -217,6 +217,8 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
   };
   const purchase = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00001', 'expense', 'bank', 'restaurant');
   route('QAALFA Purchase SAR 12.34 at QA Cafe card 1111111199994242', 'expense', 'bank', 'restaurant');
+  route('Purchase card XX4242 12.34 SAR', 'expense', 'bank', 'expense');
+  route('Cash deposit of SAR 14 to account XX7373 via ATM', 'transfer', 'cash', null, 'bank');
   assert.equal(purchase.bankReference, 'QA00001');
   const recast = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 account XX7373 Ref: qa00001', 'expense', 'bank', 'restaurant');
   const fresh = route('QAALFA Purchase SAR 12.34 at QA Cafe card XX4242 Ref: QA00999', 'expense', 'bank', 'restaurant');
@@ -260,6 +262,8 @@ test('routes configured Shortcuts with only SMS text, including accounting-speci
     'Purchase SAR 12.34 card 1111111142429999',
     'Purchase SAR 12.34 card 4242-1234-8888-9999',
     'Purchase SAR 12.34 card 4242 123456 19999',
+    'Purchase SAR 12.34 card 4242 **** **** 9999',
+    'Purchase SAR 12.34 card XX4242 has not been processed',
     'Purchase SAR 12.34 card XX4242 has not been approved',
     'Purchase SAR 12.34 card XX4242 not yet approved',
     'Cash deposit SAR 14 to account XX7373 sender: Ahmed',
