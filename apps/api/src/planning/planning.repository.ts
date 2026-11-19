@@ -1018,7 +1018,7 @@ export class PlanningRepository {
           coalesce((select sum(greatest(i.amount_minor-i.paid_minor,0)) from public.obligation_schedule_items i
             join public.obligations o on o.id=i.obligation_id where i.user_id=p.user_id
             and o.currency_code=p.currency_code and o.direction='payable' and o.status='active'
-            and i.status in ('due','partial','overdue') and i.due_at>=anchor.received_at
+            and i.status in ('due','partial','overdue') and anchor.id is not null
             and i.due_at<greatest(projection.expected_at,scope.through_at)),0)::bigint reserved_obligation_minor
          from public.salary_profiles p join public.profiles u on u.id=p.user_id
          cross join lateral (select ($2::date+1)::timestamp at time zone u.timezone through_at) scope

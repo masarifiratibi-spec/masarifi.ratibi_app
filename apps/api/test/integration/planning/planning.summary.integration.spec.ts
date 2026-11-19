@@ -27,7 +27,7 @@ describeLiveDatabase('planning summary completeness', () => {
 
   afterAll(() => pool.onModuleDestroy());
 
-  it('uses only active payable reserves and selects the future pending salary receipt', async () => {
+  it('carries unpaid installments into the salary cycle and reserves each balance once before the next receipt', async () => {
     const owner = `planning_summary_${randomUUID()}`;
     const profileId = randomUUID();
     const receivedTransactionId = randomUUID();
@@ -56,36 +56,51 @@ describeLiveDatabase('planning summary completeness', () => {
       await client.query(
         `insert into public.obligations(id,user_id,name,direction,type,schedule_kind,currency_code,principal_minor,
          installment_amount_minor,installment_count,frequency,expected_day,start_date,status)
-         values($1,$4,'Payable','payable','bill','fixed_term','SAR',400,400,1,'monthly',10,'2026-01-01','active'),
+         values($1,$4,'Payable','payable','bill','fixed_term','SAR',690,150,6,'monthly',10,'2025-10-01','active'),
                ($2,$4,'Receivable','receivable','debt','fixed_term','SAR',700,700,1,'monthly',10,'2026-01-01','active'),
                ($3,$4,'Closed payable','payable','bill','fixed_term','SAR',900,900,1,'monthly',10,'2026-01-01','closed')`,
         [payableId, receivableId, closedPayableId, owner],
       );
       await client.query(
-        `insert into public.obligation_schedule_items(user_id,obligation_id,due_at,amount_minor,sequence_no)
-         values($1,$2,'2026-01-10T00:00:00Z',400,1),
-               ($1,$3,'2026-01-10T00:00:00Z',700,1),
-               ($1,$4,'2026-01-10T00:00:00Z',900,1)`,
+        `insert into public.obligation_schedule_items(user_id,obligation_id,due_at,amount_minor,paid_minor,status,sequence_no)
+         values($1,$2,'2025-10-10T00:00:00Z',150,150,'paid',1),
+               ($1,$2,'2025-11-10T00:00:00Z',100,0,'cancelled',2),
+               ($1,$2,'2025-12-10T00:00:00Z',150,40,'partial',3),
+               ($1,$2,'2026-01-10T00:00:00Z',90,0,'due',4),
+               ($1,$2,'2026-01-15T00:00:00Z',100,0,'skipped',5),
+               ($1,$2,'2026-01-20T00:00:00Z',100,0,'due',6),
+               ($1,$3,'2026-01-10T00:00:00Z',700,0,'due',1),
+               ($1,$4,'2026-01-10T00:00:00Z',900,0,'due',1)`,
         [owner, payableId, receivableId, closedPayableId],
       );
     });
 
     const summary = await repository.getPlanningSummary(
       { userId: owner, sessionId: 'session', factorAgeSeconds: 0 },
-      period,
+      { ...period, asOf: '2026-01-07' },
       'planning-summary-lifecycle',
     );
 
     expect(summary).toMatchObject({
       dataState: 'ready',
       salary: {
-        reservedObligationMinor: '400',
+        reservedObligationMinor: '200',
         nextExpectedAt: '2026-01-20T00:00:00.000Z',
       },
       obligations: {
-        payables: [{ id: payableId, nextDueAmountMinor: '400' }],
+        payables: [{ id: payableId, nextDueAmountMinor: '110' }],
         receivables: [{ id: receivableId }],
       },
+    });
+
+    const beforeFirstReceipt = await repository.getPlanningSummary(
+      { userId: owner, sessionId: 'session', factorAgeSeconds: 0 },
+      { key: '2025-12', start: '2025-12-01', end: '2025-12-31' },
+      'planning-summary-before-first-receipt',
+    );
+    expect(beforeFirstReceipt.salary).toMatchObject({
+      startReceiptId: null,
+      reservedObligationMinor: '0',
     });
   });
 
