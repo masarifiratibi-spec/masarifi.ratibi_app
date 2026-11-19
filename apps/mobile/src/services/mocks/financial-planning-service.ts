@@ -284,6 +284,12 @@ export function createMockFinancialPlanningService(
       await persistIfNeeded();
       return result(value, salaryScopes());
     },
+    async archiveSalaryProfile(id, expectedVersion, operationId) {
+      await ensureReady();
+      const value = repository.archiveSalaryProfile(id, expectedVersion, operationId);
+      await persistIfNeeded();
+      return result(value, salaryScopes());
+    },
     async confirmSalaryReceipt(
       input: SalaryReceiptConfirmation,
       operationId: string
@@ -607,7 +613,7 @@ export function createMockFinancialPlanningService(
         operationId
       );
       await persistIfNeeded();
-      return result(value, obligationScopes(id));
+      return result(value, [...obligationScopes(id), 'planning.salary.overview']);
     },
     async previewObligationPayment(input: ObligationPaymentInput) {
       await ensureReady();

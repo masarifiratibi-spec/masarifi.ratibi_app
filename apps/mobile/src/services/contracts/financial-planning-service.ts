@@ -297,6 +297,7 @@ export interface FinancialPlanningService {
     input: SalaryProfileInput,
     operationId: string
   ): Promise<MutationResult<SalaryProfile>>;
+  archiveSalaryProfile(id: string, expectedVersion: number, operationId: string): Promise<MutationResult<SalaryProfile>>;
   confirmSalaryReceipt(
     input: SalaryReceiptConfirmation,
     operationId: string

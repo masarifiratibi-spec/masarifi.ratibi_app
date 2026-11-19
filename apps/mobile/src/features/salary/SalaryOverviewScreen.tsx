@@ -34,7 +34,15 @@ import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { formatMinorAmount } from '@/utils/format-financial-value';
-import { useSalaryOverview } from './salary-queries';
+import { PlanningArchiveAction } from '@/features/financial-planning/PlanningArchiveAction';
+import { useSalaryOverview, useSalaryProfile } from './salary-queries';
+
+function SalaryArchiveAction({ id }: { id: string }) {
+  const profile = useSalaryProfile();
+  const item = profile.data;
+  if (profile.isError || !item || item.id !== id || item.status === 'archived') return null;
+  return <PlanningArchiveAction kind="salary" id={id} version={item.version} name={item.sourceName} />;
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 
@@ -216,6 +224,9 @@ export function SalaryOverviewScreen() {
             style={styles.primaryAction}
             labelStyle={styles.primaryActionLabel}
           />
+          {data?.profileId && data.dataState !== 'offline' && !query.isError ? (
+            <SalaryArchiveAction id={data.profileId} />
+          ) : null}
         </View>
       )}
     </PlanningScreen>

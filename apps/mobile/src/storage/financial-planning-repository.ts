@@ -451,6 +451,23 @@ export class FinancialPlanningRepository {
     return this.setOperation(operationId, next);
   }
 
+  archiveSalaryProfile(id: string, expectedVersion: number, operationId: string): SalaryProfile {
+    const replay = this.getOperation<SalaryProfile>(operationId);
+    if (replay) {
+      if (replay.id !== id || replay.version !== expectedVersion + 1 || replay.status !== 'archived')
+        throw new FinancialPlanningError('conflict');
+      return replay;
+    }
+    const profile = this.salaryProfiles.find((item) => item.id === id);
+    if (!profile) throw new FinancialPlanningError('not_found');
+    assertVersion(profile.version, expectedVersion);
+    if (profile.status === 'archived') throw new FinancialPlanningError('archived');
+    profile.status = 'archived';
+    profile.version++;
+    profile.updatedAt = Date.now();
+    return this.setOperation(operationId, profile);
+  }
+
   confirmSalaryReceipt(
     receipt: Omit<
       SalaryReceiptLink,
@@ -681,6 +698,12 @@ export class FinancialPlanningRepository {
     status: ObligationLifecycle,
     operationId: string
   ): Obligation {
+    const replay = this.getOperation<Obligation>(operationId);
+    if (replay) {
+      if (replay.id !== id || replay.version !== expectedVersion + 1 || replay.status !== status)
+        throw new FinancialPlanningError('conflict');
+      return replay;
+    }
     const obligation = this.requireObligation(id);
     assertVersion(obligation.version, expectedVersion);
     return this.saveObligation({ ...obligation, status }, operationId);

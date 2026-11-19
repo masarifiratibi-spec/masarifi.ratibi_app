@@ -344,10 +344,12 @@ export function usePlanningConflict(id: string) {
 export function usePlanningMutation<TVariables, TResult>(
   mutationFn: (
     variables: TVariables
-  ) => Promise<{ value: TResult; affectedScopes: readonly string[] }>
+  ) => Promise<{ value: TResult; affectedScopes: readonly string[] }>,
+  options?: { networkMode: 'always'; retry: false }
 ) {
   const client = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn,
     onMutate: () => useAppShellStore.getState().session?.userId,
     onSuccess: async (result) => {
