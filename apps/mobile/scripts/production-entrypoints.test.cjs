@@ -160,3 +160,35 @@ test('Expo prebuild reinstalls the checked release policy in a clean generated p
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test('live Android and iOS releases defer module initialization', async () => {
+  const keys = ['NODE_ENV', 'EXPO_PUBLIC_CLIENT_MODE'];
+  const previous = keys.map((key) => process.env[key]);
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+    const defaults = require('expo/metro-config').getDefaultConfig(root);
+    const configured = require('../metro.config.js');
+    for (const platform of ['android', 'ios', 'web']) {
+      for (const dev of [true, false]) {
+        const args = [[], { platform, dev, hot: false }, async () => []];
+        const expected = await defaults.transformer.getTransformOptions(...args);
+        const actual = await configured.transformer.getTransformOptions(...args);
+        if (!dev && platform !== 'web') {
+          assert.deepEqual(actual, {
+            ...expected,
+            transform: { ...expected.transform, inlineRequires: true }
+          });
+        } else {
+          assert.deepEqual(actual, expected);
+        }
+      }
+    }
+  } finally {
+    keys.forEach((key, index) => {
+      if (previous[index] === undefined) delete process.env[key];
+      else process.env[key] = previous[index];
+    });
+    delete require.cache[require.resolve('../metro.config.js')];
+  }
+});

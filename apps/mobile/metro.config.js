@@ -36,7 +36,7 @@ if (liveProduction) {
   const getTransformOptions = config.transformer.getTransformOptions;
   config.transformer.getTransformOptions = async (entries, options, dependencies) => {
     const original = await getTransformOptions(entries, options, dependencies);
-    if (options.dev || options.platform !== 'android') return original;
+    if (options.dev || !['android', 'ios'].includes(options.platform)) return original;
     return {
       ...original,
       transform: { ...original.transform, inlineRequires: true }
