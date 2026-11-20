@@ -598,11 +598,11 @@ async function captureCachedClerkIdentity(
   }
 }
 
-export async function captureLiveAssistantClerkIdentity() {
+export async function captureLiveAssistantClerkIdentity(): Promise<CapturedClerkIdentity> {
   return captureShellBoundReadIdentity(false);
 }
 
-export async function captureLiveReadClerkIdentity() {
+export async function captureLiveReadClerkIdentity(): Promise<CapturedClerkIdentity> {
   return captureShellBoundReadIdentity(true);
 }
 
