@@ -502,7 +502,14 @@ export async function captureLiveClerkOwner() {
   return { userId: session.userId, assertCurrent };
 }
 
-export async function captureLiveClerkIdentity() {
+interface CapturedClerkIdentity {
+  userId: string;
+  token: string;
+  assertCurrent: () => Promise<void>;
+  sessionId?: string;
+}
+
+export async function captureLiveClerkIdentity(): Promise<CapturedClerkIdentity> {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (!bridge || !session) throw new HttpError('session_expired', 401);
@@ -586,11 +593,11 @@ async function captureCachedClerkIdentity(
   }
 }
 
-export async function captureLiveAssistantClerkIdentity() {
+export async function captureLiveAssistantClerkIdentity(): Promise<CapturedClerkIdentity> {
   return captureShellBoundReadIdentity(false);
 }
 
-export async function captureLiveReadClerkIdentity() {
+export async function captureLiveReadClerkIdentity(): Promise<CapturedClerkIdentity> {
   return captureShellBoundReadIdentity(true);
 }
 
