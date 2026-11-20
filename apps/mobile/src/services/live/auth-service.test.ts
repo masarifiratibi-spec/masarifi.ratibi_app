@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 import type { OnboardingProgress } from '@/domain/app-shell';
 import { userProfileSchema, type UserProfile } from '@/domain/settings';
 import { createAuthService } from '@/features/auth/auth-flow';
+import { restoreAppShellSession } from '@/features/auth/session-controller';
+import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { HttpError, requestJson } from './http-client';
 import * as httpClient from './http-client';
 import { createLiveAutomaticTrackingService } from './automatic-tracking-service';
@@ -1107,29 +1109,66 @@ describe('live profile setup', () => {
         }
       });
       registerLiveClerkBridge(bridge);
+      const shell = useAppShellStore.getState();
       const meTokens: string[] = [];
-      const request = jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
-        const token = new Headers(init?.headers).get('Authorization') ?? '';
-        const url = String(input);
-        if (url.endsWith('/me')) {
-          meTokens.push(token);
-          if (outcome === 'session-changed') session = { ...liveSession, id: 'sess_other' };
-          if (token === 'Bearer cached-token' || outcome === 'revoked') {
-            return new Response(JSON.stringify({ code: 'AUTH_TOKEN_INVALID' }), { status: 401 });
+      const request = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(async (input, init) => {
+          const token = new Headers(init?.headers).get('Authorization') ?? '';
+          const url = String(input);
+          if (url.endsWith('/me')) {
+            meTokens.push(token);
+            if (outcome === 'session-changed')
+              session = { ...liveSession, id: 'sess_other' };
+            if (token === 'Bearer cached-token' || outcome === 'revoked') {
+              return new Response(
+                JSON.stringify({ code: 'AUTH_TOKEN_INVALID' }),
+                { status: 401 }
+              );
+            }
           }
-        }
-        return new Response(JSON.stringify(url.endsWith('/preferences') ? preferences : url.endsWith('/onboarding') ? onboarding : profile));
-      });
+          if (url.endsWith('/preferences')) {
+            return new Response(
+              JSON.stringify({
+                ...preferences,
+                defaultCurrency: 'SAR',
+                currencySelectionRequired: false
+              })
+            );
+          }
+          if (url.endsWith('/onboarding')) {
+            return new Response(
+              JSON.stringify({ ...onboarding, completedSteps: ['welcome'] })
+            );
+          }
+          return new Response(JSON.stringify(profile));
+        });
       try {
-        const setup = createLiveIdentityService().getProfileSetup();
-        if (outcome === 'refreshed') await expect(setup).resolves.toHaveProperty('profile');
-        else await expect(setup).rejects.toMatchObject({ code: 'session_expired' });
-        expect(meTokens).toEqual(outcome === 'session-changed'
-          ? ['Bearer cached-token']
-          : ['Bearer cached-token', 'Bearer replacement-token']);
+        useAppShellStore.getState().reset();
+        await restoreAppShellSession(
+          createLiveAuthService(bridge),
+          () => true,
+          createLiveIdentityService()
+        );
+        const restored = useAppShellStore.getState();
+        const destination = resolveEntryRoute({
+          ...restored,
+          now: liveSession.issuedAt + 1,
+          firstLaunchOnboardingCompleted: false
+        });
+        expect(destination).toBe(
+          outcome === 'refreshed' ? '/(tabs)/home' : '/(public)/auth-pending'
+        );
+        expect(meTokens).toEqual(
+          outcome === 'session-changed'
+            ? ['Bearer cached-token']
+            : ['Bearer cached-token', 'Bearer replacement-token']
+        );
       } finally {
         request.mockRestore();
-        if (originalApiUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+        useAppShellStore.setState(shell);
+        if (originalApiUrl === undefined)
+          delete process.env.EXPO_PUBLIC_API_URL;
         else process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
       }
     }
