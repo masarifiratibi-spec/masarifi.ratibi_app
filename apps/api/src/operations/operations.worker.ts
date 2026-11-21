@@ -52,7 +52,9 @@ export class OperationsWorker {
     if (this.started) return;
     this.started = true;
     if (this.databaseUrl && this.jobKeys && this.repository.claimWithDeadline) {
-      this.listener = new SchedulerWakeListener(this.databaseUrl, this.jobKeys, () => this.wake());
+      this.listener = new SchedulerWakeListener(this.databaseUrl, this.jobKeys, () => {
+        this.wake();
+      });
       void this.listener.connect();
     }
     this.schedule(1000);
@@ -91,11 +93,14 @@ export class OperationsWorker {
       this.nextPollAt = performance.now() + 1000;
     } finally {
       this.driving = false;
-      if (this.started) {
-        const delay = this.wakePending ? 1 : this.nextPollAt - performance.now();
-        this.schedule(Math.max(1, Math.ceil(delay)));
-      }
+      this.scheduleNextPoll();
     }
+  }
+
+  private scheduleNextPoll(): void {
+    if (!this.started) return;
+    const delay = this.wakePending ? 1 : this.nextPollAt - performance.now();
+    this.schedule(Math.max(1, Math.ceil(delay)));
   }
 
   runOnce(): Promise<void> {

@@ -25,7 +25,9 @@ export class AppleAuthorizationRequired extends HttpException {
 }
 
 function linkedAppleAccounts(user: User) {
-  return user.externalAccounts.filter(account => account.provider === 'apple' || account.provider === 'oauth_apple');
+  return user.externalAccounts.filter(
+    (account) => account.provider === 'apple' || account.provider === 'oauth_apple',
+  );
 }
 
 function grantsFor(user: User): Record<string, string> {
@@ -55,7 +57,8 @@ export class AppleDeletionGrants {
     const parts = idToken.split('.');
     const [header, payload, signature] = parts;
     if (parts.length !== 3 || !header || !payload || !signature) throw unavailable();
-    const decode = (value: string): unknown => JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    const decode = (value: string): unknown =>
+      JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
     const { alg, kid } = decode(header) as { alg?: string; kid?: string };
     if (alg !== 'RS256' || !kid) throw unavailable();
     if (this.signingKey?.kid !== kid || this.signingKey.expires <= Date.now()) {
@@ -212,7 +215,7 @@ export class AppleDeletionGrants {
 
   assertPrepared(user: User) {
     const grants = grantsFor(user);
-    if (linkedAppleAccounts(user).some(account => !grants[account.id]))
+    if (linkedAppleAccounts(user).some((account) => !grants[account.id]))
       throw new AppleAuthorizationRequired();
     for (const [account, sealed] of Object.entries(grants)) this.open(sealed, user.id, account);
   }

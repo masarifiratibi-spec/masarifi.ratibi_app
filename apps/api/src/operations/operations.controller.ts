@@ -28,6 +28,7 @@ import { OperationsService } from './operations.service';
 type Operation =
   | 'getAiUsageLimits'
   | 'getOperationsHealthOverview'
+  | 'getHttpMonitoring'
   | 'listProviderHealth'
   | 'getQueueWorkerHealth'
   | 'listScheduledJobs'
@@ -67,6 +68,14 @@ export const OPERATIONS_ROUTES: readonly OperationsRoute[] = Object.freeze([
     operation: 'getAiUsageLimits',
     status: 200,
     permission: 'operations.settings.read',
+    recentAuth: false,
+  },
+  {
+    method: 'GET',
+    path: 'api/v1/admin/system-health/api',
+    operation: 'getHttpMonitoring',
+    status: 200,
+    permission: 'operations.health.read',
     recentAuth: false,
   },
   {
@@ -265,6 +274,7 @@ function principal(request: Request): ClerkPrincipal {
 const READ_KIND: Partial<Record<Operation, string>> = {
   getAiUsageLimits: 'ai-usage',
   getOperationsHealthOverview: 'health',
+  getHttpMonitoring: 'http-monitoring',
   listProviderHealth: 'providers',
   getQueueWorkerHealth: 'queues',
   listScheduledJobs: 'scheduled-jobs',

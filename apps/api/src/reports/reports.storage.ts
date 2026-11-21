@@ -27,6 +27,7 @@ function failure(code = 'REPORT_STORAGE_UNAVAILABLE'): Error {
 export class ReportsStorage {
   private readonly origin: URL;
   private readonly credential: string;
+  private readonly requestOrigin: URL;
   private readonly allowHttp: boolean;
 
   constructor(
@@ -36,6 +37,10 @@ export class ReportsStorage {
     this.fetcher = correlatedStorageFetch(this.fetcher);
     const storage = storageConfiguration(config);
     this.origin = storage.origin;
+    this.requestOrigin =
+      process.env.MASARIFI_ISOLATED_REPORT_QA === '1'
+        ? new URL('http://masarifi-qa-report-storage:8080')
+        : this.origin;
     this.credential = storage.credential;
     this.allowHttp = config.getRequired('NODE_ENV') !== 'production';
   }
@@ -137,6 +142,9 @@ export class ReportsStorage {
       (!this.allowHttp && signed.protocol !== 'https:')
     )
       throw failure();
+    if (process.env.MASARIFI_ISOLATED_REPORT_QA === '1') {
+      signed.pathname = `/qa-report-files${signed.pathname}`;
+    }
     return signed.toString();
   }
 
@@ -237,7 +245,7 @@ export class ReportsStorage {
     headers.set('apikey', this.credential);
     try {
       const response = await this.fetcher(
-        new URL(`/storage/v1/object/${prefix}report-exports/${encoded}`, this.origin),
+        new URL(`/storage/v1/object/${prefix}report-exports/${encoded}`, this.requestOrigin),
         {
           ...input,
           headers,

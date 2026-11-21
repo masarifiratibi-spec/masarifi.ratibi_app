@@ -19,7 +19,12 @@ import { CustomerSessionRevoker } from './customer-session-revoker';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [IdentityController, ClerkWebhookController, DevDeviceController, AppleDeletionController],
+  controllers: [
+    IdentityController,
+    ClerkWebhookController,
+    DevDeviceController,
+    AppleDeletionController,
+  ],
   providers: [
     ClerkClientService,
     ClerkAuthGuard,

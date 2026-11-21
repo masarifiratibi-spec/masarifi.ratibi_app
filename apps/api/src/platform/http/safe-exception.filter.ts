@@ -75,7 +75,10 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   VERSION_CONFLICT: { status: 409, message: 'Resource version conflict' },
   INVALID_CURSOR: { status: 400, message: 'Cursor is invalid' },
   RECENT_AUTH_REQUIRED: { status: 403, message: 'Recent authentication is required' },
-  APPLE_AUTHORIZATION_REQUIRED: { status: 409, message: 'Confirm the linked Apple account on iPhone' },
+  APPLE_AUTHORIZATION_REQUIRED: {
+    status: 409,
+    message: 'Confirm the linked Apple account on iPhone',
+  },
   DEVICE_NOT_FOUND: { status: 404, message: 'Device not found' },
   PUSH_TOKEN_CONFLICT: { status: 409, message: 'Push token is already registered' },
   PROVIDER_UNAVAILABLE: { status: 503, message: 'Provider is unavailable' },
@@ -326,7 +329,7 @@ export class SafeExceptionFilter implements ExceptionFilter {
     const domainCode = exceptionDomainCode(exception, status);
     const domainResponse =
       exception instanceof HttpException && typeof exception.getResponse() === 'object'
-        ? (exception.getResponse() as { currentVersion?: unknown })
+        ? (exception.getResponse() as { currentVersion?: unknown; retryAfter?: unknown })
         : undefined;
     if (
       domainCode &&
@@ -361,6 +364,15 @@ export class SafeExceptionFilter implements ExceptionFilter {
           ? { resourceId: createHash('sha256').update(operation).digest('hex').slice(0, 16) }
           : {}),
       });
+    }
+    const retryAfter = domainResponse?.retryAfter;
+    if (
+      status === 429 &&
+      typeof retryAfter === 'number' &&
+      Number.isSafeInteger(retryAfter) &&
+      retryAfter > 0
+    ) {
+      response.setHeader('Retry-After', String(retryAfter));
     }
     response.status(status).json(envelope);
   }

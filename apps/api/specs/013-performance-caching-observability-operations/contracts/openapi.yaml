@@ -93,6 +93,37 @@ paths:
         '403': { $ref: '#/components/responses/SafeError' }
         '404': { $ref: '#/components/responses/SafeError' }
         '503': { $ref: '#/components/responses/SafeError' }
+  /api/v1/admin/system-health/api:
+    get:
+      operationId: getHttpMonitoring
+      tags: [Operations]
+      parameters:
+        - { $ref: '#/components/parameters/OperationsRange' }
+        - { $ref: '#/components/parameters/OperationsPlatform' }
+      responses:
+        '200':
+          description: Aggregate completed HTTP responses in the selected window
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [range, reason, sample]
+                properties:
+                  range: { type: string, enum: [1h, 24h, 7d, 30d] }
+                  reason: { enum: [null, platform_unavailable, no_observation] }
+                  sample:
+                    type: [object, 'null']
+                    required: [from, observedAt, complete, counts, p95Ms]
+                    properties:
+                      from: { type: string, format: date-time }
+                      observedAt: { type: string, format: date-time }
+                      complete: { type: boolean }
+                      counts: { type: array, minItems: 4, maxItems: 4, items: {type: integer, minimum: 0}, description: Counts by 2xx through 5xx status classes. }
+                      p95Ms: { type: [integer, 'null'], minimum: 0 }
+        '400': { $ref: '#/components/responses/SafeError' }
+        '401': { $ref: '#/components/responses/SafeError' }
+        '403': { $ref: '#/components/responses/SafeError' }
+        '503': { $ref: '#/components/responses/SafeError' }
   /api/v1/admin/system-health/overview:
     get:
       operationId: getOperationsHealthOverview

@@ -82,12 +82,10 @@ describe('report email worker', () => {
       const result = jest.fn();
       const storage = { readPdf: jest.fn().mockResolvedValue(Buffer.from('fixture')) };
       const smtp = {
-        send: jest
-          .fn()
-          .mockResolvedValue({
-            providerMessageId: 'test',
-            acceptedByServerAt: snapshot.generatedAt,
-          }),
+        send: jest.fn().mockResolvedValue({
+          providerMessageId: 'test',
+          acceptedByServerAt: snapshot.generatedAt,
+        }),
       };
       const identity = {
         getIdentityUser: jest.fn().mockResolvedValue({ primaryEmail, primaryEmailVerified }),

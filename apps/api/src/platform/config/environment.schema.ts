@@ -59,6 +59,7 @@ const applicationKeys = new Set([
   'MASARIFI_CLERK_WEBHOOK_POLL_MS',
   'MASARIFI_CLERK_WEBHOOK_MAX_ATTEMPTS',
   'MASARIFI_CLERK_RECONCILE_PAGE_SIZE',
+  'MASARIFI_ISOLATED_REPORT_QA',
   'MASARIFI_ADMIN_ROUTES_ENABLED',
   'MASARIFI_ADMIN_INVITATION_REDIRECT_URL',
   'MASARIFI_SECURITY_IP_HASH_KEYS',
@@ -304,8 +305,12 @@ const schema = Joi.object<PlatformEnvironment>({
     .max(512)
     .optional(),
   CLERK_INSTANCE_DOMAIN: Joi.string().trim().lowercase().pattern(hostname).max(253).optional(),
-  MASARIFI_APPLE_TEAM_ID: Joi.string().pattern(/^[A-Z0-9]{10}$/).optional(),
-  MASARIFI_APPLE_KEY_ID: Joi.string().pattern(/^[A-Z0-9]{10}$/).optional(),
+  MASARIFI_APPLE_TEAM_ID: Joi.string()
+    .pattern(/^[A-Z0-9]{10}$/)
+    .optional(),
+  MASARIFI_APPLE_KEY_ID: Joi.string()
+    .pattern(/^[A-Z0-9]{10}$/)
+    .optional(),
   MASARIFI_APPLE_PRIVATE_KEY_BASE64: Joi.string().base64().max(4096).optional(),
   MASARIFI_APPLE_GRANT_KEY: Joi.string().pattern(base64UrlKey).optional(),
   CLERK_AUTHORIZED_PARTIES: Joi.string()
@@ -328,6 +333,7 @@ const schema = Joi.object<PlatformEnvironment>({
   MASARIFI_CLERK_WEBHOOK_POLL_MS: Joi.number().integer().min(100).max(10_000).default(500),
   MASARIFI_CLERK_WEBHOOK_MAX_ATTEMPTS: Joi.number().integer().min(1).max(100).default(10),
   MASARIFI_CLERK_RECONCILE_PAGE_SIZE: Joi.number().integer().min(1).max(100).default(100),
+  MASARIFI_ISOLATED_REPORT_QA: Joi.string().valid('1').optional(),
   MASARIFI_ADMIN_ROUTES_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   MASARIFI_ADMIN_INVITATION_REDIRECT_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })

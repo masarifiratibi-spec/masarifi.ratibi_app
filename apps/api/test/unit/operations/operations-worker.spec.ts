@@ -46,12 +46,9 @@ describe('operations job registry', () => {
   });
 
   it.each([0, 2])('preserves the account deletion worker count (%i)', async (processed) => {
-    const registry = new OperationsJobRegistry(
-      { runJob: jest.fn() },
-      undefined,
-      undefined,
-      { runJob: jest.fn().mockResolvedValue(processed) } as never,
-    );
+    const registry = new OperationsJobRegistry({ runJob: jest.fn() }, undefined, undefined, {
+      runJob: jest.fn().mockResolvedValue(processed),
+    } as never);
     await expect(registry.run('privacy.account-delete')).resolves.toEqual({
       outcome: 'succeeded',
       processed,

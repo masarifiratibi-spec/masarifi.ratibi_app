@@ -70,7 +70,7 @@ describe('confirmed self deletion authorized by the active owner session', () =>
         execute: () => Promise.resolve({ id: 'request-one' }),
       } as never,
       { get: (key: string) => values[key], getRequired: (key: string) => values[key] } as never,
-      {} as never,
+      { assertAppleDeletionPrepared: () => Promise.resolve() } as never,
       {} as never,
       {
         runDeletionRequestForOwner: () =>

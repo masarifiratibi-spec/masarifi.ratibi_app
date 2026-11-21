@@ -96,12 +96,13 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     exact(input, []);
     return {};
   }
-  if (kind === 'health' || kind === 'queues' || kind === 'performance') {
-    exact(input, kind === 'health' ? ['range', 'platform'] : ['range']);
+  const platformScoped = kind === 'health' || kind === 'http-monitoring';
+  if (platformScoped || kind === 'queues' || kind === 'performance') {
+    exact(input, platformScoped ? ['range', 'platform'] : ['range']);
     const range = input.range === undefined ? '24h' : scalarText(input.range);
     if (!['1h', '24h', '7d', '30d'].includes(range)) throw new Error(INVALID);
     const output: Record<string, unknown> = { range };
-    if (kind === 'health') {
+    if (platformScoped) {
       const platform = input.platform === undefined ? 'all' : scalarText(input.platform);
       if (!['all', 'ios', 'android'].includes(platform)) throw new Error(INVALID);
       output.platform = platform;

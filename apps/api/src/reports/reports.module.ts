@@ -5,6 +5,7 @@ import { IdentityModule } from '../identity/identity.module';
 import { IdentityWorkerModule } from '../identity/identity.module';
 import { DatabaseModule } from '../platform/database/database.module';
 import { SecurityModule } from '../security/security.module';
+import { QaReportFilesController } from './reports.qa-files.controller';
 import { ReportsController } from './reports.controller';
 import { ReportsAdminController } from './reports.admin.controller';
 import { ReportsRepository } from './reports.repository';
@@ -19,6 +20,7 @@ import { ReportsWebhookController } from './reports.webhook.controller';
   controllers: [
     ReportsMobileActivityController,
     ReportsController,
+    ...(process.env.MASARIFI_ISOLATED_REPORT_QA === '1' ? [QaReportFilesController] : []),
     ReportsAdminController,
     ReportsWebhookController,
   ],

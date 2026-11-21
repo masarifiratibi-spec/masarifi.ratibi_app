@@ -1,14 +1,17 @@
 import { Body, Controller, HttpCode, HttpException, Post, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClerkAuthGuard, type ClerkPrincipalRequest } from './clerk-auth.guard';
 import { ClerkClientService } from './clerk-client.service';
 
 @Controller('api/v1/me/apple-deletion-grant')
 @UseGuards(ClerkAuthGuard)
+@ApiBearerAuth('ClerkBearer')
 export class AppleDeletionController {
   constructor(private readonly clerk: ClerkClientService) {}
 
   @Post()
   @HttpCode(200)
+  @ApiOperation({ operationId: 'prepareAppleDeletionGrant' })
   prepare(@Req() request: ClerkPrincipalRequest, @Body() body: unknown) {
     if (!request.clerkPrincipal) throw new HttpException({ code: 'AUTH_TOKEN_INVALID' }, 401);
     if (

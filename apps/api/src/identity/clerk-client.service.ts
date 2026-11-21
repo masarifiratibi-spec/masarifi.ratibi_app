@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { createClerkClient, type ClerkClient } from '@clerk/backend';
 import { HttpException, Injectable } from '@nestjs/common';
 import { AppleAuthorizationRequired, AppleDeletionGrants } from './apple-deletion-grants';
@@ -69,11 +71,19 @@ export class ClerkClientService {
   private readonly instanceDomain: string | undefined;
   private readonly adminInvitationRedirectUrl: string | undefined;
 
+  private readonly qaOwner =
+    process.env.MASARIFI_ISOLATED_REPORT_QA === '1'
+      ? readFileSync('/run/secrets/qa-report-owner', 'utf8').trim()
+      : undefined;
+
   constructor(config: PlatformConfigService) {
     this.client = createClerkClient({
       secretKey: config.getRequired('CLERK_SECRET_KEY'),
       ...(config.get('CLERK_PUBLISHABLE_KEY')
         ? { publishableKey: config.get('CLERK_PUBLISHABLE_KEY') }
+        : {}),
+      ...(this.qaOwner !== undefined
+        ? { jwtKey: readFileSync('/run/secrets/qa-clerk-public.pem', 'utf8') }
         : {}),
       telemetry: { disabled: true, debug: false, samplingRate: 0 },
     });
@@ -110,6 +120,13 @@ export class ClerkClientService {
       }
       const { userId, sessionId, sessionStatus, factorVerificationAge, sessionClaims } = auth;
       if (
+        this.qaOwner !== undefined &&
+        (!this.qaOwner ||
+          userId !== this.qaOwner ||
+          sessionClaims.iss !== `https://${this.instanceDomain}`)
+      )
+        return { isAuthenticated: false };
+      if (
         typeof userId !== 'string' ||
         typeof sessionId !== 'string' ||
         (sessionStatus !== null && typeof sessionStatus !== 'string') ||
@@ -136,9 +153,15 @@ export class ClerkClientService {
     }
   }
 
+  private async deletionOwner(userId: string) {
+    const user = await this.withTimeout(this.client.users.getUser(userId));
+    if (user.id !== userId) throw new ClerkProviderUnavailableError();
+    return user;
+  }
+
   async prepareAppleDeletion(userId: string, code?: string) {
     try {
-      const user = await this.withTimeout(this.client.users.getUser(userId));
+      const user = await this.deletionOwner(userId);
       return await this.appleGrants.prepare(user, code);
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -148,7 +171,7 @@ export class ClerkClientService {
 
   async assertAppleDeletionPrepared(userId: string, allowDeleted = false) {
     try {
-      const user = await this.withTimeout(this.client.users.getUser(userId));
+      const user = await this.deletionOwner(userId);
       this.appleGrants.assertPrepared(user);
     } catch (error) {
       if (allowDeleted && statusCode(error) === 404) return;
@@ -162,7 +185,7 @@ export class ClerkClientService {
     if (!/^user_[A-Za-z0-9_]+$/.test(userId) || userId.length > 128)
       throw new ClerkProviderUnavailableError();
     try {
-      const user = await this.withTimeout(this.client.users.getUser(userId));
+      const user = await this.deletionOwner(userId);
       await this.appleGrants.revoke(user);
       await this.withTimeout(this.client.users.deleteUser(userId));
       return 'deleted';
