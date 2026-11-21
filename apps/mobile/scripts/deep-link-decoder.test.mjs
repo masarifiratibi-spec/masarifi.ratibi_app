@@ -26,6 +26,10 @@ function decoderProbe(guarded) {
       const intent = new Module(filename);
       intent.filename = filename;
       intent.paths = Module._nodeModulePaths(require('node:path').dirname(filename));
+      // Node runs the real router and decoder, with iOS supplied by the host.
+      const requireFromIntent = intent.require.bind(intent);
+      intent.require = (id) =>
+        id === 'react-native' ? { Platform: { OS: 'ios' } } : requireFromIntent(id);
       intent._compile(compiled, filename);
       const queryString = require('query-string');
       const { extractExpoPathFromURL } = require('expo-router/build/fork/extractPathFromURL');
