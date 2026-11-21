@@ -356,7 +356,8 @@ test('wires consent, conversation pages, ask, rename, delete, and feedback to ex
     await consentHook.result.current.mutateAsync({
       enabled: false,
       expectedVersion: 2,
-      operationId: 'consent-off'
+      operationId: 'consent-off',
+      ownerId: 'owner-consent'
     });
     await askHook.result.current.mutateAsync({
       conversationId: 'c1',
@@ -396,7 +397,7 @@ test('wires consent, conversation pages, ask, rename, delete, and feedback to ex
     });
   });
 
-  expect(setConsent).toHaveBeenCalledWith(false, 2, 'consent-off');
+  expect(setConsent).toHaveBeenCalledWith(false, 2, 'consent-off', 'owner-consent');
   expect(ask).toHaveBeenCalledWith('c1', 'Q', 'ask-1');
   expect(rename).toHaveBeenCalledWith('c1', 'New', 1, 'rename-1');
   expect(remove).toHaveBeenCalledWith('c1', 2, 'delete-1');

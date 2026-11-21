@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, AppState } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { AssistantQuestionDisclosure, useQuestionAdmission } from './AssistantQuestionDisclosure';
 import { AssistantLanding } from './AssistantLanding';
 import { AssistantConversationView } from './AssistantConversationView';
 import { AssistantActionPreviewScreen } from './AssistantActionPreviewScreen';
@@ -31,7 +32,7 @@ import * as queries from './assistant-queries';
 type HomeProps = { initialConversationId?: string; initialQuestion?: string };
 export function AssistantHomeScreen(props: HomeProps) {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
-  return <AssistantHomeContent key={ownerId ?? 'signed-out'} {...props} />;
+  return <AssistantQuestionDisclosure><AssistantHomeContent key={ownerId ?? 'signed-out'} {...props} /></AssistantQuestionDisclosure>;
 }
 
 function AssistantHomeContent({
@@ -39,6 +40,7 @@ function AssistantHomeContent({
   initialQuestion
 }: HomeProps) {
   const { colors } = useTheme();
+  const admitQuestion = useQuestionAdmission();
   const insights = queries.useAssistantInsights();
   const createConversation = queries.useCreateAssistantConversation();
   const availability = queries.useAssistantAvailability?.();
@@ -64,6 +66,7 @@ function AssistantHomeContent({
     question: string,
     intent?: AssistantQuestionIntent
   ): Promise<boolean> => {
+    if (!admitQuestion()) return false;
     if (unresolved) {
       if (operation?.data?.conversationId)
         router.navigate(`/assistant/${operation.data.conversationId}`);
@@ -163,7 +166,7 @@ function AssistantHomeContent({
                 })
               }
               onRetry={() =>
-                retry?.mutate(undefined, {
+                admitQuestion() && retry?.mutate(undefined, {
                   onSuccess: (result) => {
                     setActiveConversationId(result.value.conversationId);
                   }
@@ -224,10 +227,10 @@ type ConversationProps = {
 export function AssistantConversationScreen(props: ConversationProps) {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   return (
-    <AssistantConversationContent
+    <AssistantQuestionDisclosure><AssistantConversationContent
       key={JSON.stringify([ownerId, props.conversationId])}
       {...props}
-    />
+    /></AssistantQuestionDisclosure>
   );
 }
 
@@ -237,6 +240,7 @@ function AssistantConversationContent({
   onBack
 }: ConversationProps) {
   const { colors } = useTheme();
+  const admitQuestion = useQuestionAdmission();
   const queryClient = useQueryClient();
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const latest = queries.useAssistantConversation(conversationId);
@@ -443,6 +447,7 @@ function AssistantConversationContent({
   );
 
   const handleSendMessage = async (questionText: string): Promise<boolean> => {
+    if (!admitQuestion()) return false;
     if (
       !questionText.trim() ||
       waitingForInitialHistory ||
@@ -583,7 +588,7 @@ function AssistantConversationContent({
                 });
               }}
               onRetry={() =>
-                retry?.mutate(undefined, {
+                admitQuestion() && retry?.mutate(undefined, {
                   onSuccess: () => {
                     ask.reset?.();
                     setOptimisticTurn(null);

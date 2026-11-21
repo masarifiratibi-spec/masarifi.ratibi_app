@@ -34,6 +34,106 @@ const conversation = {
   updatedAt: '2026-09-03T00:00:02.000Z'
 };
 
+describe('iPhone text assistant disclosure', () => {
+  let owner: string;
+  let stored: Map<string, string>;
+  let setting: { policyVersion: string; granted: boolean; version: number };
+  beforeEach(() => {
+    owner = 'owner-A';
+    stored = new Map();
+    setting = { policyVersion: 'assistant-privacy-v1', granted: true, version: 3 };
+  });
+  function adapter(options: {
+    beforeRead?: () => Promise<void>;
+    rejectQuestion?: boolean;
+    failWithdraw?: boolean;
+  } = {}) {
+    const request = mockedFetch(async (url, init) => {
+      if (url.endsWith('/consent') || url.includes('/consent?')) {
+        if (init.method === 'GET') await options.beforeRead?.();
+        if (init.method === 'DELETE' && options.failWithdraw) throw new Error('offline');
+        if (init.method === 'DELETE' || init.method === 'PUT')
+          setting = { ...setting, granted: init.method === 'PUT', version: setting.version + 1 };
+        return json({ ...setting, grantedAt: setting.granted ? at : null, revokedAt: setting.granted ? null : at });
+      }
+      if (options.rejectQuestion && init.method === 'POST') return json({ code: 'AI_CONSENT_REQUIRED' }, 403);
+      if (url.endsWith('/conversations')) return json(conversation, 201);
+      if (url.endsWith('/messages')) return json({ id: id(2), status: 'completed' }, 202);
+      return json({ code: 'NOT_FOUND' }, 404);
+    });
+    const consentStore = {
+      read: async (key: string) => stored.get(key) ?? null,
+      write: async (key: string, value: string | null) => {
+        if (value === null) stored.delete(key);
+        else stored.set(key, value);
+      }
+    };
+    const service = createLiveAssistantApiService({ request, consentStore, baseUrl: 'https://api.test',
+      identity: async () => {
+        const original = owner;
+        return { userId: owner, token: owner, assertCurrent: async () => {
+          if (owner !== original) throw Error('owner changed');
+        } };
+      }
+    });
+    return { service, request };
+  }
+  it('blocks both types of question before transmission with only a historical server grant', async () => {
+    const { service, request } = adapter();
+    await expect(service.getConsent()).resolves.toMatchObject({ status: 'not_requested' });
+    await expect(service.createConversation({ question: 'Private title?' }, 'disclosure-title-001')).rejects.toMatchObject({code:'consent_required'});
+    await expect(service.ask(id(1), 'Private follow-up?', 'disclosure-message-001')).rejects.toMatchObject({code:'consent_required'});
+    expect(request.mock.calls.filter(([, init]) => ['PUT','POST'].includes(init?.method ?? ''))).toHaveLength(0);
+  });
+  it('never acknowledges or replays a question rejected by the server after a valid local grant', async () => {
+    const { service, request } = adapter({ rejectQuestion: true });
+    await service.setConsent(true, 3, 'explicit-grant-001');
+    request.mockClear();
+    await expect(service.createConversation({ question: 'Private?' }, 'private-title-001')).rejects.toMatchObject({ code: 'consent_required' });
+    expect(request.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+    expect(request.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
+    const restarted = adapter();
+    await expect(restarted.service.getConsent()).resolves.toMatchObject({status:'not_requested'});
+    await expect(restarted.service.createConversation({ question: 'Retry?' }, 'private-retry-001')).rejects.toMatchObject({code:'consent_required'});
+    expect(restarted.request.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('keeps an offline withdrawal effective across a restart and a server-only regrant', async () => {
+    const { service } = adapter({ failWithdraw: true });
+    await service.setConsent(true, 3, 'explicit-grant-002');
+    await expect(service.setConsent(false, setting.version, 'explicit-withdraw-002')).rejects.toBeDefined();
+    const restarted = adapter();
+    await expect(restarted.service.getConsent()).resolves.toMatchObject({ status: 'not_requested' });
+    await expect(restarted.service.ask(id(1), 'Private?', 'private-message-002')).rejects.toMatchObject({ code: 'consent_required' });
+    expect(restarted.request.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('checks the current owner after a delayed preflight before transmitting the question', async () => {
+    const { service, request } = adapter({ beforeRead: async () => { owner = 'owner-B'; } });
+    await service.setConsent(true, 3, 'explicit-grant-003');
+    await expect(service.createConversation({ question: 'A only' }, 'private-title-003')).rejects.toBeDefined();
+    expect(request.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('requires a matching owner, current version and explicit action after restart or withdrawal', async () => {
+    const { service } = adapter();
+    await service.setConsent(true, 3, 'disclosure-accept-001');
+    await expect(adapter().service.getConsent()).resolves.toMatchObject({status:'enabled'});
+    owner = 'owner-B';
+    await expect(adapter().service.getConsent()).resolves.toMatchObject({status:'not_requested'});
+    owner = 'owner-A';
+    setting.version++;
+    await expect(adapter().service.getConsent()).resolves.toMatchObject({status:'not_requested'});
+    await service.setConsent(true, setting.version, 'disclosure-accept-002');
+    await expect(service.createConversation({question:'Consented?'}, 'disclosure-title-002')).resolves.toMatchObject({value:{id:id(1)}});
+    await service.setConsent(false, setting.version, 'disclosure-withdraw-001');
+    setting.granted = true;
+    const restarted = adapter();
+    await expect(restarted.service.createConversation({question:'After withdrawal?'}, 'disclosure-title-003')).rejects.toMatchObject({code:'consent_required'});
+    expect(restarted.request.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+});
+
 it.each(['success', 'lost-response', 'conflict'])('prepares the legacy server setting on an explicit question (%s) and keeps the same operation', async activation => {
   let active = false;
   const request = mockedFetch(async (url, init) => {

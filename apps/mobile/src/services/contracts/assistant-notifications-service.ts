@@ -223,7 +223,7 @@ export interface AssistantService {
   retryQuestionOperation?(): Promise<
     MutationResult<{ conversationId: string }>
   >;
-  getConsent(): Promise<AssistantConsent>;
+  getConsent(ownerId?: string): Promise<AssistantConsent>;
   getAvailability(): Promise<{
     status: 'available' | 'disabled' | 'limit_reached';
     remainingQuestions: number;
@@ -239,7 +239,8 @@ export interface AssistantService {
   setConsent(
     enabled: boolean,
     expectedVersion: number,
-    operationId: string
+    operationId: string,
+    ownerId?: string
   ): Promise<MutationResult<AssistantConsent>>;
   listConversations(
     input: AssistantConversationQuery

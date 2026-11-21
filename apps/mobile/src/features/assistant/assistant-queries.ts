@@ -48,9 +48,10 @@ export const assistantKeys = {
 };
 
 export function useAssistantConsent() {
+  const owner = useAppShellStore((state) => state.session?.userId);
   return useQuery({
-    queryKey: assistantKeys.consent(),
-    queryFn: () => assistantService.getConsent()
+    queryKey: ownedReadKey(assistantKeys.consent(), owner),
+    queryFn: () => assistantService.getConsent(owner ?? undefined)
   });
 }
 
@@ -236,12 +237,14 @@ export function useSetAssistantConsent() {
     ({
       enabled,
       expectedVersion,
+      ownerId,
       operationId
     }: {
       enabled: boolean;
+      ownerId?: string;
       expectedVersion: number;
       operationId: string;
-    }) => assistantService.setConsent(enabled, expectedVersion, operationId)
+    }) => assistantService.setConsent(enabled, expectedVersion, operationId, ownerId)
   );
 }
 

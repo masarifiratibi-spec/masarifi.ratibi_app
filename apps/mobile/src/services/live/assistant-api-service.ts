@@ -31,6 +31,17 @@ import {
   type AssistantService
 } from '@/services/contracts/assistant-notifications-service';
 
+export interface TextConsentStore {
+  read(key: string): Promise<string | null>;
+  write(key: string, value: string | null): Promise<void>;
+}
+const textPolicy = 'assistant-privacy-v1';
+// Changing the disclosure requires a new explicit acknowledgement on this iPhone.
+const disclosureKey = (owner: string) =>
+  'masarifi.ios.text-consent.v1.' + bytesToHex(sha256(utf8ToBytes(owner)));
+const grantReceipt = (row: z.infer<typeof consentSchema>) =>
+  JSON.stringify([row.policyVersion, row.version, row.grantedAt]);
+
 type TokenProvider = () => Promise<string>;
 let tokenProvider: TokenProvider = () =>
   Promise.reject(new Error('assistant_unavailable'));
@@ -397,6 +408,7 @@ export function createLiveAssistantApiService(
       assertCurrent(): Promise<void>;
     }>;
     journal?: AssistantOperationJournal;
+    consentStore?: TextConsentStore;
     requestTimeoutMs?: number;
     now?: () => number;
   } = {}
@@ -412,6 +424,10 @@ export function createLiveAssistantApiService(
     options.sleep ??
     ((milliseconds: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  const consentStore = options.consentStore;
+  const consentChanges = new Map<string, symbol>();
+  let consentRevision = 0;
+  const consentRequired = () => new AssistantApiError('consent_required', ['assistant.consent'], true);
   const reviewedDisclosures = new Map<string, string>();
   const journal = options.journal ?? createMemoryAssistantJournal();
   const now = options.now ?? Date.now;
@@ -456,6 +472,16 @@ export function createLiveAssistantApiService(
     const actor = await identity();
     if (expectedOwner && actor.userId !== expectedOwner)
       throw new AssistantApiError('session_expired');
+    const questionRequest = method === 'POST' && (
+      path === '/api/v1/assistant/conversations' ||
+      /^\/api\/v1\/assistant\/conversations\/[^/]+\/messages$/u.test(path)
+    );
+    const questionRevision = consentRevision;
+    if (consentStore && questionRequest) {
+      const consent = await currentConsent(actor.userId);
+      await actor.assertCurrent();
+      if (questionRevision !== consentRevision || consent.status !== 'enabled' || consentChanges.has(actor.userId)) throw consentRequired();
+    }
     const controller = new AbortController();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -518,11 +544,7 @@ export function createLiveAssistantApiService(
         value && typeof value === 'object' && 'code' in value
           ? Reflect.get(value, 'code')
           : null;
-      const questionRequest = method === 'POST' && key && (
-        path === '/api/v1/assistant/conversations' ||
-        /^\/api\/v1\/assistant\/conversations\/[a-f0-9-]{36}\/messages$/u.test(path)
-      );
-      if (prepareDefault && questionRequest && response.status === 403 && ownerCode === 'AI_CONSENT_REQUIRED') {
+      if (!consentStore && prepareDefault && key && questionRequest && response.status === 403 && ownerCode === 'AI_CONSENT_REQUIRED') {
         // Only an explicit question prepares the legacy setting. Keep its owner,
         // payload and idempotency key through the single definitive-rejection retry.
         const readSetting = async () => parse(consentSchema, await send(
@@ -570,6 +592,13 @@ export function createLiveAssistantApiService(
                     : response.status === 404
                       ? 'not_found'
                       : 'representative_failure';
+      if (consentStore && questionRequest && mapped === 'consent_required') {
+        if (questionRevision === consentRevision) {
+          consentRevision++;
+          await consentStore.write(disclosureKey(actor.userId), null);
+        }
+        throw consentRequired();
+      }
       throw new AssistantApiError(
         mapped,
         [],
@@ -588,6 +617,19 @@ export function createLiveAssistantApiService(
     }
     return value;
   };
+
+  async function currentConsent(owner: string): Promise<AssistantConsent> {
+    const row = parse(consentSchema, await send('GET', '/api/v1/assistant/consent', undefined, undefined, owner));
+    const consent = mapConsent(row);
+    if (!consentStore) return consent;
+    if (row.policyVersion !== textPolicy) throw consentRequired();
+    if (row.granted && (!row.grantedAt || consentChanges.has(owner) ||
+        await consentStore.read(disclosureKey(owner)) !== grantReceipt(row))) {
+      return { ...consent, status: 'not_requested', consentedAt: null };
+    }
+    return consent;
+  }
+
 
   const listMessages = async (id: string, cursor?: string, owner?: string) =>
     parse(
@@ -1092,8 +1134,13 @@ export function createLiveAssistantApiService(
         'assistant.availability'
       ]);
     },
-    async getConsent() {
-      return mapConsent(await send('GET', '/api/v1/assistant/consent'));
+    async getConsent(ownerId) {
+      if (!consentStore) return mapConsent(await send('GET', '/api/v1/assistant/consent'));
+      const actor = await identity();
+      if (ownerId && actor.userId !== ownerId) throw new AssistantApiError('session_expired');
+      const consent = await currentConsent(actor.userId);
+      await actor.assertCurrent();
+      return consent;
     },
     async getAvailability() {
       const row = parse(
@@ -1165,27 +1212,43 @@ export function createLiveAssistantApiService(
         expiresAt: epoch(row.expiresAt)
       }));
     },
-    async setConsent(enabled, expectedVersion, operationId) {
+    async setConsent(enabled, expectedVersion, operationId, ownerId) {
       assertBenchmarkRead('POST');
-      const row = await send(
-        enabled ? 'PUT' : 'DELETE',
-        enabled
-          ? '/api/v1/assistant/consent'
-          : `/api/v1/assistant/consent?expectedVersion=${String(expectedVersion)}`,
-        enabled
-          ? {
-              policyVersion: 'assistant-privacy-v1',
-              accepted: true,
-              expectedVersion
-            }
-          : undefined,
-        operationId
-      );
-      return mutation(mapConsent(row), [
-        'assistant.consent',
-        'assistant.availability',
-        'assistant.context'
-      ]);
+      const owner = ownerId ?? (consentStore ? (await identity()).userId : undefined);
+      const change = Symbol();
+      const key = owner && consentStore ? disclosureKey(owner) : undefined;
+      if (key && owner) {
+        consentRevision++;
+        consentChanges.set(owner, change);
+      }
+      try {
+        // Invalidate locally before a network call, including offline withdrawals.
+        if (consentStore && key) await consentStore.write(key, null);
+        const row = await send(
+          enabled ? 'PUT' : 'DELETE',
+          enabled
+            ? '/api/v1/assistant/consent'
+            : `/api/v1/assistant/consent?expectedVersion=${String(expectedVersion)}`,
+          enabled
+            ? {
+                policyVersion: 'assistant-privacy-v1',
+                accepted: true,
+                expectedVersion
+              }
+            : undefined,
+          operationId,
+          owner
+        );
+        const result = parse(consentSchema, row);
+        if (consentStore && owner && key && enabled) {
+          if (!result.granted || !result.grantedAt || result.policyVersion !== textPolicy ||
+              consentChanges.get(owner) !== change) throw consentRequired();
+          await consentStore.write(key, grantReceipt(result));
+        }
+        return mutation(mapConsent(result), ['assistant.consent', 'assistant.availability', 'assistant.context']);
+      } finally {
+        if (owner && consentChanges.get(owner) === change) consentChanges.delete(owner);
+      }
     },
     async listConversations(input) {
       const result = parse(
