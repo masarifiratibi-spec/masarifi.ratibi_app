@@ -129,6 +129,30 @@ export class OperationsRepository {
     });
   }
 
+  async claimWithDeadline(workerId: string, limit: number, jobKeys: readonly string[]) {
+    const read = async (client: PoolClient) => {
+      const result = await client.query<{
+        value: { claims: Record<string, unknown>[]; delayMs: number };
+      }>(
+        `select private.claim_scoped_jobs_with_deadline($1,$2,$3::text[]) as value
+         from pg_catalog.set_config('request.jwt.claims','{"role":"worker"}',true)`,
+        [workerId, limit, jobKeys],
+      );
+      const value = result.rows[0]?.value;
+      if (
+        !value ||
+        !Number.isFinite(value.delayMs) ||
+        value.delayMs < 1 ||
+        !Array.isArray(value.claims)
+      )
+        throw new Error('OPERATIONS_DEADLINE_INVALID');
+      return value;
+    };
+    return this.pool.runtimeRole === 'masarifi_worker'
+      ? this.pool.withClient(read)
+      : this.asWorker(read);
+  }
+
   heartbeat(attemptId: string, workerId: string): Promise<void> {
     return this.asWorker(async (client) => {
       await client.query('select private.heartbeat_job_attempt($1::uuid,$2,clock_timestamp())', [

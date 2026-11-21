@@ -105,6 +105,10 @@ async function main() {
       if (limit !== 1 || keys?.length !== 1 || keys[0] !== job) throw new Error('Unexpected job scope');
       return repo.claim(id, 1, [job]);
     },
+    claimWithDeadline: (id, limit, keys) => {
+      if (limit !== 1 || keys?.length !== 1 || keys[0] !== job) throw new Error('Unexpected job scope');
+      return repo.claimWithDeadline(id, 1, [job]);
+    },
     heartbeat: (...args) => repo.heartbeat(...args),
     complete: (...args) => repo.complete(...args),
   };
