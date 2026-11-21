@@ -2384,6 +2384,7 @@ const en = {
   'assistant.privacy.transactions':
     'If you agree, Masarifi sends your questions, relevant conversation history and financial context via OpenRouter to an OpenAI model on Microsoft Azure or a Google Gemini model on Google Vertex AI. You can withdraw consent in the assistant.',
   'assistant.privacy.choice': 'Optional. You can withdraw consent anytime.',
+  'assistant.consent.retryWithdrawal': 'Retry consent withdrawal',
   'assistant.consent.withdraw': 'Withdraw assistant consent',
   'assistant.state.disabled': 'Personalization is disabled.',
   'assistant.state.limit': 'Assistant usage limit reached.',

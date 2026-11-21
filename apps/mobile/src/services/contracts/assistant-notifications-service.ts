@@ -219,8 +219,8 @@ export interface AssistantService {
     question: string | undefined;
     createdAt?: number;
   } | null>;
-  resumeQuestion?(): Promise<MutationResult<AssistantResponse>>;
-  retryQuestionOperation?(): Promise<
+  resumeQuestion?(ownerId?: string | null): Promise<MutationResult<AssistantResponse>>;
+  retryQuestionOperation?(ownerId?: string | null): Promise<
     MutationResult<{ conversationId: string }>
   >;
   getConsent(ownerId?: string): Promise<AssistantConsent>;
@@ -247,7 +247,8 @@ export interface AssistantService {
   ): Promise<Page<AssistantConversation>>;
   createConversation(
     input: { question: string; intent?: AssistantQuestionIntent },
-    operationId: string
+    operationId: string,
+    ownerId?: string | null
   ): Promise<MutationResult<AssistantConversation>>;
   getConversation(
     id: string,
@@ -264,7 +265,8 @@ export interface AssistantService {
     conversationId: string,
     question: string,
     operationId: string,
-    intent?: AssistantQuestionIntent
+    intent?: AssistantQuestionIntent,
+    ownerId?: string | null
   ): Promise<MutationResult<AssistantResponse>>;
   renameConversation(
     id: string,

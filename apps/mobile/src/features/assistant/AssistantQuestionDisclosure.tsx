@@ -36,22 +36,29 @@ function OwnerDisclosure({
 }: React.PropsWithChildren<{ owner?: string | null }>) {
   const consent = useAssistantConsent();
   const change = useSetAssistantConsent();
+  const decisionInFlight = React.useRef(false);
+  const [submitting, setSubmitting] = React.useState(false);
   const [show, setShow] = React.useState(false);
   const [locallyWithdrawn, setLocallyWithdrawn] = React.useState(false);
+  const [withdrawalFailed, setWithdrawalFailed] = React.useState(false);
+  const pendingWithdrawal = withdrawalFailed || consent.data?.status === 'withdrawal_pending';
   const enabled = consent.data?.status === 'enabled' && !locallyWithdrawn;
   const admit = () => {
-    if (enabled && !consent.isError && !change.isPending) return true;
+    if (enabled && !consent.isError && !decisionInFlight.current && !change.isPending) return true;
     setShow(true);
     void consent.refetch?.();
     return false;
   };
   const update = (enabled: boolean) => {
     if (
+      decisionInFlight.current ||
       !consent.data ||
       !owner ||
       owner !== useAppShellStore.getState().session?.userId
     )
       return;
+    decisionInFlight.current = true;
+    setSubmitting(true);
     if (!enabled) setLocallyWithdrawn(true);
     change.mutate(
       {
@@ -62,10 +69,16 @@ function OwnerDisclosure({
       },
       {
         onSuccess: () => {
+          decisionInFlight.current = false;
+          setSubmitting(false);
+          setWithdrawalFailed(false);
           setLocallyWithdrawn(!enabled);
           setShow(false);
         },
         onError: () => {
+          decisionInFlight.current = false;
+          setSubmitting(false);
+          setWithdrawalFailed(!enabled);
           setShow(true);
           void consent.refetch();
         }
@@ -74,14 +87,18 @@ function OwnerDisclosure({
   };
   return (
     <QuestionAdmission.Provider value={admit}>
-      {show ? (
+      {pendingWithdrawal ? (
+        <ActionButton label="assistant.consent.retryWithdrawal" variant="secondary"
+          disabled={submitting || change.isPending} onPress={() => update(false)} />
+      ) : show ? (
         <View>
           <AssistantConsentCard
             consent={enabled ? consent.data : undefined}
             onEnableConsent={() => update(true)}
             onDisableConsent={() => update(false)}
-            onDecline={() => setShow(false)}
-            loading={!consent.data || consent.isError || change.isPending}
+            onDecline={() => { if (!decisionInFlight.current) setShow(false); }}
+            decisionPending={submitting || change.isPending}
+            loading={!consent.data || consent.isError || submitting || change.isPending}
           />
           {change.isError || consent.isError ? (
             <StyledText accessibilityRole="alert">

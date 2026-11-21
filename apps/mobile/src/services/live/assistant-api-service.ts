@@ -426,6 +426,7 @@ export function createLiveAssistantApiService(
       new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
   const consentStore = options.consentStore;
   const consentChanges = new Map<string, symbol>();
+  const pendingWithdrawals = new Map<string, number>();
   let consentRevision = 0;
   const consentRequired = () => new AssistantApiError('consent_required', ['assistant.consent'], true);
   const reviewedDisclosures = new Map<string, string>();
@@ -455,6 +456,14 @@ export function createLiveAssistantApiService(
     } finally {
       if (deadline) clearTimeout(deadline);
     }
+  };
+
+  const questionIdentity = async (origin?: string | null) => {
+    const actor = await identity();
+    if (origin !== undefined && actor.userId !== origin)
+      throw new AssistantApiError('session_expired', [], true);
+    await actor.assertCurrent();
+    return actor;
   };
 
   const send = async (
@@ -618,7 +627,34 @@ export function createLiveAssistantApiService(
     return value;
   };
 
+  function withdrawalState(version: number): AssistantConsent {
+    return {
+      status: 'withdrawal_pending', version, consentedAt: null, disabledAt: null,
+      disclosedDataCategories: ['transactions', 'planning', 'reports']
+    };
+  }
+
+  async function pendingWithdrawal(owner: string): Promise<AssistantConsent | null> {
+    const inMemory = pendingWithdrawals.get(owner);
+    if (inMemory !== undefined) return withdrawalState(inMemory);
+    if (!consentStore) return null;
+    const key = disclosureKey(owner);
+    const markers = await Promise.allSettled([
+      consentStore.read(key), consentStore.read(key + '.withdrawal')
+    ]);
+    for (const marker of markers) {
+      if (marker.status !== 'fulfilled' || !marker.value?.startsWith('withdraw:')) continue;
+      const version = Number(marker.value.slice('withdraw:'.length));
+      if (!Number.isSafeInteger(version) || version < 1) throw consentRequired();
+      return withdrawalState(version);
+    }
+    if (markers.some(marker => marker.status === 'rejected')) throw consentRequired();
+    return null;
+  }
+
   async function currentConsent(owner: string): Promise<AssistantConsent> {
+    const pending = await pendingWithdrawal(owner);
+    if (pending) return pending;
     const row = parse(consentSchema, await send('GET', '/api/v1/assistant/consent', undefined, undefined, owner));
     const consent = mapConsent(row);
     if (!consentStore) return consent;
@@ -809,14 +845,16 @@ export function createLiveAssistantApiService(
     conversationId: string,
     question: string,
     operationId: string,
-    intent?: import('../contracts/assistant-notifications-service').AssistantQuestionIntent
+    intent?: import('../contracts/assistant-notifications-service').AssistantQuestionIntent,
+    ownerId?: string | null
   ): Promise<AssistantResponse> => {
-    const actor = await identity().catch((error: unknown) => {
+    const actor = await questionIdentity(ownerId).catch((error: unknown) => {
       if (error instanceof AssistantApiError)
         throw new AssistantApiError(error.code, error.affectedScopes, true);
       throw error;
     });
     const previous = await journal.read(actor.userId, 'question');
+    await actor.assertCurrent();
     const operation = await journal.reserve(
       actor.userId,
       'question',
@@ -1055,9 +1093,9 @@ export function createLiveAssistantApiService(
           }
         : null;
     },
-    async retryQuestionOperation() {
+    async retryQuestionOperation(ownerId) {
       assertBenchmarkRead('POST');
-      const actor = await identity();
+      const actor = await questionIdentity(ownerId);
       const saved = await journal.read(actor.userId, 'question');
       await actor.assertCurrent();
       if (
@@ -1066,7 +1104,7 @@ export function createLiveAssistantApiService(
       )
         throw new AssistantApiError('conflict');
       if (saved.messageId) {
-        const recovered = await this.resumeQuestion!();
+        const recovered = await this.resumeQuestion!(actor.userId);
         return mutation(
           { conversationId: recovered.value.conversationId },
           recovered.affectedScopes
@@ -1080,7 +1118,8 @@ export function createLiveAssistantApiService(
           saved.request.conversationId,
           saved.request.question,
           saved.operationId,
-          intent
+          intent,
+          actor.userId
         );
         return mutation(
           { conversationId: recovered.value.conversationId },
@@ -1089,16 +1128,17 @@ export function createLiveAssistantApiService(
       }
       const recovered = await this.createConversation(
         { question: saved.request.question, intent },
-        saved.operationId
+        saved.operationId,
+        actor.userId
       );
       return mutation(
         { conversationId: recovered.value.id },
         recovered.affectedScopes
       );
     },
-    async resumeQuestion() {
+    async resumeQuestion(ownerId) {
       assertBenchmarkRead('POST');
-      const actor = await identity();
+      const actor = await questionIdentity(ownerId);
       const operation = await journal.read(actor.userId, 'question');
       if (!operation?.conversationId)
         throw new AssistantApiError('outcome_unknown');
@@ -1136,6 +1176,11 @@ export function createLiveAssistantApiService(
     },
     async getConsent(ownerId) {
       if (!consentStore) return mapConsent(await send('GET', '/api/v1/assistant/consent'));
+      // A retry must remain available before the identity provider can go online.
+      if (ownerId) {
+        const pending = await pendingWithdrawal(ownerId);
+        if (pending) return pending;
+      }
       const actor = await identity();
       if (ownerId && actor.userId !== ownerId) throw new AssistantApiError('session_expired');
       const consent = await currentConsent(actor.userId);
@@ -1215,6 +1260,11 @@ export function createLiveAssistantApiService(
     async setConsent(enabled, expectedVersion, operationId, ownerId) {
       assertBenchmarkRead('POST');
       const owner = ownerId ?? (consentStore ? (await identity()).userId : undefined);
+      if (owner && consentStore && enabled) {
+        const revision = consentRevision;
+        if (await pendingWithdrawal(owner) || consentChanges.has(owner) || revision !== consentRevision)
+          throw consentRequired();
+      }
       const change = Symbol();
       const key = owner && consentStore ? disclosureKey(owner) : undefined;
       if (key && owner) {
@@ -1222,7 +1272,29 @@ export function createLiveAssistantApiService(
         consentChanges.set(owner, change);
       }
       try {
-        // Invalidate locally before a network call, including offline withdrawals.
+        if (consentStore && key && owner && !enabled) {
+          pendingWithdrawals.set(owner, expectedVersion);
+          const marker = 'withdraw:' + String(expectedVersion);
+          // Each store can independently prevent the old receipt from admitting a question.
+          await Promise.allSettled([
+            consentStore.write(key, marker),
+            consentStore.write(key + '.withdrawal', marker)
+          ]);
+          const path = '/api/v1/assistant/consent';
+          // Recover a lost DELETE response or an intervening version change.
+          const live = await send('GET', path, undefined, undefined, owner)
+            .then(row => parse(consentSchema, row)).catch(() => null);
+          const result = live && !live.granted ? live : parse(consentSchema, await send(
+            'DELETE', path + '?expectedVersion=' + String(live?.version ?? expectedVersion),
+            undefined, operationId, owner
+          ));
+          if (result.granted || consentChanges.get(owner) !== change) throw consentRequired();
+          // Keep the independent denial marker until the old receipt has been cleared.
+          await consentStore.write(key, null);
+          await consentStore.write(key + '.withdrawal', null);
+          pendingWithdrawals.delete(owner);
+          return mutation(mapConsent(result), ['assistant.consent', 'assistant.availability', 'assistant.context']);
+        }
         if (consentStore && key) await consentStore.write(key, null);
         const row = await send(
           enabled ? 'PUT' : 'DELETE',
@@ -1263,9 +1335,9 @@ export function createLiveAssistantApiService(
         .filter((item) => !input.status || item.status === input.status);
       return { items, nextCursor: result.nextCursor, total: items.length };
     },
-    async createConversation(input, operationId) {
+    async createConversation(input, operationId, ownerId) {
       assertBenchmarkRead('POST');
-      const actor = await identity();
+      const actor = await questionIdentity(ownerId);
       const operation = await journal.reserve(
         actor.userId,
         'question',
@@ -1459,10 +1531,10 @@ export function createLiveAssistantApiService(
     async getResponse(id) {
       return (await loadAnswer('response', id, await identity())).response;
     },
-    async ask(conversationId, question, operationId, intent) {
+    async ask(conversationId, question, operationId, intent, ownerId) {
       assertBenchmarkRead('POST');
       return mutation(
-        await ask(conversationId, question, operationId, intent),
+        await ask(conversationId, question, operationId, intent, ownerId),
         [
           `assistant.conversation.${conversationId}`,
           'assistant.availability',

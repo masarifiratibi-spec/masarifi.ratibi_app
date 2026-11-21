@@ -582,6 +582,12 @@ test.each(['first', 'suggestion', 'follow-up'])('requires explicit iPhone consen
       await act(async () => { fireEvent.press(screen.getByTestId('assistant-ask-submit-button')); });
     }
     fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
+    const cancel = screen.getByRole('button', {name: t('designSystem.action.cancel')});
+    expect(cancel).toBeDisabled();
+    fireEvent.press(cancel);
+    expect(screen.getByTestId('assistant-consent-card')).toBeOnTheScreen();
+    act(() => enable.mock.calls[0][1].onSuccess());
+    expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
     expect(enable).toHaveBeenCalledWith(expect.objectContaining({enabled:true,expectedVersion:3, ownerId:'user_test'}), expect.any(Object));
   } finally {
     useAppShellStore.setState({session: previousSession});

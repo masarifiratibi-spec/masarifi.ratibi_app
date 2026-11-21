@@ -1,3 +1,10 @@
+import React, { type PropsWithChildren } from 'react';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
+import { useCreateAssistantConversation } from '@/features/assistant/assistant-queries';
+import { assistantService } from '@/services/assistant-service';
+import { useAppShellStore } from '@/state/app-shell';
+import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import Constants from 'expo-constants';
 import {
   assistantPollDelay,
@@ -47,6 +54,7 @@ describe('iPhone text assistant disclosure', () => {
     beforeRead?: () => Promise<void>;
     rejectQuestion?: boolean;
     failWithdraw?: boolean;
+    failRemoval?: () => boolean;
   } = {}) {
     const request = mockedFetch(async (url, init) => {
       if (url.endsWith('/consent') || url.includes('/consent?')) {
@@ -64,6 +72,7 @@ describe('iPhone text assistant disclosure', () => {
     const consentStore = {
       read: async (key: string) => stored.get(key) ?? null,
       write: async (key: string, value: string | null) => {
+        if (value === null && options.failRemoval?.()) throw Error('receipt removal failed');
         if (value === null) stored.delete(key);
         else stored.set(key, value);
       }
@@ -103,9 +112,82 @@ describe('iPhone text assistant disclosure', () => {
     await service.setConsent(true, 3, 'explicit-grant-002');
     await expect(service.setConsent(false, setting.version, 'explicit-withdraw-002')).rejects.toBeDefined();
     const restarted = adapter();
-    await expect(restarted.service.getConsent()).resolves.toMatchObject({ status: 'not_requested' });
+    await expect(restarted.service.getConsent()).resolves.toMatchObject({ status: 'withdrawal_pending' });
+    await expect(restarted.service.setConsent(true, setting.version, 'regrant-before-withdrawal')).rejects.toBeDefined();
     await expect(restarted.service.ask(id(1), 'Private?', 'private-message-002')).rejects.toMatchObject({ code: 'consent_required' });
     expect(restarted.request.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('attempts remote withdrawal even when local receipt removal fails', async () => {
+    let fail = false;
+    const {service, request} = adapter({ failRemoval: () => fail });
+    await service.setConsent(true, setting.version, 'local-failure-grant');
+    fail = true;
+    await service.setConsent(false, setting.version, 'local-failure-withdrawal').catch(() => {});
+    expect(request.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(1);
+    expect((await adapter().service.getConsent()).status).not.toBe('enabled');
+  });
+
+  it('recovers a pending withdrawal across a new service instance', async () => {
+    const { service } = adapter({failWithdraw: true});
+    await service.setConsent(true, setting.version, 'pending-withdraw-grant');
+    await expect(service.setConsent(false, setting.version, 'pending-withdraw-first')).rejects.toBeDefined();
+    const restarted = adapter();
+    expect((await restarted.service.getConsent()).status).toBe('withdrawal_pending');
+    await restarted.service.setConsent(false, setting.version, 'pending-withdraw-retry');
+    expect((await adapter().service.getConsent()).status).toBe('disabled');
+  });
+
+  it.each(['first', 'follow-up', 'retry', 'resume'])('rejects a delayed %s before journal access for a different owner', async entry => {
+    const { service, request } = adapter();
+    await service.setConsent(true, setting.version, 'delayed-question-grant');
+    request.mockClear();
+    const origin = 'previous-owner';
+    const run = entry === 'first' ? service.createConversation({ question: 'draft' }, 'scheduled-question-first', origin)
+      : entry === 'follow-up' ? service.ask(id(1), 'draft', 'scheduled-followup', undefined, origin)
+      : entry === 'retry' ? service.retryQuestionOperation!(origin) : service.resumeQuestion!(origin);
+    await expect(run).rejects.toMatchObject({ code: 'session_expired' });
+    expect(await service.readQuestionOperation!()).toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('discards a paused TanStack question before any real adapter request or journal reservation', async () => {
+    const prior = useAppShellStore.getState().session;
+    const {service, request} = adapter();
+    await service.setConsent(true, setting.version, 'first-owner-approved');
+    owner = 'owner-B';
+    setting.version = 3;
+    await service.setConsent(true, setting.version, 'second-owner-approved');
+    owner = 'owner-A';
+    const create = jest.spyOn(assistantService, 'createConversation').mockImplementation(service.createConversation);
+    const client = new QueryClient({defaultOptions: {mutations: {retry: false}}});
+    const wrapper = ({children}: PropsWithChildren) => React.createElement(QueryClientProvider, {client}, children);
+    useAppShellStore.setState({session: {...authenticatedSession, userId: owner}});
+    const hook = renderHook(useCreateAssistantConversation, {wrapper});
+    request.mockClear();
+    try {
+      onlineManager.setOnline(false);
+      let result!: Promise<unknown>;
+      act(() => {
+        result = hook.result.current.mutateAsync({question: 'Synthetic draft', operationId: 'paused-owner-question', ownerId: owner})
+          .catch(error => error);
+      });
+      await waitFor(() => expect(hook.result.current.isPaused).toBe(true));
+      owner = 'owner-B';
+      act(() => useAppShellStore.setState({session: {...authenticatedSession, userId: owner}}));
+      await act(async () => {
+        onlineManager.setOnline(true);
+        expect(await result).toMatchObject({code: 'session_expired'});
+      });
+      expect(request).not.toHaveBeenCalled();
+      expect(await service.readQuestionOperation!()).toBeNull();
+    } finally {
+      onlineManager.setOnline(true);
+      hook.unmount();
+      client.clear();
+      create.mockRestore();
+      useAppShellStore.setState({session: prior});
+    }
   });
 
   it('checks the current owner after a delayed preflight before transmitting the question', async () => {

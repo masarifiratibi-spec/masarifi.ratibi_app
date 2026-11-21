@@ -2279,6 +2279,7 @@ const ar: MessageCatalog = {
   'assistant.privacy.transactions':
     'بموافقتك، يرسل مصاريفي وراتبي أسئلتك وما يلزم من سجل المحادثة والسياق المالي عبر OpenRouter إلى نموذج من OpenAI على Microsoft Azure أو إلى Google Gemini على Google Vertex AI. يمكنك سحب الموافقة من داخل المساعد.',
   'assistant.privacy.choice': 'اختياري؛ يمكنك سحب الموافقة في أي وقت.',
+  'assistant.consent.retryWithdrawal': 'إعادة محاولة سحب الموافقة',
   'assistant.consent.withdraw': 'سحب موافقة المساعد',
   'assistant.state.disabled': 'التخصيص متوقف.',
   'assistant.state.limit': 'وصلت لحد استخدام المساعد. جرّب لاحقًا.',

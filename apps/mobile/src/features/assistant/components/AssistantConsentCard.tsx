@@ -16,6 +16,7 @@ export interface AssistantConsentCardProps {
   onEnableConsent: () => void;
   onDisableConsent?: () => void;
   onDecline?: () => void;
+  decisionPending?: boolean;
   loading?: boolean;
 }
 
@@ -24,6 +25,7 @@ export function AssistantConsentCard({
   onEnableConsent,
   onDisableConsent,
   onDecline,
+  decisionPending = false,
   loading = false
 }: AssistantConsentCardProps) {
   const { colors } = useTheme();
@@ -84,7 +86,7 @@ export function AssistantConsentCard({
         <ActionButton label="assistant.consent.withdraw" variant="secondary" disabled={loading}
           onPress={onDisableConsent} />
       ) : !isEnabled && onDecline ? (
-        <ActionButton label="designSystem.action.cancel" variant="quiet" onPress={onDecline} />
+        <ActionButton label="designSystem.action.cancel" variant="quiet" disabled={decisionPending} onPress={onDecline} />
       ) : !isEnabled ? (
         <ActionButton label="appShell.permission.manualFallback" variant="quiet"
           onPress={() => router.replace('/(tabs)/add')} />

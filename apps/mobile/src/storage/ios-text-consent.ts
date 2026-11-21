@@ -1,15 +1,21 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TextConsentStore } from '@/services/live/assistant-api-service';
 
-// Only the policy receipt is persisted. The key is scoped to a hashed Clerk owner.
+// A separate Keychain marker keeps a withdrawal retryable if the receipt store fails.
 export const iosTextConsent: TextConsentStore | undefined =
   Platform.OS === 'ios'
     ? {
-        read: (key) => AsyncStorage.getItem(key),
-        write: (key, value) =>
-          value === null
-            ? AsyncStorage.removeItem(key)
-            : AsyncStorage.setItem(key, value)
+        read: (key) => key.endsWith('.withdrawal')
+          ? SecureStore.getItemAsync(key)
+          : AsyncStorage.getItem(key),
+        async write(key, value) {
+          if (key.endsWith('.withdrawal')) {
+            if (value === null) await SecureStore.deleteItemAsync(key);
+            else await SecureStore.setItemAsync(key, value);
+          } else if (value === null) await AsyncStorage.removeItem(key);
+          else await AsyncStorage.setItem(key, value);
+        }
       }
     : undefined;

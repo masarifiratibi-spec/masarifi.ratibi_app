@@ -91,6 +91,22 @@ it.each(['ios', 'android'] as const)('handles a saved v1 voice acknowledgement o
   }
 });
 
+it.each(['en', 'ar'] as const)('requires the named processor disclosure after an iOS v2 upgrade in %s', async locale => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  changeLocale(locale);
+  const ownerHash = createHash('sha256').update(authenticatedSession.userId!).digest('hex');
+  const key = `masarifi.voice.processing-consent.${ownerHash}`;
+  await AsyncStorage.setItem(key, 'ios-voice-processing-v2');
+  renderWithProviders(<CaptureActions />);
+  fireEvent.press(screen.getByRole('button', { name: 'Start' }));
+  const agree = await screen.findByRole('button', { name: translate('voice.processingConsent.accept') });
+  expect(voiceRecorderService.getPermission).not.toHaveBeenCalled();
+  expect(voiceRecorderService.start).not.toHaveBeenCalled();
+  fireEvent.press(agree);
+  await waitFor(() => expect(voiceRecorderService.start).toHaveBeenCalledTimes(1));
+  expect(await AsyncStorage.getItem(key)).toBe('ios-voice-processing-v3');
+});
+
 it('dismisses the popup without consenting or accessing the microphone', async () => {
   renderWithProviders(<CaptureActions />);
   fireEvent.press(screen.getByRole('button', { name: 'Start' }));

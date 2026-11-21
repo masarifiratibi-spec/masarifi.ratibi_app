@@ -41,6 +41,7 @@ function AssistantHomeContent({
 }: HomeProps) {
   const { colors } = useTheme();
   const admitQuestion = useQuestionAdmission();
+  const originatingOwner = useAppShellStore((state) => state.session?.userId ?? null);
   const insights = queries.useAssistantInsights();
   const createConversation = queries.useCreateAssistantConversation();
   const availability = queries.useAssistantAvailability?.();
@@ -94,7 +95,7 @@ function AssistantHomeContent({
     });
     return new Promise<boolean>((resolve) => {
       createConversation.mutate(
-        { question, intent, operationId },
+        { question, intent, operationId, ownerId: originatingOwner },
         {
           onSuccess: (result: { value: { id: string } }) => {
             setActiveConversationId(result.value.id);
@@ -161,12 +162,12 @@ function AssistantHomeContent({
               loading={resume?.isPending || retry?.isPending}
               error={creationFailed || resume?.isError || retry?.isError}
               onCheck={() =>
-                resume?.mutate(undefined, {
+                resume?.mutate(originatingOwner, {
                   onSettled: () => operation?.refetch()
                 })
               }
               onRetry={() =>
-                admitQuestion() && retry?.mutate(undefined, {
+                admitQuestion() && retry?.mutate(originatingOwner, {
                   onSuccess: (result) => {
                     setActiveConversationId(result.value.conversationId);
                   }
@@ -241,6 +242,7 @@ function AssistantConversationContent({
 }: ConversationProps) {
   const { colors } = useTheme();
   const admitQuestion = useQuestionAdmission();
+  const originatingOwner = useAppShellStore((state) => state.session?.userId ?? null);
   const queryClient = useQueryClient();
   const [cursor, setCursor] = React.useState<string | undefined>(undefined);
   const latest = queries.useAssistantConversation(conversationId);
@@ -460,7 +462,7 @@ function AssistantConversationContent({
     resume?.reset?.();
     retry?.reset?.();
     const operationId = `ask-${Date.now()}`;
-    const submittedOwner = useAppShellStore.getState().session?.userId ?? null;
+    const submittedOwner = originatingOwner;
     const submittedConversation = conversation?.id ?? conversationId;
     latestSubmission.current = {
       operationId,
@@ -478,6 +480,7 @@ function AssistantConversationContent({
       ask.mutate(
         {
           conversationId: submittedConversation,
+          ownerId: submittedOwner,
           question: questionText,
           operationId
         },
@@ -576,7 +579,7 @@ function AssistantConversationContent({
               loading={resume?.isPending || retry?.isPending}
               error={operation?.isError || recoveryFailed || questionSendFailed}
               onCheck={() => {
-                resume?.mutate(undefined, {
+                resume?.mutate(originatingOwner, {
                   onSuccess: () => {
                     ask.reset?.();
                     setOptimisticTurn(null);
@@ -588,7 +591,7 @@ function AssistantConversationContent({
                 });
               }}
               onRetry={() =>
-                admitQuestion() && retry?.mutate(undefined, {
+                admitQuestion() && retry?.mutate(originatingOwner, {
                   onSuccess: () => {
                     ask.reset?.();
                     setOptimisticTurn(null);
