@@ -106,6 +106,18 @@ export class OperationsRepository {
     limit: number,
     jobKeys?: readonly string[],
   ): Promise<Record<string, unknown>[]> {
+    if (jobKeys && this.pool.runtimeRole === 'masarifi_worker') {
+      // The pool sets the worker role on connect. The FROM clause sets its claims
+      // before the scheduler runs, scoped to this single implicit transaction.
+      return this.pool.withClient(async (client) => {
+        const result = await client.query<{ value: Record<string, unknown> }>(
+          `select private.claim_due_jobs($1,$2,clock_timestamp(),$3::text[]) as value
+           from pg_catalog.set_config('request.jwt.claims','{"role":"worker"}',true)`,
+          [workerId, limit, jobKeys],
+        );
+        return result.rows.map((row) => row.value);
+      });
+    }
     return this.asWorker(async (client) => {
       const result = await client.query<{ value: Record<string, unknown> }>(
         jobKeys

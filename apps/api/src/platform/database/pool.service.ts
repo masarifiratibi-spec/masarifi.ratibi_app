@@ -23,7 +23,7 @@ export function buildPoolOptions(connectionString: string, max: number): PoolCon
 @Injectable()
 export class PoolService implements OnModuleDestroy {
   private readonly pool: Pool;
-  private readonly runtimeRole?: 'masarifi_api' | 'masarifi_worker';
+  readonly runtimeRole?: 'masarifi_api' | 'masarifi_worker';
   private readonly initializedClients = new WeakSet<PoolClient>();
   private readonly clientGenerations = new WeakMap<PoolClient, string>();
 
