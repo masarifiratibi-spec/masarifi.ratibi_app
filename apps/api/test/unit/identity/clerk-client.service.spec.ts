@@ -1,3 +1,4 @@
+import { AppleDeletionGrants } from '../../../src/identity/apple-deletion-grants';
 import type { PlatformConfigService } from '../../../src/platform/config/platform-config.service';
 import {
   ClerkClientService,
@@ -96,6 +97,34 @@ describe('Clerk Admin client adapter', () => {
       ClerkProviderUnavailableError,
     );
   });
+  it('retries Apple revocation before Clerk deletion after an interrupted provider response', async () => {
+    const order: string[] = [];
+    const adapter = new ClerkClientService(config);
+    const revoke = jest.spyOn(AppleDeletionGrants.prototype, 'revoke').mockImplementation(() => {
+      order.push('apple');
+      return Promise.resolve();
+    });
+    try {
+      getUser.mockResolvedValue({ id: 'user_retry', externalAccounts: [], privateMetadata: {} });
+      deleteUser
+        .mockImplementationOnce(() => {
+          order.push('clerk');
+          return Promise.reject(new Error('provider unavailable'));
+        })
+        .mockImplementationOnce(() => {
+          order.push('clerk');
+          return Promise.resolve({});
+        });
+      await expect(adapter.deleteIdentityUser('user_retry')).rejects.toBeInstanceOf(
+        ClerkProviderUnavailableError,
+      );
+      await expect(adapter.deleteIdentityUser('user_retry')).resolves.toBe('deleted');
+      expect(order).toEqual(['apple', 'clerk', 'apple', 'clerk']);
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
   let service: ClerkClientService;
 
   beforeEach(() => {
