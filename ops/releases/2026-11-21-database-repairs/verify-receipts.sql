@@ -41,6 +41,8 @@ begin
      exists(select from pgmq."a_platform-events") or exists(select from private.report_receipt_issues) then
     raise exception 'rollback did not restore messages and receipts';
   end if;
+  if exists(select from private.report_receipt_consumer_start where last_completed_at is not null) then
+    raise exception 'Rolled back attempt advanced the heartbeat'; end if;
   if private.consume_report_delivery_receipts() <> 4 then raise exception 'expected four archived messages'; end if;
   if private.consume_report_delivery_receipts() <> 0 then raise exception 'unexpected reprocessing'; end if;
   if (select count(*) from private.report_delivery_receipts) <> 1 or
@@ -63,4 +65,6 @@ begin
   if consumed <> 1 or not exists(
     select from private.report_delivery_receipts where event_id=pending_id) then
     raise exception 'Early delivery lost after publication'; end if;
+  if not exists(select from private.report_receipt_consumer_start where last_completed_at >= activated_at) then
+    raise exception 'Committed receipt batch missing heartbeat'; end if;
 end $test$;

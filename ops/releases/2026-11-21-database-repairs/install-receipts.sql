@@ -4,7 +4,8 @@ set local statement_timeout = '5s';
 
 create table private.report_receipt_consumer_start (
   singleton boolean primary key check (singleton),
-  activated_at timestamptz not null default clock_timestamp()
+  activated_at timestamptz not null default clock_timestamp(),
+  last_completed_at timestamptz
 );
 create table private.report_delivery_receipts (
   event_id uuid primary key,
@@ -86,6 +87,7 @@ begin
     end if;
     processed := processed + 1;
   end loop;
+  update private.report_receipt_consumer_start set last_completed_at=clock_timestamp() where singleton;
   return processed;
 end $$;
 revoke all on function private.consume_report_delivery_receipts() from public, anon, authenticated, service_role, masarifi_api, masarifi_worker;
