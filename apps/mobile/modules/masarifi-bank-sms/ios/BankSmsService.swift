@@ -28,13 +28,22 @@ private struct ParsedBankSms: Decodable {
   let referenceIdentity: String?
   let stableReferenceIdentity: String?
 
-  static func parse(_ text: String, at date: Date, routing: [String: Any]) throws -> ParsedBankSms? {
-    guard !text.isEmpty, text.utf16.count <= 2000 else { return nil }
-    guard let url = Bundle.main.url(forResource: "MasarifiBankSmsParser", withExtension: "js"),
-          let context = JSContext()
+  @MainActor private static var bundledSource: String?
+
+  @MainActor private static func source() throws -> String {
+    if let bundledSource { return bundledSource }
+    guard let url = Bundle.main.url(forResource: "MasarifiBankSmsParser", withExtension: "js")
     else { throw BankSmsFailure.unavailable }
+    let script = try String(contentsOf: url, encoding: .utf8)
+    bundledSource = script
+    return script
+  }
+
+  @MainActor static func parse(_ text: String, at date: Date, routing: [String: Any]) throws -> ParsedBankSms? {
+    guard !text.isEmpty, text.utf16.count <= 2000 else { return nil }
+    guard let context = JSContext() else { throw BankSmsFailure.unavailable }
     context.exceptionHandler = { _, _ in } // A parser exception may include source text.
-    context.evaluateScript(try String(contentsOf: url, encoding: .utf8))
+    context.evaluateScript(try source())
     guard let value = context.objectForKeyedSubscript("masarifiClassifyBankSms")?.call(withArguments: [
       text, date.timeIntervalSince1970 * 1000, TimeZone.current.identifier, routing
     ]), !value.isUndefined else { throw BankSmsFailure.unavailable }
@@ -143,20 +152,29 @@ public struct BankSmsChoice: Sendable {
     revokedOwners.remove(owner)
   }
 
-  func status(owner: String, session: String) throws -> [String: Any] {
-    var state = try store.load()
+  func status(owner: String, session: String, includeConfiguration: Bool = true) throws -> [String: Any] {
+    let state = try store.load()
     guard state.owner == owner, let enrollment = state.enrollment, enrollment.session == session, !revokedOwners.contains(owner) else {
       return ["enabled": false, "pending": 0]
     }
-    // Project expiry for the screen without changing a delivery already in flight.
-    _ = state.expirePending(before: Date().addingTimeInterval(-replayWindow))
-    var result: [String: Any] = ["enabled": true, "pending": state.deliveries.filter { $0.pending != nil }.count]
-    if state.deliveries.contains(where: { $0.pending != nil && $0.needsVerification == true }) {
-      result["verificationEpoch"] = enrollment.epoch.uuidString
+    let cutoff = Date().addingTimeInterval(-replayWindow)
+    var pending = 0
+    var needsVerification = false
+    var outcome = state.outcome
+    for delivery in state.deliveries where delivery.pending != nil {
+      if delivery.created <= cutoff {
+        outcome = "expired"
+        continue
+      }
+      pending += 1
+      if delivery.needsVerification == true { needsVerification = true }
     }
-    if let outcome = state.outcome { result["outcome"] = outcome }
+    var result: [String: Any] = ["enabled": true, "pending": pending]
+    if needsVerification { result["verificationEpoch"] = enrollment.epoch.uuidString }
+    if let outcome { result["outcome"] = outcome }
     if let date = state.lastSaved { result["lastSaved"] = date.timeIntervalSince1970 * 1000 }
     if let id = state.lastTransactionId { result["lastTransactionId"] = id.uuidString.lowercased() }
+    guard includeConfiguration else { return result }
     result["accounts"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(enrollment.accounts))
     result["categories"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(enrollment.categories))
     if let preferences = enrollment.preferences {
@@ -216,8 +234,10 @@ public struct BankSmsChoice: Sendable {
       guard let parsed = try ParsedBankSms.parse(text, at: now, routing: routing),
             let account = enrollment.accounts.first(where: { $0.id == parsed.accountId && $0.currency == parsed.currency })
       else {
-        state.outcome = "skipped"
-        try store.write(state)
+        if state.outcome != "skipped" {
+          state.outcome = "skipped"
+          try store.write(state)
+        }
         return
       }
       state.deliveries.removeAll { $0.expires <= now }

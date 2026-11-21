@@ -54,6 +54,7 @@ type BankSmsNative = {
   retryVerified(owner: string, session: string, epoch: string): Promise<void>;
   enable(setup: string): Promise<void>;
   status(owner: string, session: string): Promise<BankSmsStatus>;
+  statusSummary?(owner: string, session: string): Promise<BankSmsStatus>;
   disable(owner: string, erase: boolean): Promise<void>;
   updateNotificationLocale(
     owner: string,

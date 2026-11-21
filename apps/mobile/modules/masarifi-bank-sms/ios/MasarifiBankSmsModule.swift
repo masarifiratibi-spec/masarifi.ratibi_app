@@ -52,6 +52,13 @@ public final class MasarifiBankSmsModule: Module {
       }
     }
 
+    AsyncFunction("statusSummary") { (owner: String, session: String, promise: Promise) in
+      Task { @MainActor in
+        do { promise.resolve(try BankSmsService.shared.status(owner: owner, session: session, includeConfiguration: false)) }
+        catch { promise.reject("BANK_SMS_STATUS", "Bank SMS status is unavailable.") }
+      }
+    }
+
     AsyncFunction("retryVerified") { (owner: String, session: String, epoch: String, promise: Promise) in
       Task { @MainActor in
         do {

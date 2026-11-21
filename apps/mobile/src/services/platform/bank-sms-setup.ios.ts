@@ -58,9 +58,15 @@ async function scope() {
   };
 }
 
-export async function readBankSmsSetup() {
+function readStatus(current: Awaited<ReturnType<typeof scope>>, detail: 'summary' | 'configuration') {
+  if (detail === 'summary' && current.native.statusSummary)
+    return current.native.statusSummary(current.owner, current.anchor);
+  return current.native.status(current.owner, current.anchor);
+}
+
+export async function readBankSmsSetup(detail: 'summary' | 'configuration' = 'configuration') {
   const current = await scope();
-  const state = await current.native.status(current.owner, current.anchor);
+  const state = await readStatus(current, detail);
   const setupCompleted = await createAppShellStorage()
     .loadTrackingHomeCardDismissed()
     .catch(() => false);
@@ -74,7 +80,7 @@ export function subscribeBankSmsVerification(listener: () => void) {
 
 export async function verifyPendingBankSms(epoch: string) {
   const current = await scope();
-  const state = await current.native.status(current.owner, current.anchor);
+  const state = await readStatus(current, 'summary');
   await current.assertCurrent();
   if (!state.enabled || state.verificationEpoch !== epoch) return;
   const actor = await captureLiveClerkIdentity();
@@ -89,7 +95,7 @@ export async function verifyPendingBankSms(epoch: string) {
 
 export async function completeBankSmsSetup() {
   const current = await scope();
-  const state = await current.native.status(current.owner, current.anchor);
+  const state = await readStatus(current, 'summary');
   await current.assertCurrent();
   if (!state.enabled) throw Error('bank_sms_unavailable');
   await createAppShellStorage().saveTrackingHomeCardDismissed(true);

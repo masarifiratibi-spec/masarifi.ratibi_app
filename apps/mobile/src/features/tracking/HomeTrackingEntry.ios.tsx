@@ -44,7 +44,7 @@ function TrackingSetupCard() {
     let revision = 0;
     async function refresh() {
       const request = ++revision;
-      const setup = await readBankSmsSetup().catch(() => null);
+      const setup = await readBankSmsSetup('summary').catch(() => null);
       if (active && revision === request) {
         setCompleted(Boolean(setup?.enabled && setup.setupCompleted));
         setVerificationEpoch(setup?.enabled ? setup.verificationEpoch : undefined);
