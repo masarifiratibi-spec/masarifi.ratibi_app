@@ -39,7 +39,6 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_PUBLIC_CLIENT_MODE: live
-      NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT: staging
       NEXT_PUBLIC_ENABLE_MOCKS: "false"
       CLERK_SECRET_KEY: sk_live_replace_with_server_key
       NEXT_TELEMETRY_DISABLED: "1"
@@ -48,7 +47,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, re
+          import hashlib, json, os, re
           from urllib.parse import urlsplit
           # Reusable workflows inherit the caller event; reject nonmanual callers.
           assert os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch", "MANUAL_CALLER_REQUIRED"
@@ -70,6 +69,11 @@ jobs:
           except ValueError:
               valid = False
           assert valid, "API_BASE_URL_INVALID"
+          deployment = "staging"
+          if url.hostname == "api.masarifiratibi.com":
+              assert api == "https://api.masarifiratibi.com", "PRODUCTION_ORIGIN_REQUIRED"
+              assert hashlib.sha256(key.encode()).hexdigest() == "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475", "PRODUCTION_CLERK_INSTANCE_REQUIRED"
+              deployment = "production"
           # Read event inputs before exporting them so runner env logs are masked too.
           print("::add-mask::" + key)
           print("::add-mask::" + api)
@@ -77,6 +81,7 @@ jobs:
               output.write("SOURCE_SHA=" + source.lower() + "\n")
               output.write("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=" + key + "\n")
               output.write("NEXT_PUBLIC_API_URL=" + api + "\n")
+              output.write("NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT=" + deployment + "\n")
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -118,6 +123,9 @@ jobs:
           source = os.environ["SOURCE_SHA"]
           api_files = ["apps/api/src/reports/reports.admin.ts",
                        "apps/api/src/reports/reports.admin-types.ts"]
+          if os.environ["NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT"] == "production":
+              api_files += [f"apps/mobile/src/features/legal/{kind}.{lang}.json"
+                            for kind in ("privacy", "terms") for lang in ("ar", "en")]
           def git(*args):
               return subprocess.check_output(["git", *args])
           def sha(data):
