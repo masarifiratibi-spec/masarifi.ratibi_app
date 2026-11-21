@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { prioritizeImportFixtureMarks } from './import-reconcile-fixture';
 import { AiRepository } from '../../../src/ai/ai.repository';
 import { AiService } from '../../../src/ai/ai.service';
 import {
@@ -308,6 +309,7 @@ describeLiveDatabase('N+1 regression: direct assistant reads and batched databas
             [owner, ids[0], `item-${String(index)}`, status],
           );
         }
+        await prioritizeImportFixtureMarks(client, ids);
         await client.query('create temporary table nplusone_updates(count integer) on commit drop');
         await client.query('insert into nplusone_updates values(0)');
         await client.query('grant all on nplusone_updates to masarifi_migration');
@@ -350,6 +352,7 @@ describeLiveDatabase('N+1 regression: direct assistant reads and batched databas
       );
     }
     try {
+      await prioritizeImportFixtureMarks(pool, ids);
       await pool.withClient(async (locker) => {
         await locker.query('begin');
         try {
@@ -459,6 +462,7 @@ describeLiveDatabase('N+1 regression: direct assistant reads and batched databas
           values($1,$2,'manual',repeat('a',64),'review','1890-01-01')`,
           [id, owner],
         );
+        await prioritizeImportFixtureMarks(client, [id]);
         await client.query('select private.reconcile_import_sessions(1)');
         await client.query('select private.reconcile_import_sessions(1)');
         const receipt = await client.query(
