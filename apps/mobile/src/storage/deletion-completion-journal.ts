@@ -7,7 +7,7 @@ const ownersKey = 'masarifi.deletionCompletion.owners';
 const journalSchema = z
   .object({
     ownerId: z.string().min(1),
-    operationId: z.string().uuid(),
+    operationId: z.guid(),
     completionToken: z
       .string()
       .regex(/^[a-f0-9]{64}$/)

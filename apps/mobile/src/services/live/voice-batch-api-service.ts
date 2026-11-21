@@ -18,8 +18,8 @@ import {
 
 export const voiceBatchResultSchema = z
   .object({
-    sessionId: z.string().uuid(),
-    batchId: z.string().uuid().nullable(),
+    sessionId: z.guid(),
+    batchId: z.guid().nullable(),
     status: z.enum([
       'uploading',
       'queued',
@@ -29,7 +29,7 @@ export const voiceBatchResultSchema = z
       'cancelled',
       'failed'
     ]),
-    transactionIds: z.array(z.string().uuid()).max(10),
+    transactionIds: z.array(z.guid()).max(10),
     addedCount: z.number().int().min(0).max(10),
     ledgerVersion: z.number().int().nonnegative(),
     outcomes: z
@@ -57,7 +57,7 @@ export const voiceBatchResultSchema = z
                 'invalid_event'
               ])
               .nullable(),
-            transactionId: z.string().uuid().nullable()
+            transactionId: z.guid().nullable()
           })
           .strict()
       )
@@ -76,8 +76,8 @@ export const voiceBatchResultSchema = z
                 kind: z.enum(['expense', 'income']),
                 amountMinor: z.number().int().positive().safe(),
                 currency: z.string().regex(/^[A-Z]{3}$/),
-                accountId: z.string().uuid(),
-                categoryId: z.string().uuid().nullable(),
+                accountId: z.guid(),
+                categoryId: z.guid().nullable(),
                 title: z.string().min(1).max(40),
                 merchant: z.string().max(40).nullable(),
                 occurredAt: z.string().datetime({ offset: true })
@@ -626,7 +626,7 @@ export function createVoiceBatchApi(options: {
         const created = z
           .object({
             session: z.object({
-              id: z.string().uuid(),
+              id: z.guid(),
               status: z.string().optional(),
               version: z.number().int().positive()
             }),
@@ -716,7 +716,7 @@ export function createVoiceBatchApi(options: {
         }
         const uploaded = z
           .object({
-            id: z.string().uuid(),
+            id: z.guid(),
             version: z.number().int().positive(),
             contentHash: z.string()
           })
@@ -855,7 +855,7 @@ export function createVoiceBatchApi(options: {
             items: z.array(
               z.object({
                 createdAt: z.string(),
-                ...voiceBatchResultSchema.innerType().shape
+                ...voiceBatchResultSchema.shape
               })
             )
           })

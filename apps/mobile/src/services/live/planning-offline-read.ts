@@ -139,7 +139,7 @@ const obligation = z.object({
 export const offlineObligationsSchema = z.object({
   payablesByCurrency: z.record(currency, minor.nullable()),
   receivablesByCurrency: z.record(currency, minor.nullable()),
-  remainingByObligationId: z.record(minor.nullable()),
+  remainingByObligationId: z.record(z.string(), minor.nullable()),
   nextDueDate: localDate.nullable(),
   nextDueAmountMinor: minor.nullable(),
   nextDueObligationId: z.string().nullable(),

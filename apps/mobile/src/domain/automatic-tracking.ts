@@ -210,7 +210,7 @@ export const reviewItemSchema = z.object({
   status: z.enum(['pending', 'resolving', 'resolved', 'ignored', 'failed']),
   reasonCodes: z.array(z.enum(trackingReasonCodes)).min(1),
   missingFields: z.array(z.string()),
-  proposedValues: z.record(z.unknown()),
+  proposedValues: z.record(z.string(), z.unknown()),
   selectedDuplicateResolution: z
     .enum(['keep_existing', 'keep_new', 'keep_both', 'merge_details'])
     .nullable(),

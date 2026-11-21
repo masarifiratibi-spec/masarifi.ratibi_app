@@ -13,7 +13,7 @@ const identifier = 'masarifi.guest-onboarding-reminder.v1';
 const accountSeenKey = 'masarifi.guest-onboarding-account-created.v1';
 const channelId = 'return-reminders';
 const cycleSchema = z.object({
-  cycleId: z.string().uuid(),
+  cycleId: z.guid(),
   dueAt: z.number().finite(),
   locale: z.enum(['ar', 'en']),
   consumed: z.boolean().optional()

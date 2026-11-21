@@ -3,7 +3,7 @@ import { openDatabase } from './database';
 
 export const voiceBatchOperationSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     revision: z.number().int().nonnegative(),
     failureCode: z.literal('voice_canary_restricted').optional(),
     phase: z.enum([
@@ -21,9 +21,9 @@ export const voiceBatchOperationSchema = z
     durationMs: z.number().int().min(1).max(60000),
     recordedAt: z.number().int().nonnegative(),
     timezoneOffsetMinutes: z.number().int().min(-840).max(840),
-    accountId: z.string().uuid().nullable().optional(),
+    accountId: z.guid().nullable().optional(),
     createBody: z.record(z.string(), z.unknown()).nullable(),
-    sessionId: z.string().uuid().nullable(),
+    sessionId: z.guid().nullable(),
     version: z.number().int().positive().nullable(),
     retryAfterAt: z.number().int().nonnegative().optional(),
     processBody: z.record(z.string(), z.unknown()).nullable()

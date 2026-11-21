@@ -449,7 +449,7 @@ const notificationActionApiSchema = z
   .strict();
 const notificationApiSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     type: z.string().min(1).max(96),
     title: z.string().min(1).max(120),
     body: z.string().min(1).max(240),
@@ -504,7 +504,7 @@ const supportCategoryPageApiSchema = z
     items: z.array(
       z
         .object({
-          id: z.string().uuid(),
+          id: z.guid(),
           key: z.string().min(1).max(64),
           name: z.string().min(1).max(120),
           sortOrder: z.number().int().nonnegative(),
@@ -519,7 +519,7 @@ const supportCategoryPageApiSchema = z
   .strict();
 const attachmentApiSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     filename: z.string().min(1).max(255),
     contentType: z.string().min(1).max(100),
     sizeBytes: z.number().int().positive(),
@@ -528,7 +528,7 @@ const attachmentApiSchema = z
   .strict();
 const supportMessageApiSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     senderType: z.enum(['customer', 'admin', 'system']),
     body: z.string().min(1).max(8192),
     attachments: z.array(attachmentApiSchema).max(6),
@@ -536,8 +536,8 @@ const supportMessageApiSchema = z
   })
   .strict();
 const ticketApiFields = {
-  id: z.string().uuid(),
-  categoryId: z.string().uuid(),
+  id: z.guid(),
+  categoryId: z.guid(),
   subject: z.string().min(1).max(180),
   status: z.enum([
     'open',
@@ -605,7 +605,7 @@ const actionResultApiSchema = z
   .strict();
 const deviceRegistrationResultApiSchema = z
   .object({
-    deviceId: z.string().uuid(),
+    deviceId: z.guid(),
     registeredAt: isoDateSchema,
     version: z.number().int().positive()
   })

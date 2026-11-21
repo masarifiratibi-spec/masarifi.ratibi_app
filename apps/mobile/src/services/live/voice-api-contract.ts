@@ -1,5 +1,5 @@
 import { z } from 'zod';
-const uuid = z.string().uuid();
+const uuid = z.guid();
 const timestamp = z.string().datetime({ offset: true });
 export const sessionSchema = z
   .object({
@@ -66,7 +66,7 @@ export const fieldSchema = z
       'merchant',
       'note'
     ]),
-    value: z.unknown(),
+    value: z.unknown().optional(),
     confidence: z.number().min(0).max(1).nullable(),
     sourceSpan: z.string().max(160).nullable().optional()
   })

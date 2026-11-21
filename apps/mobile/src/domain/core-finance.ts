@@ -401,7 +401,7 @@ export const transactionInputSchema = z
 export const manualSubmissionSchema = z
   .object({
     version: z.literal(1),
-    operationId: z.string().uuid(),
+    operationId: z.guid(),
     input: transactionInputSchema,
     expectedVersion: z.number().int().positive().optional(),
     firstAttemptAt: z.number().int().nonnegative(),

@@ -31,9 +31,9 @@ const nullableDate = z
   .nullable();
 const accountResponseSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     name: z.string(),
-    type: accountInputSchema.innerType().shape.type,
+    type: accountInputSchema.shape.type,
     currency: z.string().regex(/^[A-Z]{3}$/u),
     institutionName: z.string().nullable().optional().default(null),
     lastFour: z
@@ -83,17 +83,17 @@ const accountPageSchema = z
 const createAccountResponseSchema = z
   .object({
     account: accountResponseSchema,
-    openingTransactionId: z.string().uuid().nullable().optional()
+    openingTransactionId: z.guid().nullable().optional()
   })
   .strict();
 const emptyResponseSchema = z.null();
 const accountSummarySchema = z
   .object({
-    accountId: z.string().uuid(),
+    accountId: z.guid(),
     currency: z.string().regex(/^[A-Z]{3}$/u),
     balance: z
       .object({
-        accountId: z.string().uuid(),
+        accountId: z.guid(),
         currency: z.string().regex(/^[A-Z]{3}$/u),
         confirmedMinor: z.number().int().safe(),
         pendingMinor: z.number().int().safe(),

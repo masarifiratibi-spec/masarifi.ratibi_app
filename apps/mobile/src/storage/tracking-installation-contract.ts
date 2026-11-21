@@ -26,9 +26,9 @@ export const trackingInstallationSourcesSchema = z
 
 export const trackingInstallationReceiptSchema = z
   .object({
-    deviceId: z.string().uuid(),
+    deviceId: z.guid(),
     version: z.number().int().min(1).max(2147483647),
-    generation: z.string().uuid(),
+    generation: z.guid(),
     sessionBinding: z.string().regex(/^[a-f0-9]{64}$/),
     sources: trackingInstallationSourcesSchema,
     captureAllowed: z.boolean()

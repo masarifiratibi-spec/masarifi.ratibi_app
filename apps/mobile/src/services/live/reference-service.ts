@@ -28,7 +28,7 @@ const countrySchema = z
   .strict();
 const exchangeRateSchema = z
   .object({
-    id: z.string().uuid().nullable().optional(),
+    id: z.guid().nullable().optional(),
     base: currencyCode,
     quote: currencyCode,
     rate: z.number().positive().finite(),

@@ -67,7 +67,7 @@ const persistedPreferencesSchema = z.object({
   monthStartDay: z.number().int().min(1).max(28).optional(),
   returnRemindersEnabled: z.boolean().optional(),
   returnRemindersOwnerId: z.string().nullable().optional(),
-  returnReminderChoices: z.record(z.boolean()).optional()
+  returnReminderChoices: z.record(z.string(), z.boolean()).optional()
 });
 
 export async function loadPreferences(): Promise<UserPreferences> {

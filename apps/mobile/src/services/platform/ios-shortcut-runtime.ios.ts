@@ -45,8 +45,8 @@ const enrollmentSchema = z
   .object({
     ownerId: z.string().min(1),
     anchor: z.string().min(1),
-    token: z.string().uuid(),
-    id: z.string().uuid(),
+    token: z.guid(),
+    id: z.guid(),
     enabled: z.boolean(),
     ledgerProtocol: z.literal(1).optional(),
     ledgerCutoverAt: z.number().int().nonnegative().optional()
@@ -57,9 +57,9 @@ const receiptSchema = z
   .object({
     ownerId: z.string(),
     anchor: z.string(),
-    enrollmentId: z.string().uuid(),
+    enrollmentId: z.guid(),
     lastSuccessAt: z.number().int().nonnegative(),
-    lastTransactionId: z.string().uuid()
+    lastTransactionId: z.guid()
   })
   .strict();
 type Staged = {

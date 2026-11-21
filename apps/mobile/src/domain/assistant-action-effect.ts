@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const id = z.string().uuid();
+const id = z.guid();
 const version = z.number().int().positive();
 const minor = z
   .string()

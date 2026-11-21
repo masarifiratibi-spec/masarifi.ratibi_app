@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
 const journalSchema = z
   .object({
-    operationId: z.string().uuid(),
+    operationId: z.guid(),
     requestId: z.string().min(1).optional()
   })
   .strict();

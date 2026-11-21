@@ -246,7 +246,7 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
   const action = mapAction(value.actionIdentifier);
   if (!action) return null;
   if (data?.route === 'app_update') {
-    const id = z.string().uuid().safeParse(data.notificationId);
+    const id = z.guid().safeParse(data.notificationId);
     return action === 'view' && id.success
       ? { kind: 'app_update', notificationId: id.data, action }
       : null;
@@ -255,7 +255,7 @@ function responseFromExpo(response: unknown): PhoneNotificationResponse | null {
     const local = z
       .object({
         kind: z.literal('onboarding_resume'),
-        cycleId: z.string().uuid()
+        cycleId: z.guid()
       })
       .strict()
       .safeParse(data);

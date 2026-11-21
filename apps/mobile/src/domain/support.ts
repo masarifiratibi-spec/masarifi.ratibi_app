@@ -3,7 +3,7 @@ import { safeFailureSchema } from './notifications';
 
 export const supportFeedbackSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     type: z.enum(['bug', 'idea', 'experience', 'other']),
     subject: z.string().min(1).max(180),
     body: z.string().min(1).max(8192),
@@ -36,7 +36,7 @@ const attachmentSchema = z
   })
   .strict();
 const draftFields = {
-  submissionOperationId: z.string().uuid().optional(),
+  submissionOperationId: z.guid().optional(),
   id: z.string().min(1),
   category: z.string().min(1).max(64),
   subject: z.string().max(160),

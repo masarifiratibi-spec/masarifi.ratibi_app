@@ -69,7 +69,7 @@ import {
   registerRuntimeUserDataReset
 } from '@/storage/runtime-user-data-reset';
 
-const uuid = z.string().uuid();
+const uuid = z.guid();
 const instant = z.string().datetime({ offset: true });
 const nullableInstant = instant.nullable();
 const safeMinor = z.number().int().safe();
@@ -129,7 +129,7 @@ const bootstrapSchema = z
             .object({
               domain: syncDomain,
               cursor: syncCursor,
-              items: z.array(z.record(z.unknown())),
+              items: z.array(z.record(z.string(), z.unknown())),
               hasMore: z.boolean(),
               nextPage: syncCursor.nullable()
             })
@@ -153,7 +153,7 @@ const deltaSchema = z
               resourceType: z.string().min(1),
               operation: z.enum(['upsert', 'delete']),
               version: z.number().int().safe().nonnegative(),
-              snapshot: z.record(z.unknown()).optional(),
+              snapshot: z.record(z.string(), z.unknown()).optional(),
               deletedAt: nullableInstant.optional().default(null)
             })
             .strict()
@@ -176,7 +176,7 @@ const receiptSchema = z
       'rejected'
     ]),
     resourceId: z.string().min(1).optional(),
-    result: z.record(z.unknown()).optional(),
+    result: z.record(z.string(), z.unknown()).optional(),
     conflictId: uuid.optional(),
     error: z
       .object({
@@ -203,8 +203,8 @@ const conflictSchema = z
     serverVersion: z.number().int().safe().nonnegative(),
     clientVersion: z.number().int().safe().nonnegative(),
     conflictFields: z.array(z.string()),
-    serverSnapshot: z.record(z.unknown()),
-    clientSnapshot: z.record(z.unknown()),
+    serverSnapshot: z.record(z.string(), z.unknown()),
+    clientSnapshot: z.record(z.string(), z.unknown()),
     status: z.enum(['open', 'resolved', 'rejected']),
     resolution: z
       .enum(['server', 'client', 'merged', 'duplicate'])

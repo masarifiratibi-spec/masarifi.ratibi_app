@@ -62,7 +62,7 @@ const conversationVersion = z
   .pipe(z.number().int().positive().safe());
 const conversationSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     title: z.string().min(1).max(120).nullable(),
     status: z.enum(['active', 'archived']),
     lastMessageAt: dateTime,
@@ -92,7 +92,7 @@ const evidenceSchema = z
   .strict();
 const snapshotSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     schemaVersion: z.literal(1),
     evidenceRefs: z.array(evidenceSchema),
     model: z.string().min(1),
@@ -102,11 +102,11 @@ const snapshotSchema = z
   .strict();
 const previewSchema = z
   .object({
-    id: z.string().uuid(),
-    messageId: z.string().uuid(),
+    id: z.guid(),
+    messageId: z.guid(),
     schemaVersion: z.literal(1),
     actionType: z.string().min(1),
-    payload: z.record(z.unknown()),
+    payload: z.record(z.string(), z.unknown()),
     status: z.enum([
       'draft',
       'validated',
@@ -117,7 +117,7 @@ const previewSchema = z
     ]),
     expiresAt: dateTime.nullable(),
     confirmedAt: dateTime.nullable(),
-    executedResourceId: z.string().uuid().nullable(),
+    executedResourceId: z.guid().nullable(),
     confirmationOperationId: z.string().min(1).nullable(),
     createdAt: dateTime,
     updatedAt: dateTime,
@@ -126,9 +126,9 @@ const previewSchema = z
   .strict();
 const messageSchema = z
   .object({
-    id: z.string().uuid(),
-    conversationId: z.string().uuid(),
-    replyToMessageId: z.string().uuid().nullable(),
+    id: z.guid(),
+    conversationId: z.guid(),
+    replyToMessageId: z.guid().nullable(),
     role: z.enum(['user', 'assistant']),
     content: z.string(),
     status: z.string().nullable(),
@@ -187,7 +187,7 @@ const messageSchema = z
   .strict();
 const insightSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     signalKey: z.string(),
     kind: z.literal('budget_threshold'),
     payload: z
@@ -376,7 +376,7 @@ function moneyInput(amountMinor: unknown, currency: unknown) {
 }
 
 function requiredId(value: unknown): string {
-  const result = z.string().uuid().safeParse(value);
+  const result = z.guid().safeParse(value);
   if (!result.success) throw new AssistantApiError('representative_failure');
   return result.data;
 }
@@ -832,7 +832,7 @@ export function createLiveAssistantApiService(
   ): Promise<string | null> => {
     try {
       return parse(
-        z.object({ id: z.string().uuid(), status: z.string() }).strict(),
+        z.object({ id: z.guid(), status: z.string() }).strict(),
         await send(
           'GET',
           `/api/v1/assistant/conversations/${encodeURIComponent(conversationId)}/messages/acceptance`,
@@ -858,7 +858,7 @@ export function createLiveAssistantApiService(
       return parse(
         z
           .object({
-            id: z.string().uuid(),
+            id: z.guid(),
             status: z.string(),
             replayed: z.boolean().optional()
           })
@@ -921,8 +921,8 @@ export function createLiveAssistantApiService(
       const result = parse(
         z
           .object({
-            id: z.string().uuid(),
-            conversationId: z.string().uuid(),
+            id: z.guid(),
+            conversationId: z.guid(),
             status: z.enum([
               'queued',
               'processing',
@@ -1472,7 +1472,7 @@ export function createLiveAssistantApiService(
           typeof effect.accountId === 'string'
         )
           context.account = parse(
-            z.record(z.unknown()),
+            z.record(z.string(), z.unknown()),
             await read(
               `accounts/${encodeURIComponent(String(effect.accountId))}`
             )
@@ -1480,34 +1480,34 @@ export function createLiveAssistantApiService(
         if (value.confirmationAllowed) {
           if (value.kind === 'update_transaction')
             context.target = parse(
-              z.object({ transaction: z.record(z.unknown()) }),
+              z.object({ transaction: z.record(z.string(), z.unknown()) }),
               await read(
                 `transactions/${encodeURIComponent(String(effect.transactionId))}`
               )
             ).transaction;
           if (value.kind === 'update_budget')
             context.target = parse(
-              z.record(z.unknown()),
+              z.record(z.string(), z.unknown()),
               await read(
                 `budgets/${encodeURIComponent(String(effect.budgetId))}`
               )
             );
           if (value.kind === 'resolve_tracking_review')
             context.target = parse(
-              z.record(z.unknown()),
+              z.record(z.string(), z.unknown()),
               await read(
                 `reviews/${encodeURIComponent(String(effect.reviewId))}`
               )
             );
           if (value.kind === 'record_obligation_payment') {
             context.target = parse(
-              z.record(z.unknown()),
+              z.record(z.string(), z.unknown()),
               await read(
                 `obligations/${encodeURIComponent(String(effect.obligationId))}`
               )
             );
             context.transaction = parse(
-              z.object({ transaction: z.record(z.unknown()) }),
+              z.object({ transaction: z.record(z.string(), z.unknown()) }),
               await read(
                 `transactions/${encodeURIComponent(String(effect.transactionId))}`
               )
@@ -1517,7 +1517,7 @@ export function createLiveAssistantApiService(
             let cursor: string | undefined;
             for (let attempt = 0; attempt < 20; attempt += 1) {
               const result = parse(
-                page(z.record(z.unknown())),
+                page(z.record(z.string(), z.unknown())),
                 await read(
                   `obligations/${encodeURIComponent(String(effect.obligationId))}/schedule?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
                 )
@@ -1609,9 +1609,9 @@ export function createLiveAssistantApiService(
       const executed = parse(
         z
           .object({
-            sourceId: z.string().uuid(),
+            sourceId: z.guid(),
             actionType: z.string(),
-            resourceId: z.string().uuid(),
+            resourceId: z.guid(),
             status: z.literal('executed'),
             replayed: z.boolean()
           })

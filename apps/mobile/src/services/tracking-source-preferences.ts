@@ -74,7 +74,7 @@ const sourcesSchema = z
     smsActivatedAt: z.number().int().nonnegative().optional(),
     notificationActivatedAt: z.number().int().nonnegative().optional(),
     smsActivationId: z.string().regex(/^\d+$/).optional(),
-    notificationAccountId: z.string().uuid().optional()
+    notificationAccountId: z.guid().optional()
   })
   .strict()
   .refine(

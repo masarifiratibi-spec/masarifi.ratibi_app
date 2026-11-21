@@ -87,7 +87,7 @@ import {
   requestJson
 } from './http-client';
 
-const uuid = z.string().uuid();
+const uuid = z.guid();
 const instant = z.string().datetime({ offset: true });
 // PostgreSQL date columns may arrive serialized as UTC-midnight timestamps.
 const date = z.union([

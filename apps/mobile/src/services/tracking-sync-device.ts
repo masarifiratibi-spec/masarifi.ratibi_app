@@ -16,7 +16,7 @@ const devicePage = z
   .passthrough();
 const registeredDevice = z
   .object({
-    deviceId: z.string().uuid(),
+    deviceId: z.guid(),
     registeredAt: z.string().datetime({ offset: true }),
     version: z.number().int().positive()
   })

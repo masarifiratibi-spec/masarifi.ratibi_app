@@ -30,7 +30,7 @@ import {
 
 const categorySchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     scope: z.enum(['system', 'custom']),
     kind: z.enum(['income', 'expense', 'transfer']),
     labelAr: z.string(),
@@ -38,8 +38,8 @@ const categorySchema = z
     icon: z.string().nullable().optional().default(null),
     color: z.string().nullable().optional().default(null),
     systemKey: z.string().nullable().optional().default(null),
-    parentId: z.string().uuid().nullable().optional().default(null),
-    mergedIntoId: z.string().uuid().nullable().optional().default(null),
+    parentId: z.guid().nullable().optional().default(null),
+    mergedIntoId: z.guid().nullable().optional().default(null),
     sortOrder: z.number().int().safe(),
     active: z.boolean(),
     status: z.enum(['active', 'archived', 'merged']),
@@ -61,7 +61,7 @@ const categoryUsageSchema = z
   })
   .strict();
 const mergeCategorySchema = z
-  .object({ source: categorySchema, targetId: z.string().uuid() })
+  .object({ source: categorySchema, targetId: z.guid() })
   .strict();
 const emptySchema = z.null();
 
@@ -257,7 +257,7 @@ export function createLiveCategoryLifecycleService({
     },
     serverCategoryId(id: string): string {
       const mapped = localToServer.get(id) ?? id;
-      if (!z.string().uuid().safeParse(mapped).success)
+      if (!z.guid().safeParse(mapped).success)
         throw new HttpError('validation_error', 400, 'CATEGORY_INVALID');
       return mapped;
     },

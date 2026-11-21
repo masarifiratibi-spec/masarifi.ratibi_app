@@ -139,7 +139,7 @@ const preferencesSchema = z
     theme: z.enum(['light', 'dark', 'system']),
     calendar: z.enum(['gregorian', 'hijri']),
     weekStart: z.number().int().min(0).max(6),
-    privacySettings: z.record(z.boolean()),
+    privacySettings: z.record(z.string(), z.boolean()),
     version: z.number().int().positive()
   })
   .strict();
@@ -154,7 +154,7 @@ const onboardingSchema = z
   .strict();
 const deviceSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     platform: z.enum(['android', 'ios', 'web']),
     appVersion: z.string().min(1).max(32),
     deviceName: z.string().min(1).max(80).nullable(),
@@ -987,7 +987,7 @@ export function createLiveIdentityService({
               .array(
                 z
                   .object({
-                    id: z.string().uuid(),
+                    id: z.guid(),
                     eventType: z.string().max(80),
                     severity: z.enum([
                       'info',

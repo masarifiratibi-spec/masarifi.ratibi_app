@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { transactionSources } from '../../domain/core-finance';
 
-const uuid = z.string().uuid();
+const uuid = z.guid();
 const instant = z.string().datetime({ offset: true });
 const nullableInstant = instant.nullable();
 const safeMinor = z.number().int().safe();

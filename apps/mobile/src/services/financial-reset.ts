@@ -15,11 +15,11 @@ const path = '/api/v1/me/financial-reset';
 const stateSchema = z.object({
   generation: z.number().int().nonnegative(),
   resetAt: z.string().nullable(),
-  requestId: z.string().uuid().nullable(),
+  requestId: z.guid().nullable(),
   status: z.enum(['ready', 'processing'])
 });
 const receiptSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   status: z.enum(['processing', 'completed']),
   generation: z.number().int().nonnegative()
 });
@@ -58,7 +58,7 @@ export async function fetchFinancialResetState(ownerId: string) {
 }
 
 const intentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   generation: z.number().int().nonnegative().nullable()
 });
 
@@ -66,7 +66,7 @@ export async function loadFinancialResetOperation(ownerId: string) {
   assertOwner(ownerId);
   const saved = await AsyncStorage.getItem(key(ownerId));
   if (saved === null) return null;
-  if (z.string().uuid().safeParse(saved).success)
+  if (z.guid().safeParse(saved).success)
     return { id: saved, generation: null };
   return intentSchema.parse(JSON.parse(saved));
 }

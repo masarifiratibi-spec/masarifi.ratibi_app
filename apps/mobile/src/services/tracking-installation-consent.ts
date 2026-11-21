@@ -181,7 +181,7 @@ export function createLiveTrackingConsentPorts(
         input
       );
       z.object({
-        deviceId: z.string().uuid(),
+        deviceId: z.guid(),
         registeredAt: z.string().datetime({ offset: true }),
         version: z.number().int().positive()
       })
@@ -221,7 +221,7 @@ const bodySchema = z
   .strict();
 const preparedCommandSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     sessionBinding: z.string().regex(/^[a-f0-9]{64}$/),
     body: bodySchema,
     receipt: trackingInstallationReceiptSchema.optional()
@@ -229,7 +229,7 @@ const preparedCommandSchema = z
   .strict();
 const preparingCommandSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.guid(),
     sessionBinding: z.string().regex(/^[a-f0-9]{64}$/),
     preparing: z.literal(true),
     sources: trackingInstallationSourcesSchema

@@ -19,8 +19,8 @@ const patchSchema = z
     reason: z.literal('Mobile edit'),
     kind: z.enum(['expense', 'income']).optional(),
     amountMinor: z.number().int().safe().nonnegative().optional(),
-    accountId: z.string().uuid().optional(),
-    categoryId: z.string().uuid().nullable().optional(),
+    accountId: z.guid().optional(),
+    categoryId: z.guid().nullable().optional(),
     title: z.string().optional(),
     merchant: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
@@ -30,9 +30,9 @@ const patchSchema = z
 const journalSchema = z
   .object({
     version: z.literal(1),
-    resourceId: z.string().uuid(),
-    serverResourceId: z.string().uuid().optional(),
-    operationId: z.string().uuid(),
+    resourceId: z.guid(),
+    serverResourceId: z.guid().optional(),
+    operationId: z.guid(),
     input: transactionInputSchema,
     body: patchSchema
   })

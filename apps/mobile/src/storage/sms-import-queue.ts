@@ -451,9 +451,9 @@ const eventSchema = z
       .refine((value) => Object.keys(value).length <= 12)
       .optional(),
     kind: z.enum(['income', 'expense', 'transfer', 'refund', 'fee']).optional(),
-    accountId: z.string().uuid().optional(),
-    destinationAccountId: z.string().uuid().optional(),
-    categoryId: z.string().uuid().optional(),
+    accountId: z.guid().optional(),
+    destinationAccountId: z.guid().optional(),
+    categoryId: z.guid().optional(),
     classification: z
       .unknown()
       .transform((value) => validateClassification(value))
@@ -464,7 +464,7 @@ const eventSchema = z
         channel: z.enum(['android_sms', 'android_notification']),
         nativeIdDigest: boundedText,
         revisionDigest: boundedText,
-        installationGeneration: z.string().uuid().optional(),
+        installationGeneration: z.guid().optional(),
         installationVersion: z.number().int().min(1).max(2147483647).optional()
       })
       .strict()
@@ -601,7 +601,7 @@ const queueSchema = z
               provider: boundedText,
               role: z.enum(['card', 'account', 'cash_card', 'cash_account']),
               suffix: boundedText,
-              accountId: z.string().uuid()
+              accountId: z.guid()
             })
           )
           .max(1000)

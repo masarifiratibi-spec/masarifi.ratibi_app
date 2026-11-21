@@ -25,7 +25,7 @@ const captureBodySchema = z
 
 export const voiceOperationSchema = z
   .object({
-    attemptId: z.string().uuid(),
+    attemptId: z.guid(),
     revision: z.number().int().nonnegative(),
     phase: z.enum([
       'captured',
@@ -41,11 +41,11 @@ export const voiceOperationSchema = z
       'cancelled',
       'terminal'
     ]),
-    createKey: z.string().uuid(),
-    processKey: z.string().uuid(),
-    cancelKey: z.string().uuid(),
+    createKey: z.guid(),
+    processKey: z.guid(),
+    cancelKey: z.guid(),
     createBody: captureBodySchema.nullable(),
-    sessionId: z.string().uuid().nullable(),
+    sessionId: z.guid().nullable(),
     sessionVersion: z.number().int().positive().nullable(),
     processBody: z
       .object({
@@ -55,11 +55,11 @@ export const voiceOperationSchema = z
       })
       .strict()
       .nullable(),
-    proposalId: z.string().uuid().nullable(),
+    proposalId: z.guid().nullable(),
     proposalVersion: z.number().int().positive().nullable(),
-    confirmationKey: z.string().uuid().nullable(),
+    confirmationKey: z.guid().nullable(),
     confirmationBody: z.record(z.string(), z.unknown()).nullable(),
-    transactionId: z.string().uuid().nullable(),
+    transactionId: z.guid().nullable(),
     audioReference: z.string().min(1).max(2048).nullable(),
     createdAt: z.number().int().nonnegative()
   })
@@ -133,7 +133,7 @@ export async function clearVoiceOperation(
 
 const pendingSchema = z
   .object({
-    sessionId: z.string().uuid(),
+    sessionId: z.guid(),
     sessionVersion: z.number().int().positive(),
     recordedAt: z.number().int().nonnegative(),
     timezoneOffsetMinutes: z.number().int(),

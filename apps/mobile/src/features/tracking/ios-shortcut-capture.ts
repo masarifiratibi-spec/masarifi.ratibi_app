@@ -8,7 +8,7 @@ import type { TrackingImportEvent } from '@/domain/automatic-tracking';
 
 const payloadSchema = z
   .object({
-    token: z.string().uuid(),
+    token: z.guid(),
     messageId: z.string().trim().min(1).max(160),
     sender: z.string().trim().min(1).max(100),
     body: z.string().trim().min(1).max(2000),

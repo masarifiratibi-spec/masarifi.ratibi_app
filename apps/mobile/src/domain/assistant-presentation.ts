@@ -40,8 +40,8 @@ export type SpendingPresentation = z.infer<typeof spendingPresentationSchema>;
 // Older text is still usable when a newer server sends an unknown presentation version.
 export const optionalSpendingPresentationSchema = z
   .unknown()
-  .optional()
   .transform((value) => {
     const result = spendingPresentationSchema.safeParse(value);
     return result.success ? result.data : undefined;
-  });
+  })
+  .optional();

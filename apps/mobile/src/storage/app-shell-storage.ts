@@ -57,11 +57,11 @@ let ownerGeneration = 0;
 
 const localOwnerKey = 'masarifi.appShell.localOwner.v1';
 const logoutRecoveryKey = 'masarifi.appShell.logoutRecovery.v1';
-const logoutRecoverySchema = z.object({ownerId:z.string().min(1),id:z.string().uuid()}).strict();
+const logoutRecoverySchema = z.object({ownerId:z.string().min(1),id:z.guid()}).strict();
 let localOwnerMutation: Promise<void> = Promise.resolve();
 let logoutAdmissionRevision = 0;
 const logoutDispositionSchema = z.object({
-  id: z.string().uuid(), ownerId: z.string().min(1), sessionId: z.string().min(1).nullable(),
+  id: z.guid(), ownerId: z.string().min(1), sessionId: z.string().min(1).nullable(),
   scope: z.enum(['local', 'all']), phase: z.enum(['prepared', 'cleanup-ready']),
   dataDisposition: z.enum(['preserve', 'remove']).default('preserve'),
   localCleanupPhase: z.literal('database-purge-ready').optional()
