@@ -13,8 +13,8 @@ describeLiveDatabase('requested PDF email database wakeups', () => {
     await writer.connect();
     await listener.connect();
     try {
-      const writerPid = (await writer.query<{ pid: number }>('select pg_backend_pid() pid'))
-        .rows[0]?.pid;
+      const writerPid = (await writer.query<{ pid: number }>('select pg_backend_pid() pid')).rows[0]
+        ?.pid;
       if (writerPid === undefined) throw new Error('Expected a writer connection');
       const signals: string[] = [];
       let finishBarrier: (() => void) | undefined;

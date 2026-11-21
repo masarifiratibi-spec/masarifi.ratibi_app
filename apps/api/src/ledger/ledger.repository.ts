@@ -210,7 +210,10 @@ export class LedgerRepository {
     @Optional() private readonly config?: PlatformConfigService,
   ) {}
 
-  async replayCompleted(input: LedgerMutation): Promise<Record<string, unknown> | undefined> {
+  async replayCompleted(
+    input: LedgerMutation,
+    generation?: string,
+  ): Promise<Record<string, unknown> | undefined> {
     const startedAt = performance.now();
     let observed = false;
     let outcome = 'failure';
@@ -226,6 +229,19 @@ export class LedgerRepository {
             }),
           ]);
           await client.query('set local role masarifi_api');
+          if (generation !== undefined) {
+            // The active profile read lock in financial_reset_state fences resets until commit.
+            const state = (
+              await client.query<{ generation: string; cleanup_pending: boolean }>(
+                'select generation,cleanup_pending from private.financial_reset_state($1)',
+                [input.principal.userId],
+              )
+            ).rows[0];
+            if (!state) throw domainError('IDEMPOTENCY_REPLAY_UNAVAILABLE', 503);
+            if (state.generation !== generation)
+              throw domainError('FINANCIAL_GENERATION_STALE', 409);
+            if (state.cleanup_pending) throw domainError('FINANCIAL_RESET_CLEANUP_PENDING', 409);
+          }
           const claim = (
             await client.query<Claim>('select * from private.lookup_idempotency_key($1,$2,$3,$4)', [
               input.principal.userId,
@@ -809,6 +825,27 @@ export class LedgerRepository {
             return claim.response_body;
           }
           await this.lockOwner(client, input.principal.userId, input.operation);
+          if (input.requireAutomaticTracking) {
+            // Lock all touched accounts against a simultaneous settings change until commit.
+            const ids = [
+              input.command.accountId,
+              input.command.sourceAccountId,
+              input.command.destinationAccountId,
+              input.command.feeAccountId,
+            ].filter(Boolean);
+            const accounts = (
+              await client.query<{ allowed: boolean }>(
+                `select (a.status='active' and (a.type='cash' or a.automatic_tracking_enabled)) allowed
+                 from public.accounts a where a.user_id=$1 and (a.id=any($2::uuid[]) or exists
+                   (select 1 from public.transaction_postings p
+                    where p.transaction_id=$3::uuid and p.account_id=a.id))
+                 order by a.id for share of a`,
+                [input.principal.userId, ids, input.command.transactionId ?? null],
+              )
+            ).rows;
+            if (!accounts.length || accounts.some((a) => !a.allowed))
+              throw domainError('TRACKING_ACCOUNT_BLOCKED', 409);
+          }
           const priorPostingCount = [
             'reviseTransaction',
             'deleteTransaction',

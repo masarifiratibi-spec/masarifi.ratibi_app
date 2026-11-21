@@ -13,6 +13,35 @@ tags:
   - name: Devices
   - name: Clerk Webhooks
 paths:
+  /api/v1/me/apple-deletion-grant:
+    post:
+      operationId: prepareAppleDeletionGrant
+      tags: [Identity]
+      summary: Check or prepare a revocable Apple grant for the signed-in owner
+      security: [{ ClerkBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                authorizationCode: { type: string, minLength: 1, maxLength: 2048, writeOnly: true }
+      responses:
+        '200':
+          description: Count of linked Apple accounts that still need authorization
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [remaining]
+                properties:
+                  remaining: { type: integer, minimum: 0 }
+        '400': { description: Invalid authorization request }
+        '401': { description: Owner authentication required }
+        '409': { description: Fresh authorization from the linked Apple account required }
+        '503': { description: Provider unavailable }
   /api/v1/tracking/device/devices/register:
     post:
       operationId: registerMobileDevice

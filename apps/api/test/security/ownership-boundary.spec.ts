@@ -41,6 +41,7 @@ const identityOwned = {
   endpoints: new Set([
     'GET /api/v1/me',
     'PATCH /api/v1/me',
+    'POST /api/v1/me/apple-deletion-grant',
     'GET /api/v1/me/preferences',
     'PUT /api/v1/me/preferences',
     'GET /api/v1/me/onboarding',

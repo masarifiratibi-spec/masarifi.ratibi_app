@@ -151,7 +151,14 @@ describeLiveDatabase('nominal default-account tracking', () => {
   }
   async function finances() {
     return (
-      await pool.query(
+      await pool.query<{
+        kind: string;
+        amount: string;
+        currency: string;
+        category: string | null;
+        effect: string;
+        account: string;
+      }>(
         'select t.kind,t.amount_minor::text amount,btrim(t.currency_code) currency,t.category_id::text category,p.amount_minor::text effect,p.account_id::text account from public.transactions t join public.transaction_postings p on p.transaction_id=t.id where t.user_id=$1 order by t.created_at,t.id',
         [owner],
       )
@@ -173,7 +180,17 @@ describeLiveDatabase('nominal default-account tracking', () => {
       expect(items[0]?.status).toBe('review');
       expect(await finances()).toEqual([]);
       const review = (
-        await pool.query(
+        await pool.query<{
+          id: string;
+          version: number;
+          reason: string;
+          proposed_values: {
+            kind?: string;
+            accountId?: string;
+            destinationAccountId?: string;
+            classification: { status: string };
+          };
+        }>(
           'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
           [id],
         )
@@ -215,7 +232,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
         await expect(
           service.decideReview(review.id, {
             principal: principal(),
-            body: { decision: 'edit_accept', expectedVersion: Number(review.version), edit },
+            body: { decision: 'edit_accept', expectedVersion: review.version, edit },
             idempotencyKey: randomUUID(),
             requestId: randomUUID(),
           }),
@@ -225,7 +242,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
         principal: principal(),
         body: {
           decision: 'edit_accept',
-          expectedVersion: Number(review.version),
+          expectedVersion: review.version,
           edit: { accountId: account, destinationAccountId: creditCard },
         },
         idempotencyKey: randomUUID(),
@@ -248,7 +265,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
     for (const native of ['first', 'second']) await capture(text, { native, receivedAt });
     await capture(text, { native: 'notification', receivedAt, channel: 'android_notification' });
     const rows = (
-      await pool.query(
+      await pool.query<{ reason: string; canonical_identity_hash: string }>(
         'select r.reason,i.canonical_identity_hash from public.review_items r join public.import_items i on i.id=r.import_item_id where r.user_id=$1',
         [owner],
       )
@@ -272,7 +289,17 @@ describeLiveDatabase('nominal default-account tracking', () => {
     async (text) => {
       const { id } = await capture(text);
       const review = (
-        await pool.query(
+        await pool.query<{
+          id: string;
+          version: number;
+          reason: string;
+          proposed_values: {
+            kind?: string;
+            accountId?: string;
+            destinationAccountId?: string;
+            classification: { status: string };
+          };
+        }>(
           'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
           [id],
         )
@@ -290,7 +317,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
           principal: principal(),
           body: {
             decision: 'edit_accept',
-            expectedVersion: Number(review.version),
+            expectedVersion: review.version,
             edit: {
               accountId: account,
               destinationAccountId: creditCard,
@@ -505,7 +532,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
     await capture('Additional fee EGP2', { native: 'principal-fee', component: 'fee' });
     const before = await finances();
     expect(before).toHaveLength(2);
-    expect(before.map((row) => String(row.effect)).sort()).toEqual(['-200', '-5000']);
+    expect(before.map((row) => row.effect).sort()).toEqual(['-200', '-5000']);
     await capture('Additional fee EGP2', { native: 'principal-fee', component: 'fee' });
     expect(await finances()).toEqual(before);
   });

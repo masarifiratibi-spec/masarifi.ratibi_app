@@ -16,12 +16,45 @@ import {
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 import { ClerkAuthGuard, type ClerkPrincipalRequest } from '../identity/clerk-auth.guard';
+import { generationHeader } from '../platform/http/financial-generation';
 import { hashIdempotencyKey } from './idempotency';
 import { LedgerService } from './ledger.service';
 
 @Controller()
 export class LedgerController {
   constructor(private readonly ledger: LedgerService) {}
+
+  @Post('api/v1/bank-sms/:mode/:kind')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'processBankSmsLedgerCommand' })
+  @ApiBearerAuth('ClerkBearer')
+  @UseGuards(ClerkAuthGuard)
+  async bankSms(
+    @Req() request: ClerkPrincipalRequest & { requestId?: string },
+    @Param('mode') mode: string,
+    @Param('kind') kind: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('x-financial-generation') generation?: string,
+    @Headers('x-original-transaction-id') originalId?: string,
+  ): Promise<unknown> {
+    if (!request.clerkPrincipal) throw new HttpException({ code: 'AUTH_TOKEN_INVALID' }, 401);
+    if (!generationHeader(generation) || (mode !== 'receipts' && mode !== 'automatic'))
+      throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
+    return this.ledger.bankSms(
+      {
+        principal: request.clerkPrincipal,
+        requestId: request.requestId ?? 'missing-request-id',
+        body,
+        idempotencyKey: this.validatedIdempotencyKey(key),
+        ...(mode === 'receipts'
+          ? { receiptGeneration: generation }
+          : { requireAutomaticTracking: true }),
+      },
+      kind,
+      originalId,
+    );
+  }
 
   @Get('api/v1/transactions')
   @ApiOperation({ operationId: 'listTransactions' })

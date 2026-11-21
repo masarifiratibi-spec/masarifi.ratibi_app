@@ -22,9 +22,10 @@ describe('Phase 05 ledger OpenAPI contract', () => {
   });
   afterAll(() => app.close());
 
-  it('keeps seven exact relative paths, operations, schemas, and resolvable references', () => {
+  it('keeps eight exact relative paths, operations, schemas, and resolvable references', () => {
     expect(Object.keys(contract.paths).sort()).toEqual([
       '/api/v1/accounts/{accountId}/summary',
+      '/api/v1/bank-sms/{mode}/{kind}',
       '/api/v1/transactions',
       '/api/v1/transactions/{transactionId}',
       '/api/v1/transactions/{transactionId}/refunds',
@@ -48,6 +49,9 @@ describe('Phase 05 ledger OpenAPI contract', () => {
 
   it('registers the create method/path and composes the approved contract without drift', () => {
     const runtime = generateOpenApi(app);
+    expect(runtime.paths['/api/v1/bank-sms/{mode}/{kind}']?.post?.operationId).toBe(
+      'processBankSmsLedgerCommand',
+    );
     expect(runtime.paths['/api/v1/transfers']?.post?.operationId).toBe('createTransfer');
     expect(runtime.paths['/api/v1/transactions/{transactionId}']?.patch?.operationId).toBe(
       'reviseTransaction',

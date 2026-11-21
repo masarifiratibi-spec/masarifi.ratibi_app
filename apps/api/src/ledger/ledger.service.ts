@@ -26,6 +26,7 @@ export interface LedgerMutation {
   idempotencyKey: string;
   requestId: string;
   status: number;
+  requireAutomaticTracking?: boolean;
 }
 
 interface MutationInput {
@@ -34,6 +35,8 @@ interface MutationInput {
   idempotencyKey: string;
   requestId: string;
   now?: Date;
+  requireAutomaticTracking?: boolean;
+  receiptGeneration?: string;
 }
 interface ExistingMutationInput extends MutationInput {
   transactionId: string;
@@ -48,6 +51,30 @@ export class LedgerService {
     private readonly security: SecurityRepository,
     private readonly config: PlatformConfigService,
   ) {}
+
+  bankSms(input: MutationInput, kind: string, originalId?: string): Promise<unknown> {
+    switch (kind) {
+      case 'expense':
+      case 'income':
+        return this.createTransaction(input);
+      case 'transfer':
+        return this.transfer(input);
+      case 'refund':
+      case 'reversal':
+        return this.compensate(
+          { ...input, transactionId: originalId ?? '' },
+          kind === 'refund' ? 'refundTransaction' : 'reverseTransaction',
+        );
+      default:
+        throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
+    }
+  }
+
+  private async receipt(mutation: LedgerMutation, generation: string): Promise<unknown> {
+    const result = await this.repository.replayCompleted(mutation, generation);
+    if (result === undefined) throw new HttpException({ code: 'LEDGER_RECEIPT_NOT_FOUND' }, 404);
+    return result;
+  }
 
   async listTransactions(
     principal: ClerkPrincipal,
@@ -100,12 +127,15 @@ export class LedgerService {
     const mutation = {
       operation: 'createTransaction',
       scope: 'ledger.transaction.create',
+      requireAutomaticTracking: input.requireAutomaticTracking,
       principal: input.principal,
       command,
       idempotencyKey: input.idempotencyKey,
       requestId: input.requestId,
       status: 201,
     };
+    if (input.receiptGeneration !== undefined)
+      return this.receipt(mutation, input.receiptGeneration);
     const replay = await this.repository.replayCompleted(mutation);
     if (replay !== undefined) return replay;
     await this.assertWriteRate(input.principal, 'create_transaction');
@@ -123,12 +153,15 @@ export class LedgerService {
     const mutation = {
       operation: 'transfer',
       scope: 'ledger.transfer.create',
+      requireAutomaticTracking: input.requireAutomaticTracking,
       principal: input.principal,
       command,
       idempotencyKey: input.idempotencyKey,
       requestId: input.requestId,
       status: 201,
     };
+    if (input.receiptGeneration !== undefined)
+      return this.receipt(mutation, input.receiptGeneration);
     const replay = await this.repository.replayCompleted(mutation);
     if (replay !== undefined) return replay;
     await this.assertWriteRate(input.principal, 'transfer');
@@ -210,6 +243,7 @@ export class LedgerService {
     }
     const mutation = {
       operation,
+      requireAutomaticTracking: input.requireAutomaticTracking,
       scope:
         operation === 'refundTransaction'
           ? 'ledger.transaction.refund'
@@ -220,6 +254,8 @@ export class LedgerService {
       requestId: input.requestId,
       status: 201,
     };
+    if (input.receiptGeneration !== undefined)
+      return this.receipt(mutation, input.receiptGeneration);
     const replay = await this.repository.replayCompleted(mutation);
     if (replay !== undefined) return replay;
     const current = await this.repository.effect(input.principal, transactionId);

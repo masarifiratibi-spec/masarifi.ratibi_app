@@ -7,6 +7,46 @@ servers:
 security:
   - clerkSession: []
 paths:
+  /api/v1/bank-sms/{mode}/{kind}:
+    post:
+      operationId: processBankSmsLedgerCommand
+      description: Automatic mode processes a tracked ledger command. Receipts mode looks up the completed command for the supplied financial generation.
+      security: [ { clerkSession: [] } ]
+      parameters:
+        - { name: mode, in: path, required: true, schema: { type: string, enum: [automatic, receipts] } }
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [expense, income, transfer, refund, reversal] } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { name: X-Financial-Generation, in: header, required: true, schema: { type: string, pattern: '^(0|[1-9][0-9]{0,9})$' } }
+        - name: X-Original-Transaction-Id
+          in: header
+          description: Required for refund and reversal commands.
+          schema: { $ref: '#/components/schemas/Uuid' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - { $ref: '#/components/schemas/CreateTransaction' }
+                - { $ref: '#/components/schemas/CreateTransfer' }
+                - { $ref: '#/components/schemas/RefundTransaction' }
+                - { $ref: '#/components/schemas/ReverseTransaction' }
+      responses:
+        '200':
+          description: Processed ledger command or its completed receipt
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - { $ref: '#/components/schemas/MutationResponse' }
+                  - { $ref: '#/components/schemas/LinkedMutationResponse' }
+        '400': { $ref: '#/components/responses/LedgerValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '429': { $ref: '#/components/responses/RateError' }
+        '503': { $ref: '#/components/responses/LedgerUnavailableError' }
   /api/v1/transactions:
     get:
       operationId: listTransactions

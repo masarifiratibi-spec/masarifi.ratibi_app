@@ -3,18 +3,25 @@ import { safeError, SafeExceptionFilter } from '../../../src/platform/http/safe-
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
 
 describe('safeError', () => {
-  it.each([[60, '60'], [0, undefined], ['bad', undefined]] as const)(
-    'publishes only a positive numeric backoff on 429', (retryAfter, expected) => {
-      const response = { setHeader: jest.fn(), status: () => response, json: jest.fn() };
-      const host = { switchToHttp: () => ({
+  it.each([
+    [60, '60'],
+    [0, undefined],
+    ['bad', undefined],
+  ] as const)('publishes only a positive numeric backoff on 429', (retryAfter, expected) => {
+    const response = { setHeader: jest.fn(), status: () => response, json: jest.fn() };
+    const host = {
+      switchToHttp: () => ({
         getRequest: () => ({ path: '/api/v1/admin/privacy/deletions', headers: {} }),
         getResponse: () => response,
-      }) } as unknown as ArgumentsHost;
-      new SafeExceptionFilter().catch(new HttpException({ code: 'RATE_LIMITED', retryAfter }, 429), host);
-      if (expected) expect(response.setHeader).toHaveBeenCalledWith('Retry-After', expected);
-      else expect(response.setHeader).not.toHaveBeenCalled();
-    },
-  );
+      }),
+    } as unknown as ArgumentsHost;
+    new SafeExceptionFilter().catch(
+      new HttpException({ code: 'RATE_LIMITED', retryAfter }, 429),
+      host,
+    );
+    if (expected) expect(response.setHeader).toHaveBeenCalledWith('Retry-After', expected);
+    else expect(response.setHeader).not.toHaveBeenCalled();
+  });
 
   it('logs an ordinary internal failure by request ID without SQL or financial contents', () => {
     const lines: string[] = [];

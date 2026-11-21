@@ -137,7 +137,7 @@ function moneyCandidates(text, snapshot, verifiedAccountCurrency) {
       /(?:fee|fees|charge|commission|رسوم|عمولة)\s*[: ]*$/.test(before) ? 'fee' :
       /(?:equivalent|exchange rate|converted|ما يعادل)\s*[: ]*$/.test(before) || /^\s*(?:equivalent|ما يعادل)/.test(after) ? 'fx' : 'transaction';
     const raw = m[2] || m[3];
-    candidates.push({ role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
+    candidates.push({ index: m.index, role, raw, ambiguous: !currency, amountMinor: currency ? minorUnits(raw,currency.scale) : null,
       currency:currency?.code ?? null, supported:currency?.supported ?? false });
   }
   return candidates;
@@ -216,12 +216,37 @@ function classifyFinancialMessage(input, snapshot = defaultSnapshot) {
     else if(!amounts[0].supported) result.reasonCodes.push('unsupported_currency');}
   else result.reasonCodes.push(amounts.length ? 'amount_conflict':'amount_missing');
   if (result.amountMinor===null) result.reasonCodes.push('amount_invalid');
-  for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending(?:\s+with)?)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)(?![\p{L}\p{N}])/giu)) {
-    const label = (m[1]||m[2]).toLowerCase(), suffix=m[3].replace(/[^0-9]/g,'');
+  for (const m of text.matchAll(/(?:\b(debit card|credit card|card|account(?: number)?|acc\.?|acct|ending(?:\s+with)?)(?![\p{L}])|(بطاقة|حساب))\s*[:#-]?\s*([xX*•]*\d{4,12}\*?)/giu)) {
+    const end = m.index + m[0].length;
+    const tail = text.slice(end);
+    if (input.channel !== 'ios_app_intent' && /^[\p{L}\p{N}]/u.test(tail)) continue;
+    const label = (m[1]||m[2]).toLowerCase();
+    let suffix=m[3].replace(/[^0-9]/g,'');
+    if (input.channel === 'ios_app_intent') {
+      const continuation = tail.match(/^\d*[- ]+(?=[x*•\d])/i);
+      if (/^\d*[\p{L}*•]/u.test(tail) ||
+          continuation && !candidates.some(amount => amount.index === end + continuation[0].length)) {
+        result.reasonCodes.push('instrument_ambiguous');
+        continue;
+      }
+      const remaining = tail.match(/^\d+/)?.[0];
+      if (remaining) {
+        const digits = suffix + remaining;
+        if (digits.length > 19 || m[3].endsWith('*')) {
+          result.reasonCodes.push('instrument_ambiguous');
+          continue;
+        }
+        suffix = digits.slice(-4);
+      }
+    }
     const prefix=lower.slice(0,m.index).trimEnd();
-    const side=['transfer_sent','transfer_received','withdrawal','card_repayment'].includes(result.subtype)
-      ? /(?:\bfrom|من)$/u.test(prefix) ? 'source' : /(?:\bto|إلى|الى|الي)$/u.test(prefix) ? 'destination' : undefined
-      : undefined;
+    let side;
+    if (['transfer_sent','transfer_received','withdrawal','card_repayment'].includes(result.subtype) || input.channel === 'ios_app_intent') {
+      if (/(?:\bfrom|من)$/u.test(prefix)) side = 'source';
+      else if (/(?:\bto|إلى|الى|الي)$/u.test(prefix)) side = 'destination';
+      else if (input.channel === 'ios_app_intent' && result.subtype === 'bill_payment' &&
+               /(?:\busing|\bwith|\bvia|بواسطة|عن طريق)$/u.test(prefix)) side = 'source';
+    }
     result.instruments.push({role:/card|بطاقة|ending/.test(label)?'card':'account',suffix,...(side?{side}:{})});
   }
   const merchant = text.match(/(?:\bat\b|\bby\b|لدي|من)\s+(.+?)(?=,?\s*(?:\b(?:AE|SA)\b[.,]|Avl\.?\s*Bal|Available\s+Balance|\bon\b|\busing\b|\bwith\b|\bvia\b|\b(?:card|account)\s*[:#-]?\s*[xX*•]*\d|في\s+\d|بواسطة|عن طريق)|$)/iu)?.[1];

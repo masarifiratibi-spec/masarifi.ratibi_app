@@ -4,6 +4,10 @@ import { isProjectRuntimeEnvironment } from './runtime-scope';
 import type { PlatformEnvironment, ProcessKind } from './environment.types';
 
 const applicationKeys = new Set([
+  'MASARIFI_APPLE_TEAM_ID',
+  'MASARIFI_APPLE_KEY_ID',
+  'MASARIFI_APPLE_PRIVATE_KEY_BASE64',
+  'MASARIFI_APPLE_GRANT_KEY',
   'MASARIFI_RUNTIME_SCOPE',
   'MASARIFI_STORAGE_PROVIDER',
   'MASARIFI_STORAGE_URL',
@@ -301,6 +305,14 @@ const schema = Joi.object<PlatformEnvironment>({
     .max(512)
     .optional(),
   CLERK_INSTANCE_DOMAIN: Joi.string().trim().lowercase().pattern(hostname).max(253).optional(),
+  MASARIFI_APPLE_TEAM_ID: Joi.string()
+    .pattern(/^[A-Z0-9]{10}$/)
+    .optional(),
+  MASARIFI_APPLE_KEY_ID: Joi.string()
+    .pattern(/^[A-Z0-9]{10}$/)
+    .optional(),
+  MASARIFI_APPLE_PRIVATE_KEY_BASE64: Joi.string().base64().max(4096).optional(),
+  MASARIFI_APPLE_GRANT_KEY: Joi.string().pattern(base64UrlKey).optional(),
   CLERK_AUTHORIZED_PARTIES: Joi.string()
     .allow('')
     .custom(parseAuthorizedParties, 'authorized party parser')

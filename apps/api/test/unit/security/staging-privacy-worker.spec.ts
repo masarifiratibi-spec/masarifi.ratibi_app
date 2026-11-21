@@ -8,11 +8,14 @@ test('scoped privacy probes every tick and passes work to the original handlers 
     .mockResolvedValueOnce({ rows: [{ ready: true }] })
     .mockRejectedValueOnce(new Error('probe unavailable'));
   const worker = {
-    runDeletionForOwner: async (owner: string) => {
+    runDeletionForOwner: (owner: string) => {
       calls.push('delete ' + owner);
+      return Promise.resolve();
     },
   };
-  const reset = { run: async (owner?: string | null) => calls.push('reset ' + owner) };
+  const reset = {
+    run: (owner?: string | null) => Promise.resolve(calls.push('reset ' + (owner ?? 'unscoped'))),
+  };
   const owner = 'user_Disposable123';
   const tick = () => runScopedPrivacyPass({ query }, worker, reset, owner);
   await tick();

@@ -75,6 +75,10 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   VERSION_CONFLICT: { status: 409, message: 'Resource version conflict' },
   INVALID_CURSOR: { status: 400, message: 'Cursor is invalid' },
   RECENT_AUTH_REQUIRED: { status: 403, message: 'Recent authentication is required' },
+  APPLE_AUTHORIZATION_REQUIRED: {
+    status: 409,
+    message: 'Confirm the linked Apple account on iPhone',
+  },
   DEVICE_NOT_FOUND: { status: 404, message: 'Device not found' },
   PUSH_TOKEN_CONFLICT: { status: 409, message: 'Push token is already registered' },
   PROVIDER_UNAVAILABLE: { status: 503, message: 'Provider is unavailable' },
@@ -98,6 +102,7 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   LEDGER_NOT_AVAILABLE: { status: 409, message: 'Ledger operation is not available' },
   FX_UNAVAILABLE: { status: 404, message: 'Exchange rate is unavailable' },
   IDEMPOTENCY_KEY_REQUIRED: { status: 400, message: 'Idempotency key is required' },
+  LEDGER_RECEIPT_NOT_FOUND: { status: 404, message: 'Ledger receipt not found' },
   IDEMPOTENCY_KEY_REUSED: { status: 409, message: 'Idempotency key was already used' },
   IDEMPOTENCY_IN_PROGRESS: { status: 409, message: 'Idempotent request is in progress' },
   IDEMPOTENCY_REPLAY_UNAVAILABLE: {
@@ -361,7 +366,12 @@ export class SafeExceptionFilter implements ExceptionFilter {
       });
     }
     const retryAfter = domainResponse?.retryAfter;
-    if (status === 429 && typeof retryAfter === 'number' && Number.isSafeInteger(retryAfter) && retryAfter > 0) {
+    if (
+      status === 429 &&
+      typeof retryAfter === 'number' &&
+      Number.isSafeInteger(retryAfter) &&
+      retryAfter > 0
+    ) {
       response.setHeader('Retry-After', String(retryAfter));
     }
     response.status(status).json(envelope);

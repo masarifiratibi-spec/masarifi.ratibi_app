@@ -72,10 +72,20 @@ describe('Clerk Admin client adapter', () => {
       ClerkProviderUnavailableError,
     );
   });
+  it('refuses to prepare or revoke grants from a mismatched provider lookup', async () => {
+    const adapter = new ClerkClientService(config);
+    getUser.mockResolvedValue({ id: 'user_other', externalAccounts: [], privateMetadata: {} });
+    await expect(adapter.prepareAppleDeletion('user_owner')).rejects.toMatchObject({ status: 503 });
+    await expect(adapter.deleteIdentityUser('user_owner')).rejects.toBeInstanceOf(
+      ClerkProviderUnavailableError,
+    );
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
   it('deletes external identity with repeatable confirmed-absence semantics and no false success on provider failure', async () => {
     const adapter = new ClerkClientService(config) as ClerkClientService & {
       deleteIdentityUser(owner: string): Promise<'deleted' | 'not_found'>;
     };
+    getUser.mockResolvedValue({ id: 'user_fixture_a', externalAccounts: [], privateMetadata: {} });
     deleteUser
       .mockResolvedValueOnce({ id: 'user_fixture_a' })
       .mockRejectedValueOnce({ status: 404 })

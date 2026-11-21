@@ -109,7 +109,13 @@ describe('SecurityWorkerService', () => {
         withWorkerTransaction: (action: (client: unknown) => unknown) => action({ query }),
       } as never,
       {} as never,
-      handler('identity') as never,
+      {
+        ...handler('identity'),
+        assertDeletionPrepared: () => {
+          events.push('grant-preflight');
+          return Promise.resolve();
+        },
+      } as never,
       handler('tracking') as never,
       handler('ai') as never,
       handler('engagement') as never,
@@ -134,6 +140,7 @@ describe('SecurityWorkerService', () => {
     await expect(worker.runJob('privacy.account-delete')).resolves.toBe(1);
     expect(events).toEqual([
       'freeze',
+      'grant-preflight',
       'prepare',
       'ai',
       'engagement',

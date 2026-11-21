@@ -9,6 +9,7 @@ import { PlatformConfigService } from '../platform/config/platform-config.servic
 import { SafeErrorDto } from '../platform/http/platform-contract.dto';
 import { IDENTITY_METRICS, recordPlatformMetric } from '../platform/observability/platform-metrics';
 import { IdentityRepository } from './identity.repository';
+import { appleDeletionMetadataKey } from './apple-deletion-grants';
 
 const supportedTypes = new Set(['user.created', 'user.updated', 'user.deleted']);
 type SupportedType = 'user.created' | 'user.updated' | 'user.deleted';
@@ -110,6 +111,11 @@ export class ClerkWebhookController {
       !bounded(typeof payload.data.id === 'string' ? payload.data.id : undefined, 128)
     ) {
       throw domainError('INVALID_WEBHOOK', 400);
+    }
+    // Keep grant ciphertext out of the webhook journal. The receipt hash still covers
+    // the raw signed event, so collision and duplicate detection stay intact.
+    if (object(payload.data.private_metadata)) {
+      Reflect.deleteProperty(payload.data.private_metadata, appleDeletionMetadataKey);
     }
     try {
       const outcome = await this.repository.receiveClerkWebhook({

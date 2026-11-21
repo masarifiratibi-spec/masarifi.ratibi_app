@@ -378,7 +378,11 @@ describeLiveDatabase('Voice extracted multi-event authoritative posting', () => 
     }
   });
   it('projects waiting, cancelled and failed outcomes without creating financial effects', async () => {
-    const f = await fixture([event(), event({ s: 2 }), event({ s: 3, a: '17000', w: 'سبعة عشر ريال سعودي' })]);
+    const f = await fixture([
+      event(),
+      event({ s: 2 }),
+      event({ s: 3, a: '17000', w: 'سبعة عشر ريال سعودي' }),
+    ]);
     const repository = new AiRepository(pool);
     const principal = { userId: f.user, sessionId: 'local-fixture', factorAgeSeconds: 0 };
     const waiting = await repository.getVoiceBatchResult(principal, f.session, true);
