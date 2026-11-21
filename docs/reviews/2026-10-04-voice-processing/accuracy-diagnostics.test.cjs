@@ -14,8 +14,8 @@ const expected = [
   { kind: 'expense', amountMinor: 2500, minorUnit: 2, currency: 'SAR', accountId: cash, categoryIds: [food], occurredAt: new Date(context.recordedAt).toISOString() },
   { kind: 'income', amountMinor: 500000, minorUnit: 2, currency: 'SAR', accountId: cash, categoryIds: [salary], occurredAt: new Date(context.recordedAt).toISOString() }
 ];
-const expense = { s: 1, k: 'e', a: '2500', c: 'e:SAR', b: 'e:ACCOUNT-1', g: 'CATEGORY-1', d: 'o:', m: '', i: true, q: 0.99 };
-const income = { ...expense, s: 2, k: 'i', a: '-500000', g: 'CATEGORY-2' };
+const expense = { s: 1, k: 'e', a: '2500', w: '25', c: 'e:SAR', b: 'e:ACCOUNT-1', g: 'CATEGORY-1', d: 'o:', m: '', i: true, q: 0.99 };
+const income = { ...expense, s: 2, k: 'i', a: '-500000', w: '5000', g: 'CATEGORY-2' };
 const envelope = events => ({ complete: true, language: 'en', events });
 
 test('reordered complete events retain exact occurrence agreement', () => {
@@ -39,9 +39,10 @@ test('amount-scale diagnosis distinguishes provider units from canonical sign no
   const wrong = comparePipeline(envelope([{ ...expense, a: '25' }, { ...income, a: '-5000' }]), context, expected);
   assert.equal(wrong.allExpected, false);
   for (let i = 0; i < 2; i++) {
-    assert.equal(wrong.amountChecks[i][i].identityFieldsMatch, true);
+    assert.equal(wrong.amountChecks[i][i].identityFieldsMatch, false);
     assert.equal(wrong.amountChecks[i][i].providerEqualsMajorScale, true);
-    assert.equal(wrong.amountChecks[i][i].canonicalEqualsMajorScale, true);
+    assert.equal(wrong.amountChecks[i][i].decodedEqualsMajorScale, true);
+    assert.equal(wrong.amountChecks[i][i].canonicalEqualsMajorScale, false);
   }
   assert(!JSON.stringify(wrong).includes('5000'));
 });
@@ -85,7 +86,7 @@ test('actual compact parser and decider preserve ten capacity occurrences with b
  const extra=[{alias:'ACCOUNT-2',id:card,kind:'account',data:{currency:'SAR',name:'Card',minorUnit:2}},{alias:'CATEGORY-3',id:taxi,kind:'category',data:{kind:'expense'}},{alias:'CATEGORY-4',id:house,kind:'category',data:{kind:'expense'}}];
  const ctx={...context,references:[...context.references,...extra]},rows=expectedRows(control);
  const wants=rows.map(([kind,amountMinor,accountId,categoryIds])=>({kind,amountMinor,accountId,categoryIds:Array.isArray(categoryIds)?categoryIds:[categoryIds],minorUnit:2,currency:'SAR',occurredAt:expected[0].occurredAt}));
- const events=rows.map(([kind,amount,account,category],ordinal)=>({s:ordinal+1,k:kind==='income'?'i':'e',a:String(kind==='income'?-amount:amount),c:'e:SAR',b:'e:'+ctx.references.find(x=>x.kind==='account'&&x.id===account).alias,g:ctx.references.find(x=>x.kind==='category'&&x.id===(Array.isArray(category)?category[0]:category)).alias,d:'o:',m:'',i:true,q:0.99}));
+ const events=rows.map(([kind,amount,account,category],ordinal)=>({s:ordinal+1,k:kind==='income'?'i':'e',a:String(kind==='income'?-amount:amount),w:String(amount/100),c:'e:SAR',b:'e:'+ctx.references.find(x=>x.kind==='account'&&x.id===account).alias,g:ctx.references.find(x=>x.kind==='category'&&x.id===(Array.isArray(category)?category[0]:category)).alias,d:'o:',m:'',i:true,q:0.99}));
  for(const locale of ['en','ar']){const result=comparePipeline({...envelope(events),language:locale},{...ctx,locale},wants);assert.equal(result.allExpected,true);assert.equal(result.decisionCount,10);const safe=boundedPipeline(result);assert(Buffer.byteLength(JSON.stringify(safe))<4096);assert.equal(safe.amountChecks[0].exactCanonicalMatches,2);}
  assert.equal(comparePipeline(envelope(events.filter((_,i)=>i!==6)),ctx,wants).allExpected,false);
  assert.equal(comparePipeline(envelope([...events,events[0]]),ctx,wants).envelopeAccepted,false);
