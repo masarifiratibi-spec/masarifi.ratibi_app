@@ -2,6 +2,24 @@ import { SecurityWorkerService } from '../../../src/security/security.worker';
 import { Readable } from 'node:stream';
 
 describe('SecurityWorkerService', () => {
+  it.each([0, 2])('counts claimed uploads on empty deletion polls (%i)', async (owners) => {
+    const handler = (resourceType: string) => ({ resourceType, schemaVersion: 1 }) as never;
+    const worker = new SecurityWorkerService(
+      {
+        withWorkerTransaction: (action: (client: unknown) => unknown) =>
+          action({ query: () => Promise.resolve({ rows: [] }) }),
+      } as never,
+      {} as never,
+      handler('identity'),
+      handler('tracking'),
+      handler('ai'),
+      handler('engagement'),
+      { get: () => ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'] } as never,
+      { purgeDueUploads: () => Promise.resolve(owners) } as never,
+    );
+    await expect(worker.runJob('privacy.account-delete')).resolves.toBe(owners);
+  });
+
   async function exportFailure(failure: 'upload' | 'head') {
     const manifest = ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'];
     const requestId = '00000000-0000-4000-8000-000000000001';
@@ -102,7 +120,7 @@ describe('SecurityWorkerService', () => {
             : ['ai@1', 'engagement@1', 'identity@1', 'tracking@1'],
       } as never,
       {
-        purgeDueUploads: () => Promise.resolve(),
+        purgeDueUploads: () => Promise.resolve(0),
         prepare: () => {
           events.push('prepare');
           return Promise.resolve();
@@ -113,7 +131,7 @@ describe('SecurityWorkerService', () => {
         },
       } as never,
     );
-    await worker.runJob('privacy.account-delete');
+    await expect(worker.runJob('privacy.account-delete')).resolves.toBe(1);
     expect(events).toEqual([
       'freeze',
       'prepare',

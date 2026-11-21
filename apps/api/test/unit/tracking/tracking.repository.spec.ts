@@ -68,3 +68,18 @@ describe('tracking import repository replay', () => {
     expect(replay).toEqual({ ...stored, replayed: true });
   });
 });
+
+describe('tracking maintenance', () => {
+  it('requests one reconciliation batch of eight sessions per invocation', async () => {
+    const client = {
+      query: jest.fn<Promise<{ rows: unknown[] }>, [string]>().mockResolvedValue({ rows: [] }),
+    };
+    const repository = new TrackingRepository({
+      withClient: (action: (connection: typeof client) => Promise<void>) => action(client),
+    } as never);
+    await repository.maintenance();
+    expect(
+      client.query.mock.calls.filter(([sql]) => sql.includes('reconcile_import_sessions')),
+    ).toEqual([['select private.reconcile_import_sessions(8)']]);
+  });
+});

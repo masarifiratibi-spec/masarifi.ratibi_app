@@ -12,7 +12,7 @@ const evidence = {
   correlationId: 'erasure',
 };
 
-function fixture(failStorage = false, eraseError?: Error) {
+function fixture(failStorage = false, eraseError?: Error, lostLease = false) {
   const calls: string[] = [];
   const query = jest.fn(async (statement: string | QueryConfig) => {
     await Promise.resolve();
@@ -28,6 +28,7 @@ function fixture(failStorage = false, eraseError?: Error) {
       };
     if (sql.includes('list_due_account_upload_erasure_owners'))
       return { rows: [{ user_id: 'owner' }] };
+    if (lostLease && sql.includes('claim_account_upload_erasure')) return { rows: [] };
     if (sql.includes('claim_account_upload_erasure'))
       return {
         rows: [
@@ -133,4 +134,9 @@ it('sweeps due owners through the existing claim/delete/acknowledgment protocol'
   expect(calls.indexOf('support-object')).toBeLessThan(
     calls.findIndex((sql) => sql.includes('complete_account_upload_erasure')),
   );
+});
+
+it('counts zero when another worker has claimed the listed uploads', async () => {
+  const { service } = fixture(false, undefined, true);
+  await expect(service.purgeDueUploads()).resolves.toBe(0);
 });

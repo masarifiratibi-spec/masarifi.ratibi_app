@@ -14,6 +14,8 @@ export class StagingVoiceWorker {
   private busy = false;
   private stopping = false;
   private readonly abort = new AbortController();
+  private sweepAt = 0;
+  private sweepDelay = 500;
   private retryAt = 0;
   private retryDelay = 1000;
   constructor(
@@ -24,7 +26,7 @@ export class StagingVoiceWorker {
     private readonly workerId: string,
     private readonly sourceSha: string,
     private readonly observe: (state: Record<string, unknown>) => void = () => undefined,
-    private readonly confirm: (epoch: string) => Promise<void> = () => Promise.resolve(),
+    private readonly confirm: (epoch: string) => Promise<number> = () => Promise.resolve(0),
     private readonly continuous = false,
   ) {}
 
@@ -50,8 +52,19 @@ export class StagingVoiceWorker {
     this.busy = true;
     let stage = 'heartbeat';
     try {
+      // Between full sweeps, a read-only check keeps financial pickup at 500 ms.
+      // A positive signal always enters the ordinary heartbeat and claim fences.
+      if (this.continuous && Date.now() < this.sweepAt) {
+        stage = 'probe';
+        if (!(await this.repository.voiceWorkDue(this.epoch)) || this.isStopping()) return;
+        stage = 'heartbeat';
+      }
       const state = await this.pulse();
-      if (this.isStopping() || !state.enabled) return;
+      if (this.isStopping()) return;
+      if (!state.enabled) {
+        if (this.continuous) this.sweepAt = Date.now() + 4000;
+        return;
+      }
       if (state.mode !== 'canary' && state.mode !== 'operating')
         throw new Error('VOICE_SCOPE_INVALID');
       if (this.continuous && state.mode !== 'operating') throw new Error('VOICE_SCOPE_INVALID');
@@ -87,9 +100,12 @@ export class StagingVoiceWorker {
       if (state.mode === 'canary') return;
       // Delivery failures must not invalidate a committed financial receipt.
       // The confirmation adapter claims only fresh transactions in this operating epoch.
+      let confirmationWork = 0;
       try {
-        await this.confirm(this.epoch);
+        confirmationWork = await this.confirm(this.epoch);
       } catch (error) {
+        // Preserve the fast retry for an uncertain notification outcome.
+        confirmationWork = 1;
         try {
           new PlatformLogger().error('VOICE_CONFIRMATION_FAILED', {
             context: 'StagingVoiceWorker',
@@ -109,6 +125,15 @@ export class StagingVoiceWorker {
           await this.repository.completePurge(claim.id, claim.purge_token, true);
         } catch {
           await this.repository.completePurge(claim.id, claim.purge_token, false);
+        }
+      }
+      if (this.continuous) {
+        if (claims.length || confirmationWork || purges.length) {
+          this.sweepAt = 0;
+          this.sweepDelay = 500;
+        } else {
+          this.sweepDelay = Math.min(4000, this.sweepDelay * 2);
+          this.sweepAt = Date.now() + this.sweepDelay;
         }
       }
       this.retryDelay = 1000;
@@ -158,6 +183,7 @@ export class StagingVoiceWorker {
       // A later poll revalidates this epoch and reconciles durable claims;
       // never immediately repeat a write whose result is uncertain.
       if (Date.now() >= this.retryAt) {
+        this.sweepAt = 0;
         this.retryAt = Date.now() + this.retryDelay;
         this.retryDelay = Math.min(30000, this.retryDelay * 2);
         try {

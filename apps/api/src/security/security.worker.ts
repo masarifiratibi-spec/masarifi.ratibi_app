@@ -80,18 +80,20 @@ export class SecurityWorkerService {
     }
   }
 
-  async runJob(job: string): Promise<void> {
+  async runJob(job: string): Promise<number | undefined> {
+    if (job === 'privacy.account-delete')
+      return this.measured(job, () => this.deleteAccountsAndUploads());
     const handlers: Record<string, () => Promise<void>> = {
       'security.support-expire': () => this.expireSupportGrants(),
       'security.alert-dispatch': () => this.dispatchSecurityAlerts(),
       'privacy.export-generate': () => this.generateExport(),
       'privacy.export-expire': () => this.expireExports(),
-      'privacy.account-delete': () => this.deleteAccountsAndUploads(),
       'retention.apply': () => this.applyRetention(),
     };
     const handler = handlers[job];
     if (!handler) throw new Error('SECURITY_JOB_UNKNOWN');
     await this.measured(job, handler);
+    return undefined;
   }
 
   async runDeletionForOwner(userId: string): Promise<void> {
@@ -113,11 +115,12 @@ export class SecurityWorkerService {
     return this.repository.getDeletionRequestForWorker(userId, requestId);
   }
 
-  private async measured(job: string, action: () => Promise<void>): Promise<void> {
+  private async measured<T>(job: string, action: () => Promise<T>): Promise<T> {
     const startedAt = performance.now();
     try {
-      await action();
+      const result = await action();
       recordPlatformMetric(SECURITY_METRICS.jobRun, 1, { job, outcome: 'success' });
+      return result;
     } catch (error) {
       recordPlatformMetric(SECURITY_METRICS.jobRun, 1, { job, outcome: 'failure' });
       throw error;
@@ -126,7 +129,7 @@ export class SecurityWorkerService {
     }
   }
 
-  private async isolated(job: string, action: () => Promise<void>): Promise<void> {
+  private async isolated(job: string, action: () => Promise<unknown>): Promise<void> {
     await this.measured(job, action).catch(() => undefined);
   }
 
@@ -309,15 +312,16 @@ export class SecurityWorkerService {
       });
   }
 
-  private async deleteAccountsAndUploads(): Promise<void> {
-    await this.executeDeletion();
-    await this.erasure.purgeDueUploads();
+  private async deleteAccountsAndUploads(): Promise<number> {
+    const claimed = await this.executeDeletion();
+    const uploads = await this.erasure.purgeDueUploads();
+    return Number(claimed) + uploads;
   }
 
   private async executeDeletion(
     userId: string | null = null,
     requestId: string | null = null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const claim = await this.repository.withWorkerTransaction(async (client) => {
       const result = await client.query<DeletionClaim>(
         `with selected as (select d.id from private.account_deletion_requests d
@@ -335,7 +339,7 @@ export class SecurityWorkerService {
         ]);
       return claim;
     });
-    if (!claim) return;
+    if (!claim) return false;
     const evidence = {
       requestId: claim.id,
       userId: claim.user_id,
@@ -409,6 +413,7 @@ export class SecurityWorkerService {
         );
       });
     }
+    return true;
   }
 
   private async applyRetention(): Promise<void> {

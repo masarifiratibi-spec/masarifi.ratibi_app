@@ -26,7 +26,7 @@ export class OwnerDataErasureService {
     });
   }
 
-  async purgeDueUploads(): Promise<void> {
+  async purgeDueUploads(): Promise<number> {
     const owners = await this.worker(
       async (client) =>
         (
@@ -35,10 +35,12 @@ export class OwnerDataErasureService {
           )
         ).rows,
     );
-    for (const owner of owners) await this.purgeOutstandingUploads(owner.user_id);
+    let processed = 0;
+    for (const owner of owners) processed += await this.purgeOutstandingUploads(owner.user_id);
+    return processed;
   }
 
-  async purgeOutstandingUploads(userId: string): Promise<void> {
+  async purgeOutstandingUploads(userId: string): Promise<number> {
     const claims = await this.worker(
       async (client) =>
         (
@@ -58,6 +60,7 @@ export class OwnerDataErasureService {
         ]);
       });
     }
+    return claims.length;
   }
 
   async erase(evidence: PrivacyEvidence): Promise<DeletionOutcome> {

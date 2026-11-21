@@ -25,12 +25,13 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
           await query(
             `select
         has_function_privilege($1,'private.voice_confirmation_sources(uuid,integer)','execute') sources,
+        has_function_privilege($1,'private.operating_voice_work_due(uuid)','execute') work_due,
         has_function_privilege($1,'private.claim_voice_notification_deliveries(uuid,text,integer,integer)','execute') deliveries`,
             [role],
           )
         ).rows[0],
       );
-      expect(grants).toEqual({ sources: false, deliveries: false });
+      expect(grants).toEqual({ sources: false, deliveries: false, work_due: false });
     }
     await expect(
       pool.withClient(async (client) => {
@@ -257,6 +258,41 @@ describeLiveDatabase('Staging Voice epoch financial boundary', () => {
       ).rows[0],
     );
   }
+  it('wakes on a due capture or finalization, isolating epochs and respecting retry and lease deadlines', async () => {
+    await prepare('operating');
+    expect(await repository.voiceWorkDue(epoch)).toBe(false);
+    const session = await create();
+    expect(await repository.voiceWorkDue(randomUUID())).toBe(false);
+    expect(await repository.voiceWorkDue(epoch)).toBe(true);
+    await query("update public.voice_sessions set content_hash=repeat('f',64) where id=$1", [
+      session,
+    ]);
+    expect(await repository.voiceWorkDue(epoch)).toBe(false);
+    await query("update public.voice_sessions set content_hash=repeat('1',64) where id=$1", [
+      session,
+    ]);
+    await query(
+      "update public.voice_sessions set next_attempt_at=now()+interval '1 hour' where id=$1",
+      [session],
+    );
+    expect(await repository.voiceWorkDue(epoch)).toBe(false);
+    await query('update public.voice_sessions set next_attempt_at=now() where id=$1', [session]);
+    await accept(session);
+    expect(await repository.voiceWorkDue(epoch)).toBe(true);
+    await query(
+      "update private.voice_batches set lease_until=now()+interval '1 hour' where session_id=$1",
+      [session],
+    );
+    expect(await repository.voiceWorkDue(epoch)).toBe(false);
+    await query(
+      "update private.voice_batches set lease_until=now()-interval '1 second' where session_id=$1",
+      [session],
+    );
+    expect(await repository.voiceWorkDue(epoch)).toBe(true);
+    await repository.finalizeVoiceEpoch(epoch, 1, false, true);
+    expect(await repository.voiceWorkDue(epoch)).toBe(false);
+  });
+
   it('operating worker saves two movements without caller JWT claims and restores its connection identity', async () => {
     await prepare('operating');
     const session = await create();

@@ -1,3 +1,4 @@
+import { EngagementObservability } from '../../../src/engagement/engagement.observability';
 import { EngagementWorker } from '../../../src/engagement/engagement.worker';
 
 it('uses only fresh operating Voice sources and scoped deliveries, never historical scheduler claims', async () => {
@@ -38,12 +39,25 @@ it('uses only fresh operating Voice sources and scoped deliveries, never histori
     ]),
     createNotificationsFromSources: jest.fn().mockResolvedValue(true),
   };
-  const worker = new EngagementWorker(repository as never, {} as never, {} as never, {} as never);
-  const voiceWorker = worker as unknown as {
-    processVoiceConfirmations(epoch: string): Promise<void>;
-  };
-  expect(typeof voiceWorker.processVoiceConfirmations).toBe('function');
-  await voiceWorker.processVoiceConfirmations(epoch);
+  const sink = jest.fn();
+  const worker = new EngagementWorker(
+    repository as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    new EngagementObservability(sink),
+  );
+  await expect(worker.processVoiceConfirmations(epoch)).resolves.toBe(1);
+  expect(sink).toHaveBeenCalledWith(
+    'masarifi_engagement_job_total',
+    1,
+    expect.objectContaining({ job: 'voice.confirmation.delivery.wait', outcome: 'empty' }),
+  );
+  expect(sink).toHaveBeenCalledWith(
+    'masarifi_engagement_job_duration_ms',
+    expect.any(Number),
+    expect.objectContaining({ job: 'voice.confirmation.source.wait', outcome: 'claimed' }),
+  );
   expect(repository.claimVoiceSourceEvents).toHaveBeenCalledWith(epoch, 1);
   expect(repository.createNotificationsFromSources).toHaveBeenCalledWith([
     {
