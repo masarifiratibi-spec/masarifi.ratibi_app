@@ -142,3 +142,6 @@ ed418071d762a69c8c0569206dc01d397b16e7eb:apps/api/test/unit/planning/planning.ob
 
 # Historical merge repeats the same Firebase Android public client key as the reviewed ordinary/dev/benchmark configs; no private-key fields.
 ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-api-key:18
+
+# Reviewed release environment file checksum.
+152be06588229715dd1fb6669a2d01e0c48f8fdb:ops/releases/2026-11-05-voice-review-recovery/manifest.json:generic-api-key:14

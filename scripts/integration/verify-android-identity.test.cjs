@@ -68,6 +68,13 @@ function reviewedFixture({
     ios: { simulator: false },
     env: { MASARIFI_IOS_AD_HOC: "true" },
   };
+  const reportProfile = {
+  "extends": "staging-client",
+  "env": {
+    "EXPO_PUBLIC_STAGING_REPORT_FILES": "true",
+    "EXPO_PUBLIC_API_URL": "https://api.staging.masarifiratibi.com/qa-reports"
+  }
+};
   const branding = structuredClone(baseline.app);
   branding.expo.name = displayName;
   branding.expo.android.package = "com.unreviewed.branding";
@@ -108,6 +115,8 @@ function reviewedFixture({
       file === "apps/mobile/eas.json"
     )
       value = runtimeEas;
+    else if (revision === "e4c814b2e274318f54b66171f8636202067bb432" && file === "apps/mobile/eas.json")
+      value = { build: { "staging-report-files": reportProfile } };
     else assert.fail("Unreviewed identity source requested");
     return typeof value === "string" ? value : JSON.stringify(value);
   }, isAncestor);
@@ -115,6 +124,8 @@ function reviewedFixture({
   candidate.eas.build["ios-ad-hoc"] = structuredClone(
     withRuntimeMarker ? runtimeEas.build["ios-ad-hoc"] : profile,
   );
+  if (isAncestor("e4c814b2e274318f54b66171f8636202067bb432"))
+    candidate.eas.build["staging-report-files"] = structuredClone(reportProfile);
   return { expected, candidate };
 }
 
@@ -219,3 +230,9 @@ for (const [name, change] of Object.entries({
     change(candidate);
     assert.throws(() => validateIdentity(candidate, baseline));
   });
+
+test("rejects production routing in the isolated QA report profile", () => {
+  const { candidate, expected } = reviewedFixture();
+  candidate.eas.build["staging-report-files"].env.EXPO_PUBLIC_API_URL = "https://api.masarifiratibi.com";
+  assert.throws(() => validateIdentity(candidate, expected));
+});

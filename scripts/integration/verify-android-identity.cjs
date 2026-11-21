@@ -113,6 +113,12 @@ function loadApprovedIdentity(readRevision, isAncestor) {
   expected.eas.build["ios-ad-hoc"] = JSON.parse(
     readRevision(approvedIosProfile, "apps/mobile/eas.json"),
   ).build["ios-ad-hoc"];
+  const reportRevision = "e4c814b2e274318f54b66171f8636202067bb432";
+  if (isAncestor(reportRevision)) {
+    expected.eas.build["staging-report-files"] = JSON.parse(
+      readRevision(reportRevision, "apps/mobile/eas.json"),
+    ).build["staging-report-files"];
+  }
   return expected;
 }
 if (require.main === module) {
