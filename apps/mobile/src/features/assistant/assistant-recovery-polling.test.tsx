@@ -13,6 +13,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createLiveAssistantApiService } from '@/services/live/assistant-api-service';
 import { AssistantOperationJournal } from '@/storage/assistant-operation-journal';
+import { usePreferenceStore } from '@/state/preferences';
 import { useAppShellStore } from '@/state/app-shell';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import {
@@ -29,6 +30,8 @@ let mockLiveService: ReturnType<typeof createLiveAssistantApiService>;
 type ConversationData = Awaited<
   ReturnType<typeof mockLiveService.getConversation>
 >;
+// These assistant tests import the auth module, which also loads the native push SDK.
+jest.mock('expo-notifications', () => ({}));
 jest.mock('@/services/assistant-service', () => ({
   get assistantService() {
     return mockLiveService;
@@ -301,10 +304,16 @@ async function recoveryHarness(
   };
 }
 
-beforeEach(() => jest.useFakeTimers());
+const previousReducedMotion = usePreferenceStore.getState().reducedMotion;
+beforeEach(() => {
+  jest.useFakeTimers();
+  // The recovery clock measures polling and publication, independently of native animations.
+  usePreferenceStore.setState({ reducedMotion: true });
+});
 const previousSession = useAppShellStore.getState().session;
 afterEach(() => {
   jest.useRealTimers();
+  usePreferenceStore.setState({ reducedMotion: previousReducedMotion });
   jest.restoreAllMocks();
   useAppShellStore.setState({ session: previousSession });
   clearAppShellStorageOwner();

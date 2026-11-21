@@ -19,7 +19,7 @@ it('prepares tracking cohort confirmations without claiming historical events or
     claimTrackingSourceEvents: jest.fn().mockResolvedValue([source]),
     claimSourceEvents: jest.fn(),
     claimNotificationDeliveries: jest.fn(),
-    loadSourceTemplates: jest.fn().mockResolvedValue(
+    loadSourceTemplatesBatch: jest.fn().mockResolvedValue([
       ['in_app', 'push'].map((channel) => ({
         id: channel,
         key: 'transaction.created',
@@ -31,8 +31,8 @@ it('prepares tracking cohort confirmations without claiming historical events or
         enabled: true,
         quiet_hours: {},
       })),
-    ),
-    createNotificationFromSource: jest.fn().mockResolvedValue(true),
+    ]),
+    createNotificationsFromSources: jest.fn().mockResolvedValue(true),
   };
   const worker = new EngagementWorker(
     repository as unknown as EngagementRepository,
@@ -42,10 +42,14 @@ it('prepares tracking cohort confirmations without claiming historical events or
   );
   await expect(worker.runJob('tracking.confirmation.prepare')).resolves.toBe(1);
   expect(repository.claimTrackingSourceEvents).toHaveBeenCalledWith(10);
-  expect(repository.createNotificationFromSource).toHaveBeenCalledWith(
-    source,
-    expect.arrayContaining([expect.objectContaining({ channel: 'push', status: 'queued' })]),
-  );
+  expect(repository.createNotificationsFromSources).toHaveBeenCalledWith([
+    {
+      source,
+      deliveries: expect.arrayContaining([
+        expect.objectContaining({ channel: 'push', status: 'queued' }),
+      ]) as unknown,
+    },
+  ]);
   expect(repository.claimSourceEvents).not.toHaveBeenCalled();
   expect(repository.claimNotificationDeliveries).not.toHaveBeenCalled();
 });

@@ -128,6 +128,11 @@ export interface PreparedDelivery {
   errorCode?: string;
 }
 
+export interface PreparedSourceNotification {
+  source: SourceNotificationClaim;
+  deliveries: readonly PreparedDelivery[];
+}
+
 const READS = new Set([
   'adminSupportOverview',
   'adminDownloadSupportAttachment',
@@ -337,94 +342,115 @@ export class EngagementRepository {
     });
   }
 
-  async loadSourceTemplates(source: SourceNotificationClaim): Promise<SourceTemplate[]> {
-    return this.worker(async (client) => {
-      const result = await client.query<SourceTemplate>(
-        `select distinct on (t.channel) t.id,t.key,t.locale,t.channel,t.template_version,t.subject,t.body,
-           coalesce(pref.enabled,true) enabled,coalesce(pref.quiet_hours,'{}'::jsonb) quiet_hours
-         from public.notification_templates t
-         left join public.notification_preferences pref on pref.user_id=$2 and pref.event_type=$1 and pref.channel=t.channel
-         where t.key=$1 and t.status='published' and t.locale in ($3,'ar','en')
-         order by t.channel,(t.locale=$3) desc,(t.locale='ar') desc,t.template_version desc`,
-        [source.event_type, source.user_id, source.locale],
-      );
-      return result.rows;
-    });
-  }
-
   async createNotificationFromSource(
     source: SourceNotificationClaim,
     deliveries: readonly PreparedDelivery[],
-  ): Promise<boolean> {
-    if (!deliveries.some((item) => item.channel === 'in_app')) return false;
+  ) {
+    return (await this.createNotificationsFromSources([{ source, deliveries }])) > 0;
+  }
+
+  async loadSourceTemplatesBatch(
+    sources: readonly SourceNotificationClaim[],
+  ): Promise<SourceTemplate[][]> {
+    if (sources.length === 0) return [];
     return this.worker(async (client) => {
-      // Source selection and rendering can finish after an owner reset. The profile lock
-      // keeps the cutoff check and the notification/delivery inserts in one generation.
-      if (!source.event_type.startsWith('reminder.app_inactive.')) {
-        const allowed = await client.query<{ allowed: boolean }>(
-          'select private.allow_financial_notification($1,$2::timestamptz) allowed',
-          [source.user_id, source.occurred_at],
-        );
-        if (!allowed.rows[0]?.allowed) return false;
-      }
-      const quiet = await client.query<{ quiet: boolean }>(
-        "select ($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed','balance.changed') and private.is_tracking_notification_capture($1,$2)) quiet",
-        [source.user_id, source.source_id, source.event_type],
-      );
-      if (quiet.rows[0]?.quiet) return false;
-      const inApp = deliveries.find((item) => item.channel === 'in_app');
-      const inserted = await client.query<{ id: string }>(
-        `insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
-         values($1::uuid,$2::text,$3::text,$4::text,$5::text,jsonb_build_object(
-             'route','notification_detail','sourceEventId',$1::uuid::text,'automaticCapture',($3::text in ('transaction.created','transfer.created','transaction.refunded','transaction.reversed') and private.is_tracking_notification_capture($2::text,$8::text)),'actions',
-           case when $3 in ('transaction.created','transaction.revised') then jsonb_build_array(
-             jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
-             jsonb_build_object('key','undo','expiresAt',least(coalesce($6,$7::timestamptz+interval '15 minutes'),$7::timestamptz+interval '15 minutes'))
-           ) else jsonb_build_array(jsonb_build_object('key','view','expiresAt',null)) end,
-           'targetKind',coalesce($9::text,case
-             when $3 like 'transaction.%' or $3 like 'transfer.%' then 'transaction'
-             when $3 like 'planning.obligation_%' then 'obligation'
-             when $3='account.credit_card_payment_due' then 'account'
-             when $3 like 'planning.savings_%' then 'goal'
-             when $3 like 'tracking.review.%' then 'review'
-             else 'settings' end),
-           'targetId',case when $9::text is null then coalesce($8::text,'notifications') end,
-           'cycleBaseline',$10::text
-         ),$6,$7)
-         on conflict(source_event_id) do nothing returning id`,
+      const result = await client.query<SourceTemplate & { source_index: number }>(
+        `select distinct on (s.source_index,t.channel) s.source_index,
+           t.id,t.key,t.locale,t.channel,t.template_version,t.subject,t.body,
+           coalesce(pref.enabled,true) enabled,coalesce(pref.quiet_hours,'{}'::jsonb) quiet_hours
+         from public.notification_templates t
+         join jsonb_to_recordset($1::jsonb) s(source_index integer,event_type text,user_id text,locale text)
+           on t.key=s.event_type and t.status='published' and t.locale in (s.locale,'ar','en')
+         left join public.notification_preferences pref
+           on pref.user_id=s.user_id and pref.event_type=s.event_type and pref.channel=t.channel
+         order by s.source_index,t.channel,(t.locale=s.locale) desc,(t.locale='ar') desc,t.template_version desc`,
         [
-          source.source_event_id,
-          source.user_id,
-          source.event_type,
-          inApp?.title,
-          inApp?.body,
-          source.expires_at,
-          source.occurred_at,
-          source.source_id,
-          source.target_kind ?? null,
-          source.cycle_baseline ?? null,
+          JSON.stringify(
+            sources.map((source, source_index) => ({
+              source_index,
+              event_type: source.event_type,
+              user_id: source.user_id,
+              locale: source.locale,
+            })),
+          ),
         ],
       );
-      const eventId = inserted.rows[0]?.id;
-      if (!eventId) return false;
-      for (const item of deliveries) {
-        await client.query(
-          `insert into private.notification_deliveries(event_id,user_id,channel,provider,rendered_title,rendered_body,rendered_data,status,error_code,next_attempt_at)
-           values($1,$2,$3,$4,$5,$6,jsonb_build_object('route','notification_detail'),$7,$8,$9) on conflict do nothing`,
-          [
-            eventId,
-            source.user_id,
-            item.channel,
-            item.provider,
-            item.title,
-            item.body,
-            item.status,
-            item.errorCode ?? null,
-            item.nextAttemptAt,
-          ],
-        );
-      }
-      return true;
+      const templates = sources.map((): SourceTemplate[] => []);
+      for (const { source_index, ...template } of result.rows)
+        templates[source_index]?.push(template);
+      return templates;
+    });
+  }
+
+  async createNotificationsFromSources(
+    entries: readonly PreparedSourceNotification[],
+  ): Promise<number> {
+    const notifications = entries.flatMap(({ source, deliveries }, source_index) => {
+      const inApp = deliveries.find((item) => item.channel === 'in_app');
+      if (!inApp) return [];
+      return [
+        {
+          ...source,
+          source_index,
+          title: inApp.title,
+          body: inApp.body,
+          target_kind: source.target_kind ?? null,
+          cycle_baseline: source.cycle_baseline ?? null,
+          deliveries: deliveries.map((item) => ({
+            channel: item.channel,
+            provider: item.provider,
+            title: item.title,
+            body: item.body,
+            status: item.status,
+            error_code: item.errorCode ?? null,
+            next_attempt_at: item.nextAttemptAt,
+          })),
+        },
+      ];
+    });
+    if (notifications.length === 0) return 0;
+    return this.worker(async (client) => {
+      const result = await client.query<{ created_count: number }>(
+        `with input as materialized (
+           select * from jsonb_to_recordset($1::jsonb) s(
+             source_index integer,source_event_id uuid,user_id text,event_type text,title text,body text,
+             expires_at timestamptz,occurred_at timestamptz,source_id text,
+             target_kind text,cycle_baseline text,deliveries jsonb)
+         ), eligible as materialized (
+           select distinct on (s.source_event_id) s.* from input s
+           join private.eligible_notification_sources($1::jsonb) e using(source_index)
+           order by s.source_event_id,s.source_index
+         ), inserted as (
+           insert into public.notification_events(source_event_id,user_id,type,title,body_safe,data,expires_at,created_at)
+           select s.source_event_id,s.user_id,s.event_type,s.title,s.body,jsonb_build_object(
+             'route','notification_detail','sourceEventId',s.source_event_id::text,
+             'automaticCapture',false,
+             'actions',case when s.event_type in ('transaction.created','transaction.revised') then jsonb_build_array(
+               jsonb_build_object('key','view','expiresAt',null),jsonb_build_object('key','edit','expiresAt',null),
+               jsonb_build_object('key','undo','expiresAt',least(coalesce(s.expires_at,s.occurred_at+interval '15 minutes'),s.occurred_at+interval '15 minutes'))
+             ) else jsonb_build_array(jsonb_build_object('key','view','expiresAt',null)) end,
+             'targetKind',coalesce(s.target_kind,case
+               when s.event_type like 'transaction.%' or s.event_type like 'transfer.%' then 'transaction'
+               when s.event_type like 'planning.obligation_%' then 'obligation'
+               when s.event_type='account.credit_card_payment_due' then 'account'
+               when s.event_type like 'planning.savings_%' then 'goal'
+               when s.event_type like 'tracking.review.%' then 'review'
+               else 'settings' end),
+             'targetId',case when s.target_kind is null then coalesce(s.source_id,'notifications') end,
+             'cycleBaseline',s.cycle_baseline
+           ),s.expires_at,s.occurred_at from eligible s order by s.source_event_id
+           on conflict(source_event_id) do nothing returning id,user_id,source_event_id
+         ), deliveries as (
+           insert into private.notification_deliveries(event_id,user_id,channel,provider,rendered_title,rendered_body,rendered_data,status,error_code,next_attempt_at)
+           select n.id,n.user_id,d.channel,d.provider,d.title,d.body,jsonb_build_object('route','notification_detail'),d.status,d.error_code,d.next_attempt_at
+           from inserted n join eligible s on s.source_event_id=n.source_event_id
+           cross join lateral jsonb_to_recordset(s.deliveries) d(
+             channel text,provider text,title text,body text,status text,error_code text,next_attempt_at timestamptz)
+           on conflict do nothing
+         ) select count(*)::integer created_count from inserted`,
+        [JSON.stringify(notifications)],
+      );
+      return result.rows[0]?.created_count ?? 0;
     });
   }
 

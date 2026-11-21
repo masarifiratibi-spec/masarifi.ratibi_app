@@ -8,6 +8,8 @@ import { samples } from '@/test-utils/assistant-action-preview-fixtures';
 import { assistantResponseSchema } from '@/domain/assistant';
 import { spendingPresentationFixture } from '@/test-utils/assistant-spending-presentation-fixture';
 
+// These assistant tests import the auth module, which also loads the native push SDK.
+jest.mock('expo-notifications', () => ({}));
 jest.mock('expo-constants', () => ({
   expoConfig: { android: { package: 'com.masarifi.mobile.dev' } }
 }));
@@ -411,7 +413,6 @@ it('requires re-review if authoritative effect context changes before confirmati
   const target = { ...sample.context.target, id: id(8) };
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(action)))
     .mockResolvedValueOnce(json(target))
     .mockResolvedValueOnce(json(messages(action)))
@@ -427,7 +428,6 @@ it('requires re-review if authoritative effect context changes before confirmati
     service.confirmAction(id(5), 3, 'confirm-reviewed-operation')
   ).rejects.toMatchObject({ code: 'conflict' });
   expect(request.mock.calls.map((call) => call[1]?.method)).toEqual([
-    'GET',
     'GET',
     'GET',
     'GET',
@@ -453,7 +453,6 @@ it('loads authoritative update context with owner GETs and blocks a stale target
   };
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(action)))
     .mockResolvedValueOnce(json(target));
   const value = await createLiveAssistantApiService({
@@ -461,7 +460,7 @@ it('loads authoritative update context with owner GETs and blocks a stale target
     token: async () => 'owner',
     request
   }).getActionPreview(id(5));
-  expect(request.mock.calls[2]?.[0]).toBe(
+  expect(request.mock.calls[1]?.[0]).toBe(
     `https://api.test/api/v1/budgets/${id(8)}`
   );
   expect(value).toMatchObject({
@@ -469,7 +468,6 @@ it('loads authoritative update context with owner GETs and blocks a stale target
     disclosure: { complete: false, reason: 'stale' }
   });
   expect(request.mock.calls.map((call) => call[1]?.method)).toEqual([
-    'GET',
     'GET',
     'GET'
   ]);
@@ -493,7 +491,6 @@ it('preserves the original action timezone through the real message/preview mapp
   Object.assign(rows.items[1]!, { actionTimezone: 'Asia/Riyadh' });
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   const value = await createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -530,7 +527,6 @@ it.each(['matching', 'wrongAccount', 'wrongCurrency'] as const)(
     };
     const request = jest
       .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValueOnce(json(conversations))
       .mockResolvedValueOnce(json(rows))
       .mockResolvedValueOnce(json(account));
     const value = await createLiveAssistantApiService({
@@ -538,7 +534,7 @@ it.each(['matching', 'wrongAccount', 'wrongCurrency'] as const)(
       token: async () => 'owner',
       request
     }).getActionPreview(id(5));
-    expect(request.mock.calls[2]?.[0]).toBe(
+    expect(request.mock.calls[1]?.[0]).toBe(
       `https://api.test/api/v1/accounts/${id(8)}`
     );
     expect(request.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
@@ -571,7 +567,11 @@ it('shows a completed reply with an unconfirmable preview when source versions a
     async (url: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method !== 'GET')
         throw new Error('Financial mutation must remain blocked');
-      return json(String(url).includes('/messages?') ? rows : conversations);
+      return json(
+        /\/assistant\/(messages|previews)\//.test(String(url))
+          ? rows
+          : conversations
+      );
     }
   );
   const service = createLiveAssistantApiService({
@@ -602,7 +602,6 @@ it('reads authoritative cancellation after an accepted legacy response and never
   const after = messages(preview('rejected', 4));
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(before))
     .mockResolvedValueOnce(json(before))
     .mockResolvedValueOnce(json({ ...preview('rejected', 4), deletedAt: null }))
@@ -732,7 +731,6 @@ it('maps authoritative proactive insights without inventing financial values', a
 it('retrieves a response on a cold service and preserves exact evidence versions', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages()));
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -752,7 +750,6 @@ it('retrieves a response on a cold service and preserves exact evidence versions
 it('retrieves and strictly maps a cold action preview while exposing edit as unavailable', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())));
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -773,13 +770,12 @@ it('retrieves and strictly maps a cold action preview while exposing edit as una
   await expect(
     service.updateActionPreview(id(5), value.input, 3)
   ).rejects.toMatchObject({ code: 'assistant_disabled' });
-  expect(request).toHaveBeenCalledTimes(2);
+  expect(request).toHaveBeenCalledTimes(1);
 });
 
 it('does not return a cached preview after the authoritative owner lookup stops containing it', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockResolvedValueOnce(json(messages()));
   const service = createLiveAssistantApiService({
@@ -794,7 +790,7 @@ it('does not return a cached preview after the authoritative owner lookup stops 
   await expect(service.getActionPreview(id(5))).rejects.toMatchObject({
     code: 'not_found'
   });
-  expect(request).toHaveBeenCalledTimes(3);
+  expect(request).toHaveBeenCalledTimes(2);
 });
 
 it('sends the expected consent version and returns the authoritative next version', async () => {
@@ -830,7 +826,6 @@ it('sends the expected consent version and returns the authoritative next versio
 it('re-reads the authoritative preview after confirmation instead of incrementing a cached version', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockResolvedValueOnce(
@@ -862,10 +857,10 @@ it('re-reads the authoritative preview after confirmation instead of incrementin
       version: 6
     }
   });
-  expect(JSON.parse(String(request.mock.calls[3]?.[1]?.body))).toEqual({
+  expect(JSON.parse(String(request.mock.calls[2]?.[1]?.body))).toEqual({
     expectedVersion: 3
   });
-  expect(request.mock.calls[3]?.[1]?.headers).toEqual(
+  expect(request.mock.calls[2]?.[1]?.headers).toEqual(
     expect.objectContaining({ 'Idempotency-Key': 'confirm-operation' })
   );
 });
@@ -886,7 +881,6 @@ it('fails explicitly on unknown owner states and maps supported transaction upda
 
   const unsupportedPreview = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(
       json(
         messages({
@@ -948,7 +942,6 @@ it.each([
   async (actionType, payload, kind) => {
     const request = jest
       .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValueOnce(json(conversations))
       .mockResolvedValueOnce(
         json(messages({ ...preview(), actionType, payload }))
       );
@@ -1052,7 +1045,6 @@ it('preserves aggregate ledger evidence and its authoritative as-of time', async
   ] as never;
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   await expect(
     createLiveAssistantApiService({
@@ -1072,7 +1064,6 @@ it('rejects invalid evidence identifiers rather than accepting an unsupported so
     'https://example.test/source';
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   await expect(
     createLiveAssistantApiService({
@@ -1083,14 +1074,24 @@ it('rejects invalid evidence identifiers rather than accepting an unsupported so
   ).rejects.toMatchObject({ code: 'representative_failure' });
 });
 
-it('fetches a question across a message-page boundary without losing its reply relationship', async () => {
-  const rows = messages();
-  const parent = rows.items.pop();
+it('keeps multiple off-page reply relationships with a single message-page read', async () => {
+  const [answer, parent] = messages().items;
+  const questions = Array.from({ length: 10 }, (_, i) => ({
+    ...parent,
+    id: id(20 + i),
+    content: `Question ${i}`
+  }));
+  const items = questions.map((question, i) => ({
+    ...answer,
+    id: id(40 + i),
+    replyToMessageId: question.id
+  }));
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
     .mockResolvedValueOnce(json(conversation))
-    .mockResolvedValueOnce(json({ ...rows, nextCursor: 'older-page' }))
-    .mockResolvedValueOnce(json(parent));
+    .mockResolvedValueOnce(
+      json({ items, questions, nextCursor: 'older-page' })
+    );
   await expect(
     createLiveAssistantApiService({
       baseUrl: 'https://api.test',
@@ -1098,15 +1099,21 @@ it('fetches a question across a message-page boundary without losing its reply r
       request
     }).getConversation(id(1))
   ).resolves.toMatchObject({
-    responses: { items: [{ question: 'Spend?' }], nextCursor: 'older-page' }
+    responses: {
+      items: questions.map((q) => ({
+        question: q.content,
+        requestMessageId: q.id
+      })),
+      nextCursor: 'older-page'
+    }
   });
-  expect(request.mock.calls[2]?.[0]).toContain(`/messages/${id(2)}`);
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(request.mock.calls[1]?.[0]).toContain('includeQuestions=true');
 });
 
 it('preserves complete effect fields for a validated goal', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())));
   await expect(
     createLiveAssistantApiService({
@@ -1123,7 +1130,6 @@ it('preserves complete effect fields for a validated goal', async () => {
 it('blocks confirmation of an incomplete transaction effect before a write', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(
       json(
         messages({
@@ -1140,7 +1146,7 @@ it('blocks confirmation of an incomplete transaction effect before a write', asy
       request
     }).confirmAction(id(5), 3, 'confirm-operation-0001')
   ).rejects.toMatchObject({ code: 'conflict' });
-  expect(request).toHaveBeenCalledTimes(2);
+  expect(request).toHaveBeenCalledTimes(1);
 });
 
 it('reuses the first-create identity after losing its response', async () => {
@@ -1225,7 +1231,6 @@ it('maps estimate, period and financial values from versioned answer metadata', 
   });
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   await expect(
     createLiveAssistantApiService({
@@ -1411,7 +1416,6 @@ it('retries a known rejection using the acknowledged empty conversation rather t
 it('reconciles a lost confirmation response with its original version and identity', async () => {
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(messages(preview())))
     .mockRejectedValueOnce(new Error('lost commit response'))
     .mockResolvedValueOnce(json(messages(preview('confirmed', 4))))
@@ -1437,10 +1441,10 @@ it('reconciles a lost confirmation response with its original version and identi
   await expect(
     service.confirmAction(id(5), 4, 'replacement-confirm-key-0002')
   ).resolves.toMatchObject({ value: { status: 'succeeded', version: 6 } });
-  expect(request.mock.calls[4]?.[1]?.headers).toEqual(
+  expect(request.mock.calls[3]?.[1]?.headers).toEqual(
     expect.objectContaining({ 'Idempotency-Key': 'original-confirm-key-0001' })
   );
-  expect(JSON.parse(String(request.mock.calls[4]?.[1]?.body))).toEqual({
+  expect(JSON.parse(String(request.mock.calls[3]?.[1]?.body))).toEqual({
     expectedVersion: 3
   });
 });
@@ -1544,12 +1548,12 @@ it('starts conversation detail and message reads together while preserving the o
   expect(urls[1]).toContain('/messages?limit=99');
 });
 
-it('refreshes a known response through its conversation without scanning other conversations', async () => {
+it('refreshes a known response by ID in one request', async () => {
   const urls: string[] = [];
   const request = jest.fn(async (input: RequestInfo | URL) => {
     const path = String(input);
     urls.push(path);
-    return json(path.includes('/messages?') ? messages() : conversation);
+    return json(path.includes('/messages') ? messages() : conversation);
   });
   const service = createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -1562,9 +1566,7 @@ it('refreshes a known response through its conversation without scanning other c
     id: id(3),
     conversationId: id(1)
   });
-  expect(urls).toEqual([
-    `https://api.test/api/v1/assistant/conversations/${id(1)}/messages?limit=99`
-  ]);
+  expect(urls).toEqual([`https://api.test/api/v1/assistant/messages/${id(3)}`]);
 });
 
 it('does not reuse a known response reference across owners', async () => {
@@ -1601,9 +1603,7 @@ it('does not reuse a known response reference across owners', async () => {
   await expect(service.getResponse(id(3))).rejects.toMatchObject({
     code: 'not_found'
   });
-  expect(urls).toEqual([
-    'https://api.test/api/v1/assistant/conversations?limit=99'
-  ]);
+  expect(urls).toEqual([`https://api.test/api/v1/assistant/messages/${id(3)}`]);
 });
 
 it.each([
@@ -1631,7 +1631,6 @@ it.each([
     });
     const request = jest
       .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValueOnce(json(conversations))
       .mockResolvedValueOnce(json(rows));
     await expect(
       createLiveAssistantApiService({
@@ -1670,7 +1669,6 @@ it('restores stored line separators to organized prose without changing amounts 
     'مصروف — متجر 24 — 2.5 ريال\u2028مصروف — متجر — -12.345 KWD\u2028مصروف — كتب — 1,000 JPY';
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   const response = await createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -1694,7 +1692,6 @@ it.each([1, 2])(
     });
     const request = jest
       .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValueOnce(json(conversations))
       .mockResolvedValueOnce(json(rows));
     const response = await createLiveAssistantApiService({
       baseUrl: 'https://api.test',
@@ -1720,7 +1717,6 @@ it('maps a scope refusal as a notice without a financial period or confirmed-fac
   });
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   await expect(
     createLiveAssistantApiService({
@@ -1749,7 +1745,6 @@ it('labels a missing-information clarification without claiming a confirmed fact
   });
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   const response = await createLiveAssistantApiService({
     baseUrl: 'https://api.test',
@@ -1767,7 +1762,6 @@ it('accepts backend agent metadata with a validated prompt hash without losing t
   Object.assign(rows.items[1]!, { metadata: backendAgentMetadataFixture });
   const request = jest
     .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-    .mockResolvedValueOnce(json(conversations))
     .mockResolvedValueOnce(json(rows));
   await expect(
     createLiveAssistantApiService({
@@ -1791,7 +1785,6 @@ it.each(['a'.repeat(63), 'g'.repeat(64), null])(
     });
     const request = jest
       .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValueOnce(json(conversations))
       .mockResolvedValueOnce(json(rows));
     await expect(
       createLiveAssistantApiService({
@@ -1846,5 +1839,52 @@ it('selects the live assistant module before a Clerk bridge registers its global
       if (previous[key] === undefined) delete process.env[key];
       else process.env[key] = previous[key];
     }
+  }
+});
+it.each([
+  ['response', id(3), `/api/v1/assistant/messages/${id(3)}`],
+  ['preview', id(5), `/api/v1/assistant/previews/${id(5)}`]
+] as const)(
+  'loads %s by ID with one request regardless of conversation count',
+  async (kind, targetId, path) => {
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValue(json(messages(preview())));
+    const service = createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    });
+    const result =
+      kind === 'response'
+        ? await service.getResponse(targetId)
+        : await service.getActionPreview(targetId);
+    expect(result.id).toBe(targetId);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]?.[0]).toBe(`https://api.test${path}`);
+  }
+);
+
+it('does not scan conversations when a direct response lookup is missing or forbidden', async () => {
+  for (const status of [404, 403]) {
+    const request = jest
+      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+      .mockResolvedValue(
+        json(
+          {
+            code: status === 404 ? 'AI_MESSAGE_NOT_FOUND' : 'AI_OWNER_INACTIVE'
+          },
+          status
+        )
+      );
+    const service = createLiveAssistantApiService({
+      baseUrl: 'https://api.test',
+      token: async () => 'owner',
+      request
+    });
+    await expect(service.getResponse(id(3))).rejects.toMatchObject({
+      code: status === 404 ? 'not_found' : 'forbidden'
+    });
+    expect(request).toHaveBeenCalledTimes(1);
   }
 });

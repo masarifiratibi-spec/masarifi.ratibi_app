@@ -21,20 +21,22 @@ it('uses only fresh operating Voice sources and scoped deliveries, never histori
     claimNotificationDeliveries: jest.fn(() => {
       throw Error('HISTORICAL_DELIVERY_CLAIM');
     }),
-    loadSourceTemplates: jest.fn().mockResolvedValue([
-      {
-        id: 'in-app',
-        key: 'transaction.created',
-        locale: 'en',
-        channel: 'in_app',
-        template_version: 1,
-        subject: 'Saved',
-        body: 'Transaction saved',
-        enabled: true,
-        quiet_hours: {},
-      },
+    loadSourceTemplatesBatch: jest.fn().mockResolvedValue([
+      [
+        {
+          id: 'in-app',
+          key: 'transaction.created',
+          locale: 'en',
+          channel: 'in_app',
+          template_version: 1,
+          subject: 'Saved',
+          body: 'Transaction saved',
+          enabled: true,
+          quiet_hours: {},
+        },
+      ],
     ]),
-    createNotificationFromSource: jest.fn().mockResolvedValue(true),
+    createNotificationsFromSources: jest.fn().mockResolvedValue(true),
   };
   const worker = new EngagementWorker(repository as never, {} as never, {} as never, {} as never);
   const voiceWorker = worker as unknown as {
@@ -43,10 +45,14 @@ it('uses only fresh operating Voice sources and scoped deliveries, never histori
   expect(typeof voiceWorker.processVoiceConfirmations).toBe('function');
   await voiceWorker.processVoiceConfirmations(epoch);
   expect(repository.claimVoiceSourceEvents).toHaveBeenCalledWith(epoch, 1);
-  expect(repository.createNotificationFromSource).toHaveBeenCalledWith(
-    source,
-    expect.arrayContaining([expect.objectContaining({ channel: 'in_app', status: 'queued' })]),
-  );
+  expect(repository.createNotificationsFromSources).toHaveBeenCalledWith([
+    {
+      source,
+      deliveries: expect.arrayContaining([
+        expect.objectContaining({ channel: 'in_app', status: 'queued' }),
+      ]) as unknown,
+    },
+  ]);
   expect(repository.claimVoiceNotificationDeliveries).toHaveBeenCalledWith(
     epoch,
     expect.any(String),

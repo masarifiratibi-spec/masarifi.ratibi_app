@@ -430,6 +430,7 @@ paths:
         - $ref: '#/components/parameters/ConversationId'
         - $ref: '#/components/parameters/AiCursor'
         - $ref: '#/components/parameters/AiLimit'
+        - { name: includeQuestions, in: query, schema: { type: boolean, default: false } }
       responses:
         '200':
           description: Message cursor page
@@ -500,6 +501,32 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AssistantMessageResult' }
         '404': { description: User message unavailable to this owner and conversation }
+  /api/v1/assistant/messages/{messageId}:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantResponse
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Requested assistant response and its original question
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePage' }
+        '404': { description: Response is unavailable to this owner }
+  /api/v1/assistant/previews/{previewId}:
+    get:
+      tags: [Assistant]
+      operationId: getAssistantPreview
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+      responses:
+        '200':
+          description: Requested preview with its response and original question
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePage' }
+        '404': { description: Preview is unavailable to this owner }
   /api/v1/assistant/previews/{previewId}/confirm:
     post:
       tags: [Assistant]
@@ -1543,6 +1570,7 @@ components:
       properties:
         items:
           { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AssistantMessage' } }
+        questions: { type: array, maxItems: 99, items: { $ref: '#/components/schemas/AssistantMessage' } }
         nextCursor: { type: [string, 'null'] }
     ResponseSnapshot:
       type: object

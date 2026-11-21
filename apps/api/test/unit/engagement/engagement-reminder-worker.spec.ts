@@ -17,20 +17,22 @@ it('ingests daily reminder candidates without dispatching a provider', async () 
         inactiveDays: 4,
       },
     ]),
-    loadSourceTemplates: jest.fn().mockResolvedValue([
-      {
-        id: 'template-1',
-        key: 'reminder.app_inactive.3d',
-        locale: 'en',
-        channel: 'in_app',
-        template_version: 1,
-        subject: 'How is your spending going?',
-        body: 'Open Masarifi for a quick look.',
-        enabled: true,
-        quiet_hours: {},
-      },
+    loadSourceTemplatesBatch: jest.fn().mockResolvedValue([
+      [
+        {
+          id: 'template-1',
+          key: 'reminder.app_inactive.3d',
+          locale: 'en',
+          channel: 'in_app',
+          template_version: 1,
+          subject: 'How is your spending going?',
+          body: 'Open Masarifi for a quick look.',
+          enabled: true,
+          quiet_hours: {},
+        },
+      ],
     ]),
-    createNotificationFromSource: jest.fn().mockResolvedValue(true),
+    createNotificationsFromSources: jest.fn().mockResolvedValue(true),
     claimNotificationDeliveries: jest.fn(),
   };
   const worker = new EngagementWorker(
@@ -42,16 +44,18 @@ it('ingests daily reminder candidates without dispatching a provider', async () 
 
   await expect(worker.runJob('notification.reminders.evaluate')).resolves.toBe(1);
 
-  expect(repository.loadSourceTemplates).toHaveBeenCalledWith(
+  expect(repository.loadSourceTemplatesBatch).toHaveBeenCalledWith([
     expect.objectContaining({ event_type: 'reminder.app_inactive.3d' }),
-  );
-  expect(repository.createNotificationFromSource).toHaveBeenCalledTimes(1);
-  expect(repository.createNotificationFromSource).toHaveBeenCalledWith(
-    expect.objectContaining({
-      target_kind: 'home',
-      cycle_baseline: '2026-09-01T00:00:00.000Z',
-    }),
-    expect.any(Array),
-  );
+  ]);
+  expect(repository.createNotificationsFromSources).toHaveBeenCalledTimes(1);
+  expect(repository.createNotificationsFromSources).toHaveBeenCalledWith([
+    {
+      source: expect.objectContaining({
+        target_kind: 'home',
+        cycle_baseline: '2026-09-01T00:00:00.000Z',
+      }) as unknown,
+      deliveries: expect.any(Array) as unknown,
+    },
+  ]);
   expect(repository.claimNotificationDeliveries).not.toHaveBeenCalled();
 });

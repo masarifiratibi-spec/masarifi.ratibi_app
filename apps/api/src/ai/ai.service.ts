@@ -21,6 +21,7 @@ import {
   createVoiceV2,
   feedback,
   idempotencyKey,
+  messagePage,
   page,
   positiveVersion,
   processVoice,
@@ -800,7 +801,7 @@ export class AiService {
   }
 
   async listMessages(principal: ClerkPrincipal, conversationId: string, query: unknown) {
-    const input = page(query),
+    const input = messagePage(query),
       limit = Math.min(input.limit, 99),
       rows = await this.repository.listMessages(
         principal,
@@ -808,24 +809,35 @@ export class AiService {
         cursor(input.cursor),
         limit + 1,
       );
-    const normalized = rows.map((row) => ({
-      id: row.id,
-      conversationId: row.conversationId,
-      replyToMessageId: row.replyToMessageId ?? null,
-      role: row.role,
-      content: row.contentRedacted,
-      status: row.workStatus ?? null,
-      failureCode: row.failureCode ?? null,
-      snapshot: row.snapshot ?? null,
-      preview: row.preview ?? null,
-      createdAt: row.createdAt,
-      metadata: resource(row.contextPayload).assistantMetadata ?? null,
-      actionTimezone:
-        typeof resource(row.contextPayload).timezone === 'string'
-          ? resource(row.contextPayload).timezone
-          : null,
-    }));
-    return paged(normalized, limit, 'createdAt');
+    const result = paged(
+      rows.map((row) => this.publicMessage(row)),
+      limit,
+      'createdAt',
+    );
+    if (!input.includeQuestions) return result;
+    const onPage = new Set(result.items.map((row) => row.id));
+    const missing = [
+      ...new Set(
+        result.items.flatMap((row) =>
+          row.role === 'assistant' &&
+          row.status === 'completed' &&
+          typeof row.replyToMessageId === 'string' &&
+          !onPage.has(row.replyToMessageId)
+            ? [row.replyToMessageId]
+            : [],
+        ),
+      ),
+    ];
+    const questions = missing.length
+      ? await this.repository.responseQuestions(principal, conversationId, missing)
+      : [];
+    return { ...result, questions: questions.map((row) => this.publicMessage(row)) };
+  }
+
+  async getResponseContext(principal: ClerkPrincipal, kind: 'response' | 'preview', id: string) {
+    const rows = await this.repository.responseContext(principal, kind, uuid(id));
+    if (!rows.length) throw new HttpException({ code: 'AI_MESSAGE_NOT_FOUND' }, 404);
+    return { items: rows.map((row) => this.publicMessage(row)), nextCursor: null };
   }
 
   async getMessage(principal: ClerkPrincipal, conversationId: string, messageId: string) {

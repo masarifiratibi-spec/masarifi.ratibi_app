@@ -761,6 +761,27 @@ export class AiRepository {
     );
   }
 
+  responseQuestions(principal: ClerkPrincipal, conversationId: string, ids: string[]) {
+    return this.ownerValues(
+      principal,
+      `select jsonb_build_object('id',q.id,'conversation_id',q.conversation_id,'role',q.role,
+        'content_redacted',q.content_redacted,'work_status',q.work_status,'failure_code',q.failure_code,
+        'created_at',q.created_at,'context_payload',q.context_payload) value
+       from public.assistant_messages q join public.assistant_conversations c on c.id=q.conversation_id
+       where q.id=any($3::uuid[]) and q.role='user' and q.user_id=$1 and c.user_id=$1
+         and q.conversation_id=$2::uuid and c.deleted_at is null and c.status<>'deleted'`,
+      [principal.userId, conversationId, ids],
+    );
+  }
+
+  responseContext(principal: ClerkPrincipal, kind: 'response' | 'preview', id: string) {
+    return this.ownerValues(
+      principal,
+      'select value from private.get_assistant_response_context($1,$2::uuid,$3::uuid)',
+      [principal.userId, kind === 'response' ? id : null, kind === 'preview' ? id : null],
+    );
+  }
+
   messageResult(principal: ClerkPrincipal, messageId: string) {
     return this.ownerJson(
       principal,
