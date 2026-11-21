@@ -8,9 +8,8 @@ import { ConfigService } from '@nestjs/config';
 
 import { PlatformConfigService } from '../../src/platform/config/platform-config.service';
 import { HealthService } from '../../src/platform/health/health.service';
-import type { QueueHealthIndicator } from '../../src/platform/health/queue-health.indicator';
+import type { ReadinessDependencies } from '../../src/platform/health/readiness-dependencies';
 import { validateEnvironment } from '../../src/platform/config/environment.schema';
-import type { PoolService } from '../../src/platform/database/pool.service';
 
 const liveTest = process.env.MASARIFI_LIVE_DATABASE_TESTS === '1' ? it : it.skip;
 
@@ -129,37 +128,31 @@ describe('local foundation', () => {
       MASARIFI_READINESS_CACHE_TTL_MS: 0,
     });
     const config = new PlatformConfigService(new ConfigService(environment));
-    const ping = jest.fn().mockResolvedValue(undefined);
-    const database = { ping } as unknown as PoolService;
-    const check = jest.fn().mockResolvedValue('up');
-    const queue = { check } as unknown as QueueHealthIndicator;
-    const health = new HealthService(config, database, queue);
+    const check = jest.fn().mockResolvedValue({ database: 'up', queue: 'up' });
+    const queue = { check } as unknown as ReadinessDependencies;
+    const health = new HealthService(config, queue);
 
     expect(health.live().status).toBe('ok');
-    expect(ping).not.toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
 
     await expect(health.ready()).resolves.toEqual({
       status: 'ready',
       checks: { database: 'up', queue: 'up' },
     });
-    expect(ping).toHaveBeenLastCalledWith(1_000);
     expect(check).toHaveBeenLastCalledWith(1_000);
 
-    ping.mockRejectedValueOnce(new Error('postgresql://secret-host'));
+    check.mockResolvedValueOnce({ database: 'down', queue: 'up' });
     await expect(health.ready()).resolves.toEqual({
       status: 'not_ready',
       checks: { database: 'down', queue: 'up' },
     });
 
     health.beginShutdown();
-    ping.mockClear();
     check.mockClear();
     await expect(health.ready()).resolves.toEqual({
       status: 'not_ready',
       checks: { database: 'down', queue: 'down' },
     });
-    expect(ping).not.toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
   });
 

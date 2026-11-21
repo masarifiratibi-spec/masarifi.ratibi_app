@@ -3,12 +3,12 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
-import { QueueHealthIndicator } from './queue-health.indicator';
+import { ReadinessDependencies } from './readiness-dependencies';
 
 @Module({
   imports: [DatabaseModule],
   controllers: [HealthController],
-  providers: [HealthService, QueueHealthIndicator],
+  providers: [HealthService, ReadinessDependencies],
   exports: [HealthService],
 })
 export class HealthModule {}
