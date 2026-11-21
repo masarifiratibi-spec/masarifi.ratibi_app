@@ -145,7 +145,11 @@ export const useAppShellStore = create<AppShellState>((set, get) => ({
     if (get().profileSetupStatus === 'loading') return;
     set({
       bootstrapRevision: get().bootstrapRevision + 1,
-      profileSetupStatus: 'loading'
+      profileSetupStatus:
+        get().session?.status === 'authenticated' &&
+        get().profileSetupStatus === 'complete'
+          ? 'complete'
+          : 'loading'
     });
   },
 

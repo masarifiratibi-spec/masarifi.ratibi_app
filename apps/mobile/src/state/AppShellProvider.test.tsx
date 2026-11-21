@@ -24,6 +24,12 @@ import { HttpError } from '@/services/live/http-client';
 import { authenticatedSession } from '@/test-utils/app-shell-fixtures';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
+import {
+  beginTrackingAdmission,
+  admitTrackingOwner,
+  isolateTrackingForOwner
+} from '@/state/tracking-admission';
+import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 jest.mock('expo', () =>
   jest.requireActual('@/test-utils/benchmark-runtime').benchmarkExpoMock()
 );
@@ -175,6 +181,62 @@ describe('AppShellProvider', () => {
   afterEach(() => {
     delete process.env.EXPO_PUBLIC_CLIENT_MODE;
   });
+
+  it.each([false, true])(
+    'recovers interrupted tracking admission after bootstrap (isolated=%s) without looping or activating sources',
+    async (isolated) => {
+      process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
+      mockLiveClerkSessionKey = 'session-tracking-recovery';
+      useAppShellStore.setState({
+        hydrated: true,
+        session: {
+          ...authenticatedSession,
+          userId: 'user_tracking_recovery',
+          restoration: 'restored',
+          expiresAt: Date.now() + 60_000
+        },
+        profileSetupStatus: 'complete'
+      });
+      const view = render(
+        <AppShellHydrationProvider>
+          <Text>Current screen</Text>
+        </AppShellHydrationProvider>
+      );
+      try {
+        await waitFor(() =>
+          expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1)
+        );
+        await act(async () => {});
+        mockRestoreAppShellSession.mockClear();
+        act(() => {
+          if (isolated) isolateTrackingForOwner('user_tracking_recovery');
+          else beginTrackingAdmission();
+        });
+        await act(async () => {});
+        expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(
+          isolated ? 0 : 1
+        );
+        expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+        await act(async () => {});
+        expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(
+          isolated ? 0 : 1
+        );
+        expect(mockSyncAutomaticTracking).not.toHaveBeenCalled();
+        expect(screen.getByText('Current screen')).toBeOnTheScreen();
+        if (!isolated) {
+          act(() => admitTrackingOwner('user_tracking_recovery'));
+          await act(async () => {});
+          act(() => beginTrackingAdmission());
+          await waitFor(() =>
+            expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2)
+          );
+        }
+      } finally {
+        view.unmount();
+        act(() => clearTrackingIsolation());
+      }
+    }
+  );
 
   it('starts the verified live restore while fonts still cover the navigator, without starting foreground writers', async () => {
     process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';

@@ -247,3 +247,19 @@ test.each([{ stored: true, wantEnabled: true }, { stored: false, wantEnabled: fa
     configure.mockRestore();
   }
 });
+
+
+test('revalidates an authorized owner in the background without closing the current screen', () => {
+  useAppShellStore.setState({
+    hydrated: true,
+    session: liveSession,
+    profileSetupStatus: 'complete'
+  });
+  const before = useAppShellStore.getState().bootstrapRevision;
+  useAppShellStore.getState().retryBootstrap();
+  expect(useAppShellStore.getState()).toMatchObject({
+    bootstrapRevision: before + 1,
+    session: liveSession,
+    profileSetupStatus: 'complete'
+  });
+});

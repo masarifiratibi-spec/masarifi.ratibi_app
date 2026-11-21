@@ -21,6 +21,7 @@ type GuideTopic = 'sms' | 'notification' | 'alerts';
 const topics: readonly GuideTopic[] = ['sms', 'notification', 'alerts'];
 
 export function TrackingSetupGuide({
+  actionsDisabled = false,
   smsAvailable,
   notificationAvailable,
   smsEnabled,
@@ -29,6 +30,7 @@ export function TrackingSetupGuide({
   onEnableNotificationTracking,
   onOpenAlertSettings
 }: {
+  actionsDisabled?: boolean;
   smsAvailable: boolean;
   notificationAvailable: boolean;
   smsEnabled: boolean;
@@ -88,7 +90,7 @@ export function TrackingSetupGuide({
   }
 
   async function runSetupAction(topic: GuideTopic) {
-    if (opening) return;
+    if (opening || actionsDisabled) return;
     if (
       (topic === 'sms' && smsEnabled) ||
       (topic === 'notification' && notificationEnabled)
@@ -139,8 +141,11 @@ export function TrackingSetupGuide({
           accessibilityHint={translate(
             'tracking.setup.alertSettingsDescription'
           )}
-          accessibilityState={{ disabled: opening, busy: opening }}
-          disabled={opening}
+          accessibilityState={{
+            disabled: opening || actionsDisabled,
+            busy: opening
+          }}
+          disabled={opening || actionsDisabled}
           onPress={() => void runSetupAction('alerts')}
           style={({ pressed }) => [
             styles.header,
@@ -384,7 +389,7 @@ export function TrackingSetupGuide({
                           ? 'tracking.setup.alerts.open'
                           : `tracking.setup.${selected}.enable`
                   }
-                  disabled={selectedEnabled}
+                  disabled={selectedEnabled || actionsDisabled}
                   style={selectedEnabled ? styles.completedAction : undefined}
                   loading={opening}
                   onPress={() => void runSetupAction(selected)}

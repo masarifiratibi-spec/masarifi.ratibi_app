@@ -127,6 +127,58 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
+  it('shows the normal tracking layout and browsable steps before account admission without starting reads or capture', async () => {
+    const previousPlatform = Platform.OS;
+    Platform.OS = 'android';
+    const read = jest.spyOn(automaticTrackingService, 'getStatus');
+    const keywords = jest.spyOn(automaticTrackingService, 'listKeywordRules');
+    act(() => beginTrackingAdmission());
+    const view = renderWithQueryData(<TrackingStatusScreen />, []);
+    try {
+      expect(screen.getByTestId('tracking-status-screen')).toBeOnTheScreen();
+      expect(
+        screen.getByText(translate('tracking.source.smsTracking'))
+      ).toBeOnTheScreen();
+      expect(
+        screen.getByText(translate('tracking.source.notificationTracking'))
+      ).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-sms-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-notification-switch')).toBeDisabled();
+      expect(
+        screen.queryByText(translate('tracking.unverified.title'))
+      ).toBeNull();
+      fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+      fireEvent.press(screen.getByTestId('tracking-guide-sms'));
+      expect(screen.getByTestId('tracking-guide-open-settings')).toBeDisabled();
+      expect(read).not.toHaveBeenCalled();
+      expect(keywords).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      Platform.OS = previousPlatform;
+      act(() => clearTrackingIsolation());
+    }
+  });
+
+  it('shows the complete tracking layout and setup guide while the first status request is pending', async () => {
+    const previousPlatform = Platform.OS;
+    Platform.OS = 'android';
+    jest
+      .spyOn(automaticTrackingService, 'getStatus')
+      .mockReturnValue(new Promise(() => {}));
+    const view = renderWithQueryData(<TrackingStatusScreen />, []);
+    try {
+      expect(screen.getByTestId('tracking-status-screen')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-sms-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-notification-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-setup-guide')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-alert-settings')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-keywords-card')).toBeOnTheScreen();
+    } finally {
+      view.unmount();
+      Platform.OS = previousPlatform;
+    }
+  });
+
   it.each(['dark', 'light'] as const)(
     'uses matching page, card and text colors in %s mode',
     async (mode) => {

@@ -73,15 +73,18 @@ function useTrackingRead<T>({
   refetchOnMount?: 'always';
 }) {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  const admitted = useTrackingAdmission((state) => state.ready);
   return useQuery({
     queryKey: automaticTrackingReadKey(queryKey, ownerId),
-    enabled,
+    enabled: enabled && admitted,
     refetchOnMount,
     queryFn: () =>
       withReadContext(undefined, async () => {
         assertTrackingReadOwner(ownerId);
+        const assertAdmission = captureTrackingAdmission(ownerId ?? undefined);
         const data = await queryFn();
         assertTrackingReadOwner(ownerId);
+        assertAdmission();
         return data;
       })
   });
