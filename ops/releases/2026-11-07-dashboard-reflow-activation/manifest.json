@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-07",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "remote": "ratibi",
+  "baseCommit": "e13a90549788d22b56432377a4cff7da5481f43e",
+  "sourceCommit": "97ad25515ca283083057f010366516d4cd5931d4",
+  "previousReviewPacket": "af182281dd2aea0c08bfada3c425a9693f60cdf5",
+  "status": "Reflow repair qualified; scoped human approval persists; fresh stage and authenticated acceptance pending",
+  "sourceQualified": true,
+  "hostedActivationApproved": true,
+  "hostedActivationPerformed": false,
+  "approval": {
+    "source": "Current human request in this chat: replace old logo with approved new identity, continue remaining work, and explicit \u0645\u0648\u0627\u0641\u0642 to staging activation; subsequent instruction to control/run the VPS.",
+    "scope": "Admin staging only: retained repairs plus requested logo, private canary3041, guarded dashboard ingress handover/rollback; preserve actual environment, all other services, SQL, roles, mobile and data. Same scoped repair after the previous candidate failed responsive acceptance and was rolled back; no additional service/data/permission change."
+  },
+  "sourceArchive": {
+    "localPath": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-11-07-dashboard-production/dashboard-reflow-source-97ad25515ca2.tar.gz",
+    "sha256": "72418a7f8202c7addc61670e6d54f1cebf6058339dd884bd1d37c5e755a3c0e6",
+    "bytes": 4912152
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/admin-web/public/BRANDING.md",
+      "baseSha256": null,
+      "candidateSha256": "7d878d418365b13de8abd42205a1096a53930016b3c6d5b6c06a8199f7f4ed3b"
+    },
+    {
+      "path": "apps/admin-web/public/masarifi-brand-2026.png",
+      "baseSha256": null,
+      "candidateSha256": "1e4327e72f4b5921e740e0042a4d4ac150ed01b01c5a2e867e6b02c33cf025ba"
+    },
+    {
+      "path": "apps/admin-web/public/masarifi-favicon-2026.png",
+      "baseSha256": null,
+      "candidateSha256": "b71681df9a7f683593d19ce2af87fbef019396dead4bb404a18b5875002aaab4"
+    },
+    {
+      "path": "apps/admin-web/src/app/admin/page.tsx",
+      "baseSha256": "ab5df9b3e8f12f83b37ed06223027171fd0b99448ee18d4d95a444b74df44921",
+      "candidateSha256": "8f1a4acf9b5f9be0c3b7c36b7906fbf7fdb608a499cc28da2b4c56a47e73fc46"
+    },
+    {
+      "path": "apps/admin-web/src/app/globals.css",
+      "baseSha256": "2f15e83908d618e1254eedb480105712be8f86ae7080fa6cacc1d0f0a5463d3b",
+      "candidateSha256": "a77bb34f9ad23666cac49f5aa1de404d1a2024bd70f3c6e1928b729e0b3ae7c7"
+    },
+    {
+      "path": "apps/admin-web/src/app/layout.tsx",
+      "baseSha256": "4594e02c0a57102629523e244c29bf748ecb45a6c3d633cb63d213205704aff0",
+      "candidateSha256": "b6d9b491f78981d4d6ae181ef5445a9d42ca674d67d3b938a4fd81e0dcfe21ac"
+    },
+    {
+      "path": "apps/admin-web/src/components/admin/AdminShell.tsx",
+      "baseSha256": "df1939e3427d3403263e3d2e5740cf7e3082fc8e578ff15385d3054fcebcd46f",
+      "candidateSha256": "d1fbd0048f2fce1600e4804da4cd67e67ca19425db8a04a8a0eba061eb587591"
+    },
+    {
+      "path": "apps/admin-web/src/components/admin/Charts.tsx",
+      "baseSha256": "750ab3b69364571295ece790abffa498a88171022e9eab8386e052ba59f88f0d",
+      "candidateSha256": "b5196b524842fc1f6d82fcd091725d8ceec904ed3fb6f68791d758df1e6f7a6e"
+    },
+    {
+      "path": "apps/admin-web/src/core/localization/messages.ts",
+      "baseSha256": "304318b4038027482691cda7f3083ee6dc618f2a5c1380cd6922ee70dda99db1",
+      "candidateSha256": "acccba147c810b900417879a2d90f2a9e6b97b58fb863dc2de9c5d9f982c811b"
+    },
+    {
+      "path": "apps/admin-web/src/features/governance/AiUsageLimitsSection.test.tsx",
+      "baseSha256": "242bfcb87eb8f96194923c6e2cdf60ecc47c2475c8253ab0af9be6c5ff589449",
+      "candidateSha256": "0c102cd4de0f5448204b3910e8f8a424cd938824011514ad84636df853ef2996"
+    },
+    {
+      "path": "apps/admin-web/src/features/governance/AiUsageLimitsSection.tsx",
+      "baseSha256": "8ed94a35be61c92ed56f184bda36c7f2d64e8d491a2339ac406e8308e15f21ca",
+      "candidateSha256": "76a9f104af847b2a16b2bee9daeb3ee58e6dedcaacdf305038bf29ca6d018a78"
+    },
+    {
+      "path": "apps/admin-web/src/features/security/PrivacyViews.test.tsx",
+      "baseSha256": "cacd930e8ed90f6798a1e220239a2ce689e93fad08a33f9a71efcd5158c870a5",
+      "candidateSha256": "fac26029ef42be11f83688f71299563781cc6c98e73fd91f0a2a09c5509982d6"
+    },
+    {
+      "path": "apps/admin-web/src/features/security/PrivacyViews.tsx",
+      "baseSha256": "a1cd096ff38d476a8252ec93cf3d011158608ab9b6cb6410a89d865551dbe695",
+      "candidateSha256": "b5cbc8b96482db9fcd90966c2e7741c9f8fd8f022c7e1a4c4cb5f15d3ec88335"
+    },
+    {
+      "path": "apps/admin-web/src/features/system-health/OperationsViews.test.tsx",
+      "baseSha256": "60ee509c07c65b32de1703798bf62247917342218898f63ed11a32d3b0506567",
+      "candidateSha256": "d474355ee51095f522d0ac52bfde2d642116ad7c85f120de17364f4cfcb7cea6"
+    },
+    {
+      "path": "apps/admin-web/src/features/system-health/OperationsViews.tsx",
+      "baseSha256": "a11287ca30da9b02e8332958df46b372bac4f94e169ea4c5889ec0caff44294e",
+      "candidateSha256": "fa7b91f17da84fb9005240d3bf054bd97fe5d9be73d601a283621e8cfeeb457c"
+    },
+    {
+      "path": "apps/admin-web/src/features/system-health/contracts.ts",
+      "baseSha256": "808d83d425af0080c711b75107e8969ff3c0683ec44b4d2e2eb4927dc335e701",
+      "candidateSha256": "4aa323277338890ebf62beecedc0550cc210252b1fc252d694df51bcc054e2fe"
+    },
+    {
+      "path": "apps/admin-web/src/features/system-health/repository.test.ts",
+      "baseSha256": "8cd3a8c77b2e4745fd2670286b89c2cbdaf334eed8b89d761372c78bfd991735",
+      "candidateSha256": "0d48948967a61e5273b00eed65ed8442e4544533354c83be3c58a617b8f21c83"
+    },
+    {
+      "path": "apps/admin-web/src/mocks/fixtures/overview.ts",
+      "baseSha256": "6d42ecf55b1d10b21426f5906dd31f9b400f04513c8fe6a19f098ba19bfa180a",
+      "candidateSha256": "aedaa32fac6fe645eac4d761184275f8d86fc75cef2b49ff021ff75c515cd33f"
+    },
+    {
+      "path": "apps/admin-web/src/mocks/handlers/overview.ts",
+      "baseSha256": "fd6b61bccc5851a91675a279610156b3a4cef1c682ce245b2abac850af18f8a9",
+      "candidateSha256": "6e469ac56a2a4cb09545c49307ba4cb50b8421b2328832e6551e14950273ed75"
+    },
+    {
+      "path": "apps/admin-web/tests/e2e/production-ui.spec.ts",
+      "baseSha256": null,
+      "candidateSha256": "0bca847218afe7b18f1efa8d719297c3fc9b67891a12c7e4e35316fe763c9123"
+    }
+  ],
+  "runtimeCandidate": {
+    "localPath": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-11-07-dashboard-production/reflow-linux-candidate/masarifi-admin-97ad25515ca283083057f010366516d4cd5931d4.tar.gz",
+    "sha256": "2ee32773b953a04f8a9e4c25b02f024924f99e510a9888460c55091326d9a68a",
+    "bytes": 263559773,
+    "manifestSha256": "fb4fdd40d095ed750d3df50e7c0f359092121f5e7223cedca646355322b69663",
+    "sourceCommit": "97ad25515ca283083057f010366516d4cd5931d4",
+    "adminGitTree": "e7a0af6e67a7bbff2794f882d0aeb59edac77de4",
+    "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+    "buildId": "HpKjKCcL4BG8PJNVU5_VI",
+    "publicConfigurationSha256": {
+      "NEXT_PUBLIC_API_URL": "6b7b580e69f5bf597cf7f8356951e8fb495959b567c87bd68cfc7ee13fc749c9",
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475",
+      "NEXT_PUBLIC_CLIENT_MODE": "247610f4dedd4ab7247d07dbda19c81ca9817f85820742cad49d407ffae9e4ed",
+      "NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT": "e919a75364398a449f860aeadddc57fa0502145a4e63959ddb33c417a48dc0da",
+      "NEXT_PUBLIC_ENABLE_MOCKS": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+    },
+    "runtimeSecretsIncluded": false,
+    "buildNode": "v24.16.0",
+    "buildNpm": "11.17.0",
+    "targetRuntimeNode": "v24.20.0",
+    "targetRuntimeImage": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42364646173",
+    "artifactId": 13570618097,
+    "artifactZipSha256": "af46c077e85664440049bece7e49656f1d12704b3be2c65ba98263fa5ceecab6",
+    "artifactExpiresAt": "2026-11-14T10:37:53Z",
+    "staticProbe": {
+      "path": "/_next/static/HpKjKCcL4BG8PJNVU5_VI/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
+      "expectedStatus": 200
+    }
+  },
+  "candidate": {
+    "name": "masarifi-admin-reflow-97ad2551-20261107",
+    "root": "/opt/masarifi/admin-releases/dashboard-reflow-97ad25515ca2-20261107",
+    "hostPort": 3041,
+    "containerPort": 3040
+  },
+  "observedHosted": {
+    "dashboardOrigin": "https://staging.masarifiratibi.com",
+    "apiOrigin": "https://api.staging.masarifiratibi.com",
+    "clerkOrigin": "https://clerk.staging.masarifiratibi.com",
+    "browserBuildId": "RfJI7jhDb6BdroFc-2TBT",
+    "releaseMarkerHttpStatus": 404,
+    "servingUnit": "masarifi-admin-canonical-721a943b-20261101-01",
+    "artifactSourceCommit": "721a943b72837d3f43a4e4b61bc3ab4cd83738d8",
+    "environmentPin": "995cbca1a1699ad63e532bae6ee6849fb30ce467385cf5e10703e66d3c856cc3",
+    "rollbackArtifactPin": "0e840ba719882dac127fce6ab878a1176159e2c7c3a5e5c199d1d726430f2a39",
+    "containerId": "47ecec2481c32a6cc801498d4681a6acfa0e7f2fb7f627c40cdbf3e7e966cbda",
+    "upstream": "http://127.0.0.1:3040"
+  },
+  "hostReconciliationComplete": true,
+  "protectedScope": [
+    "all mobile source, APK, device identity and sessions",
+    "API and all workers/containers",
+    "all customer financial/private data and pending operations",
+    "current authentication/RBAC/privacy/consent/revision/lease fences",
+    "existing DNS/TLS/nginx routing/runtime environment and old Admin units",
+    "inherited performance files and paused iOS work"
+  ],
+  "verification": {
+    "logoBrowserCases": 20,
+    "locales": [
+      "ar",
+      "en"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "widths": [
+      1440,
+      1280,
+      1024,
+      768,
+      390
+    ],
+    "logoPageErrors": 0,
+    "logoConsoleErrors": 0,
+    "repairedUiRegressionsPassed": 15,
+    "typecheck": 0,
+    "lint": 0,
+    "unitSuite": "Historical1029 behavioral-unit qualification retained. This candidate adds a CSS reflow repair and E2E regression only; no domain/contract changes.",
+    "fullRouteSweep": "Historical106-route inventory/rendering retained. Expanded50 UI/operations tests across5viewports and20 final label reflow combinations pass; fresh hosted available-route/layout acceptance is pending.",
+    "reflowCases": 20,
+    "uiAndOperationsTests": 50,
+    "scope": "Synthetic20-label reflow combinations plus overview/operations across5projects; prior106-route inventory and1029unit evidence retained. Hosted available-route sweep pending."
+  },
+  "blockingGates": [
+    "fresh current host/container/routing/environment/protected-service/resource and pending-work admission",
+    "private canary health, armed rollback watchdog, public/authenticated hosted acceptance"
+  ],
+  "hostBaselineHashEncoding": "canonical LF UTF-8",
+  "hostBaselineSha256": "9ff328810b6e7e938f07ba71f72f511363817c148c4adf6bfae9ca94336ddaf6",
+  "routingCandidateSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+  "anonymousChallenge": {
+    "status": 307,
+    "locationPrefix": "https://accounts.staging.masarifiratibi.com/sign-in"
+  },
+  "brandAssets": [
+    {
+      "path": "/masarifi-brand-2026.png",
+      "sha256": "1e4327e72f4b5921e740e0042a4d4ac150ed01b01c5a2e867e6b02c33cf025ba",
+      "expectedStatus": 200
+    },
+    {
+      "path": "/masarifi-favicon-2026.png",
+      "sha256": "b71681df9a7f683593d19ce2af87fbef019396dead4bb404a18b5875002aaab4",
+      "expectedStatus": 200
+    }
+  ],
+  "operatingDelta": {
+    "newContainer": "masarifi-admin-reflow-97ad2551-20261107",
+    "workspace": "/opt/masarifi/admin-releases/dashboard-reflow-97ad25515ca2-20261107/runtime",
+    "hostPort": "127.0.0.1:3041",
+    "containerPort": 3040,
+    "image": "same immutable image ID; Config.Image represented by its pinned SHA",
+    "environment": "same ordered actual Env cloned only inside Docker socket request in host memory",
+    "limits": "same512MiB/.5CPU, read-only root, bridge network, unless-stopped restart policy",
+    "mounts": "change only two exact HostConfig.Mounts Source roots",
+    "routing": "one existing proxy_pass3040 to3041; deterministic candidate file hash pinned",
+    "rollback": "keep old3040 container/artifact running; original Nginx preimage; independent600-second watcher requires matching PID acknowledgment before acceptance",
+    "oomProtection": "Explicit OomKillDisable=false represents the prior null default; OOM killing stays enabled. Every HostConfig field still compared exactly."
+  }
+}

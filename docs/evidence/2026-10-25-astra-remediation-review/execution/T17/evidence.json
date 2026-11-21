@@ -1,0 +1,32 @@
+{
+  "task": "T17",
+  "batch": "B10",
+  "at": "2026-10-29T09:32:54.299Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B10-assistant-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B10-assistant-2026-10-29/B10-REVIEWED-RESULT.json",
+    "sha256": "36fa7de5f61cb3cd6d122cc6b64fb533f0ba323d6732ff9a6ed622bda44bcf80"
+  },
+  "currentSupplements": [],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T17/evidence.json",
+    "sha256": "d4cc7e7307a2f0b0c89cccd304d5353626de7590002ac6fd960c695afbece59d"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Protected runtime rollout/new exact approval packet; no old approval reuse",
+    "Actual deployed provider receipts/Gulf Arabic/timeout429/multi-turn",
+    "Actual supported preview/reject/cancel/authorized confirm workflow",
+    "Original predecessor/full acceptance",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": []
+}

@@ -1,0 +1,963 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted scoped staging dashboard activation",
+  "url": "https://staging.masarifiratibi.com",
+  "api": "https://api.staging.masarifiratibi.com",
+  "sourceCommit": "97ad25515ca283083057f010366516d4cd5931d4",
+  "adminGitTree": "e7a0af6e67a7bbff2794f882d0aeb59edac77de4",
+  "reviewCommit": "ec90dc7f9ca1d3e145ea57883f3e1c1b91da2a13",
+  "runtimeSha256": "2ee32773b953a04f8a9e4c25b02f024924f99e510a9888460c55091326d9a68a",
+  "buildId": "HpKjKCcL4BG8PJNVU5_VI",
+  "nginxSwitchedAt": "2026-11-07T10:54:39Z",
+  "firstAuthenticatedQueueAcceptedAt": "2026-11-07T10:54:55.537Z",
+  "host": {
+    "observedAt": "2026-11-07T11:03:11.974740+00:00",
+    "candidateId": "8f000b29231bdcf163c7e93a9fb134133a9086e21724c5875beb7de966d943d6",
+    "startedAt": "2026-11-07T10:53:47.852112704Z",
+    "candidateConfigSha256": "64ac98bd53fa012f96e0b77514941106bfd4049e66d3dca8b005a3900d3b79d2",
+    "routingSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "environmentSha256": "995cbca1a1699ad63e532bae6ee6849fb30ce467385cf5e10703e66d3c856cc3",
+    "image": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "restartCount": 0,
+    "oomKilled": false,
+    "original31ContainerDigest": "e15ecf76df2b499f9257800594c003be25119e6668d0f85381137c058bb623d1",
+    "protected30ContainerDigest": "8062ab6a932b5a33371ea12825b970f25dc95a6b13e5f3bd6f7b75e0689d1b62",
+    "watchdogPid": 2390945,
+    "watchdogAcknowledgment": true,
+    "old3040RetainedRunning": true,
+    "rejectedCandidateRetainedStopped": true,
+    "rootLogoutObserved": true,
+    "ownedConsoleClosed": true,
+    "temporarySshFirewallRulesCreated": false
+  },
+  "browser": {
+    "firstQueueCards": 53,
+    "queueApiRows": 53,
+    "realMatrix": [
+      {
+        "width": 1440,
+        "locale": "ar",
+        "theme": "light",
+        "doc": 1425,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1440,
+        "locale": "ar",
+        "theme": "dark",
+        "doc": 1425,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1440,
+        "locale": "en",
+        "theme": "light",
+        "doc": 1425,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1440,
+        "locale": "en",
+        "theme": "dark",
+        "doc": 1425,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1280,
+        "locale": "ar",
+        "theme": "light",
+        "doc": 1265,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1280,
+        "locale": "ar",
+        "theme": "dark",
+        "doc": 1265,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1280,
+        "locale": "en",
+        "theme": "light",
+        "doc": 1265,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1280,
+        "locale": "en",
+        "theme": "dark",
+        "doc": 1265,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1024,
+        "locale": "ar",
+        "theme": "light",
+        "doc": 1009,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1024,
+        "locale": "ar",
+        "theme": "dark",
+        "doc": 1009,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1024,
+        "locale": "en",
+        "theme": "light",
+        "doc": 1009,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 1024,
+        "locale": "en",
+        "theme": "dark",
+        "doc": 1009,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 768,
+        "locale": "ar",
+        "theme": "light",
+        "doc": 753,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 768,
+        "locale": "ar",
+        "theme": "dark",
+        "doc": 753,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 768,
+        "locale": "en",
+        "theme": "light",
+        "doc": 753,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 768,
+        "locale": "en",
+        "theme": "dark",
+        "doc": 753,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 390,
+        "locale": "ar",
+        "theme": "light",
+        "doc": 375,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 390,
+        "locale": "ar",
+        "theme": "dark",
+        "doc": 375,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 390,
+        "locale": "en",
+        "theme": "light",
+        "doc": 375,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      },
+      {
+        "width": 390,
+        "locale": "en",
+        "theme": "dark",
+        "doc": 375,
+        "cards": 53,
+        "clipped": 0,
+        "textOutside": 0,
+        "logoLoaded": true
+      }
+    ],
+    "routeRenders": [
+      {
+        "route": "/admin",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/users",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/support",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/support/tickets",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/support/categories",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/feedback",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/access-requests",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/imports",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/parsers/banks",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/ai",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/system-health",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/system-health/api",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/system-health/database",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/system-health/storage",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/system-health/providers",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/system-health/ai-usage-limits",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/jobs/queues",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/jobs/runs",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/jobs/scheduled",
+        "width": 1440,
+        "status": 200,
+        "doc": 1426
+      },
+      {
+        "route": "/admin/social-media",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/security",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/audit",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/data-requests/exports",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/data-requests/deletions",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/data-requests/retention",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/admin-team",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin/roles",
+        "width": 1440,
+        "status": 200,
+        "doc": 1425
+      },
+      {
+        "route": "/admin/settings",
+        "width": 1440,
+        "status": 200,
+        "doc": 1440
+      },
+      {
+        "route": "/admin",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/users",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/support/tickets",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/imports",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/ai",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/roles",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/settings",
+        "width": 390,
+        "status": 200,
+        "doc": 375
+      },
+      {
+        "route": "/admin/data-requests/deletions",
+        "width": 390,
+        "status": 200,
+        "doc": 390
+      }
+    ],
+    "routeReadResults": [
+      {
+        "route": "/admin",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:56:50.985Z"
+          },
+          {
+            "path": "/api/v1/admin/overview",
+            "status": 200,
+            "at": "2026-11-07T10:56:52.340Z"
+          },
+          {
+            "path": "/api/v1/admin/overview/platform-analytics",
+            "status": 200,
+            "at": "2026-11-07T10:56:52.907Z"
+          },
+          {
+            "path": "/api/v1/admin/overview/activity",
+            "status": 200,
+            "at": "2026-11-07T10:56:53.213Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/users",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:56:56.260Z"
+          },
+          {
+            "path": "/api/v1/admin/users",
+            "status": 200,
+            "at": "2026-11-07T10:56:57.556Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/support",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:57:01.012Z"
+          },
+          {
+            "path": "/api/v1/admin/support/overview",
+            "status": 200,
+            "at": "2026-11-07T10:57:02.662Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/support/tickets",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:57:05.603Z"
+          },
+          {
+            "path": "/api/v1/admin/support/categories",
+            "status": 200,
+            "at": "2026-11-07T10:57:07.651Z"
+          },
+          {
+            "path": "/api/v1/admin/support/tickets",
+            "status": 200,
+            "at": "2026-11-07T10:57:07.714Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/support/categories",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:57:10.304Z"
+          },
+          {
+            "path": "/api/v1/admin/support/categories",
+            "status": 200,
+            "at": "2026-11-07T10:57:11.410Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/feedback",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:57:14.140Z"
+          },
+          {
+            "path": "/api/v1/admin/feedback",
+            "status": 200,
+            "at": "2026-11-07T10:57:15.286Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/access-requests",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:57:18.753Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/imports",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:30.569Z"
+          },
+          {
+            "path": "/api/v1/admin/imports/overview",
+            "status": 200,
+            "at": "2026-11-07T10:58:31.902Z"
+          },
+          {
+            "path": "/api/v1/admin/imports/sessions",
+            "status": 200,
+            "at": "2026-11-07T10:58:32.293Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/parsers/banks",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:35.785Z"
+          },
+          {
+            "path": "/api/v1/admin/parsers/institutions",
+            "status": 200,
+            "at": "2026-11-07T10:58:37.171Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/ai",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:40.450Z"
+          },
+          {
+            "path": "/api/v1/admin/ai/overview",
+            "status": 200,
+            "at": "2026-11-07T10:58:41.939Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:44.924Z"
+          },
+          {
+            "path": "/api/v1/admin/system-health/overview",
+            "status": 200,
+            "at": "2026-11-07T10:58:46.622Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health/api",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:49.459Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health/database",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:53.057Z"
+          },
+          {
+            "path": "/api/v1/admin/recovery",
+            "status": 200,
+            "at": "2026-11-07T10:58:54.914Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health/storage",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:58:58.257Z"
+          },
+          {
+            "path": "/api/v1/admin/recovery",
+            "status": 200,
+            "at": "2026-11-07T10:58:59.233Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health/providers",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:25.764Z"
+          },
+          {
+            "path": "/api/v1/admin/system-health/providers",
+            "status": 200,
+            "at": "2026-11-07T10:59:27.983Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/system-health/ai-usage-limits",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:31.369Z"
+          },
+          {
+            "path": "/api/v1/admin/ai/usage-limits",
+            "status": 200,
+            "at": "2026-11-07T10:59:32.911Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/jobs/queues",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:36.354Z"
+          },
+          {
+            "path": "/api/v1/admin/jobs/queues",
+            "status": 200,
+            "at": "2026-11-07T10:59:38.221Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/jobs/runs",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:41.619Z"
+          },
+          {
+            "path": "/api/v1/admin/jobs/runs",
+            "status": 200,
+            "at": "2026-11-07T10:59:43.086Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/jobs/scheduled",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:45.764Z"
+          },
+          {
+            "path": "/api/v1/admin/jobs/scheduled",
+            "status": 200,
+            "at": "2026-11-07T10:59:47.770Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/social-media",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:50.966Z"
+          },
+          {
+            "path": "/api/v1/admin/settings/mobile.social_links",
+            "status": 200,
+            "at": "2026-11-07T10:59:52.621Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/security",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T10:59:54.805Z"
+          },
+          {
+            "path": "/api/v1/admin/security/events",
+            "status": 200,
+            "at": "2026-11-07T10:59:55.897Z"
+          },
+          {
+            "path": "/api/v1/admin/security/overview",
+            "status": 200,
+            "at": "2026-11-07T10:59:56.620Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/audit",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:21.175Z"
+          },
+          {
+            "path": "/api/v1/admin/audit/events",
+            "status": 200,
+            "at": "2026-11-07T11:00:23.084Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/data-requests/exports",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:26.001Z"
+          },
+          {
+            "path": "/api/v1/admin/privacy/exports",
+            "status": 403,
+            "at": "2026-11-07T11:00:27.532Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/data-requests/deletions",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:30.696Z"
+          },
+          {
+            "path": "/api/v1/admin/privacy/deletions",
+            "status": 403,
+            "at": "2026-11-07T11:00:32.371Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/data-requests/retention",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:34.825Z"
+          },
+          {
+            "path": "/api/v1/admin/retention/policies",
+            "status": 403,
+            "at": "2026-11-07T11:00:35.905Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/admin-team",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:39.485Z"
+          },
+          {
+            "path": "/api/v1/admin/access/admins",
+            "status": 200,
+            "at": "2026-11-07T11:00:41.604Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/roles",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:44.152Z"
+          },
+          {
+            "path": "/api/v1/admin/access/roles",
+            "status": 200,
+            "at": "2026-11-07T11:00:45.150Z"
+          }
+        ]
+      },
+      {
+        "route": "/admin/settings",
+        "responses": [
+          {
+            "path": "/api/v1/admin/access/me",
+            "status": 200,
+            "at": "2026-11-07T11:00:48.212Z"
+          },
+          {
+            "path": "/api/v1/admin/settings/operations.history.retention_days",
+            "status": 200,
+            "at": "2026-11-07T11:00:49.336Z"
+          }
+        ]
+      }
+    ],
+    "navigation": {
+      "backCards": 53,
+      "reloadCards": 53,
+      "anonymous": {
+        "status": 307,
+        "redirectOrigin": "https://accounts.staging.masarifiratibi.com"
+      },
+      "at": "2026-11-07T11:05:32.416Z"
+    },
+    "assets": [
+      {
+        "path": "/masarifi-brand-2026.png",
+        "status": 200,
+        "bytes": 1586998,
+        "sha256": "1e4327e72f4b5921e740e0042a4d4ac150ed01b01c5a2e867e6b02c33cf025ba"
+      },
+      {
+        "path": "/masarifi-favicon-2026.png",
+        "status": 200,
+        "bytes": 10737,
+        "sha256": "b71681df9a7f683593d19ce2af87fbef019396dead4bb404a18b5875002aaab4"
+      },
+      {
+        "path": "/_next/static/HpKjKCcL4BG8PJNVU5_VI/_buildManifest.js",
+        "status": 200,
+        "bytes": 219,
+        "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
+      }
+    ],
+    "pageExceptions": [],
+    "consoleMessages": {
+      "expected403ResourceErrors": 5,
+      "unexpectedErrors": 0,
+      "explanation": "Privacy exports/deletions and retention enforce recent authentication; denial text instructs sign-out/sign-in. No session was revoked or guard bypassed."
+    },
+    "nonReadApiRequestsObserved": [],
+    "actuallyInspected": [
+      "queue1440/ar/dark",
+      "queue390/en/light",
+      "drawer390/ar/dark",
+      "users390/ar/light",
+      "support-tickets390/ar/light",
+      "privacy recent-auth message390/ar/light",
+      "public brand-only crop1440/ar/light"
+    ],
+    "finishedAt": "2026-11-07T11:05:44.090Z",
+    "followup": {
+      "at": "2026-11-07T11:10:48.518Z",
+      "apiTelemetry": "Unavailable volume/error-rate/latency; freshness unknown; confirmed live adapter emits no performance request",
+      "temporarySupportAccess": "Client operation unavailable; no API dispatched; load error and form visible"
+    }
+  },
+  "privateEvidence": {
+    "browserReceiptSha256": "75499261ac5fd2d73f75718efff987d9a2c2f6ec87530485e936a0c280d1d169",
+    "screenshots": 60,
+    "sessionStateHeadersTokensPublished": false,
+    "followupSha256": "a13dd4f3d1fac85cc66b74395059ff0cb60892a794b2c9332fe7484ed4de23ef"
+  },
+  "limits": [
+    "28 actual navigation routes rendered at1440;8 primary routes also at390. This is not106 live routes or every permission/detail/action.",
+    "Temporary support access is not live-integrated: the adapter returns unavailableClientOperation for all live reads/writes. The page shows a load error and retains a form; do not treat it as a usable grant/workspace capability.",
+    "Live API monitoring deliberately returns unavailable metrics and unknown freshness without issuing a performance request; no healthy/zero telemetry claim.",
+    "Privacy/retention reads require the human to reauthenticate privately. The current session and guard remain intact.",
+    "Operational modules retain some English technical UI copy in the Arabic shell; no complete localization claim.",
+    "No real provider/customer write, message, payment, job retry/cancel, account deletion or SQL replay was performed by this dashboard task.",
+    "Billing remains unsupported; no provider added or permission widened.",
+    "Repository-wide CI remains non-green as recorded in reflow-release.md. Scoped Admin/Linux and local UI checks are distinct.",
+    "Host continuity is the exact11:03:11UTC checkpoint. Later independently authorized API/worker/mobile work belongs to its own evidence."
+  ],
+  "protectedWork": "Concurrent published mobile/API commits and inherited performance edits preserved; only owned dashboard release/evidence files staged."
+}

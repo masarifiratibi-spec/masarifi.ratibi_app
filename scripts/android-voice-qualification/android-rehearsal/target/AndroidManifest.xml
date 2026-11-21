@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.masarifi.voicequalification.fixture" android:versionCode="1" android:versionName="bootstrap-fixture-1">
+  <uses-sdk android:minSdkVersion="35" android:targetSdkVersion="35" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application android:name=".TargetApplication" android:appComponentFactory="androidx.core.app.CoreComponentFactory" android:debuggable="false" android:allowBackup="false" android:usesCleartextTraffic="true" android:label="Disposable bootstrap fixture">
+    <!-- Match the archived target's portrait/configuration policy (mask0x00000fb0).
+         Cold-boot configuration delivery must not recreate the positive-control Activity. -->
+    <activity android:name=".TargetActivity" android:exported="true" android:screenOrientation="portrait" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize" />
+    <provider android:name=".TargetProviderOne" android:authorities="com.masarifi.voicequalification.fixture.first" android:exported="false" />
+    <provider android:name=".TargetProviderTwo" android:authorities="com.masarifi.voicequalification.fixture.second" android:exported="false" />
+    <provider android:name=".TargetProviderThree" android:authorities="com.masarifi.voicequalification.fixture.third" android:exported="false" />
+    <provider android:name=".TargetProviderFour" android:authorities="com.masarifi.voicequalification.fixture.fourth" android:exported="false" />
+    <receiver android:name=".ReplacementReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter></receiver>
+  </application>
+</manifest>

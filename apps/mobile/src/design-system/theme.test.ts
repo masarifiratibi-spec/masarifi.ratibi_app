@@ -59,6 +59,68 @@ describe('SPEC-002 theme mapping', () => {
       ).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  it('keeps dark text, status and financial labels readable across cards, insets and dialogs', () => {
+    const { colors } = resolveTheme('dark', 'dark');
+    const foregrounds = [
+      colors.content.primary,
+      colors.content.secondary,
+      colors.content.muted,
+      colors.content.link,
+      ...Object.values(colors.status),
+      colors.financial.income,
+      colors.financial.expense,
+      colors.financial.transfer,
+      colors.financial.refund,
+      colors.financial.savings,
+      colors.financial.debt
+    ];
+    for (const surface of [
+      colors.background,
+      colors.surface,
+      colors.surfaceMuted,
+      colors.surfaces.overlay
+    ]) {
+      for (const foreground of foregrounds) {
+        expect(contrastRatio(foreground, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    expect(
+      contrastRatio(colors.financial.income, colors.financial.incomeSurface)
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(colors.financial.expense, colors.financial.expenseSurface)
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps dark button labels, focus borders and chart series distinguishable', () => {
+    const { colors } = resolveTheme('dark', 'dark');
+    for (const fill of [
+      colors.primary,
+      colors.primaryPressed,
+      colors.accent,
+      colors.status.danger
+    ]) {
+      expect(contrastRatio(colors.textInverse, fill)).toBeGreaterThanOrEqual(
+        4.5
+      );
+    }
+    for (const border of [
+      colors.focus,
+      colors.borders.strong,
+      colors.borders.selected
+    ]) {
+      expect(contrastRatio(border, colors.surface)).toBeGreaterThanOrEqual(3);
+    }
+    for (const series of [...colors.chart.donut, ...colors.chart.line]) {
+      expect(contrastRatio(series, colors.surface)).toBeGreaterThanOrEqual(3);
+    }
+    for (const badge of Object.values(colors.iconBadges).flat()) {
+      expect(
+        contrastRatio(badge.foreground, badge.background)
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
 });
 
 function contrastRatio(foreground: string, background: string): number {

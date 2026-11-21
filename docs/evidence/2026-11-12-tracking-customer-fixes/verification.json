@@ -1,0 +1,269 @@
+{
+  "date": "2026-11-12",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "baseCommit": "5f16177b9ae9fccc804b7a1dfbe72be759b1e269",
+  "scope": {
+    "applicationBuild": false,
+    "deployment": false,
+    "deviceAttached": false,
+    "customerDataMutation": false,
+    "committedOrPushed": false
+  },
+  "mobile": {
+    "success": true,
+    "numPassedTests": 5124,
+    "numFailedTests": 0,
+    "numPassedTestSuites": 623,
+    "numPendingTests": 0
+  },
+  "parser": {
+    "passed": 115,
+    "failed": 0,
+    "log": "C:\\Users\\DELL\\AppData\\Local\\Temp\\masarifi-publish-20261112-parser.log"
+  },
+  "apiTrackingUnit": {
+    "passed": 135,
+    "failed": 0,
+    "suites": 18,
+    "log": "C:\\Users\\DELL\\AppData\\Local\\Temp\\masarifi-publish-final-20261112-api.log",
+    "initialRun": "one corpus wall-clock budget failure; unchanged case and complete suite both passed on rerun"
+  },
+  "native": {
+    "tests": {
+      "exitCode": 0,
+      "tests": 98,
+      "failures": 0,
+      "seconds": 9.467,
+      "log": "final-title-suite\\test.log",
+      "classCounts": [
+        {
+          "class": "com.masarifi.smsinbox.CapturePresentationTest",
+          "tests": 3
+        },
+        {
+          "class": "com.masarifi.smsinbox.DeletedOwnerPurgeTest",
+          "tests": 5
+        },
+        {
+          "class": "com.masarifi.smsinbox.FinancialDiscoveryPolicyTest",
+          "tests": 12
+        },
+        {
+          "class": "com.masarifi.smsinbox.NotificationListenerRecoveryTest",
+          "tests": 21
+        },
+        {
+          "class": "com.masarifi.smsinbox.NotificationQueueTest",
+          "tests": 5
+        },
+        {
+          "class": "com.masarifi.smsinbox.SmsInboxPageTest",
+          "tests": 5
+        },
+        {
+          "class": "com.masarifi.smsinbox.TrackingOwnerPartitionTest",
+          "tests": 1
+        },
+        {
+          "class": "com.masarifi.smsinbox.TrackingOwnerRestoreTest",
+          "tests": 10
+        },
+        {
+          "class": "com.masarifi.smsinbox.TrackingPartitionAdmissionTest",
+          "tests": 28
+        },
+        {
+          "class": "com.masarifi.smsinbox.TrackingSchedulerWakeTest",
+          "tests": 8
+        }
+      ],
+      "classCountMethod": "Non-parameterized @Test inventory matching 98 runtime tests; no @Ignore",
+      "closeGuardWarnings": 80,
+      "backgroundWorkManagerExceptions": 9
+    },
+    "compiledKotlinFiles": 17,
+    "compiler": "Cached Kotlin compiler embeddable 2.1.20",
+    "robolectric": "Cached Robolectric 4.14.1, API 28 instrumented runtime 9-robolectric-4913185-2-i7",
+    "runner": "D:\\CodexTemp\\notification-native-20261112\\run-native-tests.ps1",
+    "log": "D:\\CodexTemp\\notification-native-20261112\\final-title-suite\\test.log",
+    "limitations": [
+      "Gradle task blocked before tests by missing Android SDK; gradle-sdk-blocker.log exit 1",
+      "Final test log contains 80 CloseGuard resource warnings and 9 background WorkManager Illegal connection pointer exceptions; assertions pass but output is not warning-free",
+      "Actual Samsung Wallet notification Bundle/text has not been supplied; package is confirmed, receipt fixture wording is synthetic"
+    ]
+  },
+  "typecheck": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit",
+    "exitCode": 0
+  },
+  "knownProofLimits": [
+    "Actual customer Samsung Wallet notification body/Bundle not supplied; only the source app was confirmed.",
+    "The receipt-format notification fixtures are synthetic, not a live customer purchase.",
+    "No production database or physical-device end-to-end verification.",
+    "Apple Pay wording is tested as an Android receipt; direct iOS cross-app capture is not established.",
+    "Mobile run emitted Expo/React warnings and a worker shutdown warning."
+  ],
+  "sourceSha256": {
+    "packages/transaction-parser/index.js": "272da524656ae6c7b404cde4133ff21a91707ea31a4b7c29d714e965da8cd22e",
+    "packages/transaction-parser/nominal-tracking.js": "e8f3086607c8a4850398f7fe302917f224f77a6a598aa92dfb99d309bcf384df",
+    "packages/transaction-parser/customer-receipts.test.js": "94e417ad3f1f91fde4b4ca251a95a71fd310ebf0e470262c5e85d5ef511af3c2",
+    "apps/mobile/app/security/unlock.tsx": "17d21ecb2e48e90f360012eea3f80d411982b25170c8c3f8ef51006b4058ec61",
+    "apps/mobile/src/features/shell/NativeRootRouting.test.ts": "bdde80bed509c2a187915c8320617c2155746773724d00b1fe0581b61c3ebf24",
+    "apps/mobile/src/features/shell/UnlockRouteNavigation.test.tsx": "b31dd19b5b1e9b80d85b43fb206b22160f516ea3b6c1bea245ef0e2f29086a8f",
+    "apps/mobile/src/features/tracking/sms-import.test.ts": "cdae8f79cbab7d7dd9ef20d90493b9ec37f1cbf01c7313e4f448ca080f137a12",
+    "apps/mobile/src/services/automatic-tracking-coordinator.test.ts": "0409569201b3875a4a523dcd73a951b90e38288d9bb7f7fbb730387b8a06ceb8",
+    "apps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/MasarifiNotificationListenerService.kt": "312b913116e0aac3b4416a2b3b6b76f2c6a3ce327ffda2588c96073209971eb4",
+    "apps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/FinancialDiscoveryPolicy.kt": "699e0e20ffc473ab650390af6bbbfb3509bc8d7d480714c8052aa9607b8becb3",
+    "apps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/NotificationListenerRecoveryTest.kt": "d285c8de898335fb2a15e40876ff9bb9c17cb09247cea1fe09075601dd44eeb8",
+    "apps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/FinancialDiscoveryPolicyTest.kt": "fa215154c7dffb888863d68aa6eb0609a1168cfb5b7677eaaaaa74e90cfdb597"
+  },
+  "references": [
+    "https://developer.android.com/reference/android/app/Notification#EXTRA_TEXT_LINES",
+    "https://developer.android.com/reference/android/app/Notification#EXTRA_TITLE_BIG"
+  ],
+  "stage": "verified_locally_before_commit_and_push",
+  "publicationVerification": {
+    "requestedByUser": true,
+    "sourceFileCount": 32,
+    "sourceHashes": {
+      "apps/mobile/app/security/unlock.tsx": {
+        "sha256": "17d21ecb2e48e90f360012eea3f80d411982b25170c8c3f8ef51006b4058ec61",
+        "gitBlob": "367482ad0c43e8384081df5ed5a7dd39dd31f104"
+      },
+      "apps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/FinancialDiscoveryPolicy.kt": {
+        "sha256": "699e0e20ffc473ab650390af6bbbfb3509bc8d7d480714c8052aa9607b8becb3",
+        "gitBlob": "fa06f942cbe60ffc7f301faf3ed8208936aee8b9"
+      },
+      "apps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/MasarifiNotificationListenerService.kt": {
+        "sha256": "312b913116e0aac3b4416a2b3b6b76f2c6a3ce327ffda2588c96073209971eb4",
+        "gitBlob": "15af5c1ae62cf3be2abe7d09147545de34dea20f"
+      },
+      "apps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/FinancialDiscoveryPolicyTest.kt": {
+        "sha256": "fa215154c7dffb888863d68aa6eb0609a1168cfb5b7677eaaaaa74e90cfdb597",
+        "gitBlob": "3de2c147add96fceed745a774f235656d4d72457"
+      },
+      "apps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/NotificationListenerRecoveryTest.kt": {
+        "sha256": "d285c8de898335fb2a15e40876ff9bb9c17cb09247cea1fe09075601dd44eeb8",
+        "gitBlob": "c75374a38fdba58cd528fa39ad66662b69eff043"
+      },
+      "apps/mobile/src/features/assistant/AssistantConversationView.tsx": {
+        "sha256": "4a3028c531968f632d5a35fd93f18eed7892ec0b7d817aa709b3b3db8919fd89",
+        "gitBlob": "cd4bd79d10c9e684844823998a079ff994b65d2f"
+      },
+      "apps/mobile/src/features/assistant/AssistantFunctionalAcceptance.test.tsx": {
+        "sha256": "ccb13e21453212fada808d2da69685e76a228f38880485431368d28a08b1974e",
+        "gitBlob": "b4d7e10e0395af8edaff9deecae35990c2a3bdbd"
+      },
+      "apps/mobile/src/features/assistant/AssistantFunctionalStatus.tsx": {
+        "sha256": "d09bc190dd5d4df1bbdc26c50a3194fedc0f130b7c326156f8c2d3053e7793e5",
+        "gitBlob": "9f69d7c9b7b74698050f6813fa5c476c6952455b"
+      },
+      "apps/mobile/src/features/assistant/AssistantHomeScreen.tsx": {
+        "sha256": "643977bf6a4a5d0036a34217dd050cea40e21cb56882376fef609c8e68911f5a",
+        "gitBlob": "932ae34d5dee4a2a33d66563435ca2e5f25e9441"
+      },
+      "apps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx": {
+        "sha256": "dc0f5ab45a2deae9dcfadd7842edd0d82e74dcfbd72b79ddcd47f3467e2928d8",
+        "gitBlob": "a3c5a3635c8bd598590f61414005adcafe9acdf2"
+      },
+      "apps/mobile/src/features/assistant/components/AssistantTypingIndicator.tsx": {
+        "sha256": "c9173956fbd8d0d86e9679682a27fee4031c6400339c74454e07e34fe87041f4",
+        "gitBlob": "64f00fb9ba9197f6240fee0ee381180e4ee6b4f9"
+      },
+      "apps/mobile/src/features/assistant/components/UserMessageBubble.tsx": {
+        "sha256": "572e935ab3fb12645c51671d1768fe387bd7aa168f87d492f1977f02b10194c8",
+        "gitBlob": "37680eaa46ff40c125d5f36a9ee68526a00b97ce"
+      },
+      "apps/mobile/src/features/auth/GoogleAuthScreen.test.tsx": {
+        "sha256": "61b17664fed9a4e6b0c8efbea9b75ecf7859818ece04db46e816ed7664e25bb9",
+        "gitBlob": "38be9541bd4d60fe8622a50c40b71ebfcd110523"
+      },
+      "apps/mobile/src/features/auth/LegalDrafts.test.tsx": {
+        "sha256": "af96e54803cdb21da534c36977727b29d7b6e99c172be198df25521b3ccecd00",
+        "gitBlob": "a83dadc97c6453f2acd89c72eacb53f9cbf4745a"
+      },
+      "apps/mobile/src/features/legal/legal-documents.ts": {
+        "sha256": "7580061ee29f400fb5ea19e8b798be6f51c70d7bb462b709c740c45b208e7d3e",
+        "gitBlob": "293128185790dbfa9c6c30b12b9105ef04c3188d"
+      },
+      "apps/mobile/src/features/legal/LegalScreen.tsx": {
+        "sha256": "0ef78e4787c0333dbcab632391939fbbaae01b7b24387176297268a438614371",
+        "gitBlob": "fe00267e1a052c7869d03674cc56bad96d46b118"
+      },
+      "apps/mobile/src/features/legal/privacy.ar.json": {
+        "sha256": "979a9c9b126e9d479b5e60b15844d69bab349a3c2fa491517575a3230477fff0",
+        "gitBlob": "01a2b5658bbac1a485042da478dee58db37c2fa7"
+      },
+      "apps/mobile/src/features/legal/privacy.en.json": {
+        "sha256": "d0cdf990320ad16291ec5cbaa85991fc2ea5e58146815f2c6464c537deb0d73a",
+        "gitBlob": "815067bc02b86075c29c14b4214c494883122302"
+      },
+      "apps/mobile/src/features/legal/RegistrationLegalPreview.tsx": {
+        "sha256": "cd0d10680cdc44bce038f7c723bef0e7dc9dbeb11fa589cba7ca79d680251ed7",
+        "gitBlob": "92cbb65254837757e893d58fd1f14af16227aa1e"
+      },
+      "apps/mobile/src/features/legal/terms.ar.json": {
+        "sha256": "f0861552de3667f14b88a28e81f82c92b83b8739075eea74fc194334be37f8ae",
+        "gitBlob": "d08507235bf147da5f18fcd18715108a195fe7c4"
+      },
+      "apps/mobile/src/features/legal/terms.en.json": {
+        "sha256": "0ea9c304d1977a3b541be2e5ab988947fe01034aba3170adaaefb247e54650af",
+        "gitBlob": "cd375a6a732445ef9cf57e2660c8eaa5443b3c3f"
+      },
+      "apps/mobile/src/features/settings/ApplicationSettingsScreen.tsx": {
+        "sha256": "30cf872a156a141ee9e17405c9516fcd255a00bf2f496678eb025e6be91fa143",
+        "gitBlob": "992cb15eb86cca5d4a042a7ddba9f33bf7d88c72"
+      },
+      "apps/mobile/src/features/settings/ProfileOffline.test.tsx": {
+        "sha256": "5b194f983e374cce0a26dab69a75413d552d094a8a9ecad4a22576363280a414",
+        "gitBlob": "b7dce9b43a3de63c452bd97aa778edc9fee34ef8"
+      },
+      "apps/mobile/src/features/settings/ProfileScreen.tsx": {
+        "sha256": "361cd4426753be1e9457d568cda4a9c9cbb62b61df34c099b73c11ab65c2e0dc",
+        "gitBlob": "69c2e8311b6cf08a3351cdb93d867a733c1eb0a2"
+      },
+      "apps/mobile/src/features/settings/SettingsJourney.test.tsx": {
+        "sha256": "eb4f50a46b8707dda850192f540d763f8e3e5a1d15b391d1265f220aab8f902e",
+        "gitBlob": "437cdaa5f01b1faa98aab1b6cbc8b2ef45fc2b86"
+      },
+      "apps/mobile/src/features/shell/NativeRootRouting.test.ts": {
+        "sha256": "bdde80bed509c2a187915c8320617c2155746773724d00b1fe0581b61c3ebf24",
+        "gitBlob": "4f3ecf0677c1e98bae94feebc37c75a893f664e1"
+      },
+      "apps/mobile/src/features/shell/UnlockRouteNavigation.test.tsx": {
+        "sha256": "b31dd19b5b1e9b80d85b43fb206b22160f516ea3b6c1bea245ef0e2f29086a8f",
+        "gitBlob": "7d2742b885f8e51e4f7c0d490c098a35613353a9"
+      },
+      "apps/mobile/src/features/tracking/sms-import.test.ts": {
+        "sha256": "cdae8f79cbab7d7dd9ef20d90493b9ec37f1cbf01c7313e4f448ca080f137a12",
+        "gitBlob": "6a711c4fe34a9cb07b244ed4a2804f76afa255e1"
+      },
+      "apps/mobile/src/services/automatic-tracking-coordinator.test.ts": {
+        "sha256": "0409569201b3875a4a523dcd73a951b90e38288d9bb7f7fbb730387b8a06ceb8",
+        "gitBlob": "b964e9a51684358a00af75501e800c28539b2013"
+      },
+      "packages/transaction-parser/customer-receipts.test.js": {
+        "sha256": "94e417ad3f1f91fde4b4ca251a95a71fd310ebf0e470262c5e85d5ef511af3c2",
+        "gitBlob": "fd6c45f51530fa8ac80a89a7f8bfcfbcdf656f3b"
+      },
+      "packages/transaction-parser/index.js": {
+        "sha256": "272da524656ae6c7b404cde4133ff21a91707ea31a4b7c29d714e965da8cd22e",
+        "gitBlob": "6748bfff036133d0c6de0536995bf0dbfdedbabc"
+      },
+      "packages/transaction-parser/nominal-tracking.js": {
+        "sha256": "e8f3086607c8a4850398f7fe302917f224f77a6a598aa92dfb99d309bcf384df",
+        "gitBlob": "237efda70867b04eca721670095ac396a03b08fe"
+      }
+    },
+    "mobileLog": "C:/Users/DELL/AppData/Local/Temp/masarifi-publish-final-20261112-mobile.log",
+    "nativeLog": "D:\\CodexTemp\\notification-native-20261112\\publish-recheck\\test.log",
+    "nativeAssertionsPassed": 98,
+    "nativeCloseGuardWarnings": 110,
+    "nativeIllegalConnectionPointerOccurrences": 9,
+    "typecheckExitCode": 0,
+    "lintExitCode": 0,
+    "lintExistingWarnings": 4,
+    "assistantReplyMetadataRacesCovered": 2,
+    "applicationBuildOrDeployment": false
+  }
+}

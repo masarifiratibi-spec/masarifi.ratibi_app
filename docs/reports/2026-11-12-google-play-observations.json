@@ -1,0 +1,93 @@
+{
+  "checkedAtUtc": "2026-11-12T14:12:22.1354659Z",
+  "sourceCommit": "3d38af414ac4fab28dd5a61a9c411be6de7708c4",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "readOnlyReview": true,
+  "newAppBuildPerformed": false,
+  "publicPages": [
+    {
+      "url": "https://masarifiratibi.com/privacy",
+      "httpStatus": 200,
+      "title": "Parked Domain name on Hostinger DNS system",
+      "sha256": "46c687d88f7977878b1ed39fb33f653875a6ab415e6584b4564bce0b888727c5",
+      "approvedConsoleUrlVerified": false
+    },
+    {
+      "url": "https://masarifiratibi.com/terms",
+      "httpStatus": 200,
+      "title": "Parked Domain name on Hostinger DNS system",
+      "sha256": "46c687d88f7977878b1ed39fb33f653875a6ab415e6584b4564bce0b888727c5",
+      "approvedConsoleUrlVerified": false
+    },
+    {
+      "url": "https://masarifiratibi.com/delete-account",
+      "httpStatus": 200,
+      "title": "Parked Domain name on Hostinger DNS system",
+      "sha256": "46c687d88f7977878b1ed39fb33f653875a6ab415e6584b4564bce0b888727c5",
+      "approvedConsoleUrlVerified": false
+    }
+  ],
+  "health": [
+    {
+      "url": "https://api.masarifiratibi.com/health/live",
+      "httpStatus": 200,
+      "status": "ok"
+    },
+    {
+      "url": "https://api.masarifiratibi.com/health/ready",
+      "httpStatus": 200,
+      "status": "ready"
+    }
+  ],
+  "workflowRuns": [
+    {
+      "id": 43225735967,
+      "name": "Voice Private Journal Preparation",
+      "head_sha": "3d38af414ac4fab28dd5a61a9c411be6de7708c4",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43225735967"
+    },
+    {
+      "id": 43225736018,
+      "name": "Staging Client Regression",
+      "head_sha": "3d38af414ac4fab28dd5a61a9c411be6de7708c4",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43225736018"
+    },
+    {
+      "id": 43225735238,
+      "name": "Backend Foundation",
+      "head_sha": "3d38af414ac4fab28dd5a61a9c411be6de7708c4",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43225735238"
+    },
+    {
+      "id": 43225720880,
+      "name": "Staging Client Regression",
+      "head_sha": "3d38af414ac4fab28dd5a61a9c411be6de7708c4",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/43225720880"
+    }
+  ],
+  "mobileJest": {
+    "passed": 5124,
+    "failed": 0,
+    "suites": 623,
+    "workflowRun": 43225735238,
+    "source": "GitHub completed mobile job log"
+  },
+  "nativeDiagnosticArtifact": {
+    "artifactId": 13949487762,
+    "mergeCommit": "e995bdc76a90602f9e528d5a3a513f61987ec09b",
+    "targetSdk": 36,
+    "minSdk": 24,
+    "package": "com.masarifi.mobile",
+    "allowBackup": false,
+    "newSignedAabVerified": false,
+    "diagnosticOnly": true
+  }
+}

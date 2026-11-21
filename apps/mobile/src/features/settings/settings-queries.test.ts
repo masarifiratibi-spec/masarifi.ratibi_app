@@ -1,8 +1,13 @@
 import React, { type PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  notifyManager,
+  QueryClient,
+  QueryClientProvider
+} from '@tanstack/react-query';
 
 import { settingsService } from '@/services/mocks/subscription-settings-service';
+import { useAppShellStore } from '@/state/app-shell';
 import {
   settingsKeys,
   useDeleteLocalData,
@@ -26,9 +31,101 @@ afterAll(() => {
   });
 });
 
+const previousSession = useAppShellStore.getState().session;
 afterEach(() => {
   jest.restoreAllMocks();
+  useAppShellStore.setState({ session: previousSession });
 });
+
+test('security event pages never expose the previous owner cache after switching accounts', async () => {
+  const { wrapper } = queryHarness();
+  const first = {
+    items: [{ id: 'private-owner-a-event' }],
+    nextCursor: null,
+    total: 1
+  };
+  const second = { items: [], nextCursor: null, total: 0 };
+  let complete!: (value: never) => void;
+  const list = jest
+    .spyOn(settingsService, 'listSecurityEvents')
+    .mockResolvedValueOnce(first as never)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+  setOwner('owner-a');
+  const events = renderHook(() => useSecurityEvents(), { wrapper });
+  await waitFor(() =>
+    expect(events.result.current.data?.pages).toEqual([first])
+  );
+
+  act(() => setOwner('owner-b'));
+  expect(events.result.current.data).toBeUndefined();
+  await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+  await act(async () => {
+    complete(second as never);
+  });
+  await waitFor(() =>
+    expect(events.result.current.data?.pages).toEqual([second])
+  );
+  events.unmount();
+});
+
+test('a late security event response cannot populate the previous owner cache after switching', async () => {
+  const { client, wrapper } = queryHarness();
+  let complete!: (value: never) => void;
+  const oldPage = {
+    items: [{ id: 'private-owner-a-event' }],
+    nextCursor: null,
+    total: 1
+  };
+  const newPage = { items: [], nextCursor: null, total: 0 };
+  const list = jest
+    .spyOn(settingsService, 'listSecurityEvents')
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    )
+    .mockResolvedValue(newPage as never);
+  setOwner('owner-a');
+  const events = renderHook(() => useSecurityEvents(), { wrapper });
+  await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+  act(() => setOwner('owner-b'));
+  await act(async () => {
+    complete(oldPage as never);
+  });
+  await waitFor(() =>
+    expect(events.result.current.data?.pages).toEqual([newPage])
+  );
+  expect(
+    client.getQueryData([
+      ...settingsKeys.securityEvents(),
+      { ownerId: 'owner-a' }
+    ])
+  ).toBeUndefined();
+  expect(
+    JSON.stringify(
+      client.getQueriesData({ queryKey: settingsKeys.securityEvents() })
+    )
+  ).not.toContain('private-owner-a-event');
+});
+
+function setOwner(userId: string) {
+  useAppShellStore.setState({
+    session: {
+      userId,
+      method: 'google',
+      status: 'authenticated',
+      restoration: 'restored',
+      issuedAt: 1,
+      expiresAt: 9999999999999
+    }
+  });
+}
 
 test('loads profile, sessions, and security events from the settings service owner', async () => {
   const { wrapper } = queryHarness();

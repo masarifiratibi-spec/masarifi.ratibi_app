@@ -1,0 +1,59 @@
+{
+  "start": {
+    "at": "2026-11-02T07:23:47.479412+00:00",
+    "reset": "2026-09-22T19:34:33.002915+00:00",
+    "roles": [
+      {
+        "oid": "22150",
+        "limit": 20,
+        "config": [
+          "statement_timeout=2s"
+        ]
+      },
+      {
+        "oid": "22152",
+        "limit": 20,
+        "config": [
+          "statement_timeout=2s"
+        ]
+      }
+    ],
+    "voice": {
+      "rows": 48,
+      "calls": 3091157,
+      "total_ms": 212074298.157677
+    },
+    "outbox": {
+      "dead": 0,
+      "live": 545499,
+      "last_autovacuum": "2026-11-02T07:10:13.414814+00:00"
+    },
+    "database_bytes": 435285139
+  },
+  "end": {
+    "at": "2026-11-02T07:25:27.215566+00:00",
+    "reset": "2026-09-22T19:34:33.002915+00:00",
+    "voice": {
+      "rows": 48,
+      "calls": 3091356,
+      "total_ms": 212074567.789115
+    }
+  },
+  "resetUnchanged": true,
+  "acceptedCallsDelta": 199,
+  "totalExecutionMsDelta": 269.6314380168915,
+  "meanExecutionMsDelta": 1.3549318493311129,
+  "returnedRowsDelta": 0,
+  "scope": "live naturally occurring voice lookup only; no baseline-equivalent paired experiment, no p95, no API response claim",
+  "selector": {
+    "predicate": "queryid = 5369764787245921531",
+    "matchingRowsAtMetadataVerification": 1,
+    "userOid": "17673",
+    "databaseOid": "5",
+    "toplevel": true,
+    "queryMd5": "41904f98ca7fa98c26415cc84364e601",
+    "verifiedLookupAndNotDiagnosticStatement": true,
+    "metadataVerifiedAtUtc": "2026-11-02T07:27:33.463278Z",
+    "limitation": "User/database/toplevel metadata verified after the interval; the bounded scalar subquery required one query-id row at both endpoints, but complete identity tuples were not retained at those endpoints."
+  }
+}

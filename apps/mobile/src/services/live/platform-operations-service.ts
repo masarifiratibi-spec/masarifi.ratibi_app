@@ -57,6 +57,7 @@ export class PlatformOperationsUnavailableError extends Error {
 export function createLivePlatformOperationsService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
   token,
+  captureIdentity,
   request = fetch,
   platform = Platform.OS === 'ios' ? 'ios' : 'android',
   appVersion = Constants.expoConfig?.version ?? '1.0.0',
@@ -64,13 +65,15 @@ export function createLivePlatformOperationsService({
   now = Date.now
 }: {
   baseUrl?: string;
-  token: () => Promise<string>;
   request?: typeof fetch;
   platform?: 'ios' | 'android';
   appVersion?: string;
   locale?: 'ar' | 'en';
   now?: () => number;
-}): PlatformOperationsService {
+} & ({ token: () => Promise<string>; captureIdentity?: never } | {
+  token?: never;
+  captureIdentity: () => Promise<{ token: string; assertCurrent: () => Promise<void> }>;
+})): PlatformOperationsService {
   let cached: {
     value: PlatformOperations;
     expiresAt: number;
@@ -82,7 +85,9 @@ export function createLivePlatformOperationsService({
       try {
         const requestedAt = now();
         if (!baseUrl) throw new PlatformOperationsUnavailableError();
-        const bearerToken = await token();
+        const actor = await captureIdentity?.();
+        const bearerToken = actor ? actor.token : await token!();
+        await actor?.assertCurrent();
         const tokenDigest = bytesToHex(
           sha256(new TextEncoder().encode(bearerToken))
         );
@@ -103,6 +108,7 @@ export function createLivePlatformOperationsService({
             }
           }
         );
+        await actor?.assertCurrent();
         if (response.status === 304) {
           if (!cached || !sameSession)
             throw new PlatformOperationsUnavailableError();
@@ -111,6 +117,7 @@ export function createLivePlatformOperationsService({
         }
         if (!response.ok) throw new PlatformOperationsUnavailableError();
         const value = metadataSchema.parse(await response.json());
+        await actor?.assertCurrent();
         cached = {
           value,
           expiresAt: requestedAt + CACHE_TTL_MS,

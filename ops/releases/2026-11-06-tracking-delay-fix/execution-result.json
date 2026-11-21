@@ -1,0 +1,23 @@
+{
+  "status": "installed-physical-response-acceptance-deferred-to-combined-reports-update",
+  "applicationSourceCommit": "12ee32ed129d9ff6695860ddf59e8b002bfea71b",
+  "approvedManifestSha256": "fe8dd6c54f858a05828fc398ec00ffe1802601bbc2ec64d120063d82252f5bd6",
+  "installedVersionCode": 112,
+  "installedApkSha256": "e2d17376d62bed561655c3b02019eab7e5ddd20e075b4bb237d6530ea4e4c11b",
+  "ordinaryOwner0InstallExitCode": 0,
+  "installedAtUtc": "2026-11-05T23:21:34.151021+00:00",
+  "uidAndFirstInstallPreserved": true,
+  "sameOriginalOwnerAndSdkSessionConfirmed": true,
+  "qaTransactions": 28,
+  "qaNetMinor": 0,
+  "qaDefault": false,
+  "originalCashDefault": true,
+  "bothTrackingSourcesOff": true,
+  "keywordCount": 113,
+  "newFinancialFixtureRequested": false,
+  "canonicalDeliveryVersionCode": 111,
+  "hostedChange": false,
+  "sourceChangeAfterBuild": false,
+  "reason": "After112 installed, user added first-open Reports responsiveness and requested combining it before the next update. No112 speed claim; preserve112 artifacts and do not reinstall or repeat its build. Finish Reports correction and qualify the combined next artifact before one final SMS/navigation/Reports acceptance.",
+  "productionReady": false
+}

@@ -3,9 +3,21 @@ import type { Locale } from "./direction";
 
 const labels = {
   status: {
+    deletion_pending: { ar: "قيد الحذف", en: "Deletion pending" },
+    deleted: { ar: "محذوف", en: "Deleted" },
+    unknown: { ar: "غير معروف", en: "Unknown" },
     active: { ar: "نشط", en: "Active" },
     disabled: { ar: "معطل", en: "Disabled" },
     pending: { ar: "معلق", en: "Pending" },
+    closed: { ar: "مغلقة", en: "Closed" },
+    waiting_support: { ar: "بانتظار الدعم", en: "Waiting for support" },
+    waiting_customer: { ar: "بانتظار العميل", en: "Waiting for customer" },
+    low: { ar: "منخفضة", en: "Low" },
+    normal: { ar: "عادية", en: "Normal" },
+    high: { ar: "عالية", en: "High" },
+    urgent: { ar: "عاجلة", en: "Urgent" },
+    clean: { ar: "آمن", en: "Clean" },
+    rejected: { ar: "مرفوض", en: "Rejected" },
     suspended: { ar: "موقوف", en: "Suspended" },
     ready: { ar: "جاهز", en: "Ready" },
     success: { ar: "نجاح", en: "Success" },
@@ -26,6 +38,7 @@ const labels = {
     recovered: { ar: "متعاف", en: "Recovered" },
     open: { ar: "مفتوح", en: "Open" },
     reviewing: { ar: "قيد المراجعة", en: "Reviewing" },
+    planned: { ar: "مخطط لها", en: "Planned" },
     resolved: { ar: "محلول", en: "Resolved" },
     blocked: { ar: "محظور", en: "Blocked" },
     fresh: { ar: "حديث", en: "Fresh" },
@@ -56,6 +69,7 @@ const labels = {
     custom: { ar: "مخصص", en: "Custom" },
   },
   severity: {
+    unknown: { ar: "غير مقاس", en: "Unmeasured" },
     info: { ar: "معلومة", en: "Info" },
     low: { ar: "منخفض", en: "Low" },
     medium: { ar: "متوسط", en: "Medium" },
@@ -75,6 +89,7 @@ const labels = {
     production: { ar: "الإنتاج", en: "Production" },
     staging: { ar: "الاختبار", en: "Staging" },
     development: { ar: "التطوير", en: "Development" },
+    unknown: { ar: "غير محددة", en: "Unknown" },
   },
   action: {
     "security.incident.updated": { ar: "تم تحديث حادث أمني", en: "Security incident updated" },
@@ -100,6 +115,7 @@ const labels = {
 } as const;
 
 const planLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
   Free: { ar: "مجاني", en: "Free" },
   Basic: { ar: "أساسي", en: "Basic" },
   Premium: { ar: "مميز", en: "Premium" },
@@ -109,6 +125,8 @@ const planLabels: Record<string, Record<Locale, string>> = {
 };
 
 const platformLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
+  web: { ar: "الويب", en: "Web" },
   all: { ar: "كل المنصات", en: "All platforms" },
   ios: { ar: "iOS", en: "iOS" },
   android: { ar: "Android", en: "Android" },
@@ -118,6 +136,8 @@ const platformLabels: Record<string, Record<Locale, string>> = {
 };
 
 const countryLabels: Record<string, Record<Locale, string>> = {
+  unknown: { ar: "غير معروف", en: "Unknown" },
+  EG: { ar: "مصر", en: "Egypt" },
   SA: { ar: "السعودية", en: "Saudi Arabia" },
   AE: { ar: "الإمارات", en: "United Arab Emirates" },
 };
@@ -134,6 +154,7 @@ const periodLabels: Record<string, Record<Locale, string>> = {
 };
 
 const navigationLabels: Record<string, Record<Locale, string>> = {
+  "social-media": { ar: "السوشيال ميديا", en: "Social media" },
   platform: { ar: "المنصة", en: "Platform" },
   overview: { ar: "نظرة عامة", en: "Overview" },
   health: { ar: "صحة النظام", en: "System Health" },
@@ -141,12 +162,13 @@ const navigationLabels: Record<string, Record<Locale, string>> = {
   "health-database": { ar: "مراقبة قاعدة البيانات", en: "Database Monitoring" },
   "health-storage": { ar: "مراقبة التخزين", en: "Storage Monitoring" },
   "health-providers": { ar: "صحة المزودين", en: "Provider Health" },
+  "ai-usage-limits": { ar: "حدود استخدام الذكاء الاصطناعي", en: "AI Usage Limits" },
   "system-health": { ar: "صحة النظام", en: "System Health" },
   "jobs-and-queues": { ar: "المهام وقوائم الانتظار", en: "Jobs and Queues" },
   jobs: { ar: "قوائم الانتظار", en: "Queue Overview" },
   "job-runs": { ar: "تشغيلات المهام", en: "Job Runs" },
   "scheduled-jobs": { ar: "المهام المجدولة", en: "Scheduled Jobs" },
-  customers: { ar: "العملاء والإيرادات", en: "Customers and Revenue" },
+  customers: { ar: "العملاء والدعم", en: "Customers and Support" },
   users: { ar: "المستخدمون", en: "Users" },
   "access-requests": { ar: "طلبات الوصول", en: "Access Requests" },
   subscriptions: { ar: "الاشتراكات", en: "Subscriptions" },
@@ -158,11 +180,18 @@ const navigationLabels: Record<string, Record<Locale, string>> = {
   communications: { ar: "التواصل والمحتوى", en: "Communications" },
   "communications-support": { ar: "الدعم", en: "Support" },
   "communications-feedback": { ar: "الملاحظات", en: "Feedback" },
+  "feedback-overview": { ar: "الملاحظات", en: "Feedback" },
   "communications-content": { ar: "المحتوى", en: "Content" },
   "communications-notifications": { ar: "الإشعارات", en: "Notifications" },
   governance: { ar: "الحوكمة", en: "Governance" },
   security: { ar: "الأمن", en: "Security" },
   "audit-logs": { ar: "سجلات التدقيق", en: "Audit Logs" },
+  "data-exports": { ar: "تصدير البيانات", en: "Data Exports" },
+  "data-deletions": { ar: "حذف الحسابات", en: "Account Deletion" },
+  "data-retention": { ar: "الاحتفاظ بالبيانات", en: "Data Retention" },
+  "support-overview": { ar: "نظرة عامة على الدعم", en: "Support Overview" },
+  "support-tickets": { ar: "تذاكر الدعم", en: "Support Tickets" },
+  "support-categories": { ar: "تصنيفات الدعم", en: "Support Categories" },
   "data-requests": { ar: "طلبات البيانات", en: "Data Requests" },
   "admin-team": { ar: "فريق الإدارة", en: "Admin Team" },
   roles: { ar: "الأدوار والصلاحيات", en: "Roles and Permissions" },

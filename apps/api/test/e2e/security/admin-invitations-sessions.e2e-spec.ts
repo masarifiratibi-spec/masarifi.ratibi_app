@@ -14,12 +14,18 @@ describe('Admin invitation and session routes E2E', () => {
         .send({ email: 'admin@example.test' })
         .expect(201);
       await request(app.getHttpServer() as Parameters<typeof request>[0])
+        .post('/api/v1/admin/access/invitations/accept')
+        .set('idempotency-key', 'invite-accept-e2e-1')
+        .send({ token: 'x'.repeat(32) })
+        .expect(200);
+      await request(app.getHttpServer() as Parameters<typeof request>[0])
         .post('/api/v1/admin/access/admins/admin-2/sessions/revoke')
         .set('idempotency-key', 'sessions-e2e-1')
         .send({ revokeAllEligible: true, reason: 'Security response approved', expectedVersion: 1 })
         .expect(200);
       expect(execute.mock.calls.map(([input]) => input.operation)).toEqual([
         'createAdminInvitation',
+        'acceptAdminInvitation',
         'revokeAdminSessions',
       ]);
     } finally {

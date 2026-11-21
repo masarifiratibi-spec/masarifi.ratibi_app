@@ -1,0 +1,176 @@
+{
+  "status": "NOT READY",
+  "compute": {
+    "before": "Nano",
+    "after": "Micro",
+    "memoryGiB": 1,
+    "confirmed": true,
+    "quotedMonthlyDeltaUsd": 0,
+    "beforeMonthlyUsd": 9.68,
+    "afterMonthlyUsd": 9.68,
+    "databaseRestartAtUtc": "2026-11-02T06:49:03.496123Z"
+  },
+  "managedHostMetrics": [
+    {
+      "observedAtUtc": "2026-11-02T07:17:41.722396+00:00",
+      "existingProtectedKeyOnly": true,
+      "newCredentialsCreated": false,
+      "collectorInstalled": false,
+      "httpStatus": 200,
+      "memoryAndSettings": {
+        "node_load5": 0.08,
+        "node_memory_SReclaimable_bytes": 40185856.0,
+        "node_memory_Shmem_bytes": 102387712.0,
+        "node_memory_MemAvailable_bytes": 456826880.0,
+        "node_memory_Buffers_bytes": 8392704.0,
+        "node_memory_Cached_bytes": 504160256.0,
+        "node_memory_MemTotal_bytes": 948191232.0,
+        "node_memory_MemFree_bytes": 21114880.0,
+        "node_load1": 0.09,
+        "node_memory_SwapTotal_bytes": 1073737728.0,
+        "node_memory_SwapFree_bytes": 918368256.0
+      },
+      "aggregateCpuSeconds": {
+        "idle": 3220.3199999999997,
+        "iowait": 33.76,
+        "irq": 0.0,
+        "nice": 0.06,
+        "softirq": 10.5,
+        "steal": 0.41000000000000003,
+        "system": 40.06,
+        "user": 122.87
+      },
+      "memoryAvailablePercent": 48.18
+    },
+    {
+      "observedAtUtc": "2026-11-02T07:22:46.997800+00:00",
+      "existingProtectedKeyOnly": true,
+      "newCredentialsCreated": false,
+      "collectorInstalled": false,
+      "httpStatus": 200,
+      "memoryAndSettings": {
+        "node_memory_Cached_bytes": 468070400.0,
+        "node_memory_MemTotal_bytes": 948191232.0,
+        "node_memory_SwapTotal_bytes": 1073737728.0,
+        "node_memory_SwapFree_bytes": 919900160.0,
+        "node_memory_Buffers_bytes": 6615040.0,
+        "node_memory_MemAvailable_bytes": 416227328.0,
+        "node_memory_SReclaimable_bytes": 40660992.0,
+        "node_load5": 0.07,
+        "node_memory_MemFree_bytes": 29237248.0,
+        "node_load1": 0.02,
+        "node_memory_Shmem_bytes": 105328640.0
+      },
+      "aggregateCpuSeconds": {
+        "idle": 3805.74,
+        "iowait": 35.92,
+        "irq": 0.0,
+        "nice": 0.07,
+        "softirq": 12.379999999999999,
+        "steal": 0.49,
+        "system": 43.97,
+        "user": 135.86
+      },
+      "memoryAvailablePercent": 43.9
+    }
+  ],
+  "managedHostCpuWindow": {
+    "windowStartUtc": "2026-11-02T07:17:41.722396+00:00",
+    "windowEndUtc": "2026-11-02T07:22:46.997800+00:00",
+    "counterDeltaSeconds": {
+      "idle": 585.4200000000001,
+      "iowait": 2.1600000000000037,
+      "irq": 0.0,
+      "nice": 0.010000000000000009,
+      "softirq": 1.879999999999999,
+      "steal": 0.07999999999999996,
+      "system": 3.9099999999999966,
+      "user": 12.990000000000009
+    },
+    "busyPercent": 3.47,
+    "iowaitPercent": 0.36,
+    "notRepresentativeLoadBenchmark": true
+  },
+  "index": {
+    "migrationVersion": "20261101223723",
+    "liveApplied": true,
+    "valid": true,
+    "ready": true,
+    "bytes": 16384,
+    "normalizedSha256": "f3cfc33fb1f267572bf7d1eaee67cc544f24583b0998b07c3c1b3784dea0edbb"
+  },
+  "queueCleanup": {
+    "migrationVersion": "20261102070334",
+    "liveApplied": true,
+    "normalizedSha256": "743db3d66a72cda39ad6a14a31f97cd1d8a3900a5a189c75ba41f7ec0bf64139",
+    "removedIndexBytes": 30179328,
+    "databaseBeforeBytes": 465284243,
+    "databaseAfterBytes": 435170451,
+    "databaseNetReductionBytes": 30113792,
+    "databaseRowsDeleted": 0,
+    "storageObjectsDeleted": 0,
+    "autovacuumScaleFactor": 0.05,
+    "deadTupleEstimateBefore": 95934,
+    "deadTupleEstimateAfter": 0,
+    "lastAutovacuumAtUtc": "2026-11-02T07:10:13.414814Z",
+    "afterSampleAtUtc": "2026-11-02T07:22:28.195307Z"
+  },
+  "operatorConfig": {
+    "exit": 0,
+    "elapsedMs": 706,
+    "tlsVerification": "verify-full",
+    "route": "session_pooler_5432",
+    "schemaMigrationHistoryChanged": false,
+    "results": [
+      {
+        "phase": "before",
+        "atUtc": "2026-11-02T07:22:46.305937+00:00",
+        "roleConfig": [
+          {
+            "role": "masarifi_api_login",
+            "limit": 20,
+            "config": null
+          },
+          {
+            "role": "masarifi_worker_login",
+            "limit": 20,
+            "config": null
+          }
+        ],
+        "membershipFingerprint": "c47ffe096cd56bba3e213241d59cde5e"
+      },
+      {
+        "phase": "after",
+        "atUtc": "2026-11-02T07:22:46.328875+00:00",
+        "roleConfig": [
+          {
+            "role": "masarifi_api_login",
+            "limit": 20,
+            "config": [
+              "statement_timeout=2s"
+            ]
+          },
+          {
+            "role": "masarifi_worker_login",
+            "limit": 20,
+            "config": [
+              "statement_timeout=2s"
+            ]
+          }
+        ],
+        "membershipFingerprint": "c47ffe096cd56bba3e213241d59cde5e"
+      }
+    ],
+    "operatorSqlSha256": "731fbc2c67e3fd841382923e8256cce4686c867344431b6b821bb34cab0c478b"
+  },
+  "membershipFingerprintUnchanged": "c47ffe096cd56bba3e213241d59cde5e",
+  "postgresPatchUpgrade": {
+    "current": "17.6.1.166",
+    "offered": "17.11.0.011",
+    "applied": false,
+    "qualification": "NOT QUALIFIED: isolated target clone did not start; no hosted upgrade performed"
+  },
+  "pendingOperationsProtected": true,
+  "sourceFixesDeployed": false,
+  "allHostedMigrationHistoryReconciled": false
+}

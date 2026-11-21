@@ -17,6 +17,7 @@ const liveTest = process.env.MASARIFI_LIVE_DATABASE_TESTS === '1' ? it : it.skip
 function applicationEnvironment(): NodeJS.ProcessEnv {
   const environment = { ...process.env };
   delete environment.MASARIFI_LIVE_DATABASE_TESTS;
+  delete environment.MASARIFI_SYNC_COMMAND_DATABASE_URL;
   return environment;
 }
 
@@ -51,6 +52,7 @@ function startProcess(
       DATABASE_URL: databaseUrl,
       ...(kind === 'worker'
         ? {
+            MASARIFI_SYNC_COMMAND_DATABASE_URL: process.env.TEST_AI_ROLE_DATABASE_URL,
             EMAIL_SMTP_HOST: 'localhost',
             EMAIL_SMTP_PORT: '465',
             EMAIL_SMTP_USERNAME: 'test-user',

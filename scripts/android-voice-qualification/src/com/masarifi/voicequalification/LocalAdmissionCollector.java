@@ -1,0 +1,112 @@
+package com.masarifi.voicequalification;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+/** Observations only: clean local stores never authorize a real app launch. */
+final class LocalAdmissionCollector {
+    private static final long SAFE_INTEGER=9007199254740991L, WEEK=604800000L;
+    private final String nonce;
+    private final long observedAt,deadline;
+    private final Map<String,long[]> batches=new TreeMap<>();
+    private int financePending,trackingRows;
+    private boolean schemaCurrent=true,legacyCleanup;
+    private int sourceRows;
+    private boolean trackingComplete;
+    private String trackingSources="UNKNOWN",nativeIntake="UNKNOWN";
+    private final boolean launchAdmission;
+    private boolean launchComplete;
+    private int legacySmsRows;
+    private String legacySms="UNKNOWN",nativeContext="UNKNOWN",jsContext="UNKNOWN",privacyEntries="UNKNOWN";
+
+    LocalAdmissionCollector(String nonce,long observedAt,long deadline) {
+        this(nonce,observedAt,deadline,false);
+    }
+    LocalAdmissionCollector(String nonce,long observedAt,long deadline,boolean launchAdmission) {
+        require(nonce!=null && nonce.matches("[0-9a-f]{64}"));
+        require(observedAt>=0 && deadline>observedAt && deadline<=SAFE_INTEGER && deadline-observedAt<=600000);
+        this.nonce=nonce;this.observedAt=observedAt;this.deadline=deadline;
+        this.launchAdmission=launchAdmission;
+    }
+    void owner(String owner,int schemaVersion,boolean cleanupPending) {
+        require(owner!=null && owner.matches("[0-9a-f]{64}"));
+        require(!batches.containsKey(owner) && batches.size()<1024);
+        batches.put(owner,new long[2]);schemaCurrent &= schemaVersion==16;legacyCleanup |= cleanupPending;
+    }
+    void legacyPresent(){legacyCleanup=true;}
+    void batch(String owner,boolean terminal,boolean audioOwned,long recordedAt) {
+        require(batches.containsKey(owner) && recordedAt>=0 && recordedAt<=SAFE_INTEGER);
+        if(!terminal || audioOwned)return;
+        long[] counts=batches.get(owner);require(++counts[0]<=1024);
+        if(recordedAt<deadline-WEEK)counts[1]++;
+    }
+    long prunableBatches() {
+        long total=0;
+        for(long[] counts:batches.values())total+=counts[1]+Math.max(0,counts[0]-counts[1]-100);
+        return total;
+    }
+    void finance(String status) {
+        require(Set.of("pending","sending","applied","conflict","rejected").contains(status));
+        if(status.equals("pending") || status.equals("sending"))financePending++;
+    }
+    void tracking(String id,String payload) {
+        require("singleton".equals(id));
+        try {require(StrictJson.parse(payload) instanceof Map<?,?>);}
+        catch(RuntimeException invalid){throw failure();}
+        // Any stored Tracking state blocks admission until its semantics are independently qualified.
+        trackingRows++;
+    }
+    void sourceRow(String key,String value) {
+        require(!trackingComplete);
+        if(launchAdmission && "masarifi.tracking.smsImportQueue.v1".equals(key)) {
+            require(++legacySmsRows==1 && value!=null);
+        }
+        if(!"masarifi.tracking.sources.v1".equals(key))return;
+        require(++sourceRows==1 && value!=null);
+        trackingSources=TrackingAdmissionClassifier.sourceState(value);
+    }
+    /** Call only after the full store walk and opt-in native snapshot capture. */
+    void completeTracking(byte[] nativeXml) {
+        require(!trackingComplete);
+        if(sourceRows==0)trackingSources=TrackingAdmissionClassifier.sourceState(null);
+        nativeIntake=TrackingAdmissionClassifier.nativeState(nativeXml);
+        trackingComplete=true;
+    }
+    boolean launchAdmissionRequested(){return launchAdmission;}
+    /** Only after the complete stable store walk and validated preference index. */
+    void completeLaunch(SecureStoreKeyIndex index,byte[] nativeXml) {
+        require(launchAdmission && trackingComplete && !launchComplete && index!=null);
+        legacySms=legacySmsRows==0?"ABSENT":"PRESENT";
+        nativeContext=TrackingAdmissionClassifier.nativeContextState(nativeXml);
+        jsContext=index.launchJsOwnerContext();privacyEntries=index.launchPrivacyEntries();
+        launchComplete=true;
+    }
+    Map<String,String> receipt() {
+        Map<String,String> result=new TreeMap<>();
+        result.put("admissionVersion",launchAdmission?"3":"2");result.put("admissionNonce",nonce);
+        result.put("admissionObservedAt",Long.toString(observedAt));result.put("admissionDeadline",Long.toString(deadline));
+        result.put("admissionVerdict","BLOCKED_EXTERNAL_ASSURANCES_REQUIRED");
+        boolean clean=!batches.isEmpty() && schemaCurrent && !legacyCleanup && prunableBatches()==0 && financePending==0 && trackingRows==0
+                && trackingComplete && trackingSources.equals("INACTIVE") && nativeIntake.equals("INACTIVE");
+        if(launchAdmission)clean &= launchComplete && legacySms.equals("ABSENT") && nativeContext.equals("ABSENT")
+                && jsContext.equals("ABSENT") && privacyEntries.equals("ABSENT");
+        result.put("admissionLocalStatus",clean?"OBSERVED_NO_LOCAL_BLOCKER":"BLOCKED");
+        result.put("admissionPrunableBatches",Long.toString(prunableBatches()));
+        result.put("admissionFinancePending",Integer.toString(financePending));result.put("admissionTrackingRows",Integer.toString(trackingRows));
+        result.put("admissionSchemaCurrent",Boolean.toString(schemaCurrent && !batches.isEmpty()));
+        result.put("admissionLegacyCleanup",Boolean.toString(legacyCleanup));
+        result.put("admissionTrackingSources",trackingComplete?trackingSources:"UNKNOWN");
+        result.put("admissionNativeIntake",trackingComplete?nativeIntake:"UNKNOWN");
+        if(launchAdmission) {
+            result.put("admissionLegacySmsQueue",launchComplete?legacySms:"UNKNOWN");
+            result.put("admissionNativeOwnerContext",launchComplete?nativeContext:"UNKNOWN");
+            result.put("admissionJsOwnerContext",launchComplete?jsContext:"UNKNOWN");
+            result.put("admissionPrivacyEntries",launchComplete?privacyEntries:"UNKNOWN");
+        }
+        require(result.toString().length()<=16384);
+        return result;
+    }
+    static void require(boolean condition){if(!condition)throw failure();}
+    private static IllegalStateException failure(){return new IllegalStateException("ADMISSION_INPUT");}
+}

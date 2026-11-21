@@ -1,4 +1,6 @@
 import React from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -10,12 +12,16 @@ import {
   GroupedList,
   NavigationRow
 } from '@/design-system/components/navigation/GroupedList';
-import type { Account, Category } from '@/domain/core-finance';
+import {
+  isConfirmedTransaction,
+  type Account,
+  type Category
+} from '@/domain/core-finance';
 import {
   useAccounts,
   useCategories,
-  useRemainingRefundableMinor,
-  useTransaction
+  useTransaction,
+  useRemainingRefundableMinor
 } from '@/features/core-finance/core-finance-queries';
 import { currentLocale, translate } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
@@ -28,12 +34,9 @@ export function TransactionDetailScreen({ id }: { id: string }) {
   const theme = useTheme();
   const query = useTransaction(id);
   const originalQuery = useTransaction(query.data?.originalTransactionId ?? '');
-  const refundCandidate =
-    query.data?.type === 'expense' &&
-    query.data.status === 'posted' &&
-    query.data.reviewStatus !== 'required' &&
-    query.data.syncStatus !== 'conflict';
-  const refundable = useRemainingRefundableMinor(id, refundCandidate);
+  const eligibleExpense =
+    query.data?.type === 'expense' && isConfirmedTransaction(query.data);
+  const refundable = useRemainingRefundableMinor(id, eligibleExpense);
   const accounts = useAccounts(true);
   const categories = useCategories(true);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
@@ -45,7 +48,7 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         title={translate('coreFinance.state.loading')}
       />
     );
-  if (query.isError)
+  if (query.isError && !hasReadableSnapshot(query))
     return (
       <StateView
         state="error"
@@ -82,9 +85,9 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         : item.type === 'refund'
           ? 'refund'
           : 'expense';
-  const refundEligible = refundCandidate && (refundable.data ?? 0) > 0;
   return (
     <ScrollView contentContainerStyle={styles.stack}>
+      <FinancialRefreshStatus query={query} />
       <SurfaceCard>
         <View style={styles.stack}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
@@ -156,16 +159,23 @@ export function TransactionDetailScreen({ id }: { id: string }) {
         variant="secondary"
         onPress={() => router.push(`/transactions/${id}/edit`)}
       />
-      {refundEligible ? (
+      {eligibleExpense && (refundable.data ?? 0) > 0 ? (
         <ActionButton
           label={translate('coreFinance.type.refund')}
           variant="secondary"
           onPress={() =>
-            router.push(`/(tabs)/add?type=refund&originalTransactionId=${id}`)
+            router.push({
+              pathname: '/(tabs)/add',
+              params: {
+                type: 'refund',
+                originalTransactionId: item.id,
+                accountId: item.accountId
+              }
+            })
           }
         />
       ) : null}
-      <TransactionActions transaction={item} />
+      <TransactionActions transaction={item} variant="delete-only" />
     </ScrollView>
   );
 }

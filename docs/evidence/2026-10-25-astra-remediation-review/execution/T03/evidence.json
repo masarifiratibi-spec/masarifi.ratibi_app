@@ -1,0 +1,291 @@
+{
+  "taskId": "T03",
+  "status": "BLOCKED",
+  "model": {
+    "implementer": "gpt-6.1-sol",
+    "effort": "high",
+    "accessVerified": true,
+    "approvedSubstitution": {
+      "original": "gpt-5.1",
+      "approved": "gpt-6.1-sol",
+      "effort": "high",
+      "authorization": "explicit user reply,2026-10-25"
+    },
+    "reviewer": "gpt-6-astra",
+    "reviewerEffort": "high",
+    "delegationRoute": "native agent; CLI requested model rejected"
+  },
+  "workspace": {
+    "path": "D:/Masarifi-integration-2026-10-10",
+    "branch": "codex/voice-promoted-operating-2026-10-13",
+    "sourceCommit": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+    "dirtyDiffSha256": "3927DB62C583968B1DCB1A7AD7054069B37BCF0666697FA1D66BA8C32103D261",
+    "preservedBaselineVerified": true,
+    "sourceFileHashManifest": {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest.json",
+      "sha256": "53C276C3CAA82C9ACBD639B7FC08E41B5A32A1863B99B017CDAAC5CD7D197E62",
+      "includesTrackedChanges": true,
+      "includesUntrackedSource": true
+    }
+  },
+  "scope": {
+    "acceptanceIds": [
+      "T03",
+      "D057",
+      "ISSUE013"
+    ],
+    "approvedQaOwnerReference": "Existing current account; named synthetic QA record only; owner credentials/identifiers not captured",
+    "approvedFinancialWrites": [
+      "Finite reversible note edit on QA-20261025-EXPENSE-20 in QA-20261025-DEV-SAR; original empty note restoration still owed"
+    ],
+    "approvedHostedTarget": "https://api.staging.masarifiratibi.com normal approved QA-note app APIs only",
+    "implementationFiles": [
+      "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "apps/mobile/src/features/transactions/TransactionForm.tsx",
+      "apps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+      "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx",
+      "apps/mobile/src/localization/messages/ar.ts",
+      "apps/mobile/src/localization/messages/en.ts",
+      "apps/mobile/src/services/core-finance-runtime.ts",
+      "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "apps/mobile/src/services/live/core-finance-service.ts",
+      "apps/mobile/src/services/mocks/core-finance-selector.test.ts",
+      "apps/mobile/src/storage/core-finance-draft-storage.ts",
+      "apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts",
+      "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "apps/mobile/src/storage/core-finance-repository.ts",
+      "apps/mobile/src/storage/transaction-edit-journal.ts"
+    ]
+  },
+  "automatedChecks": [
+    {
+      "failed": 1,
+      "detail": "One existing form test5000ms timeout under host load; not reclassified",
+      "passed": 314,
+      "result": "historical failure",
+      "name": "Combined relevant suites",
+      "log": "final-jest.log"
+    },
+    {
+      "passed": 113,
+      "failed": 0,
+      "name": "Final affected Form suite after saved-receipt freeze",
+      "result": "passed",
+      "log": "final-form-freeze.log"
+    },
+    {
+      "passed": 49,
+      "failed": 0,
+      "name": "Final relevant Voice suite after SDK fixture correction",
+      "result": "passed",
+      "log": "final-voice-rerun.log"
+    },
+    {
+      "exitCode": 0,
+      "name": "TypeScript",
+      "result": "passed",
+      "log": "typecheck-complete.log"
+    },
+    {
+      "files": 1209,
+      "name": "Core-finance boundaries",
+      "result": "passed",
+      "log": "final-core-boundaries.log"
+    },
+    {
+      "log": "final-eslint.log",
+      "errors": 0,
+      "name": "ESLint",
+      "result": "passed with warnings",
+      "warnings": 8
+    },
+    {
+      "name": "Prettier",
+      "result": "passed matched whole files; new ranges formatted in existing unformatted test suites",
+      "log": "final-format-check.log"
+    },
+    {
+      "name": "Code/test guards",
+      "result": "self-review complete; independent review pending"
+    },
+    {
+      "name": "Correction round1 final six relevant suites",
+      "result": "passed",
+      "suites": 6,
+      "passed": 310,
+      "failed": 0,
+      "seconds": 33.377,
+      "serial": true,
+      "log": "final-correction-suites-round1.log"
+    },
+    {
+      "name": "Correction round1 type/core/lint/format/whitespace",
+      "result": "passed",
+      "typeExit": 0,
+      "coreFiles": 1209,
+      "lintErrors": 0,
+      "lintWarnings": 4,
+      "lintScope": "six correction files",
+      "logs": [
+        "typecheck-final-round1.log",
+        "core-boundaries-final-round1.log",
+        "eslint-final-round1.log",
+        "format-final-round1.log"
+      ]
+    },
+    {
+      "name": "Correction round2 full affected live service suite",
+      "result": "passed",
+      "suites": 1,
+      "passed": 106,
+      "failed": 0,
+      "seconds": 4.107,
+      "serial": true,
+      "log": "final-live-suite-round2.log"
+    },
+    {
+      "name": "Correction round2 type/core/lint/format/whitespace",
+      "result": "passed",
+      "typeExit": 0,
+      "coreFiles": 1209,
+      "lintErrors": 0,
+      "lintWarnings": 3,
+      "lintScope": "two correction files",
+      "logs": [
+        "typecheck-final-round2.log",
+        "core-boundaries-final-round2.log",
+        "eslint-final-round2.log",
+        "format-final-round2.log"
+      ]
+    }
+  ],
+  "physicalDevice": {
+    "required": true,
+    "serial": "f66a40694eca",
+    "model": "Xiaomi23076RN8DY",
+    "androidVersion": "15",
+    "pageSizeBytes": 4096,
+    "adbStateAtExecution": "device",
+    "applicability": "assess mobile impact before dispatch; required for every mobile-affecting task",
+    "nonApplicableReason": null
+  },
+  "appArtifact": {
+    "package": "com.masarifi.mobile.dev",
+    "versionName": "0.0.1",
+    "versionCode": 1,
+    "apkSha256": "5aa443428e94789d870b3d9514459091a6c94071529bd00c61da5dbfbfd011bf",
+    "certificateSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+    "sourceCommit": null,
+    "metroBundleSource": "Candidate base e7ad90e8+dirty manifest via existing DEV/USB8081 Metro; historical launch build source flag5aa1267d is not current candidate provenance",
+    "installedAt": null
+  },
+  "runtime": {
+    "apiRevision": "Parent public read-only /health/live: a488f4adbf8f291ea49b09940baf5cdb4fe5f0e7; not worker/schema evidence",
+    "schemaRevision": null,
+    "providerReceiptReferences": [],
+    "publishedPolicyRevision": null,
+    "flags": {
+      "parentReadOnlyWorkerState": "Hostinger VPS2006836 masarifi-staging-worker-1 Created, not Running; API/analysis-worker Running; no worker actions"
+    }
+  },
+  "userJourneys": [
+    {
+      "at": "~14:32 Riyadh",
+      "scope": "access restoration only; no more PIN tests; T02 long-stage exceptions unchanged",
+      "name": "Natural lock expiry and ordinary existing-PIN access",
+      "result": "observed pass"
+    },
+    {
+      "financialFieldsUnchanged": true,
+      "note": "QA-T03-WARM-20261025",
+      "name": "Warm offline note save",
+      "result": "durable pending observed"
+    },
+    {
+      "at": "15:51-15:52 Riyadh",
+      "name": "Cold offline restart/PIN/cache",
+      "result": "observed pass for unchanged cold/Voice repair",
+      "latestFormFreeze": "later automated-only; no later phone write"
+    },
+    {
+      "operationId": "10de16e6-a966-41b4-a583-1716314b285b",
+      "lastObservedStatus": "received",
+      "name": "Hosted application/exactly one accepted result",
+      "result": "BLOCKED",
+      "workerAttemptCount": 0
+    },
+    {
+      "secondEditPerformed": false,
+      "originalNote": null,
+      "name": "Original note restoration",
+      "result": "BLOCKED"
+    },
+    {
+      "name": "Second supported edit from cold-local entry",
+      "result": "NOT_RUN because original warm outcome unresolved; not an accepted testing exception"
+    }
+  ],
+  "evidence": {
+    "screenshots": [
+      "warm-pending-note.png",
+      "offline-cold-protected.png",
+      "fixed-offline-cold-pin.png",
+      "fixed-cold-durable-note.png"
+    ],
+    "redactedAdbLogs": [],
+    "redactedApiTraces": [
+      "safe-runtime-diagnostics.json",
+      "Root read-only staging worker metadata in report,2026-10-25T13:02:26.963582Z"
+    ],
+    "reproductionSteps": [],
+    "observedResults": [
+      "First physical save exposed nested database lifecycle deadlock; repaired with supplied transaction reader and zero-write race regression",
+      "Cold Voice recovery expired admitted local owner; narrow deferred automatic recovery and stale-mode fences repaired",
+      "Same immutable operation received only, unclaimed; no recorded sync scheduler progress sinceOct4",
+      "Parent read-only existing Hostinger Docker inventory confirmed general staging worker Created, not Running; binary/config readiness unverified; no activation",
+      "Round1: per-resource durable queue blocks fresh PATCH after reconnect/reconstruction; supplied exclusive tx closes late-queue race",
+      "Round1: automatic receipt follow-up cancels on background/inactive, cleans timers/listeners, foreground reuses operation/payload with fresh batch key",
+      "Round1: exact acknowledged cached receipt persists atomically before journal cleanup; newer cache version preserved; uncached detail stays online-readable",
+      "Round2 public red17 submissions under persistent received +1.1s durable writes; explicit budget now max4 per invocation, same operation resumes later, ordinary applied5batch uploads unaffected"
+    ],
+    "cleanupAndRestoredSettings": [
+      "WiFiON/mobileOFF restored; Arabic/biometricsOFF/immediate lock unchanged",
+      "One unresolved QA note operation preserved; original empty note not yet restored",
+      "No queue erasure/manual unrelated drain/account change/security reset",
+      "Task-only /sdcard/t03-*.xml temporary UI dumps removed",
+      "Metro same configuration restarted as authorized maintenance; no reinstall/new flags",
+      "Correction round1 performed no phone or hosted actions; existing pending QA operation untouched; design-only worker proposal not implemented",
+      "Correction round2 performed no phone/host/QA/worker actions; runner tooling not implemented"
+    ]
+  },
+  "independentReview": {
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "codeDecision": "request_changes_round_2",
+    "requirementsDecision": "blocked",
+    "automatedCheckDecision": "not_run",
+    "physicalDeviceEvidenceDecision": "not_run",
+    "regressions": [],
+    "overallDecision": "pending_final_delta_review",
+    "reviewedManifestSha256": "92BDA8B150E31BBE1584810E058FDCEB87CEA5DE0E395EBCE6922FD012CDDEDD",
+    "currentCandidateReview": "not_run",
+    "resolvedByRound2Review": [
+      "durable per-resource queue authority",
+      "receipt lifecycle cancellation and cleanup",
+      "acknowledged cache consistency/version preservation/uncached detail"
+    ]
+  },
+  "blockers": [
+    "Hosted operation received/unclaimed with attempt_count0; no recorded scheduler progress since Oct4. Parent read-only Hostinger inventory directly observed general staging worker Created, not Running; activation unauthorized and may drain unrelated backlog",
+    "Applied result/exactly-one effect and original empty-note restoration unverified",
+    "No second cold edit permitted until pending warm operation reconciled",
+    "Independent Astra review pending"
+  ],
+  "completion": {
+    "automatedChecksPassed": true,
+    "requiredPhysicalUserJourneysPassed": false,
+    "independentAstraReviewPassed": false,
+    "acceptedAt": null,
+    "notApplicableCriteria": []
+  }
+}

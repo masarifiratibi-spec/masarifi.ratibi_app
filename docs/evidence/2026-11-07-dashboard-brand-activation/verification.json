@@ -1,0 +1,87 @@
+{
+  "sourceCommit": "abd641d1032654298f0c94a99d8ed73ce3cea712",
+  "runtimeBuildId": "tVR-q9gIlaCqW_hSYBwNT",
+  "runtimeSha256": "31d4347333007fcdb5812118032714ca0a0533146acd79afeeb1e29e1c85660a",
+  "runtimeBytes": 263597364,
+  "linuxCiRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42358370867",
+  "linuxCiJobId": 128361301747,
+  "linuxCiJobConclusion": "success",
+  "backendImageJob": "skipped",
+  "privateScope": "Synthetic screenshots/logs and authenticated raw traces remain ignored; no customer records, tokens or private Env published.",
+  "receipts": [
+    {
+      "command": "tsc --noEmit",
+      "exitCode": 0,
+      "privateLog": "logo-typecheck.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "eslint .",
+      "exitCode": 0,
+      "privateLog": "logo-lint.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "local Playwright branding matrix",
+      "exitCode": 0,
+      "privateLog": "logo-browser.log",
+      "logSha256": "2fc2ab4a284bbdba766ecfab0080fa3c4945f366f836668a0397fabc2d481fc4",
+      "passed": 20
+    },
+    {
+      "command": "five-project repaired UI regressions",
+      "exitCode": 0,
+      "privateLog": "logo-regressions.log",
+      "logSha256": "aa59da9b42a6396fdb18da5cfd923825b52319e47c4063dc0314bb05098207df",
+      "passed": 15
+    },
+    {
+      "command": "exact source/Linux runtime verification",
+      "exitCode": 0,
+      "privateLog": "logo-final-packet-verify.log",
+      "logSha256": "d1cdb793975c67fe919d5ab191127cb6005695ec43d03f7fb8ec711fc6c502fe",
+      "sourceFiles": 20
+    },
+    {
+      "command": "offline host/rollback acknowledgment safety tests",
+      "exitCode": 0,
+      "privateLog": "logo-host-tests.log",
+      "logSha256": "eab3c49e24033159a3f78108afbac1e456896f942eb9d3c54b068800ce10b914",
+      "passed": 14
+    }
+  ],
+  "localBrandingMatrix": 20,
+  "liveBefore": {
+    "receipt": "preactivation-pending-work",
+    "httpStatus": 200,
+    "rows": 53,
+    "partial": false,
+    "freshness": {
+      "state": "fresh",
+      "staleAt": "2026-11-07T09:57:30.059301+00:00",
+      "observedAt": "2026-11-07T09:56:30.059301+00:00"
+    },
+    "counters": {
+      "active": {
+        "sum": 0,
+        "unknownRows": 0
+      },
+      "waiting": {
+        "sum": 2,
+        "unknownRows": 0
+      },
+      "failed": {
+        "sum": 0,
+        "unknownRows": 0
+      }
+    },
+    "actionsPerformed": "GET only; no retry/cancel/dispatch/customer mutation"
+  },
+  "limits": [
+    "No hosted candidate process/ingress/authenticated acceptance at this pre-execution checkpoint",
+    "Prior1029 unchanged unit cases and106-route rendering evidence reused",
+    "One preactivation API503 was followed by authenticated200; retained as a transient backend observation",
+    "Shared API/mobile/database CI issues remain distinct; no guard rules weakened",
+    "Current Android129/Final_2.apk and paused iOS work untouched"
+  ]
+}

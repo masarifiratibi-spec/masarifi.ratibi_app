@@ -1,3 +1,6 @@
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { StyledText } from '@/components/StyledText';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import React from 'react';
 import { PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -10,15 +13,10 @@ import Svg, {
 } from 'react-native-svg';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { StateView } from '@/design-system/components/feedback/StateView';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { DesignIcon } from '@/design-system/icons';
-import {
-  colorTokens,
-  elevation,
-  radius,
-  spacing,
-  typography
-} from '@/design-system/tokens';
+import { colorTokens, elevation, spacing } from '@/design-system/tokens';
 import type { Calculation } from '@/domain/financial-planning';
 import type { MoneyValue } from '@/domain/core-finance';
 import { localDateInTimeZone } from '@/domain/financial-period';
@@ -36,7 +34,15 @@ import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { formatMinorAmount } from '@/utils/format-financial-value';
-import { useSalaryOverview } from './salary-queries';
+import { PlanningArchiveAction } from '@/features/financial-planning/PlanningArchiveAction';
+import { useSalaryOverview, useSalaryProfile } from './salary-queries';
+
+function SalaryArchiveAction({ id }: { id: string }) {
+  const profile = useSalaryProfile();
+  const item = profile.data;
+  if (profile.isError || !item || item.id !== id || item.status === 'archived') return null;
+  return <PlanningArchiveAction kind="salary" id={id} version={item.version} name={item.sourceName} />;
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 
@@ -85,11 +91,25 @@ export function SalaryOverviewScreen() {
   const largeText = PixelRatio.getFontScale() >= 1.25;
 
   const data = query.data;
-  const money = (calc: Calculation<MoneyValue>) =>
-    formatMoney(calc, hideBalances, revealed);
-  const nextSalaryDate = data?.projectedNextSalaryDate
-    ? formatLocalDate(data.projectedNextSalaryDate, locale)
-    : translate('planning.conflict.valueUnavailable');
+  const pending = !data && (query.isPending || query.isLoading);
+  const needsSetup =
+    data !== undefined && data.dataState !== 'offline' && !data.profileId;
+  const offlineWithoutProfile = data?.dataState === 'offline' && !data.profileId;
+  const readFailed = !pending && (!hasReadableSnapshot(query) || (offlineWithoutProfile && query.isError));
+  const retryRead = () => { void query.refetch({ cancelRefetch: false }); };
+  const money = (calc?: Calculation<MoneyValue>) =>
+    calc === undefined
+      ? '—'
+      : needsSetup
+        ? '0'
+        : formatMoney(calc, hideBalances, revealed);
+  const nextSalaryDate = !data
+    ? '—'
+    : needsSetup
+      ? '0'
+      : data.projectedNextSalaryDate
+        ? formatLocalDate(data.projectedNextSalaryDate, locale)
+        : translate('planning.conflict.valueUnavailable');
 
   return (
     <PlanningScreen
@@ -97,24 +117,63 @@ export function SalaryOverviewScreen() {
       backgroundColor={theme.colors.surfaces.page}
       hideHeader
     >
-      {query.isLoading ? (
-        <PlanningState state="loading" />
-      ) : query.isError || !data ? (
-        <PlanningState state="error" onRetry={() => void query.refetch()} />
-      ) : data.dataState === 'empty' && !data.profileId ? (
-        <SalaryEmptyState direction={direction} theme={theme} />
+      {readFailed ? (
+        <PlanningState state="error" onRetry={retryRead} />
+      ) : offlineWithoutProfile ? (
+        <StateView
+          state="offline"
+          title={translate('planning.salary.offlineWithoutProfile')}
+          actionLabel={translate('planning.action.retry')}
+          onAction={retryRead}
+        />
       ) : (
-        <View style={styles.screenStack}>
+        <View style={styles.screenStack} accessibilityState={{ busy: pending }}>
+          {query.isError ? (
+            <>
+              <FinancialRefreshStatus query={query} />
+              <ActionButton
+                label={translate('planning.action.retry')}
+                variant="secondary"
+                disabled={query.isFetching}
+                onPress={retryRead}
+              />
+            </>
+          ) : null}
+          {data?.dataState === 'offline' ? (
+            <StyledText variant="caption" accessibilityLiveRegion="polite">
+              {translate('planning.state.offlineRead')}
+            </StyledText>
+          ) : null}
           <SalaryCycleHeader
             direction={direction}
-            income={money(data.income)}
-            remaining={money(data.remaining)}
-            daily={money(data.suggestedDaily)}
-            daysRemaining={translateDynamic('planning.salary.daysRemaining', {
-              count: data.daysRemaining
-            })}
+            income={money(data?.income)}
+            remaining={money(data?.remaining)}
+            daily={money(data?.suggestedDaily)}
+            daysRemaining={
+              !data
+                ? '—'
+                : needsSetup
+                  ? '0'
+                  : translateDynamic('planning.salary.daysRemaining', {
+                      count: data.daysRemaining
+                    })
+            }
             largeText={largeText}
           />
+
+          {needsSetup ? (
+            <Text
+              style={[
+                styles.setupHint,
+                {
+                  color: theme.colors.content.secondary,
+                  writingDirection: direction
+                }
+              ]}
+            >
+              {translate('planning.salary.emptySubtitle')}
+            </Text>
+          ) : null}
 
           <Text
             style={[
@@ -130,77 +189,47 @@ export function SalaryOverviewScreen() {
 
           <SalaryDetailsCard
             direction={direction}
-            spent={money(data.expenses)}
-            reserved={money(data.reservedObligations)}
+            spent={money(data?.expenses)}
+            reserved={money(data?.reservedObligations)}
             nextSalaryDate={nextSalaryDate}
           />
 
+          {data?.profileId ? (
+            <>
+              <ActionButton
+                label={translate('planning.salary.confirmReceipt')}
+                onPress={() => router.push('/salary/receipt/select')}
+                variant="secondary"
+              />
+              {data.startReceiptId ? (
+                <ActionButton
+                  label={translate('planning.salary.review')}
+                  onPress={() =>
+                    router.push(`/salary/receipt/${data.startReceiptId}`)
+                  }
+                  variant="secondary"
+                />
+              ) : null}
+            </>
+          ) : null}
+
           <ActionButton
-            label={translate('planning.salary.editSettings')}
+            disabled={!data}
+            label={translate(
+              needsSetup
+                ? 'planning.salary.setup'
+                : 'planning.salary.editSettings'
+            )}
             onPress={() => router.push('/salary/profile')}
             style={styles.primaryAction}
             labelStyle={styles.primaryActionLabel}
           />
+          {data?.profileId && data.dataState !== 'offline' && !query.isError ? (
+            <SalaryArchiveAction id={data.profileId} />
+          ) : null}
         </View>
       )}
     </PlanningScreen>
-  );
-}
-
-function SalaryEmptyState({
-  direction,
-  theme
-}: {
-  direction: 'rtl' | 'ltr';
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const textAlign = direction === 'rtl' ? 'right' : 'left';
-
-  return (
-    <SurfaceCard
-      style={[
-        styles.emptyCard,
-        {
-          backgroundColor: theme.colors.surfaces.brandSubtle,
-          borderColor: theme.colors.borders.subtle
-        }
-      ]}
-    >
-      <View
-        style={[styles.emptyIcon, { backgroundColor: theme.colors.surface }]}
-      >
-        <DesignIcon
-          name="salary"
-          label={translate('planning.salary.emptyTitle')}
-          color={theme.colors.interactions.primary}
-          size="hero"
-          decorative
-        />
-      </View>
-      <View style={styles.emptyCopy}>
-        <Text
-          accessibilityRole="header"
-          style={[
-            styles.emptyTitle,
-            { color: theme.colors.content.primary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptyTitle')}
-        </Text>
-        <Text
-          style={[
-            styles.emptySubtitle,
-            { color: theme.colors.content.secondary, textAlign }
-          ]}
-        >
-          {translate('planning.salary.emptySubtitle')}
-        </Text>
-      </View>
-      <ActionButton
-        label={translate('planning.salary.setup')}
-        onPress={() => router.push('/salary/profile')}
-      />
-    </SurfaceCard>
   );
 }
 
@@ -251,20 +280,12 @@ function SalaryCycleHeader({
       <View style={styles.heroContent}>
         <Text
           accessibilityRole="header"
-          style={[
-            styles.heroTitle,
-            { textAlign: 'left' }
-          ]}
+          style={[styles.heroTitle, { textAlign: 'left' }]}
         >
           {translate('planning.salary.yourCycle')}
         </Text>
         <View style={styles.heroAmountBlock}>
-          <Text
-            style={[
-              styles.heroLabel,
-              { textAlign: 'left' }
-            ]}
-          >
+          <Text style={[styles.heroLabel, { textAlign: 'left' }]}>
             {translate('planning.salary.cycleSalary')}
           </Text>
           <Text
@@ -280,12 +301,7 @@ function SalaryCycleHeader({
             {income}
           </Text>
         </View>
-        <View
-          style={[
-            styles.summaryStrip,
-            { flexDirection: 'row' }
-          ]}
-        >
+        <View style={[styles.summaryStrip, { flexDirection: 'row' }]}>
           <SummaryCell
             icon="wallet"
             label={translate('planning.salary.remainingMine')}
@@ -403,6 +419,7 @@ function DetailRow({
   valueDirection?: 'ltr' | 'rtl';
   last?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={[
@@ -411,14 +428,15 @@ function DetailRow({
         last ? undefined : styles.detailRowBorder
       ]}
     >
-      <View
-        style={[
-          styles.detailLabelGroup,
-          { flexDirection: 'row' }
-        ]}
-      >
+      <View style={[styles.detailLabelGroup, { flexDirection: 'row' }]}>
         <View style={[styles.detailDot, { backgroundColor: dotColor }]} />
-        <Text numberOfLines={2} style={styles.detailLabel}>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.detailLabel,
+            { color: theme.colors.content.secondary }
+          ]}
+        >
           {label}
         </Text>
       </View>
@@ -429,6 +447,7 @@ function DetailRow({
         style={[
           styles.detailValue,
           {
+            color: theme.colors.content.primary,
             textAlign: direction === 'rtl' ? 'left' : 'right',
             writingDirection: valueDirection
           }
@@ -443,26 +462,7 @@ function DetailRow({
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  emptyCard: {
-    borderRadius: radius.card,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  emptyIcon: {
-    alignItems: 'center',
-    borderRadius: radius.card,
-    height: 56,
-    justifyContent: 'center',
-    width: 56
-  },
-  emptyCopy: {
-    gap: spacing.xs
-  },
-  emptyTitle: {
-    ...typography.subtitle,
-    fontSize: 20
-  },
-  emptySubtitle: {
+  setupHint: {
     fontSize: 14,
     lineHeight: 22
   },
@@ -590,13 +590,11 @@ const styles = StyleSheet.create({
     width: 10
   },
   detailLabel: {
-    color: colorTokens.ink[900],
     flexShrink: 1,
     fontSize: 18,
     lineHeight: 26
   },
   detailValue: {
-    color: colorTokens.ink[900],
     flexShrink: 0,
     fontSize: 19,
     fontVariant: ['tabular-nums'],

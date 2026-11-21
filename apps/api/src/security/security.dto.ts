@@ -32,7 +32,7 @@ export const allowedBodyFields: Readonly<Record<string, readonly string[]>> = {
   createSecurityIncident: ['title', 'severity', 'detectedAt', 'ownerId', 'summaryRedacted'],
   updateSecurityIncident: ['action', 'note', 'reason', 'expectedVersion'],
   createMyPrivacyExport: ['scope'],
-  createMyDeletionRequest: ['confirmation', 'reason'],
+  createMyDeletionRequest: ['confirmation', 'reason', 'completionToken'],
   cancelMyDeletionRequest: [],
   actOnPrivacyExport: ['action', 'reason', 'expectedVersion'],
   actOnDeletionRequest: ['action', 'reason', 'expectedVersion'],
@@ -70,9 +70,9 @@ export const allowedQueryFields: Readonly<Record<string, readonly string[]>> = {
   listSecurityIncidents: ['limit', 'cursor', 'status', 'severity', 'owner'],
   listSupportAccessRequests: ['limit', 'cursor', 'status', 'assignee', 'search'],
   listMySupportAccessRequests: ['limit', 'cursor', 'status'],
-  listPrivacyExports: ['limit', 'cursor', 'status', 'from', 'to'],
-  listDeletionRequests: ['limit', 'cursor', 'status', 'hold'],
-  listRetentionPolicies: ['limit', 'cursor', 'resource', 'status'],
+  listPrivacyExports: ['id', 'limit', 'cursor', 'status', 'from', 'to'],
+  listDeletionRequests: ['id', 'limit', 'cursor', 'status', 'hold'],
+  listRetentionPolicies: ['id', 'limit', 'cursor', 'resource', 'status'],
 };
 
 export function inputObject(value: unknown): Record<string, unknown> {

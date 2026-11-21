@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NotificationPreferencesInput } from '@/domain/notifications';
 import { notificationService } from '@/services/engagement-service';
 import { phoneNotificationService } from '@/services/platform/phone-notification-service';
+import { withReadContext } from '@/services/live/read-context';
 import { invalidateNotificationScopes } from './notification-queries';
 
 export const notificationPreferenceKeys = {
@@ -17,7 +18,7 @@ export const notificationPermissionKeys = {
 export function useNotificationPermission() {
   return useQuery({
     queryKey: notificationPermissionKeys.permission(),
-    queryFn: () => phoneNotificationService.getPermission()
+    queryFn: () => withReadContext(undefined, () => phoneNotificationService.getPermission())
   });
 }
 

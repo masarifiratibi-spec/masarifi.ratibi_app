@@ -14,6 +14,29 @@ tags:
   - name: Admin reports
 
 paths:
+  /api/v1/me/mobile-activity:
+    post:
+      tags: [Reports]
+      operationId: recordMobileActivity
+      security: [{ClerkBearer: []}]
+      description: Record a coarse native foreground observation for the authenticated active profile and owned native device session. Browser origins and extra payload fields are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [platform]
+              properties:
+                platform: {type: string, enum: [ios, android]}
+      responses:
+        '204': {description: Observation accepted or already recorded in this bucket. No response body.}
+        '400': {$ref: '#/components/responses/SafeError'}
+        '401': {$ref: '#/components/responses/SafeError'}
+        '403': {$ref: '#/components/responses/SafeError'}
+        '429': {$ref: '#/components/responses/SafeError'}
+        '503': {$ref: '#/components/responses/SafeError'}
   /api/v1/dashboard/home:
     get:
       tags: [Dashboard]
@@ -40,6 +63,7 @@ paths:
         - $ref: '#/components/parameters/ReportType'
         - $ref: '#/components/parameters/Period'
         - $ref: '#/components/parameters/AnchorDate'
+        - $ref: '#/components/parameters/AccountIds'
         - $ref: '#/components/parameters/Currency'
       responses:
         '200':
@@ -49,6 +73,7 @@ paths:
               schema: {$ref: '#/components/schemas/ReportSummaryResponse'}
         '400': {$ref: '#/components/responses/SafeError'}
         '401': {$ref: '#/components/responses/SafeError'}
+        '404': {$ref: '#/components/responses/SafeError'}
         '429': {$ref: '#/components/responses/SafeError'}
 
   /api/v1/reports:
@@ -365,6 +390,10 @@ paths:
 
 components:
   securitySchemes:
+    ClerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     clerkBearer:
       type: http
       scheme: bearer
@@ -420,6 +449,12 @@ components:
       in: query
       required: true
       schema: {$ref: '#/components/schemas/ReportPeriod'}
+    AccountIds:
+      name: accountIds
+      in: query
+      required: false
+      description: Comma-separated owned account UUIDs (1–100). Omit for all accounts. Missing and foreign IDs both return 404; an invalid scope never falls back to all accounts. Transfer principal is excluded; fees and refunds follow their actual postings.
+      schema: {type: string, minLength: 36, maxLength: 3699}
     AnchorDate:
       name: anchorDate
       in: query
@@ -572,7 +607,18 @@ components:
         periodEnd: {type: string, format: date}
         format: {$ref: '#/components/schemas/ReportFormat'}
         delivery: {$ref: '#/components/schemas/DeliveryChannel'}
-        recipient: {type: string, format: email, minLength: 3, maxLength: 320}
+        accountIds: {type: array, minItems: 1, maxItems: 100, items: {$ref: '#/components/schemas/Uuid'}}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        timezone: {type: string, minLength: 1, maxLength: 64}
+        recipient: {type: [string, 'null'], format: email, minLength: 3, maxLength: 320}
+        expectedAccountEmail: {type: string, format: email, maxLength: 320, description: Verified primary account email confirmed for this PDF email request.}
+      allOf:
+        - if: {required: [expectedAccountEmail]}
+          then:
+            properties:
+              format: {const: pdf}
+              delivery: {const: email}
+              recipient: {type: 'null'}
     AcceptedReport:
       type: object
       additionalProperties: false

@@ -1,4 +1,7 @@
+import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import React, { useMemo, useState } from 'react';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   PixelRatio,
   Pressable,
@@ -6,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { router } from 'expo-router';
@@ -56,7 +60,8 @@ export function AccountListScreen() {
   const { revealed } = useSensitiveVisibility();
   const hidden = hideBalances && !revealed;
   const isRtl = direction === 'rtl';
-  const largeText = PixelRatio.getFontScale() >= 1.5;
+  const { width } = useWindowDimensions();
+  const stackTotal = PixelRatio.getFontScale() >= 1.5 || (width > 0 && width < 350);
   const balanceByAccount = useMemo(
     () =>
       new Map<string, AccountBalanceProjection>(
@@ -114,17 +119,25 @@ export function AccountListScreen() {
   );
   const totalBalance = hidden
     ? `•••• ${baseCurrencyCode}`
-    : formatMinorAmount(totalBalanceMinor, baseCurrencyCode, locale);
+    : hasReadableSnapshot(accounts) &&
+        hasReadableSnapshot(balances) &&
+        activeAccounts.every(
+          ({ account, balanceMinor }) =>
+            account.currencyCode !== baseCurrencyCode || balanceMinor !== null
+        )
+      ? formatMinorAmount(totalBalanceMinor, baseCurrencyCode, locale)
+      : '—';
 
-  if (accounts.isLoading || balances.isLoading) {
-    return (
-      <StateView
-        state="loading"
-        title={translate('coreFinance.state.loading')}
-      />
-    );
-  }
-  if (accounts.isError || balances.isError) {
+  const onPerformanceLayout = useScreenPerformance(
+    'accounts',
+    [accounts, balances],
+    search
+  );
+
+  if (
+    (accounts.isError && !hasReadableSnapshot(accounts)) ||
+    (balances.isError && !hasReadableSnapshot(balances))
+  ) {
     return (
       <StateView
         state="error"
@@ -139,16 +152,29 @@ export function AccountListScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      onLayout={onPerformanceLayout}
+      style={[styles.root, { backgroundColor: theme.colors.surfaces.page }]}
+    >
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.account.id}
         contentContainerStyle={[
           styles.content,
-          { backgroundColor: colorTokens.raw.F3F5F3 }
+          { backgroundColor: theme.colors.surfaces.page }
         ]}
         ListHeaderComponent={
           <>
+            <FinancialRefreshStatus
+              query={{
+                dataUpdatedAt: Math.min(
+                  accounts.dataUpdatedAt,
+                  balances.dataUpdatedAt
+                ),
+                isFetching: accounts.isFetching || balances.isFetching,
+                isError: accounts.isError || balances.isError
+              }}
+            />
             <View style={styles.fullBleed}>
               <BrandedScreenHeader
                 compact
@@ -165,7 +191,8 @@ export function AccountListScreen() {
                 styles.physicalLtr,
                 {
                   backgroundColor: theme.colors.surfaces.financialHero,
-                  flexDirection: largeText
+                  alignItems: stackTotal ? 'stretch' : 'center',
+                  flexDirection: stackTotal
                     ? 'column'
                     : isRtl
                       ? 'row-reverse'
@@ -175,7 +202,7 @@ export function AccountListScreen() {
             >
               <View
                 style={[
-                  styles.totalCopy,
+                  stackTotal ? undefined : styles.totalCopy,
                   { alignItems: isRtl ? 'flex-end' : 'flex-start' }
                 ]}
               >
@@ -190,14 +217,13 @@ export function AccountListScreen() {
                 >
                   {translate('coreFinance.accounts.totalBalance')}
                 </Text>
-                <Text
-                  style={[
-                    styles.totalAmount,
-                    { color: theme.colors.content.onFinancialHero }
-                  ]}
-                >
-                  {totalBalance}
-                </Text>
+                <View accessible accessibilityLabel={totalBalance} style={styles.totalMoney}>
+                  {totalBalance.split(/\s+/u).map((part, index) => (
+                    <Text key={index} style={[styles.totalAmount, { color: theme.colors.content.onFinancialHero }]}>
+                      {part}
+                    </Text>
+                  ))}
+                </View>
                 {hasOtherCurrencies ? (
                   <Text
                     style={[
@@ -217,7 +243,7 @@ export function AccountListScreen() {
                   styles.totalCount,
                   {
                     color: theme.colors.content.onFinancialHero,
-                    textAlign: largeText
+                    textAlign: stackTotal
                       ? isRtl
                         ? 'right'
                         : 'left'
@@ -227,7 +253,7 @@ export function AccountListScreen() {
                     writingDirection: direction
                   }
                 ]}
-              >{`${activeAccounts.length} ${translate('coreFinance.home.accountCount').replace('{{count}} ', '')}`}</Text>
+              >{`${accounts.data === undefined ? '—' : activeAccounts.length} ${translate('coreFinance.home.accountCount').replace('{{count}} ', '')}`}</Text>
             </View>
             <View
               style={[
@@ -235,7 +261,8 @@ export function AccountListScreen() {
                 {
                   backgroundColor: theme.colors.surfaces.card,
                   borderColor: theme.colors.borders.subtle,
-                  flexDirection: isRtl ? 'row-reverse' : 'row'
+                  direction,
+                  flexDirection: 'row'
                 }
               ]}
             >
@@ -281,14 +308,18 @@ export function AccountListScreen() {
           </>
         }
         ListEmptyComponent={
-          <StateView
-            state="empty"
-            title={
-              (accounts.data ?? []).length
-                ? translate('coreFinance.accounts.noSearchResults')
-                : translate('coreFinance.accounts.empty')
-            }
-          />
+          accounts.isPending ? (
+            <View accessibilityState={{ busy: true }} />
+          ) : (
+            <StateView
+              state="empty"
+              title={
+                (accounts.data ?? []).length
+                  ? translate('coreFinance.accounts.noSearchResults')
+                  : translate('coreFinance.accounts.empty')
+              }
+            />
+          )
         }
         renderItem={({ item }) => (
           <AccountRow
@@ -370,7 +401,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22
   },
+  totalMoney: { direction: 'ltr', flexDirection: 'row', flexWrap: 'wrap', columnGap: 6, maxWidth: '100%' },
   totalAmount: {
+    maxWidth: '100%',
     fontSize: 27,
     fontWeight: '700',
     lineHeight: 36,

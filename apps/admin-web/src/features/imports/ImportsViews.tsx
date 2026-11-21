@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { mocksEnabled } from "@/core/api/client";
 import { FilterX, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocale } from "@/core/localization/provider";
@@ -8,9 +9,8 @@ import { ConfirmDialog, PageHeader, RegionState } from "@/components/admin/ui";
 import { importsCopy } from "./importsCopy";
 import { operationalCopy } from "./operationalCopy";
 import { ApiError } from "@/core/api/errors";
-import { useSimulatedRole } from "@/core/auth/use-simulated-role";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import type { PermissionKey } from "@/core/permissions/permissions";
-import { hasPermission } from "@/core/permissions/role-map";
 import { formatAdminNumber, formatDate } from "@/lib/admin-utils";
 import {
   type ImportSessionDetail,
@@ -217,13 +217,15 @@ export function RecordCards({
 
 export function OperationalListView({
   resource,
+  showOverview = false,
 }: {
   resource: Phase4Resource;
+  showOverview?: boolean;
 }) {
   const { locale } = useLocale();
   const copy = operationalCopy[locale];
   const resCopy = copy.resources[resource];
-  const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const [search, setSearch] = useState("");
   const [platform, setPlatform] = useState<PlatformScope>("all");
   const [source, setSource] = useState<ImportSource | "">("");
@@ -280,6 +282,7 @@ export function OperationalListView({
         title={resCopy.title}
         description={resCopy.description}
       />
+      {showOverview && <ImportOverviewAnalytics />}
       {notice && (
         <p className="privacy-notice" role="status">
           {notice}
@@ -298,12 +301,20 @@ export function OperationalListView({
             <input
               className="input"
               maxLength={120}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder={copy.searchPlaceholder}
+              disabled={
+                !mocksEnabled() && ["duplicates", "versions"].includes(resource)
+              }
               value={search}
             />
           </label>
           <select
+            disabled={!mocksEnabled()}
+            title="Platform attribution is unavailable for historical imports"
             aria-label={copy.platformAria}
             className="select"
             onChange={(event) => {
@@ -317,6 +328,10 @@ export function OperationalListView({
             <option value="ios">iOS</option>
           </select>
           <select
+            disabled={
+              !mocksEnabled() &&
+              !["sessions", "failures", "parser-rules"].includes(resource)
+            }
             aria-label={copy.sourceAria}
             className="select"
             onChange={(event) => {
@@ -326,14 +341,50 @@ export function OperationalListView({
             value={source}
           >
             <option value="">{copy.allSources}</option>
-            <option value="android_sms">Android SMS</option>
-            <option value="android_notification">Android Notification</option>
-            <option value="ios_shortcut">iOS Shortcut</option>
-            <option value="screenshot">Screenshot</option>
-            <option value="receipt">Receipt</option>
-            <option value="pdf_statement">PDF</option>
+            {!mocksEnabled() && (
+              <>
+                <option value="sms">SMS</option>
+                <option value="file">File</option>
+                <option value="manual">Manual</option>
+                <option value="provider">Provider</option>
+              </>
+            )}
+            <option disabled={!mocksEnabled()} value="android_sms">
+              Android SMS
+            </option>
+            <option disabled={!mocksEnabled()} value="android_notification">
+              Android Notification
+            </option>
+            <option disabled={!mocksEnabled()} value="ios_shortcut">
+              iOS Shortcut
+            </option>
+            <option disabled={!mocksEnabled()} value="screenshot">
+              Screenshot
+            </option>
+            <option disabled={!mocksEnabled()} value="receipt">
+              Receipt
+            </option>
+            <option disabled={!mocksEnabled()} value="pdf_statement">
+              PDF
+            </option>
           </select>
           <input
+            disabled={
+              !mocksEnabled() &&
+              ![
+                "sessions",
+                "failures",
+                "low-confidence",
+                "duplicates",
+                "unsupported",
+                "banks",
+                "senders",
+                "parser-rules",
+                "versions",
+                "merchant-rules",
+                "category-rules",
+              ].includes(resource)
+            }
             aria-label={copy.statusAria}
             className="input compact-input"
             maxLength={40}
@@ -345,6 +396,17 @@ export function OperationalListView({
             value={status}
           />
           <input
+            disabled={
+              !mocksEnabled() &&
+              ![
+                "low-confidence",
+                "banks",
+                "senders",
+                "parser-rules",
+                "test-cases",
+                "versions",
+              ].includes(resource)
+            }
             aria-label={copy.bankIdAria}
             className="input compact-input ltr"
             maxLength={48}
@@ -356,6 +418,10 @@ export function OperationalListView({
             value={bankId}
           />
           <input
+            disabled={
+              !mocksEnabled() &&
+              !["low-confidence", "test-cases", "versions"].includes(resource)
+            }
             aria-label={copy.parserVersionAria}
             className="input compact-input ltr"
             maxLength={48}
@@ -367,6 +433,8 @@ export function OperationalListView({
             value={parserVersionId}
           />
           <input
+            disabled={!mocksEnabled()}
+            title="App version is not collected for imports"
             aria-label={copy.appVersionAria}
             className="input compact-input ltr"
             maxLength={48}
@@ -378,6 +446,16 @@ export function OperationalListView({
             value={appVersion}
           />
           <input
+            disabled={
+              !mocksEnabled() &&
+              ![
+                "sessions",
+                "failures",
+                "low-confidence",
+                "duplicates",
+                "unsupported",
+              ].includes(resource)
+            }
             aria-label={copy.dateFromAria}
             className="input compact-input ltr"
             onChange={(event) => {
@@ -388,6 +466,16 @@ export function OperationalListView({
             value={dateFrom}
           />
           <input
+            disabled={
+              !mocksEnabled() &&
+              ![
+                "sessions",
+                "failures",
+                "low-confidence",
+                "duplicates",
+                "unsupported",
+              ].includes(resource)
+            }
             aria-label={copy.dateToAria}
             className="input compact-input ltr"
             onChange={(event) => {
@@ -398,6 +486,8 @@ export function OperationalListView({
             value={dateTo}
           />
           <select
+            disabled={!mocksEnabled()}
+            title="Live records use server cursor order"
             aria-label={copy.sortAria}
             className="select"
             onChange={(event) => setSort(event.target.value as typeof sort)}
@@ -412,6 +502,7 @@ export function OperationalListView({
             <option value="appVersion">{copy.sort.appVersion}</option>
           </select>
           <select
+            disabled={!mocksEnabled()}
             aria-label={copy.sortDirAria}
             className="select"
             onChange={(event) => setOrder(event.target.value as "asc" | "desc")}
@@ -491,6 +582,7 @@ export function OperationalListView({
               <div className="parsers-pagination-item">
                 <small>{copy.total}</small>
                 <strong className="numbers">
+                  {query.data?.totalIsLowerBound ? "≥ " : ""}
                   {query.data?.totalItems ?? 0}
                 </strong>
               </div>
@@ -559,7 +651,7 @@ export function OperationalListView({
               <button
                 className="button"
                 disabled={
-                  !hasPermission(role, actionPermissions[resource]) ||
+                  !can(actionPermissions[resource]) ||
                   mutation.isPending
                 }
                 key={`${record.id}:${action}`}
@@ -637,6 +729,8 @@ export function ImportOverviewAnalytics() {
         </div>
         <select
           className="select"
+          disabled={!mocksEnabled()}
+          title="Platform attribution is unavailable for historical imports"
           aria-label={copy.analytics.platform}
           value={platform}
           onChange={(event) => setPlatform(event.target.value as PlatformScope)}
@@ -683,7 +777,7 @@ export function ImportOverviewAnalytics() {
             </div>
             <div className="summary-item">
               <small>{copy.analytics.topFailedSource}</small>
-              <strong>{overview.data.highestFailureSource}</strong>
+              <strong>{overview.data.failedSessions ? overview.data.highestFailureSource : "—"}</strong>
             </div>
           </div>
         )}
@@ -736,7 +830,7 @@ export function OperationalDetailView({
   const { locale } = useLocale();
   const copy = operationalCopy[locale];
   const resCopy = copy.resources[resource];
-  const role = useSimulatedRole();
+  const can = useCurrentPermission();
   const [selectedAction, setSelectedAction] = useState<
     Phase4ActionRequest["action"] | null
   >(null);
@@ -942,7 +1036,7 @@ export function OperationalDetailView({
                       <button
                         className="button"
                         disabled={
-                          !hasPermission(role, actionPermission) ||
+                          !can(actionPermission) ||
                           mutation.isPending
                         }
                         key={action}

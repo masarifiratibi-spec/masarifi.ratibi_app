@@ -1,13 +1,19 @@
+import {
+  correlatedStorageFetch,
+  storageConfiguration,
+} from '../platform/storage/storage-configuration';
 import { createHash } from 'node:crypto';
 
 import { Injectable, Optional } from '@nestjs/common';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import { isMissingStorageObject } from '../platform/storage/missing-storage-object';
 
 const KEY = /^support\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/i;
 
 @Injectable()
 export class SupportStorage {
+  private readonly local: boolean;
   private readonly origin: URL;
   private readonly credential: string;
   private readonly ttl: number;
@@ -16,8 +22,11 @@ export class SupportStorage {
     config: PlatformConfigService,
     @Optional() private readonly fetcher: typeof fetch = fetch,
   ) {
-    this.origin = new URL(config.getRequired('SUPABASE_URL'));
-    this.credential = config.getRequired('SUPABASE_SERVICE_ROLE_KEY');
+    this.local = config.getRequired('MASARIFI_STORAGE_PROVIDER') === 'filesystem';
+    this.fetcher = correlatedStorageFetch(this.fetcher);
+    const storage = storageConfiguration(config);
+    this.origin = storage.origin;
+    this.credential = storage.credential;
     this.ttl = config.getRequired('MASARIFI_SUPPORT_SIGNED_URL_SECONDS');
   }
 
@@ -33,7 +42,12 @@ export class SupportStorage {
       throw new Error('SUPPORT_STORAGE_INVALID');
     const response = await this.request(
       `/storage/v1/object/upload/sign/support-attachments/${this.encoded(key)}`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+        ...(this.local
+          ? { body: JSON.stringify({ contentType, sha256, expiresIn: this.ttl }) }
+          : {}),
+      },
     );
     const value = (await response.json()) as { url?: unknown };
     if (typeof value.url !== 'string') throw new Error('SUPPORT_STORAGE_UNAVAILABLE');
@@ -128,7 +142,10 @@ export class SupportStorage {
         headers,
         signal: controller.signal,
       });
-      if (!response.ok && !(allowMissing && response.status === 404))
+      if (
+        !response.ok &&
+        !(allowMissing && (await isMissingStorageObject(response, controller.signal)))
+      )
         throw new Error('SUPPORT_STORAGE_UNAVAILABLE');
       return response;
     } catch (error) {

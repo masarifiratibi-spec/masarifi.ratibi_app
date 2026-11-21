@@ -1,0 +1,39 @@
+{
+  "task": "T07c",
+  "batch": "B2",
+  "at": "2026-10-29T09:32:54.047Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B2-cards-categories-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B2-cards-categories-2026-10-29/B2-REVIEWED-RESULT.json",
+    "sha256": "c23a97d4a87a0005f27cd44a86cb148d6e373c47d0b4aa6b2673a365c3cf243d"
+  },
+  "currentSupplements": [
+    {
+      "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B2-cards-categories-2026-10-29/CATEGORY-CANCEL-ONLY-SUPPLEMENT.json",
+      "sha256": "96aa92cdd151bfba40ad7fd8703ad9aa85a7676d47df4494fa23cfa25948240a"
+    }
+  ],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T07c/evidence.json",
+    "sha256": "33f4d5b82b7cd6442ab3e0f2b0af3f4d49060a4a991cc8bf79b3451ea393265f"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "ApprovedunusedQAcreate/reclassify/cancelarchive/merge andliveadapteridentity",
+    "No mutation ofusedrealcategories",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": [],
+  "latestSupplement": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B2-cards-categories-2026-10-29/CATEGORY-CANCEL-ONLY-SUPPLEMENT.json",
+    "sha256": "96aa92cdd151bfba40ad7fd8703ad9aa85a7676d47df4494fa23cfa25948240a"
+  }
+}

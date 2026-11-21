@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Reports read fixes; one API service only, after original S1 ZIP reaches a terminal state",
+  "humanApprovalRecorded": false,
+  "currentContainer": "6e65310243dcdbab999d9859863403071b27255d273e88f95f30a62ef491a231",
+  "oldImage": "sha256:137aeb426ade43b9d45af4c8bd24fd8e9bbc8d3104f58f0f3fad3a0f66e68fd6",
+  "candidateImage": "sha256:03368f9630fc709f0ea8e77c4352a0a77db4a48583ef3b6e65de591e7ec9d72d",
+  "patchManifestSha256": "ab7bf52a64a8fb59935b5c8271880827bae4f0a64b6ee94e7795c294eebd1a61",
+  "runtimeProposalSha256": "b8eabdc1012da96e9ddc0981161b0ca25278987f0d9af8a3baf99ac51ddf73de",
+  "oldRuntimeSha256": "036d4306c11269f845307ab532181d73de6c44743c4cafd2d01aed044879fcc2",
+  "proposedCreatedRuntimeSha256": "3be3f19d80b4edd47398fa66d2e6c95dabd38cc336b2db818d10f28508de7611",
+  "proposedRunningRuntimeSha256": "29e1e6846dfa999fd58b5c616b6e1bef0af42abfc726d8509073261f0b15395c",
+  "createdConfigSha256": "ad116fab778ff4038824138cd254055eda2c1d77f07061788547b8e432c2935b",
+  "createdHostConfigSha256": "1f9164a0d342cfff3e73a6d4506aa27a0caf3cf14a9929300427f059e98ffea7",
+  "unchangedRunningHostConfigSha256": "3284e924230c8c7a9968dc432e942100dec9c8273dfeef683d66327243c62a31",
+  "networksSha256": "3ddefae8035769809a96a9a2b3645c4de9f22aabc544f3c807fba64e7515125f",
+  "mountsSha256": "37e9601667c749582fd49b00f293993d5cd1387f7cd25ab19ecac9cda492e57f",
+  "candidateLabel": {
+    "io.masarifi.candidate.reports.readfix.sha256": "ab7bf52a64a8fb59935b5c8271880827bae4f0a64b6ee94e7795c294eebd1a61"
+  },
+  "oomRepresentation": {
+    "before": null,
+    "created": false,
+    "running": null
+  },
+  "files": [
+    {
+      "afterSha256": "7418c1afa4960fa5f12d342cf5805d2de972cc40212c6fc27a739f1e26194186",
+      "beforeSha256": "8703336b6320a283d9807510813edf39e309ee44b91c705fdf9ebed587cc7a75",
+      "methodAfterSha256": "73533d838758794b4faf4134a3fd205d5030a75467b2e2cc6eda927df885a9f7",
+      "methodBeforeSha256": "23b07daa96abf9794e3bc8d13e27ba6e30040ec22b69749adb8e0c67b3c5038f",
+      "name": "reports.repository.js",
+      "sourcePath": "apps/api/src/reports/reports.repository.ts",
+      "sourceBuildInputSha256": "5257e7f824dce7ad0adf52532efb6c8c7641a6268a4f82f5e246ad5a97b44373",
+      "sourceBuildInputLineEndings": "CRLF",
+      "sourceGitBlobSha256": "14f38913139937845ed338f68c7c99c33ba8c5aca0846b69f3c87d2a00d43f43"
+    },
+    {
+      "afterSha256": "b1523d97b730a49aeb5fc4f5f85c3b59338ff3b989ce848c628e42f0eaeb5c07",
+      "beforeSha256": "ac5c0bb6915a9a40c77607d1db0c8c560c901ae0f0a399c06fd0491c611290dc",
+      "methodAfterSha256": "230992812426c65d7745183e6177441f704686a441e19a6f2557c7e0a0a68eaf",
+      "methodBeforeSha256": "8b9ab1b468894ea090a85961b5279280f708bc36464303a5ed0d6ef3ca000e51",
+      "name": "reports.storage.js",
+      "sourcePath": "apps/api/src/reports/reports.storage.ts",
+      "sourceBuildInputSha256": "a02ea1abffbcf024490672ffce5dc8c4d4a9ff4d295c3c0b863514532da4efa5",
+      "sourceBuildInputLineEndings": "CRLF",
+      "sourceGitBlobSha256": "31d519e505a25b67ce68c5bc1f715287afbf321f94c29d327e32d082a4f03abe"
+    }
+  ],
+  "scope": {
+    "serviceCount": 1,
+    "untouchedServices": 35,
+    "environmentChanges": 0,
+    "handoverDeadlineSeconds": 120,
+    "beginRollbackBySeconds": 70,
+    "preserveCurrentContainerAndOriginalS1Backups": true,
+    "gracefulStopOnly": true,
+    "noForceKill": true,
+    "requireOriginalZipTerminalBeforePromotion": true,
+    "freshQuiescenceAfterApiPause": {
+      "queued": 0,
+      "processing": 0,
+      "maximumObservationAgeSeconds": 15
+    },
+    "freshHostMinimum": {
+      "availableMemoryMiB": 1400,
+      "dockerFreeGiB": 15
+    },
+    "nginxSha256": "1f4ebba134ca22dd28c7f41fda44972061cb6d9f4e3dde304ed4b017867f8990",
+    "databaseCaSha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "exactClientDraftFinanceAndNativeProducerGates": true,
+    "newPdfRequests": 0,
+    "newZipRequests": 0,
+    "consumerWindowRenewals": 0,
+    "existingOwnerPdfDownloadsMaximum": 2,
+    "nativeFolderSelectionByHuman": true,
+    "emailShareProviderAndFinancialActions": false,
+    "databaseMigrationsAndGrantChanges": false,
+    "apkInstallBuildOrMetroRestart": false,
+    "adminAssistantGenericWorkerNginxAndOtherServicesChanged": false
+  },
+  "preparation": {
+    "imageConfigurationExactExceptDeclaredCandidateLabel": true,
+    "runningServiceSetUnchanged": true,
+    "syntaxChecks": 2,
+    "applicationProcessStarted": false,
+    "candidatePromoted": false
+  }
+}

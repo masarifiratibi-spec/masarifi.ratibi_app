@@ -1,0 +1,176 @@
+{
+  "at": "2026-10-26T07:47:30.207Z",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "sourceFiles": [
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "sha256": "60E608A3BEB458244034BD3B83A9BF40DAFE19773614D900766D8F5CC5E7FC88"
+    },
+    {
+      "path": "apps/mobile/src/features/transactions/TransactionForm.tsx",
+      "sha256": "79861A82166194118B25085B1AFC96A7A88923486DA639AC34BC115E68FAB5F0"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+      "sha256": "D24D507C58E679FA9C80F312E007538141C1691FE34A0D465D8D5945F3C1616A"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx",
+      "sha256": "4E9994DF86E25C7EE68531F1C210A5302ED33634A53FD844B3C60BD44C4B65DB"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "BFCA73A9BC0E6C4C5D929BC8EF6A5461B37A99B5EAB4BC584EBB4533D0CF3C9F"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "DB67B98338E7F0750C69943B5406A69A177C3A99F633E3FE94D3CB89B5123EDD"
+    },
+    {
+      "path": "apps/mobile/src/services/core-finance-runtime.ts",
+      "sha256": "135D8BA5AB119B30C11DFB836FF1FE9002C80E9BA5B4E58846848ED994AA3FD4"
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "sha256": "408F90C10024C00B4E6AE070070F7051D9EF377CC6F2EF969AFF1163615241D6"
+    },
+    {
+      "path": "apps/mobile/src/services/live/core-finance-service.ts",
+      "sha256": "8E6A680B86E481A6FD95FD00E01BC69A02C84A197D7AC904C9CC21FDF44480DC"
+    },
+    {
+      "path": "apps/mobile/src/services/mocks/core-finance-selector.test.ts",
+      "sha256": "9ED1D808CF412582CDF4A11ADC63BA44FC02C01C5C2454791E876BD33C1522A5"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-draft-storage.ts",
+      "sha256": "DDC16D32785DDB1D111A770E838B28CFEE9E57331C48D75FF491A51D1A5B6DD8"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts",
+      "sha256": "8E891C2F2D9B0957705D24382CAB100DF5B3AB7302E0D1AFD97A4FE8BE55D91F"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "sha256": "DB766AD07C8386BA5B277D59717F586A05E3B698377E6A9343D34445B2F4A3BD"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-repository.ts",
+      "sha256": "32E86F9A80AAD9B5F3841A2DDF68814119031496E0B19C057DF43FCC2ACE8034"
+    },
+    {
+      "path": "apps/mobile/src/storage/transaction-edit-journal.ts",
+      "sha256": "2D57D9E5BE1D304B25A09CB270730F7D3AC882ABC0BB6CA1D39A65779105E564"
+    }
+  ],
+  "baselineFiles": [
+    {
+      "path": ".github/workflows/mobile-preservation-qualification.yml",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/baseline-preflight.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/admission.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/astra-review.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/astra-review.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/evidence.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/user-scope-revisions.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-baseline-run.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-pr9-checks.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/plan-review.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/review.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/task-evidence-template.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/verification.json",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/final-review-and-remaining-checklist.en.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/open-device-issues.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-25-device-checklist/pin-latency-fix.md",
+      "unchanged": true
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+      "unchanged": true
+    }
+  ],
+  "baselinePreserved": true,
+  "correctionRound": 2,
+  "changedSincePriorReview": [
+    "apps/mobile/src/services/live/core-finance-service.test.ts",
+    "apps/mobile/src/services/live/core-finance-service.ts"
+  ],
+  "previousCandidateManifestSha256": "53C276C3CAA82C9ACBD639B7FC08E41B5A32A1863B99B017CDAAC5CD7D197E62",
+  "previousCandidateArchivedAt": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T03/session-consumer-prep/legacy-update-fix/previous-candidate",
+  "intentionalDelta": [
+    {
+      "path": "apps/mobile/src/storage/core-finance-repository.ts",
+      "previousSha256": "88DA95ACB81781E4F775666760511B245D4608CDFED2D801DFC2BD67D8E40F7E",
+      "sha256": "32E86F9A80AAD9B5F3841A2DDF68814119031496E0B19C057DF43FCC2ACE8034"
+    },
+    {
+      "path": "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "previousSha256": "E6BA66CB605919FE58C5ECBB2F1D04EE403620C29089A41122297356C60C2A64",
+      "sha256": "DB766AD07C8386BA5B277D59717F586A05E3B698377E6A9343D34445B2F4A3BD"
+    }
+  ],
+  "baseline21Preserved": true,
+  "status": "SOURCE_FROZEN_REVIEW_PENDING_NEW_DEVICE_QUALIFICATION",
+  "reason": "Only newly enqueued offline transaction updates include ordinary Mobile edit reason; pending payloads never rewritten"
+}

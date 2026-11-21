@@ -65,14 +65,20 @@ const PAGE_FILTERS: Readonly<Record<string, readonly string[]>> = Object.freeze(
   providers: ['provider', 'status'],
   'scheduled-jobs': ['ownerSpec', 'enabled'],
   'job-runs': ['jobKey', 'status'],
-  incidents: ['status', 'severity'],
+  incidents: ['id', 'status', 'severity'],
   settings: [],
-  flags: [],
-  maintenance: [],
+  flags: ['key', 'search', 'status'],
+  maintenance: ['current'],
 });
 
 export function parseOperationsReadQuery(kind: string, value: unknown): Record<string, unknown> {
   const input = record(value);
+  if (kind === 'ai-usage') {
+    exact(input, ['userId']);
+    const userId = input.userId === undefined ? null : text(input.userId, 1, 128);
+    if (userId !== null && !/^[A-Za-z0-9_-]+$/u.test(userId)) throw new Error(INVALID);
+    return { userId };
+  }
   if (kind === 'job-run') {
     exact(input, ['runId']);
     const runId = text(input.runId, 36, 36);
@@ -90,12 +96,13 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     exact(input, []);
     return {};
   }
-  if (kind === 'health' || kind === 'queues' || kind === 'performance') {
-    exact(input, kind === 'health' ? ['range', 'platform'] : ['range']);
+  const platformScoped = kind === 'health' || kind === 'http-monitoring';
+  if (platformScoped || kind === 'queues' || kind === 'performance') {
+    exact(input, platformScoped ? ['range', 'platform'] : ['range']);
     const range = input.range === undefined ? '24h' : scalarText(input.range);
     if (!['1h', '24h', '7d', '30d'].includes(range)) throw new Error(INVALID);
     const output: Record<string, unknown> = { range };
-    if (kind === 'health') {
+    if (platformScoped) {
       const platform = input.platform === undefined ? 'all' : scalarText(input.platform);
       if (!['all', 'ios', 'android'].includes(platform)) throw new Error(INVALID);
       output.platform = platform;
@@ -116,11 +123,13 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     throw new Error(INVALID);
   if (input.status !== undefined) {
     const statuses =
-      kind === 'providers'
-        ? ['up', 'degraded', 'down', 'unknown']
-        : kind === 'job-runs'
-          ? ['queued', 'running', 'succeeded', 'failed', 'retrying', 'dead_lettered', 'canceled']
-          : ['open', 'investigating', 'monitoring', 'resolved'];
+      kind === 'flags'
+        ? ['draft', 'active', 'retired']
+        : kind === 'providers'
+          ? ['up', 'degraded', 'down', 'unknown']
+          : kind === 'job-runs'
+            ? ['queued', 'running', 'succeeded', 'failed', 'retrying', 'dead_lettered', 'canceled']
+            : ['open', 'investigating', 'monitoring', 'resolved'];
     if (!statuses.includes(scalarText(input.status))) throw new Error(INVALID);
   }
   if (
@@ -137,6 +146,18 @@ export function parseOperationsReadQuery(kind: string, value: unknown): Record<s
     if (!['true', 'false', true, false].includes(input.enabled as never)) throw new Error(INVALID);
     output.enabled = input.enabled === true || input.enabled === 'true';
   }
+  if (input.current !== undefined) {
+    if (!['true', 'false', true, false].includes(input.current as never)) throw new Error(INVALID);
+    output.current = input.current === true || input.current === 'true';
+  }
+  if (input.id !== undefined) {
+    const id = text(input.id, 36, 36);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(id))
+      throw new Error(INVALID);
+    output.id = id;
+  }
+  if (input.key !== undefined) output.key = text(input.key, 3, 80);
+  if (input.search !== undefined) output.search = text(input.search, 1, 100);
   if (input.jobKey !== undefined) output.jobKey = text(input.jobKey, 3, 128);
   for (const key of ['provider', 'status', 'severity'] as const)
     if (input[key] !== undefined) output[key] = scalarText(input[key]);
@@ -290,10 +311,35 @@ function safeJson(value: unknown, depth = 0): void {
 export function parseOperationCommand(
   operation: OperationCommand,
   value: unknown,
+  resourceKey?: string | null,
 ): Record<string, unknown> {
   const input = record(value);
   exact(input, COMMAND_FIELDS[operation]);
-  safeJson(input);
+  if (operation === 'updateSetting' && resourceKey === 'mobile.social_links') {
+    const links = record(input.value);
+    const patterns: Record<string, RegExp> = {
+      instagram: /^https:\/\/(?:www\.)?instagram\.com\/[a-z0-9._]+\/?(?:[?#][^\s\\]*)?$/iu,
+      tiktok: /^https:\/\/(?:www\.)?tiktok\.com\/@[a-z0-9._]+\/?(?:[?#][^\s\\]*)?$/iu,
+      snapchat:
+        /^https:\/\/(?:www\.)?snapchat\.com\/(?:add\/|@)[a-z0-9._-]+\/?(?:[?#][^\s\\]*)?$/iu,
+    };
+    exact(links, Object.keys(patterns));
+    for (const [platform, pattern] of Object.entries(patterns)) {
+      const link = links[platform];
+      if (
+        typeof link !== 'string' ||
+        link.length > 500 ||
+        CONTROL.test(link) ||
+        /[\s\\]/u.test(link) ||
+        (link !== '' && !pattern.test(link))
+      )
+        throw new Error(INVALID);
+    }
+    // Only validated public profile links may contain URLs; all other fields retain the normal checks.
+    safeJson({ ...input, value: {} });
+  } else {
+    safeJson(input);
+  }
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 4_096) throw new Error(INVALID);
   const output = { ...input };
   output.reason = text(input.reason, 10, 500);

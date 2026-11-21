@@ -50,6 +50,12 @@ export function encodeAiId(id: string): string {
 
 export interface AiRepository {
   probe(): Promise<unknown>;
+  createPrompt(input: {
+    workload: string;
+    template: string;
+    schemaVersion: number;
+    reason: string;
+  }): Promise<AiAdminResource>;
   getOverview(input: AiOverviewQuery): Promise<AiOverviewData>;
   listProviders(input: AiListQuery): Promise<{
     items: AiProviderSummary[];
@@ -165,6 +171,12 @@ const overviewDataSchema = z
     requests: z.number().int().nonnegative(),
     estimatedCost: decimal,
     failures: z.number().int().nonnegative(),
+    totalAttempts: z.number().int().nonnegative().nullable(),
+    fallbackAttempts: z.number().int().nonnegative().nullable(),
+    observedAt: liveDate,
+    collectionStartedAt: liveDate,
+    attribution: z.literal("event_native_session"),
+    coverage: z.enum(["partial", "available"]),
   })
   .strict();
 const usageDataSchema = z
@@ -271,13 +283,33 @@ const money = (amount: unknown, freshness: string) => ({
   freshness,
 });
 const loadedByCursor = new Map<string, number>();
+function liveFilters(input: AiListQuery | AiOverviewQuery): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(input)) {
+    if (
+      ["page", "pageSize", "scenario", "sort", "order"].includes(key) ||
+      value == null ||
+      value === "" ||
+      (key === "platform" && value === "all")
+    )
+      continue;
+    params.set(
+      key,
+      key === "providerId" || key === "modelId"
+        ? rawId(String(value)).toLowerCase()
+        : String(value).trim(),
+    );
+  }
+  params.sort();
+  return params;
+}
+function liveScope(input: AiListQuery, resource: string) {
+  return `ai:${resource}:${input.pageSize ?? 25}:${liveFilters(input)}`;
+}
 const liveQuery = (input: AiListQuery, resource: string) => {
-  const current = input.page ?? 1;
-  const cursor = liveCursor(
-    `ai:${resource}:${String(input.pageSize ?? 25)}`,
-    current,
-  );
-  const params = new URLSearchParams({ limit: String(input.pageSize ?? 25) });
+  const params = liveFilters(aiListQuerySchema.parse(input));
+  params.set("limit", String(input.pageSize ?? 25));
+  const cursor = liveCursor(liveScope(input, resource), input.page ?? 1);
   if (cursor) params.set("cursor", cursor);
   return params;
 };
@@ -288,7 +320,7 @@ function livePagination(
 ): AiPagination {
   const current = input.page ?? 1,
     size = input.pageSize ?? 25;
-  const scope = `ai:${resource}:${String(size)}`;
+  const scope = liveScope(input, resource);
   const cursor = liveCursor(scope, current);
   const loaded =
     (cursor ? (loadedByCursor.get(`${resource}:${cursor}`) ?? 0) : 0) +
@@ -429,6 +461,13 @@ function operational(
 }
 
 export const aiRepository: AiRepository = {
+  createPrompt(input) {
+    return apiClient.post(
+      `${AI_BASE_PATH}/prompts`,
+      input,
+      aiAdminResourceSchema,
+    );
+  },
   probe() {
     return mocksEnabled()
       ? apiClient.get(`${AI_BASE_PATH}/probe`, apiErrorSchema)
@@ -437,7 +476,10 @@ export const aiRepository: AiRepository = {
   getOverview(input) {
     if (!mocksEnabled())
       return apiClient
-        .get(`${AI_BASE_PATH}/overview`, aiAdminResourceSchema)
+        .get(
+          `${AI_BASE_PATH}/overview?${liveFilters(aiOverviewQuerySchema.parse(input))}`,
+          aiAdminResourceSchema,
+        )
         .then((value) => {
           const data = parseLive(
               liveResource("overview", overviewDataSchema),
@@ -445,7 +487,7 @@ export const aiRepository: AiRepository = {
             ).data,
             requests = data.requests,
             failures = data.failures;
-          const observedAt = new Date().toISOString();
+          const observedAt = data.observedAt;
           return aiOverviewSchema.parse({
             query: aiOverviewQuerySchema.parse(input),
             metrics: [
@@ -454,7 +496,7 @@ export const aiRepository: AiRepository = {
                 label: "Original requests",
                 value: requests,
                 unit: "requests",
-                platform: "all",
+                platform: input.platform ?? "all",
                 denominator: "original_requests",
                 freshness: observedAt,
               },
@@ -463,21 +505,26 @@ export const aiRepository: AiRepository = {
                 label: "Failed requests",
                 value: failures,
                 unit: "failures",
-                platform: "all",
+                platform: input.platform ?? "all",
                 denominator: "failures",
                 freshness: observedAt,
               },
             ],
             totalOriginalRequests: requests,
-            totalAttempts: requests,
-            fallbackAttempts: 0,
+            totalAttempts: data.totalAttempts,
+            fallbackAttempts: data.fallbackAttempts,
+            collectionStartedAt: data.collectionStartedAt,
             costByCurrency: [money(data.estimatedCost, observedAt)],
             featureDistribution: [],
             providerDistribution: [],
             platformDistribution: [],
             trend: [],
             regions: {
-              metrics: { availability: "available" },
+              metrics: {
+                availability: data.coverage,
+                message:
+                  "Platform attribution is collected at request time from authenticated native sessions; historical events remain unknown. Attempt counts are unavailable.",
+              },
               charts: { availability: "empty" },
             },
           });
@@ -685,8 +732,21 @@ export const aiRepository: AiRepository = {
             : `${AI_BASE_PATH}/${path}/${encodeURIComponent(rawId(id))}`;
       if (resource === "prompts" && request.action === "test")
         return apiClient.post(endpoint, body, acceptedWorkSchema);
+      if (resource === "prompts")
+        return apiClient.post(
+          endpoint,
+          body,
+          z
+            .object({
+              id: z.uuid(),
+              workload: z.string(),
+              status: z.literal("approved"),
+              versionNo: z.number().int().positive(),
+            })
+            .strict(),
+        );
       const operation =
-        resource === "prompts" || resource === "failures"
+        resource === "failures"
           ? apiClient.post(endpoint, body, aiAdminResourceSchema)
           : apiClient.patch(endpoint, body, aiAdminResourceSchema);
       return operation.then((value) => operational(value, resource));

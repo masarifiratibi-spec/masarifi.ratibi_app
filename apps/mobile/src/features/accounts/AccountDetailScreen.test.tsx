@@ -11,7 +11,7 @@ import {
   fixtureCategories,
   fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
-import { renderWithQueryData } from '@/test-utils/render';
+import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { AccountDetailScreen } from './AccountDetailScreen';
 import { usePreferenceStore } from '@/state/preferences';
 import { coreFinanceService } from '@/services/mocks/core-finance-service';
@@ -24,8 +24,48 @@ jest.mock('expo-router', () => ({
 
 afterEach(() => jest.restoreAllMocks());
 
-it('shows a safe error when the live payoff request is offline', async () => {
+it('shows the account shell before its first record read without editable invented data', () => {
   jest
+    .spyOn(coreFinanceService, 'getAccount')
+    .mockImplementation(() => new Promise(() => {}));
+  const view = renderWithProviders(
+    <AccountDetailScreen id={fixtureAccounts[0].id} />
+  );
+  try {
+    expect(view.getByTestId('account-detail-masthead')).toBeOnTheScreen();
+    expect(
+      view.queryByText(translate('coreFinance.accounts.missing'))
+    ).toBeNull();
+    expect(view.queryByText(translate('coreFinance.accounts.edit'))).toBeNull();
+  } finally {
+    view.unmount();
+  }
+});
+
+it('shows known account details before its separate balance read finishes', () => {
+  const balances = jest
+    .spyOn(coreFinanceService, 'listAccountBalances')
+    .mockImplementation(() => new Promise(() => {}));
+  const account = fixtureAccounts[0];
+  const view = renderWithQueryData(<AccountDetailScreen id={account.id} />, [
+    [coreFinanceKeys.account(account.id), account]
+  ]);
+  try {
+    expect(view.getByTestId('account-detail-masthead-title')).toHaveTextContent(
+      account.name
+    );
+    expect(view.getByTestId('account-detail-hero')).toBeOnTheScreen();
+    expect(view.getByTestId('financial-pulse-statement')).not.toHaveTextContent(
+      '0.00'
+    );
+  } finally {
+    view.unmount();
+    balances.mockRestore();
+  }
+});
+
+it('calculates entered payoff values immediately without a network request', async () => {
+  const remote = jest
     .spyOn(coreFinanceService, 'calculateCreditCardPayoff')
     .mockRejectedValue(new CoreFinanceError('offline'));
   const account = fixtureAccounts[3];
@@ -52,8 +92,11 @@ it('shows a safe error when the live payoff request is offline', async () => {
   );
 
   expect(
-    await screen.findByText(translate('coreFinance.state.error'))
+    await screen.findByText(
+      translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
+    )
   ).toBeTruthy();
+  expect(remote).not.toHaveBeenCalled();
 });
 
 it('hides the saved minimum payment when financial privacy is enabled', () => {
@@ -168,7 +211,7 @@ it('keeps closed accounts read-only', () => {
   ).toBeNull();
 });
 
-it('opens account activity directly in edit mode', () => {
+it('opens account activity in transaction details', () => {
   const account = fixtureAccounts[0];
   const transaction = fixtureTransactions[0];
   renderWithQueryData(<AccountDetailScreen id={account.id} />, [
@@ -194,9 +237,7 @@ it('opens account activity directly in edit mode', () => {
   ]);
 
   fireEvent.press(screen.getByText(transaction.title));
-  expect(router.push).toHaveBeenCalledWith(
-    `/transactions/${transaction.id}/edit`
-  );
+  expect(router.push).toHaveBeenCalledWith(`/transactions/${transaction.id}`);
 });
 
 it('reuses the RTL transaction card for recent account activity', () => {
@@ -286,3 +327,40 @@ it('shows card terms and calculates an integer-safe payoff', async () => {
     translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
   );
 });
+
+it.each(['١٠٠', '۱۰۰'])(
+  'calculates the payoff from a localized basis-point rate: %s',
+  async (rate) => {
+    const calculate = jest
+      .spyOn(coreFinanceService, 'calculateCreditCardPayoff')
+      .mockRejectedValue(new CoreFinanceError('offline'));
+    const account = fixtureAccounts[3];
+    renderWithQueryData(<AccountDetailScreen id={account.id} />, [
+      [coreFinanceKeys.account(account.id), account],
+      [coreFinanceKeys.accountBalances(true), []]
+    ]);
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.payoff.balance')),
+      '100'
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(
+        translate('coreFinance.accounts.payoff.rateBasisPoints')
+      ),
+      rate
+    );
+    fireEvent.changeText(
+      screen.getByLabelText(translate('coreFinance.accounts.payoff.payment')),
+      '30'
+    );
+    fireEvent.press(
+      screen.getByText(translate('coreFinance.accounts.payoff.calculate'))
+    );
+    expect(
+      await screen.findByText(
+        translateDynamic('coreFinance.accounts.payoff.months', { months: 4 })
+      )
+    ).toBeTruthy();
+    expect(calculate).not.toHaveBeenCalled();
+  }
+);

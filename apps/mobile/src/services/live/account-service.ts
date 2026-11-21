@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { z } from 'zod';
 
 import {
@@ -11,7 +12,11 @@ import {
   requestJson
 } from './http-client';
 import type { AccountBalanceProjection } from '@/services/contracts/core-finance-service';
-import { captureLiveClerkIdentity } from './auth-service';
+import {
+  captureLiveClerkIdentity,
+  captureLiveReadClerkIdentity
+} from './auth-service';
+import { assertReadActive, type ReadContext } from './read-context';
 
 const nullableDate = z
   .string()
@@ -194,16 +199,24 @@ export function createLiveAccountService({
       operationId?: string;
       emptyValue?: T;
       identity?: Awaited<ReturnType<typeof captureLiveClerkIdentity>>;
+      signal?: AbortSignal;
     } = {}
   ) => {
+    assertBenchmarkRead(method);
     if (method !== 'GET' && !options.operationId?.trim())
       throw new HttpError('validation_error', 400);
-    const identity = options.identity ?? (await captureLiveClerkIdentity());
+    const identity =
+      options.identity ??
+      (await (method === 'GET'
+        ? captureLiveReadClerkIdentity()
+        : captureLiveClerkIdentity()));
+    assertReadActive(options.signal);
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
       request,
       method,
+      signal: options.signal,
       headers: options.operationId
         ? { 'Idempotency-Key': options.operationId }
         : undefined,
@@ -214,12 +227,17 @@ export function createLiveAccountService({
         : { emptyValue: options.emptyValue })
     });
     await identity.assertCurrent();
+    assertReadActive(options.signal);
     return result;
   };
 
   return {
-    async listAccounts(includeArchived = false): Promise<VersionedAccount[]> {
-      const identity = await captureLiveClerkIdentity();
+    async listAccounts(
+      includeArchived = false,
+      context?: ReadContext
+    ): Promise<VersionedAccount[]> {
+      const identity = await captureLiveReadClerkIdentity();
+      assertReadActive(context?.signal);
       const accounts: VersionedAccount[] = [];
       const cursors = new Set<string>();
       let cursor: string | null = null;
@@ -231,7 +249,7 @@ export function createLiveAccountService({
           'GET',
           `/api/v1/accounts?${query.toString()}`,
           accountPageSchema,
-          { identity }
+          { identity, signal: context?.signal }
         );
         accounts.push(...page.items.map(accountFromApi));
         cursor = page.nextCursor;
@@ -252,12 +270,14 @@ export function createLiveAccountService({
     },
     async getAccountBalance(
       id: string,
-      expectedCurrency: string
+      expectedCurrency: string,
+      context?: ReadContext
     ): Promise<AccountBalanceProjection> {
       const value = await send(
         'GET',
         `/api/v1/accounts/${encodeURIComponent(id)}/summary`,
-        accountSummarySchema
+        accountSummarySchema,
+        { signal: context?.signal }
       );
       if (
         value.accountId !== id ||
@@ -279,6 +299,7 @@ export function createLiveAccountService({
     async calculateCreditCardPayoff(
       input: z.input<typeof payoffInputSchema>
     ): Promise<z.output<typeof payoffResponseSchema>> {
+      assertBenchmarkRead('POST');
       const body = payoffInputSchema.parse(input);
       const identity = await captureLiveClerkIdentity();
       await identity.assertCurrent();
@@ -300,6 +321,7 @@ export function createLiveAccountService({
       input: AccountInput,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       const { currencyCode, institution, openedAt, ...fields } =
         accountInputSchema.parse(input);
       const result = await send(
@@ -334,6 +356,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
         throw new HttpError('validation_error', 400);
       const parsed = accountInputSchema.parse(input);
@@ -364,6 +387,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<void> {
+      assertBenchmarkRead('POST');
       await send(
         'DELETE',
         `/api/v1/accounts/${encodeURIComponent(id)}?expectedVersion=${String(expectedVersion)}`,
@@ -376,6 +400,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       return accountFromApi(
         await send(
           'POST',
@@ -391,6 +416,7 @@ export function createLiveAccountService({
       expectedVersion: number,
       operationId: string
     ): Promise<VersionedAccount> {
+      assertBenchmarkRead('POST');
       return accountFromApi(
         await send(
           'POST',

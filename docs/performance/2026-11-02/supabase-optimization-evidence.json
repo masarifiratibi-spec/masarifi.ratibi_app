@@ -1,0 +1,1118 @@
+{
+  "status": "UNRESOLVED: tested index candidate is not applied to the live database",
+  "project": "Masarifi Staging",
+  "organizationPlan": "Pro",
+  "compute": "Nano observed in existing logged-in Database Settings UI; infrastructure change not performed",
+  "latestAcceptedLiveOverview": {
+    "observed_at": "2026-11-01 22:47:12.255634+00",
+    "database_bytes": 463441043,
+    "max_connections": "60",
+    "proposed_index": null,
+    "client_backends": 20
+  },
+  "historicalLargestRelationEstimates": [
+    {
+      "oid": "17678",
+      "relname": "outbox_events",
+      "relpages": 19934,
+      "reltuples": 523127
+    },
+    {
+      "oid": "21866",
+      "relname": "job_runs",
+      "relpages": 1688,
+      "reltuples": 48990
+    },
+    {
+      "oid": "21903",
+      "relname": "job_attempts",
+      "relpages": 1051,
+      "reltuples": 50213
+    },
+    {
+      "oid": "21927",
+      "relname": "provider_health_checks",
+      "relpages": 452,
+      "reltuples": 43620
+    },
+    {
+      "oid": "40999",
+      "relname": "job_run_details",
+      "relpages": 424,
+      "reltuples": 21912
+    },
+    {
+      "oid": "1255",
+      "relname": "pg_proc",
+      "relpages": 269,
+      "reltuples": 3982
+    },
+    {
+      "oid": "1249",
+      "relname": "pg_attribute",
+      "relpages": 174,
+      "reltuples": 9553
+    },
+    {
+      "oid": "2606",
+      "relname": "pg_constraint",
+      "relpages": 128,
+      "reltuples": 1506
+    },
+    {
+      "oid": "2608",
+      "relname": "pg_depend",
+      "relpages": 125,
+      "reltuples": 12341
+    },
+    {
+      "oid": "2619",
+      "relname": "pg_statistic",
+      "relpages": 84,
+      "reltuples": 1161
+    },
+    {
+      "oid": "18698",
+      "relname": "idempotency_keys",
+      "relpages": 76,
+      "reltuples": 288
+    },
+    {
+      "oid": "1259",
+      "relname": "pg_class",
+      "relpages": 52,
+      "reltuples": 1673
+    },
+    {
+      "oid": "2609",
+      "relname": "pg_description",
+      "relpages": 45,
+      "reltuples": 5268
+    },
+    {
+      "oid": "23962",
+      "relname": "staging_voice_epochs",
+      "relpages": 34,
+      "reltuples": 38
+    },
+    {
+      "oid": "3256",
+      "relname": "pg_policy",
+      "relpages": 33,
+      "reltuples": 296
+    }
+  ],
+  "historicalQueryCountersSince": "2026-09-22T19:34:33.002915+00:00",
+  "voiceConfirmationCumulativeStats": {
+    "captured_at": "2026-11-01T22:34:26.222172+00:00",
+    "calls": 3080063,
+    "total_ms": 211529246.234625,
+    "mean_ms": 68.6769219443213,
+    "shared_blks_read": 1760523,
+    "stats_reset": "2026-09-22T19:34:33.002915+00:00"
+  },
+  "liveActiveQuerySnapshot": [
+    {
+      "role_oid": 22152,
+      "state": "active",
+      "wait_event_type": null,
+      "wait_event": null,
+      "function_name": "private.enqueue_dev_reminders",
+      "query_fingerprint": "db0aca931888916867f3bf8eeefd9686",
+      "query_age_seconds": "10"
+    },
+    {
+      "role_oid": 22152,
+      "state": "active",
+      "wait_event_type": null,
+      "wait_event": null,
+      "function_name": "private.voice_confirmation_sources",
+      "query_fingerprint": "41904f98ca7fa98c26415cc84364e601",
+      "query_age_seconds": "32"
+    },
+    {
+      "role_oid": 22152,
+      "state": "active",
+      "wait_event_type": null,
+      "wait_event": null,
+      "function_name": "private.voice_confirmation_sources",
+      "query_fingerprint": "41904f98ca7fa98c26415cc84364e601",
+      "query_age_seconds": "10"
+    },
+    {
+      "role_oid": 22152,
+      "state": "active",
+      "wait_event_type": null,
+      "wait_event": null,
+      "function_name": "private.voice_confirmation_sources",
+      "query_fingerprint": "41904f98ca7fa98c26415cc84364e601",
+      "query_age_seconds": "26"
+    }
+  ],
+  "configuredMainPoolSlots": {
+    "total": 195,
+    "api": 108,
+    "worker": 87,
+    "endpointMode": "all main endpoints session pooling",
+    "roleGroups": 2,
+    "notActualConnectionCount": true
+  },
+  "restoredSnapshotNotLive": {
+    "topOutboxTypes": [
+      {
+        "event_type": "operations.job-succeeded",
+        "rows": 531963,
+        "published": 3,
+        "pending": 531960,
+        "oldest": "2026-09-27T14:12:30.611253+00:00",
+        "newest": "2026-11-01T13:19:40.339781+00:00"
+      },
+      {
+        "event_type": "operations.job-failed",
+        "rows": 12973,
+        "published": 0,
+        "pending": 12973,
+        "oldest": "2026-09-27T14:12:39.082876+00:00",
+        "newest": "2026-10-04T11:16:04.146817+00:00"
+      },
+      {
+        "event_type": "operations.job-dead-lettered",
+        "rows": 1826,
+        "published": 0,
+        "pending": 1826,
+        "oldest": "2026-09-27T14:12:56.079602+00:00",
+        "newest": "2026-10-04T11:13:21.960607+00:00"
+      },
+      {
+        "event_type": "device.registered",
+        "rows": 1513,
+        "published": 0,
+        "pending": 1513,
+        "oldest": "2026-10-16T13:14:38.208631+00:00",
+        "newest": "2026-11-01T13:04:24.885162+00:00"
+      },
+      {
+        "event_type": "import.session.changed.v1",
+        "rows": 764,
+        "published": 0,
+        "pending": 764,
+        "oldest": "2026-10-21T21:41:01.951354+00:00",
+        "newest": "2026-11-01T11:25:01.885737+00:00"
+      },
+      {
+        "event_type": "balance.changed",
+        "rows": 92,
+        "published": 0,
+        "pending": 92,
+        "oldest": "2026-10-16T13:27:09.93734+00:00",
+        "newest": "2026-11-01T11:25:00.230641+00:00"
+      },
+      {
+        "event_type": "assistant.response_ready.v1",
+        "rows": 87,
+        "published": 0,
+        "pending": 87,
+        "oldest": "2026-10-21T20:03:55.771388+00:00",
+        "newest": "2026-10-23T13:10:45.650454+00:00"
+      },
+      {
+        "event_type": "transaction.created",
+        "rows": 73,
+        "published": 0,
+        "pending": 73,
+        "oldest": "2026-10-16T13:27:09.93734+00:00",
+        "newest": "2026-11-01T11:25:00.230641+00:00"
+      },
+      {
+        "event_type": "import.item.changed.v1",
+        "rows": 70,
+        "published": 0,
+        "pending": 70,
+        "oldest": "2026-10-21T21:41:01.951354+00:00",
+        "newest": "2026-11-01T11:25:00.664402+00:00"
+      },
+      {
+        "event_type": "notification.delivered",
+        "rows": 41,
+        "published": 0,
+        "pending": 41,
+        "oldest": "2026-10-13T12:20:14.745602+00:00",
+        "newest": "2026-11-01T07:17:22.866783+00:00"
+      },
+      {
+        "event_type": "privacy.deletion_requested",
+        "rows": 18,
+        "published": 0,
+        "pending": 18,
+        "oldest": "2026-10-16T13:15:03.651739+00:00",
+        "newest": "2026-11-01T10:02:16.025516+00:00"
+      },
+      {
+        "event_type": "privacy.deletion_completed",
+        "rows": 16,
+        "published": 0,
+        "pending": 16,
+        "oldest": "2026-10-16T14:15:48.55122+00:00",
+        "newest": "2026-11-01T11:04:40.25702+00:00"
+      },
+      {
+        "event_type": "transaction.revised",
+        "rows": 15,
+        "published": 0,
+        "pending": 15,
+        "oldest": "2026-10-22T20:02:06.068643+00:00",
+        "newest": "2026-10-27T07:02:41.539569+00:00"
+      },
+      {
+        "event_type": "operations.setting-changed",
+        "rows": 14,
+        "published": 0,
+        "pending": 14,
+        "oldest": "2026-10-08T10:06:15.010487+00:00",
+        "newest": "2026-10-22T08:53:00.686083+00:00"
+      },
+      {
+        "event_type": "account.created",
+        "rows": 13,
+        "published": 0,
+        "pending": 13,
+        "oldest": "2026-10-16T13:26:52.826276+00:00",
+        "newest": "2026-11-01T11:10:32.77325+00:00"
+      },
+      {
+        "event_type": "planning.salary_receipt_expected",
+        "rows": 11,
+        "published": 0,
+        "pending": 11,
+        "oldest": "2026-10-22T19:59:00.177406+00:00",
+        "newest": "2026-10-27T00:00:00.056232+00:00"
+      },
+      {
+        "event_type": "tracking.preference.updated.v1",
+        "rows": 11,
+        "published": 0,
+        "pending": 11,
+        "oldest": "2026-10-04T19:12:25.21337+00:00",
+        "newest": "2026-10-23T05:36:06.134035+00:00"
+      },
+      {
+        "event_type": "profile.created",
+        "rows": 8,
+        "published": 0,
+        "pending": 8,
+        "oldest": "2026-09-28T06:13:20.739592+00:00",
+        "newest": "2026-11-01T11:10:23.462247+00:00"
+      },
+      {
+        "event_type": "profile.updated",
+        "rows": 6,
+        "published": 0,
+        "pending": 6,
+        "oldest": "2026-10-16T15:26:53.580852+00:00",
+        "newest": "2026-11-01T11:10:30.629277+00:00"
+      },
+      {
+        "event_type": "ai.provider_failed.v1",
+        "rows": 5,
+        "published": 0,
+        "pending": 5,
+        "oldest": "2026-10-21T20:27:37.64775+00:00",
+        "newest": "2026-10-22T09:00:24.405236+00:00"
+      }
+    ],
+    "largestRelations": [
+      {
+        "nspname": "private",
+        "relname": "outbox_events",
+        "total_bytes": 284942336,
+        "index_bytes": 124436480
+      },
+      {
+        "nspname": "private",
+        "relname": "job_runs",
+        "total_bytes": 27500544,
+        "index_bytes": 13434880
+      },
+      {
+        "nspname": "private",
+        "relname": "job_attempts",
+        "total_bytes": 12361728,
+        "index_bytes": 3670016
+      },
+      {
+        "nspname": "private",
+        "relname": "provider_health_checks",
+        "total_bytes": 10084352,
+        "index_bytes": 6250496
+      },
+      {
+        "nspname": "cron",
+        "relname": "job_run_details",
+        "total_bytes": 3751936,
+        "index_bytes": 499712
+      },
+      {
+        "nspname": "supabase_migrations",
+        "relname": "schema_migrations",
+        "total_bytes": 811008,
+        "index_bytes": 32768
+      },
+      {
+        "nspname": "private",
+        "relname": "idempotency_keys",
+        "total_bytes": 729088,
+        "index_bytes": 131072
+      },
+      {
+        "nspname": "public",
+        "relname": "assistant_messages",
+        "total_bytes": 385024,
+        "index_bytes": 122880
+      },
+      {
+        "nspname": "private",
+        "relname": "import_attempts",
+        "total_bytes": 368640,
+        "index_bytes": 180224
+      },
+      {
+        "nspname": "public",
+        "relname": "user_keyword_rules",
+        "total_bytes": 327680,
+        "index_bytes": 188416
+      },
+      {
+        "nspname": "public",
+        "relname": "security_events",
+        "total_bytes": 327680,
+        "index_bytes": 188416
+      },
+      {
+        "nspname": "audit",
+        "relname": "audit_events",
+        "total_bytes": 319488,
+        "index_bytes": 163840
+      },
+      {
+        "nspname": "public",
+        "relname": "import_items",
+        "total_bytes": 303104,
+        "index_bytes": 155648
+      },
+      {
+        "nspname": "public",
+        "relname": "transactions",
+        "total_bytes": 262144,
+        "index_bytes": 229376
+      },
+      {
+        "nspname": "public",
+        "relname": "notification_preferences",
+        "total_bytes": 237568,
+        "index_bytes": 114688
+      },
+      {
+        "nspname": "audit",
+        "relname": "transaction_revisions",
+        "total_bytes": 204800,
+        "index_bytes": 49152
+      },
+      {
+        "nspname": "public",
+        "relname": "notification_templates",
+        "total_bytes": 163840,
+        "index_bytes": 114688
+      },
+      {
+        "nspname": "public",
+        "relname": "notification_events",
+        "total_bytes": 155648,
+        "index_bytes": 106496
+      },
+      {
+        "nspname": "storage",
+        "relname": "objects",
+        "total_bytes": 155648,
+        "index_bytes": 122880
+      },
+      {
+        "nspname": "private",
+        "relname": "clerk_webhook_events",
+        "total_bytes": 139264,
+        "index_bytes": 81920
+      }
+    ],
+    "schedules": [
+      {
+        "job_key": "ai.evaluate_route",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "ai.reconcile",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "ai.usage_rollup",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "assistant.respond",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "clerk.identity.reconcile",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 86400
+        }
+      },
+      {
+        "job_key": "clerk.session-revoke.retry",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "clerk.webhook.process",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "conflicts.expire",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "financial-insights.generate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 900
+        }
+      },
+      {
+        "job_key": "idempotency.cleanup",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "import.parse",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 30
+        }
+      },
+      {
+        "job_key": "ledger.reconcile",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "notification.campaign.expand",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "notification.dispatch",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "notification.expire",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "notification.reminders.evaluate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 86400
+        }
+      },
+      {
+        "job_key": "operations.backup-verify",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 86400
+        }
+      },
+      {
+        "job_key": "operations.cache-invalidate",
+        "enabled": true,
+        "schedule": null
+      },
+      {
+        "job_key": "operations.capacity-evaluate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 300
+        }
+      },
+      {
+        "job_key": "operations.dr-rehearse",
+        "enabled": false,
+        "schedule": null
+      },
+      {
+        "job_key": "operations.job-history-retain",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 86400
+        }
+      },
+      {
+        "job_key": "operations.maintenance-activate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "operations.maintenance-complete",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "operations.provider-health",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "operations.restore-drill",
+        "enabled": false,
+        "schedule": null
+      },
+      {
+        "job_key": "parser.corpus",
+        "enabled": true,
+        "schedule": null
+      },
+      {
+        "job_key": "planning.obligation-schedule.generate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "planning.overdue.mark",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "planning.payment-match.propose",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "planning.reconcile",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "planning.reminders.emit",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "planning.salary-cycle.generate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "platform.outbox.dispatch",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "privacy.account-delete",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "privacy.export-expire",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "privacy.export-generate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "raw.purge",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "report.email.deliver",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "report.generate",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "report.output.expire",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "report.schedule.enqueue",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "retention.apply",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 86400
+        }
+      },
+      {
+        "job_key": "security.alert-dispatch",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "security.support-expire",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 60
+        }
+      },
+      {
+        "job_key": "source.consume",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "support-attachment.cleanup",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "support-attachment.scan",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "sync-mutations.retry",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "sync-state.cleanup",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "tracking.reconcile",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "voice.finalize",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      },
+      {
+        "job_key": "voice-media.purge",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 3600
+        }
+      },
+      {
+        "job_key": "voice.transcribe_extract",
+        "enabled": true,
+        "schedule": {
+          "kind": "interval",
+          "timezone": "UTC",
+          "everySeconds": 10
+        }
+      }
+    ],
+    "foreignKeyIndexReviewCandidates": 121,
+    "candidateCountNotProvenDefects": true
+  },
+  "isolatedIndexExperiment": {
+    "sampleCountPerPhase": 6,
+    "medianBeforeMs": 745.5464999999999,
+    "medianAfterMs": 8.618,
+    "ratio": 86.51038524019494,
+    "emptyResultHashesEqual": true,
+    "emptyResultOnly": true,
+    "rawTimings": [
+      {
+        "phase": "before",
+        "iteration": 1,
+        "elapsed_ms": 909.644,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "before",
+        "iteration": 2,
+        "elapsed_ms": 700.348,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "before",
+        "iteration": 3,
+        "elapsed_ms": 671.95,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "before",
+        "iteration": 4,
+        "elapsed_ms": 793.181,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "before",
+        "iteration": 5,
+        "elapsed_ms": 709.01,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "before",
+        "iteration": 6,
+        "elapsed_ms": 782.083,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 1,
+        "elapsed_ms": 9.924,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 2,
+        "elapsed_ms": 7.859,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 3,
+        "elapsed_ms": 8.151,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 4,
+        "elapsed_ms": 62.764,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 5,
+        "elapsed_ms": 9.085,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      },
+      {
+        "phase": "after",
+        "iteration": 6,
+        "elapsed_ms": 7.711,
+        "result_hash": "d751713988987e9331980363e24189ce"
+      }
+    ],
+    "plans": [
+      {
+        "phase": "before",
+        "execution_ms": 716.837,
+        "planning_ms": 12.5,
+        "shared_hits": 83166,
+        "shared_reads": 0,
+        "outbox_nodes": [
+          {
+            "node": "Index Scan",
+            "index": "outbox_events_aggregate_history_idx",
+            "relation": "outbox_events",
+            "actualRows": 1,
+            "sharedHits": 82877,
+            "sharedReads": 0,
+            "rowsRemovedByFilter": 1
+          }
+        ]
+      },
+      {
+        "phase": "after",
+        "execution_ms": 0.559,
+        "planning_ms": 7.821,
+        "shared_hits": 354,
+        "shared_reads": 0,
+        "outbox_nodes": [
+          {
+            "node": "Index Scan",
+            "index": "outbox_events_voice_confirmation_idx",
+            "relation": "outbox_events",
+            "actualRows": 1,
+            "sharedHits": 50,
+            "sharedReads": 0,
+            "rowsRemovedByFilter": null
+          }
+        ]
+      }
+    ],
+    "indexBytes": 16384,
+    "indexRolledBackAfterTest": true,
+    "liveLatencyClaim": false
+  },
+  "membershipTests": [
+    {
+      "case": "other_admin_nonset_grant",
+      "indexValid": true,
+      "executorRestored": true,
+      "membershipsExactlyPreserved": true
+    },
+    {
+      "case": "other_admin_nonset_grant",
+      "indexAbsentAfterRollback": true,
+      "testRoleAbsentAfterRollback": true
+    },
+    {
+      "case": "existing_own_nonset_grant",
+      "indexValid": true,
+      "executorRestored": true,
+      "membershipsExactlyPreserved": true
+    },
+    {
+      "case": "existing_own_nonset_grant",
+      "indexAbsentAfterRollback": true,
+      "testRoleAbsentAfterRollback": true
+    },
+    {
+      "case": "existing_own_set_grant",
+      "indexValid": true,
+      "executorRestored": true,
+      "membershipsExactlyPreserved": true
+    },
+    {
+      "case": "existing_own_set_grant",
+      "indexAbsentAfterRollback": true,
+      "testRoleAbsentAfterRollback": true
+    }
+  ],
+  "lockFailureTest": {
+    "expectedLockTimeout": true,
+    "membershipsExactlyPreservedAfterFailure": true,
+    "indexAbsentAfterFailure": true,
+    "syntheticRoleAbsentAfterFailure": true
+  },
+  "superuserRollbackTest": [
+    {
+      "valid": true,
+      "ready": true,
+      "definition": "CREATE INDEX outbox_events_voice_confirmation_idx ON private.outbox_events USING btree (aggregate_id, created_at, id) WHERE (event_type = 'transaction.created'::text)",
+      "bytes": 16384,
+      "migrationMembershipRows": 0
+    },
+    {
+      "indexAbsentAfterRollback": true
+    }
+  ],
+  "migrationFile": "supabase/migrations/20261101223723_outbox_voice_confirmation_lookup_index.sql",
+  "migrationSha256": "f3cfc33fb1f267572bf7d1eaee67cc544f24583b0998b07c3c1b3784dea0edbb",
+  "liveReconciliation": {
+    "observedAtUtc": "2026-11-01T23:01:34.816878+00:00",
+    "project": "qcffvfbpzvpwcwxwjyro",
+    "indexName": null,
+    "history": null,
+    "migrationMemberships": [
+      {
+        "grantorOid": 10,
+        "admin": true,
+        "inherit": false,
+        "set": false
+      }
+    ],
+    "liveIndexApplied": false,
+    "source": "successful final Supabase execute_sql metadata response"
+  },
+  "voiceMaintenance": {
+    "pausedAtUtc": "2026-11-01T22:57:28.268407+00:00",
+    "gracefulExitCode": 0,
+    "resumedAtUtc": "2026-11-01T23:00:09.781922+00:00",
+    "sameContainerImageAndRestartPolicy": true,
+    "automaticResumeTimerCancelledAfterManualResume": true,
+    "noEpochOrOwnerAdmissionChange": true
+  },
+  "liveRowsDeleted": 0,
+  "liveVolumesOrStorageObjectsDeleted": 0,
+  "liveAuthenticationOrRlsChanges": false,
+  "computeOrPoolerLimitsChanged": false,
+  "fullDatabaseQualificationPassed": false
+}

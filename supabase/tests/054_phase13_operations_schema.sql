@@ -32,8 +32,14 @@ select ok(to_regclass('private.system_incidents_status_time_idx') is not null,'i
 select ok(to_regclass('private.feature_flag_rules_priority_uq') is not null,'flag priorities are deterministic');
 select ok(to_regclass('private.maintenance_status_time_idx') is not null,'maintenance projection is bounded by status and time');
 
-select is((select count(*)::integer from private.scheduled_jobs),52,'all Specs 001-011 and 013 jobs are inventoried once');
-select is((select count(distinct job_key)::integer from private.scheduled_jobs),52,'job ownership keys are unique');
+select is((select count(*)::integer from private.scheduled_jobs),
+  54,'the 53 previous jobs and the financial reset cleanup job are inventoried');
+select is((select count(distinct job_key)::integer from private.scheduled_jobs),54,'job ownership keys are unique');
+select is((select count(*)::integer from private.scheduled_jobs where job_key='privacy.financial-reset-cleanup'
+  and owner_spec=4 and job_type=job_key and enabled and retry_safe and not cancel_safe
+  and schedule='{"kind":"interval","everySeconds":15,"timezone":"UTC"}'::jsonb
+  and timeout_seconds=60 and max_attempts=5 and configuration='{}'::jsonb),1,
+  'Spec 004 owns exactly one governed financial reset cleanup job');
 select is((select count(*)::integer from private.scheduled_jobs where owner_spec=13),9,'Phase 13 owns exactly nine jobs');
 select is((select count(*)::integer from private.scheduled_jobs where owner_spec=12),0,'deferred Spec 012 owns no job');
 select is((select count(*)::integer from private.scheduled_jobs where job_key ~* 'billing|stripe|subscription|entitlement|checkout|promotion'),0,'Free-only inventory excludes paid work');

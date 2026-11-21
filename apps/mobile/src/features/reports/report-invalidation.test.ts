@@ -1,11 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
 
 import { assistantKeys } from '@/features/assistant/assistant-queries';
-import { invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
-import {
-  invalidatePlanningScopes,
-  scopeToKey as planningScopeToKey
-} from '@/features/financial-planning/financial-planning-queries';
+import { coreFinanceKeys, invalidateCoreFinanceScopes } from '@/features/core-finance/core-finance-queries';
+import { invalidatePlanningScopes } from '@/features/financial-planning/financial-planning-queries';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import {
   fixtureAccounts,
@@ -98,9 +95,19 @@ test('finance and planning mutations also refresh reports and current assistant 
 });
 
 test.each([
-  ['accounts.balances', ['core-finance', 'accounts']],
-  ['transactions.list', ['core-finance', 'transactions']],
-  ['home.summary', ['core-finance', 'home']]
-])('planning mutation scope %s refreshes %j', (scope, expected) => {
-  expect(planningScopeToKey(scope)).toEqual(expected);
+  ['accounts.balances', coreFinanceKeys.accountBalances()],
+  ['transactions.list', coreFinanceKeys.transactionPages()],
+  ['home.summary', coreFinanceKeys.home('SAR')]
+] as const)('planning mutation scope %s refreshes its live query', async (scope, queryKey) => {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+  const metadataKey = coreFinanceKeys.accounts();
+  client.setQueryData(queryKey, { current: true });
+  client.setQueryData(metadataKey, fixtureAccounts);
+  try {
+    await invalidatePlanningScopes(client, [scope]);
+    expect(client.getQueryState(queryKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(metadataKey)?.isInvalidated).toBe(false);
+  } finally {
+    client.clear();
+  }
 });

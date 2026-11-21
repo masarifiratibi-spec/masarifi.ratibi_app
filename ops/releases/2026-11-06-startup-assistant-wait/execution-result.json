@@ -1,0 +1,67 @@
+{
+  "atUtc": "2026-11-06T18:12:09.701170+00:00",
+  "applicationSourceCommit": "ab154ebc6436850f32c36bbd890533f15678bc6e",
+  "installedVersionCode": 122,
+  "installedApkSha256": "3fee0911d1e8ac3b055901773e95e34357a91e21062052d67278882f209a495d",
+  "reviewedManifestSha256": "0d393602e1b1f9b3687690649f2800ad005b5a50d26601dbb469f675c53a24de",
+  "reviewedPinsStillMatch": true,
+  "servingApiImageDigest": "sha256:e3ddc1351fe3649b027e4dd726c125600f1c237bb449d85e764b975561b330b3",
+  "allOther30ContainersUnchanged": true,
+  "sameExactOwnerAndSdkAndCapturedRetainedState": true,
+  "ordinaryOwnRecentsDismissalProducedNewProcess": true,
+  "cachedFirstVisibleHomeBalanceAndActivityAcceptedInObservedRun": true,
+  "preReopenDeviceLocal": "20:23:51.608282",
+  "adjacentOriginalFramesLocal": [
+    "20:23:55.332 startup cover",
+    "20:23:55.554 numeric Home and saved activity"
+  ],
+  "sampledCachedUsefulHomeUpperSeconds": 3.945718,
+  "nativeCachedActivityTotalTimeMs": 644,
+  "firstAfterUpdateUsefulHomeApproximateSeconds": 6.0,
+  "initialDriverLaterManualInterferenceExit1Retained": true,
+  "cachedDriverMissingAndroid35FocusFieldExit1BeforeMoreTapRetained": true,
+  "onlyUnconsumedNavigationContinued": true,
+  "oneNewReadOnlyQuestionInExistingConversation": true,
+  "questionSendCount": 1,
+  "jobAttemptCount": 1,
+  "modelRounds": 2,
+  "serverResponseSeconds": 5.884616,
+  "providerRoundLatencyMs": [
+    2757,
+    1794
+  ],
+  "sampledVisibleAssistantReplyApproximateSeconds": 7.1,
+  "oneResultGetWithWaitMs8000Returned200": true,
+  "questionAndReplyPreservedOriginalEmptyDraftAndNoPendingWork": true,
+  "allObserversEndedNaturally": true,
+  "videos": {
+    "task30-home": {
+      "sha256": "a3cdad2a1a030bf86e3fa873331b94b1d425e908fc3ed69a9c2199c56bfddcd4",
+      "bytes": 71897305,
+      "exitCode": 0,
+      "timeLimitSeconds": 120
+    },
+    "task30-quiet-home-assistant": {
+      "sha256": "aa16dc01ddeb54d4361d6ed3b1c51ed6d48a44e0e52cb31ec8503fece4882146",
+      "bytes": 11337049,
+      "exitCode": 0,
+      "timeLimitSeconds": 120
+    },
+    "task30-remaining-nav-assistant": {
+      "sha256": "7c1cea79025d1302e7459163a6f2c3610c2acdfd0bc2737442fe84e1357ef7b6",
+      "bytes": 5133585,
+      "exitCode": 0,
+      "timeLimitSeconds": 90
+    }
+  },
+  "phoneEndsHome": true,
+  "noRecorderFinancialOrDraftCleanupPending": true,
+  "temporarySshRuleRemovedAndFourUfwFilesAndStatusOriginal": true,
+  "taskRootConsoleTabClosed": true,
+  "noSchemaModelWorkerEnvironmentDnsTlsChange": true,
+  "wholeAppStartupInstantOrZeroJankAccepted": false,
+  "assistantEndToEndSpeedImprovementAccepted": false,
+  "latencyObjectiveStillActive": true,
+  "canonicalDeliveryStill111": true,
+  "productionReady": false
+}

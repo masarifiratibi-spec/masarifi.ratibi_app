@@ -1,0 +1,164 @@
+{
+  "version": "20261107065248",
+  "name": "personal_finance_for_authenticated_owners",
+  "project": "qcffvfbpzvpwcwxwjyro",
+  "migration": "supabase/migrations/20261107065248_personal_finance_for_authenticated_owners.sql",
+  "migrationSha256": "e5884441ed17df9e8fcf477e932f804c9ebd2fa66d7f85fb76fa4d07faa1e452",
+  "rollbackSha256": "3ddddf1a03a7257a30da7b9050c17eb5af4611d636287c9d113bc270fc3b694a",
+  "functions": [
+    {
+      "signature": "private.claim_idempotency_key(text,text,text,text,interval)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_api=X/masarifi_migration}",
+      "before": "d7b27b66f07d89575d7e484552ac0b7d",
+      "after": "cae66fd3b33aa3951e4bdf05d2d258e9"
+    },
+    {
+      "signature": "private.complete_idempotency_key(text,text,text,text,integer,jsonb,text)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_api=X/masarifi_migration}",
+      "before": "62ca8fab95c212e00fcbb345394fe2f8",
+      "after": "6573e6fa17ae83c81e04bcb56b15c62a"
+    },
+    {
+      "signature": "private.create_transaction_conflict(text,uuid,uuid,bigint,bigint,text[],jsonb,jsonb)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}",
+      "before": "e74e1d015a14103a1d7f2904e9676fbb",
+      "after": "bdfe1c02123ab22b94d75d27986e9f9f"
+    },
+    {
+      "signature": "private.current_owner_financial_accounts_allowed()",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_api=X/masarifi_migration}",
+      "before": "7e05ec2d4350019d02aa6327b6790df8",
+      "after": "be74ee43da7d2ecde7b64b3dc5cb13aa"
+    },
+    {
+      "signature": "private.execute_voice_event_unscoped(uuid,uuid,uuid)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration}",
+      "before": "24cc974e5c330e2f2ff3d00659555091",
+      "after": "5bc482ad9c6b2ed6942d80e3a29ed99c"
+    },
+    {
+      "signature": "private.ledger_begin(text)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration}",
+      "before": "c84f90d87ef1bdc81380dc5fbeb72545",
+      "after": "861a99e827fbb9131111479ecba69c03"
+    },
+    {
+      "signature": "private.lookup_idempotency_key(text,text,text,text)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_api=X/masarifi_migration}",
+      "before": "219893a1ac492cab428cd0dffb9c19af",
+      "after": "f0d0d8c9eb3b9a670f1bad7b6bbbaa06"
+    },
+    {
+      "signature": "private.voice_analysis_eligible(text)",
+      "owner": "masarifi_migration",
+      "acl": "{masarifi_migration=X/masarifi_migration}",
+      "before": "1a6c1c1187c48459271333c0a235a190",
+      "after": "1d6bd23337c9749c9d4613f912cd5d5d"
+    }
+  ],
+  "policies": [
+    {
+      "table": "transactions",
+      "name": "transactions_api_owner_select",
+      "before": "b980cbf9d7d3d4cb6cd5b1276459f1c2",
+      "after": "6e392a1f19957370dedf52cf90256b7e"
+    },
+    {
+      "table": "account_balances",
+      "name": "account_balances_api_owner_select",
+      "before": "d6f22b7cabf0addae8ee72de1200ec9c",
+      "after": "0689fa4db5403765a1d0b0ce1eb29ef2"
+    },
+    {
+      "table": "client_sync_state",
+      "name": "client_sync_state_api_owner_select",
+      "before": "cd0bb9b255741b785fb15dd0ffe5b3d9",
+      "after": "53435e53a83ea14431c6f5da6685f84b"
+    },
+    {
+      "table": "client_mutations",
+      "name": "client_mutations_api_owner_select",
+      "before": "133290b88a1247baa69348c2e3bd6027",
+      "after": "b2055c8cc85a6c1e1fb7e1f4c72f0256"
+    },
+    {
+      "table": "transaction_conflicts",
+      "name": "transaction_conflicts_api_owner_select",
+      "before": "569e0a18aa35285a1c4d208cdc344168",
+      "after": "e1283656907adf2cb6767560e061a40a"
+    },
+    {
+      "table": "salary_profiles",
+      "name": "planning_salary_profiles_api_owner_select",
+      "before": "df63db3901a0d0465eb7eac3d629af99",
+      "after": "8affed11e1891c94ea4420b9cbd6900c"
+    },
+    {
+      "table": "salary_receipts",
+      "name": "planning_salary_receipts_api_owner_select",
+      "before": "10b4e6874c5bfae9bf2f5887f1eb8415",
+      "after": "6fde5921d3735cde17c1863828a5cbea"
+    },
+    {
+      "table": "budgets",
+      "name": "planning_budgets_api_owner_select",
+      "before": "8aacf900618be05a87a411b1a8af3ad3",
+      "after": "52a8bf394a8f9cc83c037888da2d7ded"
+    },
+    {
+      "table": "budget_categories",
+      "name": "planning_budget_categories_api_owner_select",
+      "before": "61df5e4c63f16da07bc7f3c8c518b941",
+      "after": "5b84f416f527ebbfb0e1ea77163acca9"
+    },
+    {
+      "table": "obligations",
+      "name": "planning_obligations_api_owner_select",
+      "before": "b356aed812dc99155259dfbcceff5945",
+      "after": "d3fb638833efae52419eafdf33e04458"
+    },
+    {
+      "table": "obligation_schedule_items",
+      "name": "planning_obligation_schedule_items_api_owner_select",
+      "before": "48d2bdfc8b7a24d21ee28e95e240a10e",
+      "after": "62a5979564d33241f397efaa42d66495"
+    },
+    {
+      "table": "obligation_payments",
+      "name": "planning_obligation_payments_api_owner_select",
+      "before": "cc1d5ecc92833801e8581995d96db2d5",
+      "after": "2ac114f86701a246e3182cd19c715f09"
+    },
+    {
+      "table": "obligation_payment_allocations",
+      "name": "planning_obligation_payment_allocations_api_owner_select",
+      "before": "c383f4d6f557aff93fed341d54c038b2",
+      "after": "9d7ff57c9bec250e2f81aed75a2f6225"
+    },
+    {
+      "table": "payment_matches",
+      "name": "planning_payment_matches_api_owner_select",
+      "before": "0a1ea8094f3a4877aac4d42cfaf7dbab",
+      "after": "7eb0aa731523a1c927c888ef6071dc2f"
+    },
+    {
+      "table": "savings_goals",
+      "name": "planning_savings_goals_api_owner_select",
+      "before": "69319fd3a4e3bb43d771114a42be2969",
+      "after": "9dcfa7495887511ea4fd19333afa6184"
+    },
+    {
+      "table": "savings_goal_movements",
+      "name": "planning_savings_goal_movements_api_owner_select",
+      "before": "a709e514092a2c5bfeb62ed52c459aa9",
+      "after": "0913eafda0fd6253c040ec191b659fa9"
+    }
+  ]
+}

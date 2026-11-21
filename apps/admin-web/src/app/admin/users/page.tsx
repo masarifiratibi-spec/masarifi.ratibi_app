@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { mocksEnabled } from "@/core/api/client";
 import { Crown, Download, FilterX, Gift, Info, Search, Star, UserRound } from "lucide-react";
 import { useState } from "react";
 import {
@@ -72,7 +73,7 @@ const userCopy = {
     devices: "الأجهزة",
     action: "الإجراء",
     primary: "الأساسية",
-    deviceCount: "أجهزة",
+    deviceCount: "أجهزة نشطة",
     fullProfile: "فتح الملف الكامل",
     viewSummary: "عرض الملخص",
     showing: "عرض",
@@ -126,7 +127,7 @@ const userCopy = {
     devices: "Devices",
     action: "Action",
     primary: "Primary",
-    deviceCount: "devices",
+    deviceCount: "active devices",
     fullProfile: "Open full profile",
     viewSummary: "View summary",
     showing: "Showing",
@@ -189,10 +190,10 @@ export default function UsersPage() {
   }
 
   const metrics = [
-    { label: copy.uniqueCustomers, value: String(query.data?.uniqueCustomersTotal ?? 0), context: copy.uniqueContext },
-    { label: copy.iosCustomers, value: String(query.data?.iosCustomers ?? 0) },
-    { label: copy.androidCustomers, value: String(query.data?.androidCustomers ?? 0) },
-    { label: copy.multiPlatformCustomers, value: String(query.data?.multiPlatformCustomers ?? 0), tone: "premium" as const },
+    { label: copy.uniqueCustomers, value: String(query.data?.uniqueCustomersTotal ?? "—"), context: copy.uniqueContext },
+    { label: copy.iosCustomers, value: String(query.data?.iosCustomers ?? "—") },
+    { label: copy.androidCustomers, value: String(query.data?.androidCustomers ?? "—") },
+    { label: copy.multiPlatformCustomers, value: String(query.data?.multiPlatformCustomers ?? "—"), tone: "premium" as const },
   ];
   const platformOptions: { value: PlatformFilter; label: string }[] = [
     { value: "all", label: getPlatformLabel(locale, "all") },
@@ -207,11 +208,11 @@ export default function UsersPage() {
         eyebrow={copy.eyebrow}
         title={copy.title}
         description={copy.description}
-        actions={<button className="button"><Download size={16} /><span>{copy.exportSummary}</span></button>}
+        actions={<button className="button" disabled title="غير متاح / Unavailable"><Download size={16} /><span>{copy.exportSummary}</span></button>}
       />
       <div className="metrics-grid">{metrics.map((metric) => <MetricCard metric={metric} key={metric.label} />)}</div>
       <span className="sr-only" data-spec="users-platform-totals">
-        unique:{query.data?.uniqueCustomersTotal ?? 0};ios:{query.data?.iosCustomers ?? 0};android:{query.data?.androidCustomers ?? 0};multi:{query.data?.multiPlatformCustomers ?? 0}
+        unique:{query.data?.uniqueCustomersTotal ?? "—"};ios:{query.data?.iosCustomers ?? "—"};android:{query.data?.androidCustomers ?? "—"};multi:{query.data?.multiPlatformCustomers ?? "—"}
       </span>
       <div className="toolbar users-filter-toolbar">
         <div className="toolbar-filters">
@@ -223,28 +224,28 @@ export default function UsersPage() {
             {platformOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
           </select>
           <select className="select" aria-label={copy.accountStatus} value={filters.status ?? ""} onChange={(event) => updateFilter("status", event.target.value as AdminUsersQuery["status"] || undefined)}>
-            <option value="">{copy.allStatuses}</option><option value="active">{getStatusLabel(locale, "active")}</option><option value="pending">{getStatusLabel(locale, "pending")}</option><option value="suspended">{getStatusLabel(locale, "suspended")}</option>
+            <option value="">{copy.allStatuses}</option><option value="active">{getStatusLabel(locale, "active")}</option><option disabled={!mocksEnabled()} value="pending">{getStatusLabel(locale, "pending")}</option><option value="deletion_pending">{getStatusLabel(locale, "deletion_pending")}</option><option value="deleted">{getStatusLabel(locale, "deleted")}</option><option value="suspended">{getStatusLabel(locale, "suspended")}</option>
           </select>
-          <select className="select" aria-label={copy.plan} value={filters.plan ?? ""} onChange={(event) => updateFilter("plan", event.target.value as AdminUsersQuery["plan"] || undefined)}>
+          <select className="select" disabled={!mocksEnabled()} title={!mocksEnabled() ? "غير متاح / Unavailable" : undefined} aria-label={copy.plan} value={filters.plan ?? ""} onChange={(event) => updateFilter("plan", event.target.value as AdminUsersQuery["plan"] || undefined)}>
             <option value="">{copy.allPlans}</option><option value="Free">{getPlanLabel(locale, "Free")}</option><option value="Basic">{getPlanLabel(locale, "Basic")}</option><option value="Premium">{getPlanLabel(locale, "Premium")}</option>
           </select>
-          <select className="select" aria-label={copy.country} value={filters.country ?? ""} onChange={(event) => updateFilter("country", event.target.value as AdminUsersQuery["country"] || undefined)}>
+          <select className="select" disabled={!mocksEnabled()} title={!mocksEnabled() ? "غير متاح / Unavailable" : undefined} aria-label={copy.country} value={filters.country ?? ""} onChange={(event) => updateFilter("country", event.target.value as AdminUsersQuery["country"] || undefined)}>
             <option value="">{copy.allCountries}</option><option value="SA">{getCountryLabel(locale, "SA")}</option><option value="AE">{getCountryLabel(locale, "AE")}</option>
           </select>
           <select className="select" aria-label={copy.language} value={filters.language ?? ""} onChange={(event) => updateFilter("language", event.target.value as AdminUsersQuery["language"] || undefined)}>
             <option value="">{copy.allLanguages}</option><option value="ar">{getLanguageLabel(locale, "ar")}</option><option value="en">{getLanguageLabel(locale, "en")}</option>
           </select>
-          <select className="select" aria-label={copy.verification} value={filters.verification ?? ""} onChange={(event) => updateFilter("verification", event.target.value as AdminUsersQuery["verification"] || undefined)}>
+          <select className="select" disabled={!mocksEnabled()} title={!mocksEnabled() ? "غير متاح / Unavailable" : undefined} aria-label={copy.verification} value={filters.verification ?? ""} onChange={(event) => updateFilter("verification", event.target.value as AdminUsersQuery["verification"] || undefined)}>
             <option value="">{copy.allVerification}</option><option value="verified">{getStatusLabel(locale, "verified")}</option><option value="pending">{getStatusLabel(locale, "pending")}</option>
           </select>
-          <select className="select" aria-label={copy.risk} value={filters.risk ?? ""} onChange={(event) => updateFilter("risk", event.target.value as AdminUsersQuery["risk"] || undefined)}>
+          <select className="select" disabled={!mocksEnabled()} title={!mocksEnabled() ? "غير متاح / Unavailable" : undefined} aria-label={copy.risk} value={filters.risk ?? ""} onChange={(event) => updateFilter("risk", event.target.value as AdminUsersQuery["risk"] || undefined)}>
             <option value="">{copy.allRisk}</option><option value="low">{getSeverityLabel(locale, "low")}</option><option value="medium">{getSeverityLabel(locale, "medium")}</option><option value="high">{getSeverityLabel(locale, "high")}</option>
           </select>
-          <input className="input ltr" aria-label={copy.appVersion} value={filters.appVersion ?? ""} onChange={(event) => updateFilter("appVersion", event.target.value || undefined)} placeholder="4.8.2" />
+          <input className="input ltr" disabled={!mocksEnabled()} title={!mocksEnabled() ? "غير متاح / Unavailable" : undefined} aria-label={copy.appVersion} value={filters.appVersion ?? ""} onChange={(event) => updateFilter("appVersion", event.target.value || undefined)} placeholder="4.8.2" />
           <input className="input" type="date" aria-label={copy.registeredFrom} value={filters.registeredFrom ?? ""} onChange={(event) => updateFilter("registeredFrom", event.target.value || undefined)} />
           <input className="input" type="date" aria-label={copy.registeredTo} value={filters.registeredTo ?? ""} onChange={(event) => updateFilter("registeredTo", event.target.value || undefined)} />
           <select className="select" aria-label={copy.sortBy} value={filters.sort ?? "lastActive"} onChange={(event) => updateFilter("sort", event.target.value as AdminUsersQuery["sort"])}>
-            <option value="lastActive">{copy.lastActive}</option><option value="name">{copy.name}</option><option value="registeredAt">{copy.registeredAt}</option><option value="risk">{copy.risk}</option>
+            <option value="lastActive">{copy.lastActive}</option><option value="name">{copy.name}</option><option value="registeredAt">{copy.registeredAt}</option><option disabled={!mocksEnabled()} value="risk">{copy.risk}</option>
           </select>
           <select className="select" aria-label={copy.order} value={filters.order ?? "desc"} onChange={(event) => updateFilter("order", event.target.value as AdminUsersQuery["order"])}>
             <option value="desc">{copy.desc}</option><option value="asc">{copy.asc}</option>
@@ -266,12 +267,12 @@ export default function UsersPage() {
                 <thead><tr><th><span className="sr-only">{copy.select}</span></th><th>{copy.user}</th><th>{copy.countryLanguage}</th><th>{copy.platforms}</th><th>{copy.devices}</th><th>{copy.plan}</th><th>{copy.accountStatus}</th><th>{copy.risk}</th><th>{copy.lastActive}</th><th>{copy.action}</th></tr></thead>
                 <tbody>{users.map((user) => <tr key={user.id} className={selected.includes(user.id) ? "selected" : ""}>
                   <td className="users-select-cell"><input type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleUser(user.id)} aria-label={`${copy.select} ${user.displayName}`} /></td>
-                  <td><div className="user-cell users-user-cell"><div className="avatar">{user.displayName.slice(0, 2)}</div><div><button className="table-link" onClick={() => setActiveUser(user)} title={user.displayName}>{user.displayName}</button><small className="ltr" title={user.maskedEmail}>{user.maskedEmail} {" · "} {user.id}</small></div></div></td>
-                  <td className="users-locale-cell">{getCountryLabel(locale, user.country)} <span>·</span> {getLanguageLabel(locale, user.language)}</td>
-                  <td><div className="users-platform-cell"><div>{user.registeredPlatforms.map((platform) => <span className={`platform-chip platform-chip-${platform}`} key={platform}>{platformName(platform, locale)}</span>)}</div><small>{copy.primary}: {getPlatformLabel(locale, user.primaryPlatform)}</small></div></td>
+                  <td><div className="user-cell users-user-cell"><div className="avatar">{user.displayName.slice(0, 2)}</div><div><button className="table-link" onClick={() => setActiveUser(user)} title={user.displayName}>{user.displayName}</button><small className="ltr" title={user.maskedEmail ?? "—"}>{user.maskedEmail ?? "—"} {" · "} {user.id}</small></div></div></td>
+                  <td className="users-locale-cell">{getCountryLabel(locale, user.country ?? "unknown")} <span>·</span> {getLanguageLabel(locale, user.language)}</td>
+                  <td><div className="users-platform-cell"><div>{user.registeredPlatforms.map((platform) => <span className={`platform-chip platform-chip-${platform}`} key={platform}>{platformName(platform, locale)}</span>)}</div><small>{copy.primary}: {getPlatformLabel(locale, user.primaryPlatform ?? "unknown")}</small></div></td>
                   <td className="users-devices-cell"><strong>{user.totalDeviceCount} {copy.deviceCount}</strong><small className="ltr">iOS {user.iosDeviceCount} + Android {user.androidDeviceCount}</small></td>
                   <td><PlanBadge plan={user.plan} locale={locale} /></td><td><span className={`badge users-status-badge status-${user.status}`}>{getStatusLabel(locale, user.status)}</span></td><td><span className={`badge severity-${user.risk}`}>{getSeverityLabel(locale, user.risk)}</span></td>
-                  <td className="users-date-cell">{formatDate(user.lastActiveAt, true)}</td>
+                  <td className="users-date-cell">{user.lastActiveAt ? formatDate(user.lastActiveAt, true) : "—"}</td>
                   <td className="users-action-cell"><Link className="button ghost users-profile-action" href={`/admin/users/${user.id}`} title={copy.fullProfile} aria-label={copy.fullProfile}><UserRound size={13} aria-hidden="true" /><span>{copy.fullProfile}</span></Link></td>
                 </tr>)}</tbody>
               </table>
@@ -280,7 +281,7 @@ export default function UsersPage() {
               <div className="mobile-data-head">
                 <label><input type="checkbox" checked={selected.includes(user.id)} onChange={() => toggleUser(user.id)} aria-label={`${copy.select} ${user.displayName}`} /> <strong>{user.displayName}</strong></label>
               </div>
-              <small className="ltr">{user.maskedEmail} {" · "} {user.id}</small>
+              <small className="ltr">{user.maskedEmail ?? "—"} {" · "} {user.id}</small>
               <div className="mobile-data-meta"><div><small>{copy.platforms}</small><strong className="users-platform-cell">{user.registeredPlatforms.map((platform) => <span className={`platform-chip platform-chip-${platform}`} key={platform}>{platformName(platform, locale)}</span>)}</strong></div><div><small>{copy.devices}</small><strong>{user.totalDeviceCount} {copy.deviceCount}</strong></div><div><small>{copy.plan}</small><strong><PlanBadge plan={user.plan} locale={locale} /></strong></div><div><small>{copy.accountStatus}</small><strong><span className={`badge users-status-badge status-${user.status}`}>{getStatusLabel(locale, user.status)}</span></strong></div><div><small>{copy.risk}</small><strong><span className={`badge severity-${user.risk}`}>{getSeverityLabel(locale, user.risk)}</span></strong></div></div>
               <button className="button" style={{ minHeight: 44 }} onClick={() => setActiveUser(user)}>{copy.viewSummary}</button>
             </article>)}</div>

@@ -1,0 +1,51 @@
+{
+  "checkedAtUtc": "2026-11-14T08:55:03.027942+00:00",
+  "basePublishedCommit": "3081d6991d0b0bd907a2c471b10d4d984e22f76e",
+  "runtimeSourceChanged": false,
+  "mobileSourceCommit": "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718",
+  "productionDeploymentPerformed": false,
+  "liveDatabaseTestsEnabledLocally": false,
+  "scope": [
+    ".github/workflows/voice-success-display.yml",
+    "apps/api/test/integration/ai/voice-worker.spec.ts"
+  ],
+  "observedFailures": {
+    "backendFoundationRunId": 43577024191,
+    "application": "One unformatted voice-worker test block",
+    "database": "Eight assertions inherited MASARIFI_RELEASE_VERSION=ci while expecting test-release",
+    "voiceSuccessDisplayRunId": 43577020130,
+    "mobileDisplay": "API sync DTO imports @nestjs/common, but job installed only Mobile dependencies"
+  },
+  "regressionReproduction": {
+    "releaseVersion": "ci",
+    "failedBefore": 8,
+    "passedBefore": 7,
+    "liveDatabaseEnabled": false
+  },
+  "corrections": [
+    "Format the existing test and isolate its release-version fixture with Jest property restoration",
+    "Install locked API dependencies before mobile typecheck; cache both lockfiles; retain action pins and install-script suppression"
+  ],
+  "localResults": {
+    "apiFormat": "passed",
+    "apiVoiceWorkerAndWorkflowGuards": {
+      "testsPassed": 23,
+      "suitesPassed": 2,
+      "testsFailed": 0,
+      "releaseEnvironment": "ci"
+    },
+    "mobileTypecheck": "passed",
+    "mobileVoiceDisplay": {
+      "testsPassed": 121,
+      "suitesPassed": 6,
+      "testsFailed": 0
+    },
+    "workflowYamlAndActionPins": "passed"
+  },
+  "hostedCiStatus": "Requires a new push; previous failure is not a completed green run",
+  "limitations": [
+    "No runtime, VPS, installed APK or database migration change",
+    "Local API checks keep live database tests disabled",
+    "Does not constitute native iOS build acceptance or physical SMS/voice/report acceptance"
+  ]
+}

@@ -10,6 +10,7 @@ describe('SPEC-BE-002 runtime configuration contract', () => {
       'CLERK_SECRET_KEY',
       'CLERK_WEBHOOK_SIGNING_SECRET',
       'MASARIFI_PUSH_TOKEN_HASH_KEY',
+      'MASARIFI_SYNC_CURSOR_KEY',
       'MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS',
     ]) {
       expect(template).toMatch(new RegExp(`^${name}=$`, 'm'));

@@ -1,0 +1,1324 @@
+{
+  "at": "2026-10-28T15:19:37.881616+00:00",
+  "worktree": "D:\\Masarifi-integration-2026-10-10",
+  "branch": "codex/voice-promoted-operating-2026-10-13",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "entries": [
+    {
+      "status": " M",
+      "path": ".dockerignore",
+      "sha256": "33ce8556ae82dc20d26f294d1ef923048840d56e3e710eae37ae05c432149ac7",
+      "bytes": 399
+    },
+    {
+      "status": " M",
+      "path": ".github/workflows/mobile-preservation-qualification.yml",
+      "sha256": "6f41714eeaac6f450d69605aff5a464d5cdcce788313e8be7f959ea49ca697df",
+      "bytes": 7001
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/operations/operations.repository.ts",
+      "sha256": "939427864451b9063494ac102974e18919074671fc5a66d580dda3dc97adbe98",
+      "bytes": 6021
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/operations/operations.worker.ts",
+      "sha256": "fba23b7eebfbb911119bb57b7b8416b5176836ea367562e2abdebc0e40906796",
+      "bytes": 4183
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/platform/config/environment.schema.ts",
+      "sha256": "f424d30d1a9976a614f3faa268aa5b86919619cc4f22a1408efeb2669b635c08",
+      "bytes": 32396
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/platform/config/environment.types.ts",
+      "sha256": "35e472edb6c3b745d39c914390da078133394e44746b4932d8aab2bbeb10e4fb",
+      "bytes": 5328
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/sync/sync.handlers.ts",
+      "sha256": "8b74bc91eab71fd6cd5cd550459fc492051b4fc7c8a2076ff059d3a21f484884",
+      "bytes": 7946
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/sync/sync.module.ts",
+      "sha256": "2c8044c695ab1e34a6af4adff1866fa8130b2ff675a99d9c310e388408723b41",
+      "bytes": 1219
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/sync/sync.repository.ts",
+      "sha256": "9f4eac4753e1fd6b71acc24f8ae6701e7358f4c1f38965d56df82abec43cab08",
+      "bytes": 24414
+    },
+    {
+      "status": " M",
+      "path": "apps/api/src/sync/sync.worker.ts",
+      "sha256": "a9176ee89a452e483c579ffec67c3fb8074713241c5ce522c1bc6e2f8bcb91a6",
+      "bytes": 4056
+    },
+    {
+      "status": " M",
+      "path": "apps/api/test/integration/tracking/tracking-nominal.integration.spec.ts",
+      "sha256": "dbf2f181dbb9e412f17b555fd95c1342228c09251e5b994aef3e1c576b60414f",
+      "bytes": 20224
+    },
+    {
+      "status": " M",
+      "path": "apps/api/test/unit/config/environment.schema.spec.ts",
+      "sha256": "1485473c43b0c1f9b27c4ab21ba7df2becccf9e9925861947e1ecba2e2dbb7fc",
+      "bytes": 21546
+    },
+    {
+      "status": " M",
+      "path": "apps/api/test/unit/operations/operations-worker.spec.ts",
+      "sha256": "fe842243be79ad638d988dcc40df82a2d7c29c680cedc72dddd397a01cc3ce35",
+      "bytes": 9248
+    },
+    {
+      "status": " M",
+      "path": "apps/api/test/unit/sync/sync.handlers.spec.ts",
+      "sha256": "47a95af05113d4e402146acf899ade39ec73ef2c9d0781c882c09969d5b66396",
+      "bytes": 9717
+    },
+    {
+      "status": " M",
+      "path": "apps/api/test/unit/sync/sync.worker.spec.ts",
+      "sha256": "c45c63d4e916908dd5b0148f996a07908f0b435278418336686e3a1463f7dbfb",
+      "bytes": 7634
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/app/(tabs)/transactions.tsx",
+      "sha256": "f4e259527684f54337faf6d30b8ef612fb9db6319d01bb6961a679eefbee1484",
+      "bytes": 1496
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/app/security/settings.tsx",
+      "sha256": "6c6d08e31dd695fe64f68345a4126ed967e6e78316dd05d04e90f43b8e2374e8",
+      "bytes": 7767
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/config/client-runtime.test.ts",
+      "sha256": "5f69465e51bad2723317ee6296341f831ffb24f55e42ee5fb7d6281520e64ae2",
+      "bytes": 10295
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/config/client-runtime.ts",
+      "sha256": "e12dbdf5c011c8c34418f16bae15d4b3efbefd2c9823343b64581126c41bd9dd",
+      "bytes": 6459
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/domain/core-finance.ts",
+      "sha256": "9522cf1e9a3992e850f761cc25ce25a62c17cdf41353b128180b118a48a85e36",
+      "bytes": 27537
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx",
+      "sha256": "5bbbe088329f025410ffdc93e552957b162d3e8c6e69b5462e7d8572897af230",
+      "bytes": 9694
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.tsx",
+      "sha256": "e90072aa42bfdbabadb70b30643d2b326ffc42cdf1a3be7e58c55d7027becf35",
+      "bytes": 19526
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/auth/GoogleAuthScreen.tsx",
+      "sha256": "45896ccb6d7c54e576959b270501dc2ab0cbe33a768d982ae4915c1d0fe88bda",
+      "bytes": 5728
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/auth/session-controller.test.ts",
+      "sha256": "74f7471cb84b55e4c47165ca6b0650d13a16c6190f647f776f3a21695fa8436d",
+      "bytes": 16399
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/auth/session-controller.ts",
+      "sha256": "99e282dd5e347324328b90674de2881541791ac56c781e9ad53f0dce58601568",
+      "bytes": 7804
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/home/HomeScreen.test.tsx",
+      "sha256": "db57f41ec62d64178256a64b8a8e72b221b0a871324bb38d919a0587ece9dc71",
+      "bytes": 45545
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/security/SecurityJourney.test.tsx",
+      "sha256": "b2b7d9470016288387958748ef74733c2e607a2bf6d5f1ea7b64b27bc25f9133",
+      "bytes": 14820
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/NavigationJourney.test.tsx",
+      "sha256": "48f0317bc81a2fadd67caa269247645026a021849757f110bafe04c707c6efa1",
+      "bytes": 19924
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.test.tsx",
+      "sha256": "af46a60075ed57a07ce1e1c795dd621c124ae5049e6d9bf61d5ebb8a281ae1e4",
+      "bytes": 10153
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/NetworkConnectionNotice.tsx",
+      "sha256": "ee8194263c10c8eba6c6d49695d9de63aef240aefdfc103646bf70edc2c6e6ba",
+      "bytes": 8754
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/ProtectedNavigation.test.tsx",
+      "sha256": "45e807010d4d1a7ef2e8c07fd693a87ec978b166105a668cca5e425441fa3b86",
+      "bytes": 22909
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/ProtectedRouteGate.tsx",
+      "sha256": "d706c891203b0bebcd27fa9e6fc2d7a690b80a635d517a73adf491a4fe005232",
+      "bytes": 8088
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/navigation-context.test.ts",
+      "sha256": "2e7d182d951712921fe0f1779f8fdea3e519fb651f178de38be5d2ea7d54adc6",
+      "bytes": 3184
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/navigation-context.ts",
+      "sha256": "37c2ccf10e39de05d9bc6cebcb70210b5744bac46091d7647fc5b45055497fc4",
+      "bytes": 4047
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/shell/resolve-entry-route.test.ts",
+      "sha256": "3d0ac3ef2578d0a1909aa71592982bd0e27135ea6aa684d24ceb0f5e277db871",
+      "bytes": 6326
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionCard.tsx",
+      "sha256": "6fdd7e1b05a668e3659aae67e67bce4a6e84e6fe413a2664d17e259701a3d6d7",
+      "bytes": 10417
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionForm.test.tsx",
+      "sha256": "d4e95ba6b861fc0036fd29c49a81ad29e56d2efd78554ede403bb5beead0f506",
+      "bytes": 101676
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionForm.tsx",
+      "sha256": "65e7713cc1a66b957d8d6b53a49493083cb65fbda1ab2524ec6e70d5cb33d59f",
+      "bytes": 53026
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx",
+      "sha256": "ecebf7d30116d2335b4dd2bfe4914a4d0b3078f1c6308a043cf7d34d76341783",
+      "bytes": 47573
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionListScreen.tsx",
+      "sha256": "46e4857850378deb8c3b17e6e1083aaaaff211af1264c55338d10168029e68d6",
+      "bytes": 41397
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/transactions/TransactionsRoute.test.tsx",
+      "sha256": "8a74f1e62229255b3d3eac97a8e6acf6869226f4d1511c7c791acba09423af3f",
+      "bytes": 3710
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/voice/VoiceCaptureRuntime.tsx",
+      "sha256": "4e9994df86e25c7ee68531f1c210a5302ed33634a53fd844b3c60bd44c4b65db",
+      "bytes": 36400
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+      "sha256": "d24d507c58e679fa9c80f312e007538141c1691fe34a0d465d8d5945f3c1616a",
+      "bytes": 60779
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "58f64654d91173e9c0f8d33b7cc319ff0d1974258708a69e0cb0a3b8fe6511d9",
+      "bytes": 186444
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "886087359874ecabe1bcbbbf8ffa425537f7707d7afbb7169c06858ccd51a29a",
+      "bytes": 153583
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/core-finance-runtime.ts",
+      "sha256": "7a02f35c4b22452a6dd9731bdfd8d4959c97bd1dcc8a3cd8275383bd3e0254ee",
+      "bytes": 39594
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/auth-service.test.ts",
+      "sha256": "45a8d5d9c5c78de93a4e7fffe7af89fc97abb9a7ad80a21c90dc51a61dd79e82",
+      "bytes": 62454
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/auth-service.ts",
+      "sha256": "ef2cf98e99db5272f83dbb090d7362ce9da719976ac30171c5668a499f5b0653",
+      "bytes": 39659
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/clerk-provider.tsx",
+      "sha256": "c211f5beeff3fee252c75deb4d2be79684a984021e7871caab354f8d1cd2805e",
+      "bytes": 16015
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/core-finance-service.test.ts",
+      "sha256": "61274f6f9c5487f2aac6fd9981e7bfb78f8494ee16a517fc076c19c82a47664b",
+      "bytes": 126064
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/core-finance-service.ts",
+      "sha256": "a75a66b3254895555ea294d3c6770fb42dfbc9a9bc27b6a46673cc55020ddb61",
+      "bytes": 62370
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/reports-service.test.ts",
+      "sha256": "3a7375390c96f42fb2d99e0a6bd50271dd20abee2f19b6e074f8b36b68ba0857",
+      "bytes": 17864
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/live/reports-service.ts",
+      "sha256": "0810d369685885bf068d5f644962a6a045568e8a1b9369515b893892976816ec",
+      "bytes": 26118
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/mocks/core-finance-selector.test.ts",
+      "sha256": "9ed1d808cf412582cdf4a11adc63ba44fc02c01c5c2454791e876bd33c1522a5",
+      "bytes": 29242
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/owner-lifecycle.ts",
+      "sha256": "7796b43fa4cfee5a1425cec87eb1444a0e9e1bc092956158a2ce804efcf21e8e",
+      "bytes": 7930
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/sync-first-logout.test.ts",
+      "sha256": "c6d283b55f7a63591931af65a21a3f7eadbcd901950c631d581c47de2c1ba973",
+      "bytes": 3538
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/services/sync-first-logout.ts",
+      "sha256": "9922fa4970039df80bfcae77c7cb6ed1be320f79268f74170c128abae76d7623",
+      "bytes": 1731
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/state/app-shell.ts",
+      "sha256": "547b969386b3aa80f898aa985e0f449b5e2aa512ff934eab9f0ebb44b303c090",
+      "bytes": 18579
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/app-shell-storage.test.ts",
+      "sha256": "9b438e65995daf529ec587d6b27977e78f3f5d8207ef68e07055ff2e090ddc72",
+      "bytes": 18020
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/app-shell-storage.ts",
+      "sha256": "65a16b401b7eb8e9e2c54600e86774f1bdb541ad6d90a11cd9504e6ecbd75c63",
+      "bytes": 14359
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/core-finance-draft-storage.ts",
+      "sha256": "ddc16d32785ddb1d111a770e838b28cfee9e57331c48d75ff491a51d1a5b6dd8",
+      "bytes": 3426
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/core-finance-legacy-cleanup.test.ts",
+      "sha256": "8e891c2f2d9b0957705d24382cab100df5b3ab7302e0d1afd97a4fe8be55d91f",
+      "bytes": 11286
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/core-finance-persistence.test.ts",
+      "sha256": "db766ad07c8386ba5b277d59717f586a05e3b698377e6a9343d34445b2f4a3bd",
+      "bytes": 23797
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/core-finance-repository.ts",
+      "sha256": "8126d7b445f803d7beb057314c8810657c376647399c4605091a80595beb6dc0",
+      "bytes": 62326
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/core-finance-sync-adapter.ts",
+      "sha256": "58e0a22925816142ef0fe5a9d13214dd74ace57a89c37142ca47e06bedbc062a",
+      "bytes": 26890
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/sync-repository.ts",
+      "sha256": "dfc526b527412e8e9a8b084b7bc20765f1d1aa8cf03930e78dcf0be6e1cff8ba",
+      "bytes": 13188
+    },
+    {
+      "status": " M",
+      "path": "apps/mobile/src/storage/transaction-draft-snapshots.ts",
+      "sha256": "e83871e54b165d9a9db926d76e3e648b1eefa393b4e37c4555b09b0a98779bc6",
+      "bytes": 2369
+    },
+    {
+      "status": " M",
+      "path": "supabase/migration-checksums.sha256",
+      "sha256": "aca527b1f69e2a6294bd21517640b9815646b07c537acc4da9e9ba7e6057fef1",
+      "bytes": 21932
+    },
+    {
+      "status": "??",
+      "path": "apps/api/src/sync/claimed-mutation.executor.ts",
+      "sha256": "9534dcffe3fc2c63f82c911286ff55864527f449881a252c7f9eb5a4f1ffb441",
+      "bytes": 5406
+    },
+    {
+      "status": "??",
+      "path": "apps/api/src/sync/claimed-mutation.runtime.ts",
+      "sha256": "086d9fd6c3d7d182eeac6b9593d0b809364860cbadec909667d0390ced944669",
+      "bytes": 4324
+    },
+    {
+      "status": "??",
+      "path": "apps/api/src/sync/sync-command.runtime.ts",
+      "sha256": "c55421dfec1604ef7323198a2dc7fe037f11fc50654bedc99eb281ff6b36bf4a",
+      "bytes": 3011
+    },
+    {
+      "status": "??",
+      "path": "apps/api/test/integration/operations/scoped-claim.pg17.test.cjs",
+      "sha256": "be88e8737ae346e0cbc5eb751e31c5d38f80ac9b58bf58ab33952a3d11e2e200",
+      "bytes": 9381
+    },
+    {
+      "status": "??",
+      "path": "apps/api/test/unit/platform/backend-build-context.spec.ts",
+      "sha256": "15d5c714587358b5e4c1000b786bea9f63800a994d47c782ee52f884d88a4fd3",
+      "bytes": 881
+    },
+    {
+      "status": "??",
+      "path": "apps/api/test/unit/sync/claimed-mutation.executor.spec.ts",
+      "sha256": "b885cf4e670b78a01b99825e5a3cc5e776e509a0230310de75405a81a8c5bed2",
+      "bytes": 7119
+    },
+    {
+      "status": "??",
+      "path": "apps/api/test/unit/sync/sync-worker-composition.spec.ts",
+      "sha256": "f17f6574850d5af4ee702a894b7f5f00c2d7594d8e8aeffc790a8be4645a49db",
+      "bytes": 5010
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/features/auth/LogoutRecoveryPanel.test.tsx",
+      "sha256": "6d5974b77a55877a242a9d570b3e9329b5ed4b5b528990e0548208da00b499df",
+      "bytes": 1688
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/features/auth/LogoutRecoveryPanel.tsx",
+      "sha256": "e4e7af66d6f881d2be5a4647ade45ecc6e57c0dd104e2e3208024cc36d3857f3",
+      "bytes": 1858
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/services/owner-lifecycle.test.ts",
+      "sha256": "ccca317c8c7e6fb158c0c5d06280ed7485aa2df7fdc69b299e9a5e8602e62e2f",
+      "bytes": 25914
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/storage/offline-creation-sqlite.test.ts",
+      "sha256": "c41c2909daa002d06a8a5b5d98178cc39d9dd31ad0f179e9a35ae86564a23919",
+      "bytes": 36819
+    },
+    {
+      "status": "??",
+      "path": "apps/mobile/src/storage/transaction-edit-journal.ts",
+      "sha256": "25b11f0d3376ca1081a46485bbed302efd16ea8d6803a571eb978357f005c3f8",
+      "bytes": 5900
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/baseline-preflight.json",
+      "sha256": "530b7e66cb30981e0aad490e155b01d97a2e4706fe0e991971d0cae8236a0267",
+      "bytes": 5623
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.json",
+      "sha256": "b2836f240bfb1faf78b66ade6adaf15229f11cdadd6be59d5a651a41bb960e1d",
+      "bytes": 65483
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/client-62-crosswalk.md",
+      "sha256": "2d782e2220f16398a4fdc6ed6ac48908f7adea18732678c12ded1f581a410bed",
+      "bytes": 18605
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/admission.json",
+      "sha256": "c54ddb0a50ae80ceebbe599e097f0af2f76b7f293b56df710f1c5b486daf1332",
+      "bytes": 6092
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T01/astra-review.json",
+      "sha256": "92e97e450fd1b6f4f43bae6bca337e2a3cce25a73cf7df728e4fc093232acf2a",
+      "bytes": 623
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/astra-review.json",
+      "sha256": "251d90822676f4a6dbeac93a646d85a8dba537ef7f3004ffa28df9d38a00a195",
+      "bytes": 1072
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T02/evidence.json",
+      "sha256": "50291dc66c892cb74c7244874d881ec802a552f197a41b1bdf81f59e76cd3897",
+      "bytes": 10052
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-1.json",
+      "sha256": "e6ec3bf709c3f5b84409d882be713b764bc0f1f579a149b4036dd1456fe21f40",
+      "bytes": 1712
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-2.json",
+      "sha256": "01c9077e63f9e68242a1031b9dd9a859f550ab10160dd2421470b21194d3ab00",
+      "bytes": 1417
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/astra-review-round-3.json",
+      "sha256": "59b2defaae16ea6816f18bd668539e7a69a6e7f4da9f3df5a805e59b3c5fdd8a",
+      "bytes": 1179
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest-legacy-update.json",
+      "sha256": "9d2878a1bc8e6b1d94db9fa8db379fcf0f55b827c298c7b6f5e0292fb46f3483",
+      "bytes": 6633
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest-reconnect-receipt.json",
+      "sha256": "132a33ef06698a5f78cc20544d183bd058e3ea988e57f6eb36ed74a4859253a0",
+      "bytes": 4135
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/candidate-source-manifest.json",
+      "sha256": "53c276c3caa82c9acbd639b7fc08e41b5a32a1863b99b017cdaac5cd7d197e62",
+      "bytes": 5757
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/check-results.json",
+      "sha256": "45dd54c125a91e4f8cf9f87d12d24b68e6b83d071a96ac3b7214c32e0ea38630",
+      "bytes": 3573
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/evidence.json",
+      "sha256": "d375b39ca59407c00dd9522ba3288d37189f2a6ba6849aba9f592986020b58d6",
+      "bytes": 11822
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/preservation-audit.json",
+      "sha256": "c660f2b6b5f2166580438f75e6dbd93cea8e853bc450f6566a1a1db77dac837d",
+      "bytes": 534
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/root-staging-diagnostics.json",
+      "sha256": "c3cb2d6fab16b56e107997c9eb42348cc897876538a802a2a214cbfb0fbdbad0",
+      "bytes": 5544
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/astra-core-review-round-1.json",
+      "sha256": "c20b0c597407a9e8f32fe51ff46ef20b5a034e45cdc3a982c24e05439b5445bd",
+      "bytes": 831
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/checks.json",
+      "sha256": "0962162e00739757d0a1d1f4ba5b566b93b68256a8b91d25b4639735ad9def88",
+      "bytes": 5250
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-local-authorization.json",
+      "sha256": "d92a855ac11d38747a1545b1b0fb1bd02ced8ed6f63fe785c0dfc8175fdb3d8a",
+      "bytes": 759
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-startup-closure.json",
+      "sha256": "53bdfe9eb004def16a1d8cc079b9b84da8a97080e0a59b7e95da703d6cce38f1",
+      "bytes": 2436
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/fixture-static-review-final.json",
+      "sha256": "c9be773419052621c823540240b675da9960cf7928635ad5e6c8c3274d40be7f",
+      "bytes": 1068
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/hosted-read-only-diagnosis.json",
+      "sha256": "9e5bcaec9b65b7da20b4528fbef19b647044d83e37f2237f1b367e7584129504",
+      "bytes": 4399
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/pg17-qualification.json",
+      "sha256": "c21da58b4e91296dd1627833d9f8a51d8c978b39dbcb35f162959b04d6d103a5",
+      "bytes": 830
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/preservation.json",
+      "sha256": "674359f86b1db5716991b35facf49ddf73848f4c6129c6b04bbdb24b30cd1d24",
+      "bytes": 7877
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/runner-prep/source-manifest.json",
+      "sha256": "2f028ab252c0e817f4ffe75b2679444908e20ed9baa72e7b5d454910b5c1a7fe",
+      "bytes": 31597
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/staging-one-shot-proposal.md",
+      "sha256": "8f674b63d76351f0714cdebcf2ac3a5f7aa94dd3258aa44b5cd3156c273949ab",
+      "bytes": 10600
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T03/summary.md",
+      "sha256": "bb9013b06249bc1269b095d5cf97f2f8dff28578b2d14d32e3d5d795001df4db",
+      "bytes": 1681
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T04/evidence.json",
+      "sha256": "eaa96e295c1da821a6ae84ea7d4b8f25d54403a2c2d657a3ad683e6aa3c3fbdf",
+      "bytes": 6739
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T04/hosted-reauth-results-2026-10-28.md",
+      "sha256": "841e8f424bbab1aeaf244d7a97b4ea0624dc7eb6e867a8ea22b32d91ecc6df9e",
+      "bytes": 9524
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T04/tracking-retry-repair-2026-10-28.md",
+      "sha256": "c0fbda52679c9192d8eabf4dd17baed84c25d4eb2d0b0e351c60db79a959e60c",
+      "bytes": 5630
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/expanded-navigation-audit.md",
+      "sha256": "6b03c095c632fcf89a0e683856f6b82a1d47c4207a1e7c5f74e30b80f4827a98",
+      "bytes": 15720
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/expanded-navigation-source-manifest.json",
+      "sha256": "6027bb4dd94d14a4723e20124ee42a6ddfd4686dbe2ab380aef71026f2ebdb62",
+      "bytes": 15759
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-audit-inventory.json",
+      "sha256": "1e99ec929a0713b3b53171ab96ee60432f0603cdbeb2e118682f27fcd9dd75ca",
+      "bytes": 104327
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-audit-inventory.md",
+      "sha256": "77dd8b18bb4cea1c8c3422041f0160917bd5bafb448e033cfb272cd25520c031",
+      "bytes": 27656
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-exception-results.md",
+      "sha256": "a9be6736fe4a7b7e274f1b9dfc567a88df799206cbf82a827383f5f1ee2ecacc",
+      "bytes": 4815
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/navigation-source-manifest.json",
+      "sha256": "aca40e916cc7c508cf34b1a30bd5b1dbaf01fa6fb35bc7932a91a79346de8cff",
+      "bytes": 867
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/online-recovery-report-fix-2026-10-28.md",
+      "sha256": "6ce2bbab0b95187687362fe8af03d2346153ea2e13aeb5dda6a1ee0259d9da75",
+      "bytes": 7009
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/online-recovery-report-fix-receipt.json",
+      "sha256": "8266b24360c4a07e0ce9fe5c9b71b350918155dd336dc8b2037d1f1c8c90799a",
+      "bytes": 10631
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/T06/reports-assistant-device-continuation.json",
+      "sha256": "60281bcb73891c7f7e882c19d11bd51d11854dcabc71ea6e3a64939981bc7a83",
+      "bytes": 5318
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/access-restoration.json",
+      "sha256": "fba371b8164af704de596e6a04e9207b53aa9dc3850a69783b0991234ecf870b",
+      "bytes": 753
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/execution/user-scope-revisions.json",
+      "sha256": "f3dc376aa742da9ec2769ca8798b4e45fe241a513ce95a28ecf7e12b8feda1f4",
+      "bytes": 981
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-baseline-run.json",
+      "sha256": "9cab21f5872061975ce53a248d5c15acfb2773b3d32be0d50c7549f834b495d6",
+      "bytes": 45471
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/github-pr9-checks.json",
+      "sha256": "20df02ae23f16a73f945d4940cc991c3fa69c5dc89db5be24c2a3e3312be2a0e",
+      "bytes": 6429
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/plan-review.json",
+      "sha256": "f8239d0eef4e55d295cb373e7ab0e075ab098969a301fe7818abcf2c7e156d10",
+      "bytes": 839
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.json",
+      "sha256": "c0b50a52a034d84b03b078c70118e709a937198dff1bcc4309decf258dfc350c",
+      "bytes": 74843
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/requirements-crosswalk.md",
+      "sha256": "414bb85233c01e4621c4e0b426347e7c4a7451916d9c24a9aaaa649f6be33236",
+      "bytes": 12062
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/review.md",
+      "sha256": "3b6814c90c23e94a80b5738e92149e90490b788593b0c7e6945944c8a933ce46",
+      "bytes": 15741
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/task-evidence-template.json",
+      "sha256": "5748a148d46ad5b18d6bc489b9a6f2879d779ae532fc9b7933eaa28d405f6f88",
+      "bytes": 3742
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-astra-remediation-review/verification.json",
+      "sha256": "1bcb8a4828d30580ddfbfa65e2f5d07cd0b6ae9bb82f070ed4842115b4901f6e",
+      "bytes": 480
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/final-review-and-remaining-checklist.en.md",
+      "sha256": "e6978161431531bfe5034da0f7db0a7efef1c0cc252902dec7d7fb649c36a53c",
+      "bytes": 77222
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/open-device-issues.md",
+      "sha256": "c23738023666a665f0c7f9024b857f460cf6243c46082f521602a067550ff822",
+      "bytes": 5256
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/2026-10-25-device-checklist/pin-latency-fix.md",
+      "sha256": "2be5a6ed8a0d9701fd9ff16ab88175af8bb7f8a6700a47172171272bfeb9a2af",
+      "bytes": 3830
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T03-continuation-handoff.md",
+      "sha256": "e62aea432dcd9a35c906b20332b8236879c542a8009ad5f71cd1675938f2e3d9",
+      "bytes": 36698
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-continuation-handoff-2026-10-28.md",
+      "sha256": "ecdae681715f26f61299c967ea7418d7cc9e645c40f022fe63d528d5f6803a42",
+      "bytes": 58701
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/continuation-prompt.txt",
+      "sha256": "caf3784e9878e71a5cb6130891c7449d9f7343650e0f1a28c66156ae4d0d1329",
+      "bytes": 2340
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/existing-isolated-cursor-key-metadata.json",
+      "sha256": "d054c96651e154e2a7650c234fab11f82b56513571c1519d614a08b50856f078",
+      "bytes": 637
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/git-snapshot.json",
+      "selfHashExcluded": true
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/git-status.txt",
+      "sha256": "e91be323e6ad510b98767e968eb93309dc9cc9a784e9126bcee41268b1413abd",
+      "bytes": 13983
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/handoff-manifest.json",
+      "selfHashExcluded": true
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/hosted-database.json",
+      "sha256": "d28f0bc70ea51a9c40784f082e6bf635557bf3a11a4abedaf39f8c3de00a8197",
+      "bytes": 1165
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/hosted-financial-metadata.json",
+      "sha256": "3cfc2f17383e56ac7841e5f591309f613c20db356703e1f194244f83494f1b8e",
+      "bytes": 304
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/local-runtime-device.json",
+      "sha256": "02f037a30e2fa99ca8ec76103f3c6ebcf0b769e6e251b3644c26ab446f67f60a",
+      "bytes": 6201
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/r18-artifact-inventory.json",
+      "sha256": "43260669d1cc6010656210ca05af8d947a4b79256c6a57bd39f99c2a3c6b245b",
+      "bytes": 73911
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/source-preservation.json",
+      "sha256": "6ea8c7bcb0089e1415a21920f7fc86b4c9f2fffc1cbd8236e68d3b90a84b9f75",
+      "bytes": 303
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/staging-runtime.json",
+      "sha256": "34b2a86a6a83314f574bba180201468648e8678cd180223dec98344b3f198fc6",
+      "bytes": 81434
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-R18-state-2026-10-28/xiaomi-queue-cursors.json",
+      "sha256": "ace024bc55b8d458f9054e543281bc549947f88f4024f364da2e54f1a10052e0",
+      "bytes": 729
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-continuation-handoff-2026-10-27.md",
+      "sha256": "bbd4da54fd68d869ba539bf435d54c127a634884ed481c51dbb63dc0cb46caeb",
+      "bytes": 24889
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-continuation-supplement-2026-10-27T0718Z.md",
+      "sha256": "53e707951d5275a4e1c23db6c3485c5c0a6d0a54b0aa06b8da5339a3f97a81f2",
+      "bytes": 6936
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-model-transition-2026-10-27.md",
+      "sha256": "bc326683a5ed0751b59e027c637f06f0e8fde13637fa8bafb4e63bc2c9845868",
+      "bytes": 14115
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-post-rollout-checkpoint-2026-10-27.md",
+      "sha256": "e7cb84108e65ef77793c5a02a225cad92ded1d1955504e999b04f3d44bd4374f",
+      "bytes": 69803
+    },
+    {
+      "status": "??",
+      "path": "docs/handoffs/T04-reauth-complete-R18-checkpoint-2026-10-28.md",
+      "sha256": "4e462520761a14d0371ccb194c3449a95d5588913606168b335b1e7258c94d54",
+      "bytes": 9007
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+      "sha256": "dde83afd481bb9d5f1f68e0be12c39eaa1c5b221c33b4ad49caf48f2b95bf189",
+      "bytes": 39687
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-25-t03-finite-qa-consumer.md",
+      "sha256": "d1e13ff9a47cd8c932ca13b07ab5fa6fcb1a7ab28b8bfddc5e4b4b9df5041416",
+      "bytes": 6741
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-26-simplified-execution-strategy.md",
+      "sha256": "364d33a87e4a4768f75bbf6fd0645bb783b873df53c9503db063805fe739de72",
+      "bytes": 17189
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t04-reauth-device-test-v8.md",
+      "sha256": "972310763d5d19ce14b38a7c8da3d86d17f73611730f2f9a5f49e0b50128434e",
+      "bytes": 17805
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t04-reference-free-review-rollout.md",
+      "sha256": "52049e932490b08e8179707747d9dfa0281f51b0a1a177f25e32b724e169c46c",
+      "bytes": 9744
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t04-v8-metadata-guard-recovery.md",
+      "sha256": "763cc0e187a42dfd938434da59909a58ac3abbe9b31d64ca2c8a45c01b760ec2",
+      "bytes": 9290
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t05-readonly-dependency-exception-proposal.md",
+      "sha256": "07ebc484bb21c67b5468a9ebafbb6360256017c92a7d5607eb897fae4ceeb449",
+      "bytes": 3459
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t06-expanded-active-navigation-proposal.md",
+      "sha256": "51224a79dc271a35ede4b1e81f35e1e15eb48ed599c8d86a8c535f4ec20f8d81",
+      "bytes": 6076
+    },
+    {
+      "status": "??",
+      "path": "docs/superpowers/plans/2026-10-28-t06-navigation-dependency-exception-proposal.md",
+      "sha256": "3936bf2238ec33326b691dc292ebc78d614cac462bbf45272e3384596d84f370",
+      "bytes": 4424
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/README.md",
+      "sha256": "69ac9014eb86bf105cf9c3f966a437ccde14ac67349ebb3c32d7621c02b0a6e3",
+      "bytes": 12812
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/catalog.sql",
+      "sha256": "2fe1abbf9a2b862aef8db92f1f60982f0259fd3749d0fcb33f45f0bf56785979",
+      "bytes": 3976
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-common.ps1",
+      "sha256": "31dc7991327813890c234e32fc2e4d124c249636f82c661bbf1a5613b9a852ba",
+      "bytes": 12815
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-iteration.ps1",
+      "sha256": "608c569dc147d50c4fe7995a733763dc2e8c243be4ee2ecafd2b34ad78bec288",
+      "bytes": 10905
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-manifest.ps1",
+      "sha256": "02dc191ea9cead2cc7c77170856a28acdb9a6d0dd6b6cf8efde4d8b5aaad6422",
+      "bytes": 1903
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-preflight.test.ps1",
+      "sha256": "cc5245e0ba05a52f8a4ac8b19aaa4db91dcade3462f626667661aa4671a35da6",
+      "bytes": 7447
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-schema.sql",
+      "sha256": "56c73e081011dcd796f8a19ae5b668da84950de0fb4738d23f6e1abae92cddc8",
+      "bytes": 3587
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-start.ps1",
+      "sha256": "b0887d7701748a56ae01f70aaa0a2a01ea1f1554ad563e307228fcfd0bc8b6dc",
+      "bytes": 6253
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/fixture-stop.ps1",
+      "sha256": "91b70e7184c13d235dd2b935d1aac22cd6ae40149d7236a2f79da46733fa4dd3",
+      "bytes": 3239
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/manifest.cjs",
+      "sha256": "9be155066ced647d8638b905d489af06836b1e66b969caddfd255dff4f30f4e7",
+      "bytes": 6248
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/manifest.template.json",
+      "sha256": "408637995687cfbd1ee2857d1322c4624094e48c5b866bad82854418548ea1db",
+      "bytes": 784
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/manifest.test.cjs",
+      "sha256": "b87cdb3358093c8ce8b45a33666fa4fccbea9d97369167fecd49fb1b3e1cdce6",
+      "bytes": 3255
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/pg17.test.cjs",
+      "sha256": "b93591c23cef14664a49e640cc26a84d02495b44b30df6f63710e1c13c382728",
+      "bytes": 33978
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/runner.cjs",
+      "sha256": "5a29f25140557c19a50ae85301077bd8ab5392f5afa6ddea7395fb5231be0891",
+      "bytes": 15282
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/snapshot.test.cjs",
+      "sha256": "a1dfbd2d0e9baa185450490db991acb2465fea98259d7424892e6d89ff699e20",
+      "bytes": 1233
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-exact-sync/test-manifest.cjs",
+      "sha256": "966412d903ed3830e7ba1e19a7c19c9b81e241805e5463e25631e9f8ed0ef7cd",
+      "bytes": 2259
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/README.md",
+      "sha256": "c00cfc7f868da0e4b2976982ac6cfb61e205a97911dd04c9311fc857f63e588e",
+      "bytes": 14499
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/adapter.cjs",
+      "sha256": "61fb583fa389164e9c42559ea7ab81b27f37a97234b274a8924f65f6a8d6e6e7",
+      "bytes": 24429
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/adapter.test.cjs",
+      "sha256": "b1638cf70406e150f670d9fccb95ddfc4dcba98021316df6ad480e48fdfb6bf3",
+      "bytes": 9940
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/artifact.cjs",
+      "sha256": "b52a5beedcd4d06c132ea72c1b81cf82a7e0200aa930cf2e4862b08731f9dce9",
+      "bytes": 4176
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/compact-package.test.cjs",
+      "sha256": "e70a6326433f64e60a62ba5b4db57c096526cea3d5c42a432a6aae1ee0c986ba",
+      "bytes": 2896
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/config-fixture.cjs",
+      "sha256": "ea58d297fa5f9207b5fe16b698a82e6f8536e197ea52bae8f0c4d7f2d0d64bf6",
+      "bytes": 4666
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/config.cjs",
+      "sha256": "bf6051a700293bb8e8017b77c0c88d9efc9bf536017015e3d88bb5c2618949c4",
+      "bytes": 8022
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/config.test.cjs",
+      "sha256": "26f7f873fd84a74253bb1f87fafc33fe5994feeb2bd5ec3606e7c4269bd28b2d",
+      "bytes": 5091
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/diagnostic-codes.json",
+      "sha256": "241cb0388fed9400c1760b7ae2bfff7b2a71a4eef91369f706f2d203cbf7148e",
+      "bytes": 6921
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/effective-catalog.cjs",
+      "sha256": "5936b67214f763a9d98e9f65efae823557160c18f31f7cf61a122af697f2d8e4",
+      "bytes": 3588
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/fixture-role-setup.sql",
+      "sha256": "e58e4954046e6cbdd401b1c136d045bbaaf9b86b0c4491978c9889cc8e2c8589",
+      "bytes": 2030
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host-entry.cjs",
+      "sha256": "6e6c09e90634bf86571eb87a6248a26845d4c52a25e182a8052b4b1bdebd98b8",
+      "bytes": 19986
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host-entry.test.cjs",
+      "sha256": "3df02bf1748d248c6a061fdc5b0ea9bebb9d10963885e1ed35692f838b418c3f",
+      "bytes": 9867
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host_broker.py",
+      "sha256": "65fbc1b0f2b11b7141c7e03a6ec66b09a6fc319ca14a66000965c668dd49c587",
+      "bytes": 36707
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host_broker_test.py",
+      "sha256": "01a0f7a67f0295791845adbfc50ecb3fff0aa0ff422919e51b9cc26b28ea96e3",
+      "bytes": 24420
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host_reader.py",
+      "sha256": "f727abe09946cb069d620236a1bd3ea91d5ad2096fe1d22db4f45e5ff4b98e95",
+      "bytes": 5470
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host_transport.py",
+      "sha256": "811ec4fdb4bbffc8fd1b5ef58dba671c793897f673b5627287e4eaac6adff7d2",
+      "bytes": 9962
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/host_transport_test.py",
+      "sha256": "67cc7d8d57f578b7ac42b934c15ddcce956815ff6a37e3a437411f90346a38b6",
+      "bytes": 1934
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/inspection-scope.json",
+      "sha256": "399d4e8a2f6d27444512555f252810e0d5102c0333632df312a4275d7467d588",
+      "bytes": 2918
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/journal.cjs",
+      "sha256": "e30cf1fcbcdae9be90e1711010be1635264316fad931c4c60c767df5d726149b",
+      "bytes": 5215
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/journal.test.cjs",
+      "sha256": "f428f9488a106d68396e9b2a5740399da3ea235901b5402f402e4b57deb804b3",
+      "bytes": 7238
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/legacy-binding.test.cjs",
+      "sha256": "d07c4b7d2482323cb566140cf672e3de5bfa9a776b80428a21211845a5c30cbc",
+      "bytes": 2610
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/package.cjs",
+      "sha256": "286b1d25b0a850bc9cef44d0fe82c02be9f40e9d0928a62bbddc977d22d79be0",
+      "bytes": 11316
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/package.test.cjs",
+      "sha256": "d8552ee74be08874f18a2ddeb2917367d02877168ca9a8fbfa2a42dcb8ddb82a",
+      "bytes": 1466
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/product-fixture.cjs",
+      "sha256": "9a52c2184ecd8e1b22b4df84685988dfeda6c68cebfd1700b587fe67ec60aa17",
+      "bytes": 7409
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/product-ledger.pg17.test.cjs",
+      "sha256": "028bce9e635cd19c0c6958d395a3b433f95c22f1d7f225865c5e69c6a4a7a655",
+      "bytes": 36610
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/product-schema.cjs",
+      "sha256": "4e4f7ff01e778e2fd0feedc62eb9334eac7485906962171cdb5cd648a7b7d7dc",
+      "bytes": 8584
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/product-schema.test.cjs",
+      "sha256": "1b4993337adb1520a3329341c4f6c7de643e475dd33c99f5665135c5f2dbab15",
+      "bytes": 2431
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/reauthentication.pg17.test.cjs",
+      "sha256": "6c2210ce8400f61354a48fa734d55cd47751607569e48a92ac553a9ed4581386",
+      "bytes": 16282
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/session-fixture.cjs",
+      "sha256": "447456d368bd19db201a95c11dd4ae3dbca96e4652901747dbad46798f6101b8",
+      "bytes": 4776
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/session.cjs",
+      "sha256": "be49a452eefe84fafa79ea905a928272a18c1437b2ac9dfdc3e8e2a82bb3654c",
+      "bytes": 12829
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/session.template.json",
+      "sha256": "a908772a8a9538dc72df8978667d017e8168ac0b3fac4e50a52f8e87d3eb3f04",
+      "bytes": 2831
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/session.test.cjs",
+      "sha256": "8983eaa165287af464a0d09668c940f2c2a79de4cce23910e9be511460f4efd7",
+      "bytes": 12192
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/successor-fixture.cjs",
+      "sha256": "8a9e217d0004923f289ea25eb6f307ab037e527032ceb872829e051ead261f21",
+      "bytes": 3833
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/successor.cjs",
+      "sha256": "0a929adb5ff43b917679966c4c7738a88888b1dd5ac99be9c5f3ae51cdf9bb5f",
+      "bytes": 8821
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/successor.test.cjs",
+      "sha256": "a6006d6ba26ff6d8a9c6adc7a40b4edd5ecf5ac8ce551992fe6698096731ea47",
+      "bytes": 13789
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/transport.cjs",
+      "sha256": "48e15fe8e9c33d7daf5a0aa37e573c3f887b71f473998d00185ec932f49e560a",
+      "bytes": 10816
+    },
+    {
+      "status": "??",
+      "path": "scripts/qa/t03-session-consumer/transport.test.cjs",
+      "sha256": "5917ec34b8ae43e7cd20b0f6b131b59ff30207bdbdc5a12c1fc2e8c07f203f2b",
+      "bytes": 6445
+    },
+    {
+      "status": "??",
+      "path": "supabase/migrations/20261023200000_scoped_operations_claims.sql",
+      "sha256": "2cf11c875cb84b8477aaa670d7ad5f37af68734452059d66e93e3166c1141a64",
+      "bytes": 5145
+    },
+    {
+      "status": "??",
+      "path": "supabase/migrations/20261028114000_tracking_reference_free_correlation_review.sql",
+      "sha256": "84e6a9d2355b03f7949516886b7ab0e2a53b8fe2573361b713e6129d52b6eb40",
+      "bytes": 2071
+    }
+  ],
+  "entryCount": 217,
+  "trackedMarkedModifiedCount": 68,
+  "untrackedCount": 149,
+  "stagedPaths": [],
+  "trackedDiffSha256": "95f5577da3315a392ff357c1310d5bace6637ea360d537ef346ceb00adcce633",
+  "trackedDiffSummary": "67 files changed, 4734 insertions(+), 702 deletions(-)",
+  "statusOnlyWithoutTextualDiff": [
+    "apps/mobile/src/features/shell/ProtectedRouteGate.tsx"
+  ],
+  "hashExclusions": [
+    "docs/handoffs/T04-R18-state-2026-10-28/git-snapshot.json",
+    "docs/handoffs/T04-R18-state-2026-10-28/handoff-manifest.json"
+  ],
+  "sourcePreservation": "43/43 match; see source-preservation.json",
+  "ignoredPrivateArtifacts": "see r18-artifact-inventory.json; other ignored evidence retained in place",
+  "gitIndexMutationPerformed": false
+}

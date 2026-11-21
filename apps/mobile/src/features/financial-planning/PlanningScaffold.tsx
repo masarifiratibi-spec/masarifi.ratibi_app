@@ -39,6 +39,7 @@ export function PlanningScreen({
     <ScrollView
       style={backgroundColor ? { backgroundColor } : undefined}
       contentContainerStyle={styles.stack}
+      keyboardShouldPersistTaps="handled"
     >
       {hideHeader ? null : (
         <View style={styles.header}>

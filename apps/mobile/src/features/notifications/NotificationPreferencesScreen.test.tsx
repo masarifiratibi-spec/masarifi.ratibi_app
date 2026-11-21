@@ -3,7 +3,7 @@ import { fireEvent, screen } from '@testing-library/react-native';
 
 import { createNotificationPreferences } from '@/domain/notifications';
 import { renderWithProviders } from '@/test-utils/render';
-import { changeLocale } from '@/localization/i18n';
+import { changeLocale, translate } from '@/localization/i18n';
 
 import { NotificationPreferencesScreen } from './NotificationPreferencesScreen';
 
@@ -36,15 +36,41 @@ const preferences = {
   weeklySummary: { enabled: false, weekday: 1, time: '10:00' }
 };
 
+it('shows the preferences title during the first read without invented switch values', () => {
+  mockPreferences.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: jest.fn()
+  });
+  const view = renderWithProviders(<NotificationPreferencesScreen />);
+  try {
+    expect(
+      view.getByText(translate('notifications.preferences.title'))
+    ).toBeOnTheScreen();
+    expect(view.queryAllByRole('switch')).toHaveLength(0);
+    expect(mockSave.mutate).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+  }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermission = 'denied';
   changeLocale('en');
-  mockPreferences.mockReturnValue({ data: preferences, isLoading: false, isError: false, refetch: jest.fn() });
+  mockPreferences.mockReturnValue({
+    data: preferences,
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn()
+  });
 });
 
 it('renders every preference section and preserves edited input after save errors', async () => {
-  mockSave.mutate.mockImplementation((_input, options) => options?.onError?.(new Error('offline')));
+  mockSave.mutate.mockImplementation((_input, options) =>
+    options?.onError?.(new Error('offline'))
+  );
   renderWithProviders(<NotificationPreferencesScreen />);
 
   [
@@ -69,7 +95,9 @@ it('renders every preference section and preserves edited input after save error
     'Quiet Saturday',
     'Phone notifications',
     'Quiet hours'
-  ].forEach((label) => expect(screen.getAllByText(label).length).toBeGreaterThan(0));
+  ].forEach((label) =>
+    expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+  );
 
   expect(screen.queryByText('Hide amounts on lock screen')).toBeNull();
   expect(screen.queryByText('Daily summary')).toBeNull();
@@ -116,15 +144,15 @@ it('saves reminder preferences separately from transaction alerts', () => {
       input: expect.objectContaining({
         categoryEnabled: expect.objectContaining({
           app_inactivity: false,
-          transaction: true,
-        }),
-      }),
+          transaction: true
+        })
+      })
     }),
-    expect.any(Object),
+    expect.any(Object)
   );
 });
 
-it.each(['not_requested', 'denied'])(
+it.each(['not_requested'])(
   'hides permission details and requests the OS permission directly when permission is %s',
   (permissionState) => {
     mockPermission = permissionState;
@@ -134,15 +162,18 @@ it.each(['not_requested', 'denied'])(
     expect(screen.queryByText(/Permission not requested/i)).toBeNull();
     expect(screen.queryByText('Request notification permission')).toBeNull();
     expect(screen.queryByText('Request permission')).toBeNull();
-    expect(screen.getByLabelText('Phone notifications').props.accessibilityState.checked).toBe(false);
+    expect(
+      screen.getByLabelText('Phone notifications').props.accessibilityState
+        .checked
+    ).toBe(false);
     fireEvent.press(screen.getByLabelText('Phone notifications'));
 
     expect(mockRequest.mutate).toHaveBeenCalledTimes(1);
     expect(mockOpenSettings.mutate).not.toHaveBeenCalled();
-  },
+  }
 );
 
-it.each(['permanently_denied', 'unavailable'])(
+it.each(['denied', 'permanently_denied', 'unavailable'])(
   'opens settings from the phone row when permission is %s',
   (permissionState) => {
     mockPermission = permissionState;
@@ -152,29 +183,62 @@ it.each(['permanently_denied', 'unavailable'])(
 
     expect(mockOpenSettings.mutate).toHaveBeenCalledTimes(1);
     expect(mockRequest.mutate).not.toHaveBeenCalled();
-  },
+  }
 );
 
 it('reflects granted permission and opens OS settings when the user tries to disable it', () => {
   mockPermission = 'granted';
   renderWithProviders(<NotificationPreferencesScreen />);
 
-  expect(screen.getByLabelText('Phone notifications').props.accessibilityState.checked).toBe(true);
+  expect(
+    screen.getByLabelText('Phone notifications').props.accessibilityState
+      .checked
+  ).toBe(true);
   fireEvent.press(screen.getByLabelText('Phone notifications'));
 
   expect(mockOpenSettings.mutate).toHaveBeenCalledTimes(1);
   expect(mockRequest.mutate).not.toHaveBeenCalled();
 });
 
-it('shows loading and offline recovery states', () => {
-  mockPreferences.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false, refetch: jest.fn() });
+it('shows its pending title and preserves offline recovery', () => {
+  mockPreferences.mockReturnValueOnce({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: jest.fn()
+  });
   const loading = renderWithProviders(<NotificationPreferencesScreen />);
-  expect(screen.getByText('Loading notification preferences')).toBeTruthy();
+  expect(screen.getByText('Notification preferences')).toBeTruthy();
+  expect(screen.queryByText('Loading notification preferences')).toBeNull();
   loading.unmount();
 
   const refetch = jest.fn();
-  mockPreferences.mockReturnValueOnce({ data: undefined, isLoading: false, isError: true, refetch });
+  mockPreferences.mockReturnValueOnce({
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    error: { code: 'offline' },
+    refetch
+  });
   renderWithProviders(<NotificationPreferencesScreen />);
   fireEvent.press(screen.getByLabelText('Retry'));
   expect(refetch).toHaveBeenCalledTimes(1);
 });
+
+it.each(['ar', 'en'] as const)(
+  'does not claim a network outage for invalid preference data in %s',
+  (locale) => {
+    changeLocale(locale);
+    mockPreferences.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('Invalid preference payload'),
+      refetch: jest.fn()
+    });
+    renderWithProviders(<NotificationPreferencesScreen />);
+    expect(
+      screen.queryByText(translate('notifications.preferences.offline'))
+    ).toBeNull();
+  }
+);

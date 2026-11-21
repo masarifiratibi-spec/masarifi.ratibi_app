@@ -1,0 +1,50 @@
+{
+  "atUtc": "2026-11-13 21:50:20 UTC",
+  "state": "sent-and-inbox-verified",
+  "recipient": "masarifi.ratibi@gmail.com",
+  "sendInvocations": 1,
+  "cc": [],
+  "bcc": [],
+  "attemptId": "87c9bfee-7864-4b12-8a24-762f4c759786",
+  "messageId": "<report-87c9bfee-7864-4b12-8a24-762f4c759786@gmail.com>",
+  "smtpAcceptedAtUtc": "2026-11-13T21:48:05.022417+00:00",
+  "smtpAcceptedAtRiyadh": "2026-11-14 00:48:05 +03:00",
+  "inbox": {
+    "verified": true,
+    "account": "masarifi.ratibi@gmail.com",
+    "search": "in:anywhere rfc822msgid:report-87c9bfee-7864-4b12-8a24-762f4c759786@gmail.com",
+    "results": 1,
+    "label": "Inbox",
+    "subject": "Your Masarifi report is ready",
+    "displayedTime": "Nov 14, 2026, 12:48 AM"
+  },
+  "attachment": {
+    "filename": "Masarifi-report-87c9bfee-7864-4b12-8a24-762f4c759786.pdf",
+    "bytes": 10873,
+    "sha256": "d93661db41bcb0289683bdf5867b12763cb4e5cf07754a7cf653df3cb3332ce9",
+    "matchesPreparedServerHash": true,
+    "receivedCopy": "docs/evidence/2026-11-14-smtp-project-test/received-report.pdf",
+    "renderedPreview": "docs/evidence/2026-11-14-smtp-project-test/received-report.png",
+    "pdfInfo": {
+      "pages": 1,
+      "pageSize": "A4",
+      "pdfVersion": "1.3",
+      "javascript": false,
+      "suspects": false
+    },
+    "renderPassed": true,
+    "visualInspectionPassed": true,
+    "syntheticDataOnly": true
+  },
+  "serverEvidenceRoot": "/opt/masarifi/selfhost/releases/2026-11-13/smtp-project-test-20261114",
+  "serverReceipts": [
+    "send-intent.json",
+    "send-result.json",
+    "prepared.json"
+  ],
+  "limitations": [
+    "Isolated deployed renderer, SMTP transport and prepared MIME test; does not exercise authenticated report API, storage or worker queue end to end."
+  ],
+  "otherUsersContacted": false,
+  "storePublished": false
+}

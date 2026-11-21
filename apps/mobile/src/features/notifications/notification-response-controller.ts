@@ -28,30 +28,53 @@ export function createNotificationResponseController({
   notificationService,
   phoneService,
   navigate,
-  unlock: requestUnlock
+  unlock: requestUnlock,
+  resumeOnboarding,
+  waitForRemoteReady
 }: {
   notificationService: ResponseNotificationService;
   phoneService: ResponsePhoneService;
   navigate: (destination: string) => void;
   unlock: () => Promise<boolean>;
+  resumeOnboarding?: (cycleId: string) => Promise<void>;
+  waitForRemoteReady?: () => Promise<boolean>;
 }): NotificationResponseController {
   let unsubscribe: (() => void) | null = null;
   const handledResponses = new Map<string, Promise<void>>();
   const executions = new Map<string, Promise<void>>();
 
-  const revalidateAction: NotificationService['revalidateAction'] = (id, action) =>
-    notificationService.revalidateAction(id, action);
-  const executeAction: NotificationService['executeAction'] = (id, action, operationId) =>
-    notificationService['executeAction'](id, action, operationId);
+  const revalidateAction: NotificationService['revalidateAction'] = (
+    id,
+    action
+  ) => notificationService.revalidateAction(id, action);
+  const executeAction: NotificationService['executeAction'] = (
+    id,
+    action,
+    operationId
+  ) => notificationService['executeAction'](id, action, operationId);
 
   async function runResponse(response: PhoneNotificationResponse) {
-    const targetResolution = await notificationService.resolveTarget(response.notificationId);
+    if (response.kind === 'app_update') {
+      navigate('/app-update');
+      return;
+    }
+    if (response.kind === 'onboarding_resume') {
+      await resumeOnboarding?.(response.cycleId);
+      return;
+    }
+    if (waitForRemoteReady && !(await waitForRemoteReady())) return;
+    const targetResolution = await notificationService.resolveTarget(
+      response.notificationId
+    );
     if (targetResolution.status === 'unavailable' || !targetResolution.target) {
       navigate('/notifications');
       return;
     }
 
-    if (targetResolution.status === 'unlock_required' && !(await requestUnlock())) {
+    if (
+      targetResolution.status === 'unlock_required' &&
+      !(await requestUnlock())
+    ) {
       navigate('/notifications');
       return;
     }
@@ -81,13 +104,13 @@ export function createNotificationResponseController({
       let execution = executions.get(operationId);
       if (!execution) {
         execution = protectedNotificationAction({
-            id: response.notificationId,
-            action: response.action,
-            operationId,
-            unlock: requestUnlock,
-            revalidateAction,
-            executeAction
-          })
+          id: response.notificationId,
+          action: response.action,
+          operationId,
+          unlock: requestUnlock,
+          revalidateAction,
+          executeAction
+        })
           .then(() => undefined)
           .catch((error) => {
             executions.delete(operationId);
@@ -99,16 +122,24 @@ export function createNotificationResponseController({
       return;
     }
 
-    navigate(routeForTarget(actionResolution.target, response.action) ?? '/notifications');
+    navigate(
+      routeForTarget(actionResolution.target, response.action) ??
+        '/notifications'
+    );
   }
 
   async function handle(response: PhoneNotificationResponse) {
-    const key = `${response.notificationId}:${response.action}`;
+    const key =
+      response.kind === 'onboarding_resume'
+        ? `onboarding:${response.cycleId}`
+        : response.kind === 'app_update'
+          ? `update:${response.notificationId}`
+          : `${response.notificationId}:${response.action}`;
     const replay = handledResponses.get(key);
     if (replay) return replay;
     const result = runResponse(response).catch(() => {
       handledResponses.delete(key);
-      navigate('/notifications');
+      if (response.kind !== 'onboarding_resume') navigate('/notifications');
     });
     handledResponses.set(key, result);
     return result;
@@ -151,31 +182,48 @@ async function protectedNotificationAction(options: ProtectedActionOptions) {
   const executeAction = options.executeAction;
   const unlocked = await unlock();
   const actionResolution = await revalidateAction(id, action);
-  return unlocked && actionResolution.status === 'available' && actionResolution.target
+  return unlocked &&
+    actionResolution.status === 'available' &&
+    actionResolution.target
     ? executeAction(id, action, operationId)
     : Promise.reject(new Error(actionResolution.status));
 }
 
-function routeForTarget(target: NotificationTarget, action: Exclude<NotificationActionKind, 'undo'>): string | null {
+function routeForTarget(
+  target: NotificationTarget,
+  action: Exclude<NotificationActionKind, 'undo'>
+): string | null {
+  if (target.kind === 'onboarding') return '/';
+  if (target.kind === 'add_transaction') return '/(tabs)/add';
   if (target.kind === 'home') return '/(tabs)/home';
   if (target.kind === 'tracking') return '/tracking';
-  if (target.kind === 'account') return path('/accounts', target.accountId, action === 'edit');
-  if (target.kind === 'transaction') return path('/transactions', target.transactionId, action === 'edit');
-  if (target.kind === 'review') return path('/tracking/review', target.reviewId);
-  if (target.kind === 'obligation') return path('/obligations', target.obligationId, action === 'edit');
-  if (target.kind === 'budget') return action === 'edit'
-    ? path('/budgets/edit', target.budgetId)
-    : path('/budgets', target.budgetId);
-  if (target.kind === 'salary') return action === 'edit' ? '/salary/profile' : '/salary';
-  if (target.kind === 'goal') return path('/savings', target.goalId, action === 'edit');
+  if (target.kind === 'account')
+    return path('/accounts', target.accountId, action === 'edit');
+  if (target.kind === 'transaction')
+    return path('/transactions', target.transactionId, action === 'edit');
+  if (target.kind === 'review')
+    return path('/tracking/review', target.reviewId);
+  if (target.kind === 'obligation')
+    return path('/obligations', target.obligationId, action === 'edit');
+  if (target.kind === 'budget')
+    return action === 'edit'
+      ? path('/budgets/edit', target.budgetId)
+      : path('/budgets/transactions', target.budgetId);
+  if (target.kind === 'salary')
+    return action === 'edit' ? '/salary/profile' : '/salary';
+  if (target.kind === 'goal')
+    return path('/savings', target.goalId, action === 'edit');
   if (target.kind === 'report') return '/reports';
-  if (target.kind === 'assistant') return assistantConversationDestination(target.conversationId);
-  if (target.kind === 'security') return '/security/events';
+  if (target.kind === 'assistant')
+    return assistantConversationDestination(target.conversationId);
+  if (target.kind === 'security') return '/security/settings';
   if (target.key === 'notifications') return '/notifications/preferences';
   if (target.key === 'security') return '/security/settings';
   return '/profile/privacy';
 }
 
 function path(prefix: string, id: string, edit = false): string | null {
-  return /^[A-Za-z0-9_-]+$/.test(id) ? `${prefix}/${id}${edit ? '/edit' : ''}` : null;
+  return /^[A-Za-z0-9_-]+$/.test(id)
+    ? `${prefix}/${id}${edit ? '/edit' : ''}`
+    : null;
 }

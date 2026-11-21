@@ -1,0 +1,29 @@
+# Personal finance access for every signed-in owner
+
+The requested behavior is that anyone who signs up can use their personal finances, including a person who also operates the dashboard. Their mobile requests use the financial records belonging to their own verified identity.
+
+On 7 November, database logs showed 13 denied writes between 09:24:24 and 09:25:56 Riyadh time. The underlying claim function rejected active dashboard members with SQLSTATE 42501 and `FINANCIAL_ACCESS_DENIED`. The email supplied by the user matched the only active financial profile with dashboard membership. The records identify the failing role check. They do not identify the physical handset. The identity provider's public environment reported public signup with its allowlist and blocklist both disabled.
+
+Account creation, category creation, transaction posting and Assistant activation all depend on owner-scoped database functions. The old rule blocked a personal operation solely because its owner also held a staff role. Separate read policies could hide the same owner's transactions, balances, planning or sync state. The migration removes the staff-membership exclusions from eight functions and sixteen read policies. It retains authenticated owner checks, active-profile checks, idempotency, worker validation and account ownership. Dashboard privileges and destructive account lifecycle operations keep their own authorization.
+
+The isolated PostgreSQL regression exercised a genuinely new profile through the identity service with a verified Clerk fixture. Before correction, the ordinary owner passed while the dashboard member failed opening their account. After correction, both created an account, category and expense, enabled Assistant consent and created a conversation. Replaying requests returned the original resources. A different owner's transaction read was empty, a mismatched actor claim was rejected, and a posting against somebody else's account was rejected. Four targeted integration suites covered 47 cases, including fresh signup, suspended/deleted profiles, account defaults, retries and support receipts. The existing ledger grant/RLS suite passed all 29 assertions. Targeted lint and API type checking passed.
+
+The rendered forward transaction and rollback were both committed successfully on an isolated PostgreSQL 18 database under a non-superuser executor with the hosted membership shape. Both checked exact function owners, grants, bodies and policy predicates. Rollback restored the original definitions and membership and removed only this migration's history row. The reviewed migration SHA256 is `e5884441ed17df9e8fcf477e932f804c9ebd2fa66d7f85fb76fa4d07faa1e452`.
+
+After explicit user approval, the reviewed forward transaction was submitted once to the production project. A separate read-only check at 10:19 Riyadh time verified the eight functions, sixteen policies and the registered migration's SHA256. The history count advanced from 174 to 175 and the operator's original role membership was restored. The public API returned HTTP 200 with liveness status `ok`. [Execution receipt](../../ops/releases/2026-11-07-personal-finance/execution-result.json)
+
+The customer can use APK127 and their existing session. The user reported that the customer's handset was unavailable for the Assistant retry. Device acceptance, including native biometric authentication, remains pending. [Release package](../../ops/releases/2026-11-07-personal-finance/README.md)
+
+## Extended customer capability checks
+
+Two isolated databases ran the same eight API integration suites with synthetic owners. One used ordinary profiles. In the other, a fixture inserted active dashboard membership when each matching synthetic owner profile was created. Membership was confirmed in all eight fixture groups. All 67 cases passed for each role across budgets, salary cycles, obligations, savings, report summaries, sync deltas, the native Assistant API contract and Android tracking installation consent. These cases include rejection and retry paths as well as successful operations.
+
+In the first staff run all assertions passed, but the sync suite's teardown tried to delete a synthetic profile while its injected staff membership still referenced it. A cleanup trigger restricted to synthetic sync owners in the local staff database removed that test membership on teardown. The three sync cases and their teardown then passed in isolation. Neither the fixture triggers nor their data were deployed.
+
+On the mobile side, 79 tests passed for selection controls, tracking settings, notification preferences and preference persistence. Another 16 passed for the biometric service with simulated native responses. The UI tests emitted React test synchronization and runner shutdown warnings. These tests do not measure a physical prompt or a customer's tap latency.
+
+Read-only production inspection confirmed the registered finance migration, tracking consent table and voice analysis configured for authenticated owners with automatic processing enabled. The operating voice epoch had no recorded expiry or closure. These checks did not initiate a production recording, financial operation or account deletion.
+
+Two product limits matter when interpreting access for every owner. The mobile runtime disables paid purchases. The production account erasure guard still rejects deletion if the owner has a dashboard profile. The customer's handset was unavailable, so a retry of Assistant activation, the switches and the Android biometric prompt on that handset remains outstanding. APK127 remains compatible with the database correction.
+
+The earlier dashboard self-deletion restriction was subsequently lifted by the [approved production migration](../../ops/releases/2026-11-07-dashboard-owner-deletion/execution-result.json). Dashboard access is revoked when the confirmed owner is frozen for erasure.

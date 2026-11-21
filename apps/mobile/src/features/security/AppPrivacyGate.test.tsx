@@ -24,10 +24,12 @@ describe('AppPrivacyGate', () => {
 
   it('keeps the recovery screen masked while the app is backgrounded', () => {
     let listener: ((state: string) => void) | null = null;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
     const rendered = render(
       <AppPrivacyGate locked>
         <Text>Unlock form</Text>
@@ -48,10 +50,12 @@ describe('AppPrivacyGate', () => {
 
   it('masks protected content while locked and on background transitions', () => {
     let listener: ((state: string) => void) | null = null;
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
 
     render(
       <AppPrivacyGate immediate>
@@ -66,13 +70,15 @@ describe('AppPrivacyGate', () => {
     expect(screen.getByText('المحتوى محمي')).toBeOnTheScreen();
   });
 
-  it('masks on the inactive app-switcher transition and locks only when configured', () => {
+  it('masks transient inactive overlays without treating them as background locks', () => {
     let listener: ((state: string) => void) | null = null;
     const onLock = jest.fn();
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
 
     render(
       <AppPrivacyGate immediate onLock={onLock}>
@@ -81,11 +87,46 @@ describe('AppPrivacyGate', () => {
     );
     act(() => {
       listener?.('inactive');
-      listener?.('background');
     });
 
     expect(screen.queryByText('Protected')).toBeNull();
+    expect(onLock).not.toHaveBeenCalled();
+
+    act(() => {
+      listener?.('active');
+    });
+
+    expect(screen.getByText('Protected')).toBeOnTheScreen();
+
+    act(() => {
+      listener?.('inactive');
+      listener?.('background');
+      listener?.('background');
+    });
+
     expect(onLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps immediate-lock content masked when the app becomes active', () => {
+    let listener: ((state: string) => void) | null = null;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
+
+    render(
+      <AppPrivacyGate immediate onLock={jest.fn()}>
+        <Text>Protected</Text>
+      </AppPrivacyGate>
+    );
+    act(() => {
+      listener?.('background');
+      listener?.('active');
+    });
+
+    expect(screen.queryByText('Protected')).toBeNull();
   });
 
   it('applies a configured delayed lock when the app returns', () => {
@@ -93,10 +134,12 @@ describe('AppPrivacyGate', () => {
     const onLock = jest.fn();
     const clock = jest.spyOn(Date, 'now');
     clock.mockReturnValueOnce(1_000).mockReturnValueOnce(62_000);
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, callback) => {
-      listener = callback as (state: string) => void;
-      return { remove: jest.fn() };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, callback) => {
+        listener = callback as (state: string) => void;
+        return { remove: jest.fn() };
+      });
 
     render(
       <AppPrivacyGate lockAfterMs={60_000} onLock={onLock}>

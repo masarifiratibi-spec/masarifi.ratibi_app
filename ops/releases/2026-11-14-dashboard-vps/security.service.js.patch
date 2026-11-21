@@ -1,0 +1,11 @@
+--- a/security.service.js
++++ b/security.service.js
+@@ -187,6 +187,8 @@
+         }
+         result.requester = safeReference(result.requester, 'admin');
+         result.assignee = safeReference(result.assignee, 'admin');
++        if ('approvedBy' in result)
++            result.approvedBy = safeReference(result.approvedBy, 'admin');
+     }
+     if (operation.includes('SecurityIncident'))
+         result.timeline ??= [];

@@ -3,7 +3,15 @@ import { Readable, Transform } from 'node:stream';
 
 import PDFDocument from 'pdfkit';
 
-import { parseReportSnapshot, type ReportFormat, type ReportSnapshot } from './reports.schemas';
+import {
+  isPlanningReport,
+  parseReportSnapshot,
+  SELECTED_ACCOUNTS_PLANNING_REASON,
+  unavailablePlanningContent,
+  type ReportFormat,
+  type ReportSnapshot,
+} from './reports.schemas';
+import { writeReportPdf } from './reports.pdf';
 
 const CSV_COLUMNS = ['occurredAt', 'kind', 'amountMinor', 'currencyCode', 'categoryLabel'] as const;
 
@@ -45,39 +53,54 @@ function csvCell(value: unknown): string {
 }
 
 function* csv(snapshot: ReportSnapshot): Generator<string> {
-  yield `\uFEFF${CSV_COLUMNS.join(',')}\r\n`;
+  if (snapshot.summary.planningUnavailableReason === SELECTED_ACCOUNTS_PLANNING_REASON) {
+    yield '\uFEFFdataState,planningUnavailableReason\r\n';
+    yield `${csvCell(snapshot.dataState)},${csvCell(SELECTED_ACCOUNTS_PLANNING_REASON)}\r\n`;
+    return;
+  }
+  const type = snapshot.summary.exportType;
+  const columns =
+    type === 'activity'
+      ? ['id', 'occurredAt', 'eventType', 'summary', 'platformScope', 'permission', 'destination']
+      : type === 'overview' || type === 'platform_analytics'
+        ? [
+            'section',
+            'metric',
+            'value',
+            'platformScope',
+            'period',
+            'observedAt',
+            'timestamp',
+            'freshness',
+            'timezone',
+            'periodStart',
+            'periodEnd',
+            'collectionStartedAt',
+          ]
+        : CSV_COLUMNS;
+  yield `\uFEFF${columns.join(',')}\r\n`;
   for (const row of snapshot.detailedRows)
-    yield `${CSV_COLUMNS.map((column) => csvCell(row[column])).join(',')}\r\n`;
+    yield `${columns.map((column) => csvCell(row[column])).join(',')}\r\n`;
 }
 
-function pdf(snapshot: ReportSnapshot, font: Buffer): NodeJS.ReadableStream & { end(): void } {
+function pdf(snapshot: ReportSnapshot, font: Buffer): PDFKit.PDFDocument {
   const document = new PDFDocument({
     autoFirstPage: true,
     compress: true,
+    size: 'A4',
+    margin: 48,
     info: {
       Title: 'Masarifi report',
       Creator: 'Masarifi',
       CreationDate: new Date(snapshot.generatedAt),
     },
   });
-  document
-    .registerFont('report', font)
-    .font('report')
-    .fontSize(18)
-    .text('Masarifi | مصاريفي', { align: 'center' });
-  document.moveDown().fontSize(11);
-  document.text(`${snapshot.period.startDate} — ${snapshot.period.endDate}`);
-  document.text(
-    `${snapshot.reportType} · ${snapshot.currencyCode} · ledger ${String(snapshot.ledgerVersion)}`,
-  );
-  document.moveDown().text(JSON.stringify(canonical(snapshot.summary)));
-  for (const row of snapshot.detailedRows)
-    document.text(JSON.stringify(canonical(row)), { width: 500 });
+  document.registerFont('report', font).font('report');
   return document;
 }
 
 function bounded(
-  source: NodeJS.ReadableStream,
+  source: Readable,
   maximumBytes: number,
 ): Pick<RenderedReport, 'body' | 'byteCounter'> {
   let bytes = 0;
@@ -107,6 +130,14 @@ function bounded(
   output.once('error', (error: Error) => {
     rejectCount(error);
   });
+  output.once('close', () => {
+    if (!output.writableFinished) rejectCount(new Error('REPORT_RENDER_CANCELLED'));
+    source.destroy();
+  });
+  source.once('close', () => {
+    if (!source.readableEnded && !output.destroyed)
+      output.destroy(new Error('REPORT_RENDER_CANCELLED'));
+  });
   source.once('error', (error: Error) => {
     output.destroy(error);
   });
@@ -125,13 +156,25 @@ export function renderReport(
   let snapshot: ReportSnapshot;
   try {
     snapshot = parseReportSnapshot(input, maximumBytes);
+    // Earlier selected-account captures stored ledger totals without any planning rows.
+    const { accountScope, planning, summaries } = snapshot.summary;
+    if (
+      isPlanningReport(snapshot.reportType) &&
+      typeof accountScope === 'string' &&
+      /^Selected accounts \([1-9]\d*\)$/.test(accountScope) &&
+      planning === undefined &&
+      Array.isArray(summaries)
+    ) {
+      const content = unavailablePlanningContent(snapshot.summary.currencyMinorUnits);
+      snapshot = { ...snapshot, ...content, summary: { ...content.summary, accountScope } };
+    }
   } catch (error) {
     if (error instanceof Error && error.message === 'REPORT_SNAPSHOT_TOO_LARGE')
       throw new Error('REPORT_LIMIT_EXCEEDED');
     throw error;
   }
-  let source: NodeJS.ReadableStream;
-  let pdfDocument: (NodeJS.ReadableStream & { end(): void }) | undefined;
+  let source: Readable;
+  let pdfDocument: PDFKit.PDFDocument | undefined;
   let contentType: RenderedReport['contentType'];
   if (format === 'json') {
     source = Readable.from([`${JSON.stringify(canonical(snapshot))}\n`]);
@@ -146,7 +189,19 @@ export function renderReport(
     contentType = 'application/pdf';
   }
   const output = bounded(source, maximumBytes);
-  pdfDocument?.end();
+  if (pdfDocument) {
+    const document = pdfDocument;
+    queueMicrotask(() => {
+      if (document.destroyed) return;
+      void writeReportPdf(document, snapshot)
+        .then(() => {
+          if (!document.destroyed) document.end();
+        })
+        .catch((error: unknown) => {
+          document.destroy(error instanceof Error ? error : new Error('REPORT_RENDER_FAILED'));
+        });
+    });
+  }
   return {
     contentType,
     extension: format,

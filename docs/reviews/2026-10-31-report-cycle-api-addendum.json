@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "actionSet": "T09-REPORT-CYCLE-API-ONE",
+  "purpose": "One pure report-period function repair for actual custom-cycle read mismatch; no output requests",
+  "humanApprovalRecorded": false,
+  "currentContainer": "7feda62b3a6fba9c8d11b6f6f688a91c7d34706349767ddc3df1a9825b94a2ef",
+  "oldImage": "sha256:4bcd2e7fbdc31060df6614b41f9ca19a13f48a65b50d1ba9ce34abbd357bf9f9",
+  "candidateImage": "sha256:32062a69f0a73e9ea684c7954673ecdc484fd4afb55e5c4ad5e2135015939f2e",
+  "patchManifestSha256": "b13bae4c8a5a0c2bc2a85aba287020b21a271869dea39d885f2c6e48f32fe0c3",
+  "runtimeProposalSha256": "8163b198f34f3f172b2d4cddaf9d20e5c99e7f4da32ddd00bce9cc3ac265b0b3",
+  "oldRuntimeSha256": "ee1593f83d16d8524d5f6ad8b9b90c1147cd07625d350cfbb29597b12ca068bf",
+  "createdConfigSha256": "4a0f990d4110391480eeaf1bb5dce15cf9dbe5bba6f04dde810cb48fe55dc8cb",
+  "createdHostConfigSha256": "1f9164a0d342cfff3e73a6d4506aa27a0caf3cf14a9929300427f059e98ffea7",
+  "proposedCreatedRuntimeSha256": "ddd5c8ff9d97bdec34264a7f1d2d28610b3a60a49d9d9baee5e79744b6ff6141",
+  "proposedRunningRuntimeSha256": "6b4f3d54c1ba70be80e7c29d879bcfcf72580d4d1c573fdd146c89b9c9f1a6f8",
+  "unchangedRunningHostConfigSha256": "3284e924230c8c7a9968dc432e942100dec9c8273dfeef683d66327243c62a31",
+  "networksSha256": "3ddefae8035769809a96a9a2b3645c4de9f22aabc544f3c807fba64e7515125f",
+  "mountsSha256": "37e9601667c749582fd49b00f293993d5cd1387f7cd25ab19ecac9cda492e57f",
+  "candidateLabel": {
+    "io.masarifi.candidate.report-cycle.sha256": "b13bae4c8a5a0c2bc2a85aba287020b21a271869dea39d885f2c6e48f32fe0c3"
+  },
+  "oomRepresentation": {
+    "before": null,
+    "created": false,
+    "running": null
+  },
+  "files": [
+    {
+      "name": "reports.period.js",
+      "function": "resolveReportPeriod",
+      "sourcePath": "apps/api/src/reports/reports.period.ts",
+      "beforeSha256": "dc70d6d9abfc1ab94b1d34e868a1e07af4774781466d0e4313e8042574ad393a",
+      "afterSha256": "d4d0cfc6c65bb108d1d4917d81a14ef0ed70a464b72fead734a164f0d18c19e2",
+      "methodAfterSha256": "22fb348f21a3ad9c606c80e7a2476bc792362f85937e6424e03ad62cc8a57961",
+      "qualifiedSourceBuildInputSha256": "e799dbec69ffef502b0fb21eb221af4384abf6dcf18b74e9376cc8f907e0685d",
+      "sourceGitBlobSha256": "9913099a503f18ce7dab20f95fd5519f59497e40aab2b9b9134c5bfee81a9b78",
+      "outsideFunctionByteExact": true,
+      "fullFileMatchesPreviouslyQualifiedCompilation": true
+    }
+  ],
+  "scope": {
+    "serviceCount": 1,
+    "untouchedDockerServices": 35,
+    "nativeAdminServiceUnchanged": true,
+    "nginxUnchanged": true,
+    "nginxSha256": "87e37521da104eabed5295153f91ca09c59b641cb32dc60a41323b80368a56bf",
+    "databaseCaSha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "environmentChanges": 0,
+    "databaseMigrationsOrGrants": 0,
+    "handoverDeadlineSeconds": 120,
+    "beginRollbackBySeconds": 70,
+    "gracefulStopOnly": true,
+    "noForceKill": true,
+    "preserveCurrentApiAndPriorBackups": true,
+    "freshQuiescenceAfterPause": {
+      "queued": 0,
+      "processing": 0,
+      "maximumObservationAgeSeconds": 15
+    },
+    "freshHostMinimum": {
+      "availableMemoryMiB": 1400,
+      "dockerFreeGiB": 15
+    },
+    "exactClientFinancialDraftAndNativeProducerGates": true,
+    "apkBuildInstallOrMetroRestart": false,
+    "newPdfRequests": 0,
+    "newPdfDownloads": 0,
+    "newZipRequests": 0,
+    "newConsumerWindows": 0,
+    "windowRenewals": 0,
+    "providerQueries": 0,
+    "externalEmailOrShare": 0,
+    "financialMutations": 0,
+    "roleOrPermissionChanges": 0,
+    "adminOrNginxDeployment": false,
+    "postHealthVerification": "Read-only Reports cycle1/25 and existing account scopes, then restore original preferences; no PDF, ZIP, provider, feedback or financial command.",
+    "nativeAdminService": "masarifi-admin-feedback-route-97662218-01.service",
+    "nativeAdminPid": 2284119
+  },
+  "preparation": {
+    "syntaxChecks": 1,
+    "qualifiedMethodExact": true,
+    "applicationProcessStarted": false,
+    "candidatePromoted": false,
+    "untouchedServiceCount": 35,
+    "runtimeRedCycle25Correct": false,
+    "runtimeGreenCycle25Correct": true,
+    "qualifiedCycleAndInvalidInputCases": 10,
+    "unchangedCalendarCases": 4
+  }
+}

@@ -10,6 +10,8 @@ describe('Admin support contract', () => {
         (route) => route.operation,
       ),
     ).toEqual([
+      'adminSupportOverview',
+      'adminDownloadSupportAttachment',
       'adminListSupportTickets',
       'adminGetSupportTicket',
       'adminActOnSupportTicket',

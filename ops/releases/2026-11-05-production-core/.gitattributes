@@ -1,0 +1,4 @@
+# Preserve qualified release bytes and SHA256 pins across checkouts.
+# Qualified metadata may use CRLF; CR is an EOL byte, not trailing content.
+# Actual trailing spaces remain errors and normal text diffs/scans remain enabled.
+* -text whitespace=cr-at-eol

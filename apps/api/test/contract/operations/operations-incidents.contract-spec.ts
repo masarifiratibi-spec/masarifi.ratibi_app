@@ -7,7 +7,7 @@ describe('operations incident contract', () => {
     );
     expect(routes).toHaveLength(6);
     for (const route of routes.filter(({ method }) => method !== 'GET')) {
-      expect(route.recentMfa).toBe(true);
+      expect(route.recentAuth).toBe(true);
       expect(route.permission).toMatch(/^operations\.(?:incidents|maintenance)\.manage$/u);
     }
   });

@@ -2,7 +2,7 @@ import { AiAdminController } from '../../../src/ai/ai.admin.controller';
 import { PERMISSION_KEYS } from '../../../src/security/permission-manifest';
 
 describe('Phase 09 Admin AI authorization', () => {
-  it('registers exact permissions and recent MFA for provider, model, route, prompt, and safety changes', () => {
+  it('registers exact permissions and recent Clerk login for provider, model, route, prompt, and safety changes', () => {
     for (const permission of [
       'ai.providers.read',
       'ai.providers.manage',
@@ -33,7 +33,7 @@ describe('Phase 09 Admin AI authorization', () => {
       const values = Reflect.getMetadataKeys(target).map((key): unknown =>
         Reflect.getMetadata(key, target),
       );
-      expect(values).toContainEqual(expect.objectContaining({ recentMfa: true }));
+      expect(values).toContainEqual(expect.objectContaining({ recentAuth: true }));
     }
   });
 });

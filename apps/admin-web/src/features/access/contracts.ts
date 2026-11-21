@@ -12,10 +12,10 @@ const unique = <T>(entries: T[]) => new Set(entries).size === entries.length;
 const strictRegionStateSchema = regionStateSchema.strict();
 const strictPaginationSchema = paginationSchema.strict();
 
-export const accessRequestIdSchema = z.string().regex(/^ACC-[A-Z0-9-]{1,44}$/).max(48);
-export const ticketIdSchema = z.string().regex(/^TKT-[A-Z0-9-]{1,44}$/).max(48);
+export const accessRequestIdSchema = z.union([z.uuid(), z.string().regex(/^ACC-[A-Z0-9-]{1,44}$/)]);
+export const ticketIdSchema = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
 export const auditReferenceSchema = z.string().regex(/^AUD-[A-Z0-9-]{1,44}$/).max(48);
-export const adminActorSchema = z.string().regex(/^ADM-[A-Z0-9-]{1,44}$/).max(48);
+export const adminActorSchema = userIdSchema;
 export const accessStatusSchema = z.enum(["pending", "approved", "active", "expired", "rejected", "revoked"]);
 export const accessScopeSchema = z.enum([
   "profile-contact",
@@ -40,6 +40,8 @@ export const accessRequestsQuerySchema = z.object({
 }).strict();
 export type AccessRequestsQuery = z.output<typeof accessRequestsQuerySchema>;
 
+const resourceActionsSchema = z.array(z.object({ resource: accessScopeSchema, actions: z.array(z.enum(["read-masked", "read-status", "read-aggregate"])).min(1).max(3) }).strict()).min(1).max(6);
+
 export const accessRequestSummarySchema = z.object({
   id: accessRequestIdSchema,
   userId: userIdSchema,
@@ -49,12 +51,15 @@ export const accessRequestSummarySchema = z.object({
   assignee: adminActorSchema,
   requestedScope: scopeListSchema,
   approvedScope: scopeListSchema.nullable(),
-  reasonSummary: z.string().min(1).max(160),
+  requestedScopeActions: resourceActionsSchema.optional(),
+  approvedScopeActions: resourceActionsSchema.nullable().optional(),
+  reasonSummary: z.string().min(1).max(160).nullable(),
   status: accessStatusSchema,
-  createdAt: z.iso.datetime({ offset: true }),
+  createdAt: z.iso.datetime({ offset: true }).nullable(),
   startsAt: z.iso.datetime({ offset: true }).nullable(),
   expiresAt: z.iso.datetime({ offset: true }).nullable(),
   approvedBy: adminActorSchema.nullable(),
+  version: z.number().int().positive().optional(),
 }).strict().superRefine((request, context) => {
   if (request.approvedScope?.some((scope) => !request.requestedScope.includes(scope))) {
     context.addIssue({ code: "custom", path: ["approvedScope"], message: "Approved scope must be requested" });
@@ -63,7 +68,7 @@ export const accessRequestSummarySchema = z.object({
     context.addIssue({ code: "custom", path: ["approvedBy"], message: "Requester cannot approve" });
   }
   const timed = ["approved", "active", "expired"].includes(request.status);
-  if (timed && (!request.startsAt || !request.expiresAt)) {
+  if (timed && (!request.startsAt || !request.expiresAt) && (request.status === "active" || request.version === undefined)) {
     context.addIssue({ code: "custom", path: ["startsAt"], message: "Timed access requires start and expiry" });
   }
 });
@@ -71,7 +76,11 @@ export type AccessRequestSummary = z.infer<typeof accessRequestSummarySchema>;
 
 export const accessRequestsPageSchema = z.object({
   items: z.array(accessRequestSummarySchema).max(100),
-  pagination: strictPaginationSchema,
+  pagination: strictPaginationSchema.extend({
+    totalItems: strictPaginationSchema.shape.totalItems.nullable(),
+    totalPages: strictPaginationSchema.shape.totalPages.nullable(),
+    hasNext: z.boolean().optional(),
+  }),
   region: strictRegionStateSchema,
 }).strict();
 export type AccessRequestsPage = z.infer<typeof accessRequestsPageSchema>;
@@ -79,9 +88,9 @@ export type AccessRequestsPage = z.infer<typeof accessRequestsPageSchema>;
 export const maskedCustomerSummarySchema = z.object({
   userId: userIdSchema,
   displayName: z.string().min(1).max(100),
-  maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@example\.test$/).max(160),
+  maskedEmail: z.string().regex(/^[^@]*\*{3}[^@]*@[^@\s]+\.[^@\s]+$/).max(320).nullable(),
   status: accountStatusSchema,
-  primaryPlatform: platformSchema,
+  primaryPlatform: platformSchema.nullable(),
   registeredPlatforms: z.array(platformSchema).min(1).max(2).refine(unique),
   risk: riskLevelSchema,
 }).strict();
@@ -96,11 +105,11 @@ export const accessTimelineItemSchema = z.object({
 }).strict();
 
 export const accessRequestDetailSchema = accessRequestSummarySchema.safeExtend({
-  ticketSummary: z.string().min(1).max(300),
-  customerSummary: maskedCustomerSummarySchema,
-  reason: z.string().min(10).max(500),
-  requestedDurationMinutes: z.number().int().min(5).max(60),
-  approvedDurationMinutes: z.number().int().min(5).max(60).nullable(),
+  ticketSummary: z.string().min(1).max(300).nullable(),
+  customerSummary: maskedCustomerSummarySchema.nullable(),
+  reason: z.string().min(10).max(500).nullable(),
+  requestedDurationMinutes: z.number().int().min(1).max(1440).nullable(),
+  approvedDurationMinutes: z.number().int().min(1).max(1440).nullable(),
   maskingRules: z.array(z.string().min(1).max(160)).min(1).max(12).refine(unique),
   customerApprovalRequired: z.boolean(),
   customerApprovalState: z.enum(["not-required", "pending", "received"]),
@@ -109,6 +118,7 @@ export const accessRequestDetailSchema = accessRequestSummarySchema.safeExtend({
 }).strict().superRefine((request, context) => {
   if (
     request.approvedDurationMinutes !== null
+    && request.requestedDurationMinutes !== null
     && request.approvedDurationMinutes > request.requestedDurationMinutes
   ) {
     context.addIssue({ code: "custom", path: ["approvedDurationMinutes"], message: "Approved duration cannot increase" });
@@ -173,10 +183,11 @@ export const accessDecisionInputSchema = z.object({
   approvedScope: scopeListSchema.optional(),
   durationMinutes: z.number().int().min(5).max(60).optional(),
   startsAt: z.iso.datetime({ offset: true }).optional(),
+  expectedVersion: z.number().int().positive().optional(),
 }).strict();
 export type AccessDecisionRequest = z.infer<typeof accessDecisionInputSchema>;
 
-export const revokeAccessRequestSchema = z.object({ reason: z.string().trim().min(5).max(500) }).strict();
+export const revokeAccessRequestSchema = z.object({ reason: z.string().trim().min(5).max(500), expectedVersion: z.number().int().positive().optional() }).strict();
 export type RevokeAccessRequest = z.infer<typeof revokeAccessRequestSchema>;
 
 const TRANSITIONS: Record<AccessStatus, readonly AccessStatus[]> = {
@@ -194,7 +205,7 @@ export function canTransitionAccess(current: AccessStatus, next: AccessStatus): 
 
 export const workspaceFieldSchema = z.object({
   label: z.string().min(1).max(100),
-  value: z.union([z.string().max(300), z.number().int()]),
+  value: z.union([z.string().max(300), z.number().int()]).nullable(),
   classification: z.enum(["masked", "aggregate", "status"]),
 }).strict();
 
@@ -215,12 +226,13 @@ export const temporaryWorkspaceSchema = z.object({
   assignee: adminActorSchema,
   status: z.literal("active"),
   approvedScope: scopeListSchema,
-  startsAt: z.iso.datetime({ offset: true }),
+  startsAt: z.iso.datetime({ offset: true }).nullable(),
   expiresAt: z.iso.datetime({ offset: true }),
   accessNotice: z.string().min(1).max(240),
   auditIndicator: z.string().min(1).max(80),
   sections: z.array(workspaceSectionSchema).min(1).max(6),
   region: strictRegionStateSchema,
+  version: z.number().int().positive().optional(),
 }).strict().superRefine((workspace, context) => {
   if (new Date(workspace.expiresAt).getTime() <= Date.now()) {
     context.addIssue({ code: "custom", path: ["expiresAt"], message: "Workspace must not be expired" });
@@ -236,14 +248,15 @@ export type TemporaryWorkspace = z.infer<typeof temporaryWorkspaceSchema>;
 
 export const endTemporaryAccessRequestSchema = z.object({
   reason: z.string().trim().max(300).optional(),
+  expectedVersion: z.number().int().positive().optional(),
 }).strict();
 export type EndTemporaryAccessRequest = z.infer<typeof endTemporaryAccessRequestSchema>;
 
-export const endTemporaryAccessResultSchema = z.object({
+export const endTemporaryAccessResultSchema = z.union([z.object({
   requestId: accessRequestIdSchema,
   status: z.literal("revoked"),
   endedAt: z.iso.datetime({ offset: true }),
   auditReference: auditReferenceSchema,
   message: z.string().min(1).max(200),
-}).strict();
+}).strict(), z.object({ requestId: accessRequestIdSchema, status: z.literal("revoked"), version: z.number().int().positive() }).strict()]);
 export type EndTemporaryAccessResult = z.infer<typeof endTemporaryAccessResultSchema>;

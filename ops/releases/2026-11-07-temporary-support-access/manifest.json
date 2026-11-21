@@ -1,0 +1,188 @@
+{
+  "state": "blocked-not-admitted",
+  "hostedActivationApproved": false,
+  "hostedActivationPerformed": false,
+  "reviewedSourceCommit": "0247ed5ea73e9b3b287f4d50daf7b28e0beeb5e7",
+  "admin": {
+    "artifactSourceCommit": "73b790d04d705d349107da1e34cc65a06b195107",
+    "gitTree": "9f60670e19f2369e7e12d2260c131f9b75391a42",
+    "workflowRun": 42380284312,
+    "artifactId": 13576619088,
+    "artifactName": "admin-canonical-73b790d04d705d349107da1e34cc65a06b195107",
+    "zipSha256": "408046198198bf166613f20fa31ac437e416fe44fbf989f37caa2aeb7b6c3858",
+    "zipBytes": 263728589,
+    "archiveSha256": "8fe6f57f5bcee817639f0ae3a3102c21aa8b2f25bdadbab587986cf74ab32e88",
+    "archiveBytes": 263726798,
+    "manifestSha256": "d6b4e163f3460a1b72532b86f21120ee2c6946bec1902f60e451f624a55497b7",
+    "buildId": "mT4teHZyRNxcKzft789xW",
+    "staticProbe": {
+      "path": "/_next/static/mT4teHZyRNxcKzft789xW/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
+      "bytes": 219
+    }
+  },
+  "api": {
+    "archiveSha256": null,
+    "imageId": null,
+    "reason": "Run 42394141341: all Android, application, browser and cross-feature security gates passed; ledger benchmark failure prevented the image job. Repair requalification pending."
+  },
+  "routing": {
+    "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "candidateSha256": "7ec03407697c4634b650f3218dc7cf30bd28ad435dc23d37042c4a814a1b2d86",
+    "contextSha256": "34fada4cfe81e3a3e8e27d2e8d33bce3328429238af54fb51c21276d77ae0444",
+    "reason": "Actual read-only Web console: both exact pins independently recomputed with ea087521 and compared as literals. No candidate file installed.",
+    "currentEffectiveUpstreams": {
+      "adminSupportAccess": "127.0.0.1:3033",
+      "meSupportAccess": "127.0.0.1:3001"
+    },
+    "recoveryIncludeSha256": "b25cb5dcd49ab396ea621fa249c474c0c09f173939e50dd93159c4dc428c85ba",
+    "hostInventory": {
+      "protectedSha256": "290c7cf95590b4e392e98b58ddc41970ab5490c3bf4e8325167439c9ca2c9388",
+      "originalIdsSha256": "b6b80feb724114ead0c50afc74b0f11dff2f6f8410cf93a46263b5b045488d24",
+      "masterPid": 1744065,
+      "masterStartTicks": "20475255",
+      "masterExeSha256": "f2e466b8fff91f4251684cfa4b0017a2963701fb66585c8e7fcaef7cc7fb307f",
+      "mainConfigSha256": "d7be180d12cb332090cf4a0e8de780bd30e7f59fd0ffa4ad42be0e70e6bc6348",
+      "bootId": "07b0ddde-b2b9-4cbf-a02b-6730798398bd"
+    },
+    "recovery": {
+      "containerId": "a30543c1cafa8278777e3e95069db0306178f821d9254e257425f06c7ebedaad",
+      "image": "sha256:274f4e7dca0add015e834c9b0af9a8371fac4b78bfabf18833d2467500c424f1",
+      "startedAt": "2026-11-01T22:01:42.63860914Z",
+      "configAndHostConfigSha256": "e31693d056d817323364939999fec54b4947339e96a19543285811360dc91f2d",
+      "databaseProject": "qcffvfbpzvpwcwxwjyro"
+    },
+    "primaryPublicVersion": "97e66588b2b516ae8c67e285f8439be591439dd6",
+    "originalSupportGet": {
+      "order": "admin list, admin detail, owner list, owner detail",
+      "directAndPublic": [
+        401,
+        401,
+        401,
+        404
+      ],
+      "publicCacheControlHeaders": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "migration": {
+    "version": "20261107140100",
+    "name": "support_access_denial_without_consent",
+    "path": "supabase/migrations/20261107140100_support_access_denial_without_consent.sql",
+    "sha256": "4a826dda49786f3469f96b6c29dddebc8c652fcae0482e995869193d8fe5051c",
+    "targetProject": "qcffvfbpzvpwcwxwjyro",
+    "rollback": "retain forward-compatible CHECK; no consent/data rewrite; no historical migration replay",
+    "rendererSha256": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
+    "clusterFingerprint": "a191e84c52c98e63ce1057e2b7e740450864d7a041ef54e86af2e2b7dbeaaa04",
+    "priorVersionListSha256": "4f88b17abe51db505b83f6eccf44aa645218205f0681580f3460c191c2f18c35",
+    "readbackSha256": "159317303a8466506370e4584e89b72499c61987141ff528d43f8e1da43b32d5"
+  },
+  "candidate": {
+    "apiName": "masarifi-support-access-api-0247ed5e-20261107",
+    "apiHostPort": 3042,
+    "adminName": "masarifi-admin-access-73b790d0-20261107",
+    "adminHostPort": 3043,
+    "ingress": "Only four exact/slash-prefix support-access locations plus existing Admin default upstream",
+    "plannedPayloadSha256": {
+      "admin": "e42dc6e6754d5e3739b5cad90c92644832f1778181722a9b9db2c09af41d35f2",
+      "api": null
+    },
+    "restartPolicy": {
+      "trial": "no",
+      "afterDurablePrivateAcceptance": "unless-stopped",
+      "existingServicePolicy": "unchanged"
+    }
+  },
+  "qualification": {
+    "foundationRun": 42394141341,
+    "foundation": "database-failed",
+    "remainingFailures": [
+      "Ledger k6: 20,840 failed write/reconciliation operations against missing benchmark owner epochs; corrected and requalification pending."
+    ],
+    "apiApplication": "success",
+    "mobile": "success",
+    "secrets": "success",
+    "upgradedDatabaseIntegration": "151 suites/1066 tests passed",
+    "stagingRuns": [
+      42394141299,
+      42394134376
+    ],
+    "staging": "success",
+    "journalRun": 42394141307,
+    "journal": "success",
+    "sourceCommit": "6b39fd369a8cfdf182494c53cd5a865e6c225e14",
+    "priorCompletedFoundation": {
+      "run": 42391737577,
+      "outcome": "failure",
+      "passed": "fresh pgTAP, upgraded and fresh integration suites",
+      "failure": "Two obsolete cross-feature assertions, subsequently repaired."
+    },
+    "packetLinux": {
+      "run": 42396956430,
+      "sourceCommit": "4698fc18316968fd3d090907e1f3309c782384eb",
+      "result": "success",
+      "tests": 58,
+      "liveNginxTrial": "verified on disposable runner",
+      "dockerRestart": "real provisional and accepted policies verified"
+    },
+    "hostReadmission": {
+      "sourceCommit": "5418a3e48e67dfdd336a3e747eee0017f3c645f3",
+      "matches": "routing, protected inventory, recovery, admin plan",
+      "headroom": {
+        "availableMemoryBytes": 3350568960,
+        "freeDiskBytes": 69293113344,
+        "portsFree": true
+      },
+      "activated": false
+    },
+    "crossFeatureSecurity": "169 tests passed"
+  },
+  "limits": [
+    "No qualified API runtime archive yet",
+    "Actual routing and protected inventory verified; image-dependent create payload pins and fresh preflight still required",
+    "No new sidecar/migration/routing operation authorized or performed",
+    "Successful hosted consent plus separate reviewer grant/workspace/end remains pending genuine actors and recent authentication"
+  ],
+  "hostBaselineSha256": "76dac9f09ebfb0a640af67cca2e964d3bfa73198afd9b035abbac6b4b124cacd",
+  "readOnlyToolsSha256": {
+    "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
+    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5",
+    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
+    "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
+  },
+  "offlinePacketTests": {
+    "passed": 59,
+    "failed": 0,
+    "skipped": 0,
+    "boundary": "59 local controls; the preceding 58 also passed Linux with real Nginx trial and real Docker restart policy checks."
+  },
+  "hashEncoding": "SHA256 of canonical LF UTF-8 packet bytes; container config fingerprints retain their separately stated exact Docker output algorithm",
+  "repairCommits": [
+    "26d49117231a683b276fa7bb3334e3776792b989",
+    "0247ed5ea73e9b3b287f4d50daf7b28e0beeb5e7"
+  ],
+  "repairChecks": {
+    "identityAndBadgingTests": 31,
+    "actualBadgingIndependentProbes": 11,
+    "boundedDatabaseLintTests": 21,
+    "replacementCi": "Real extension passed in 42389327179: errors=0, explainedDynamicVariants=59; two stale pgTAP counts blocked database/image."
+  },
+  "executorSha256": {
+    "host_release.py": "ad51fdff47c761427d27f03a2f1f2849dc1d5d6a07affe29bb3e7d7a1edf63ed",
+    "host_inventory.py": "32d3a0f9e9fe1a41cbaabd307bc7fee8e3ddd866c4096347a42aeaba793463be",
+    "candidate_config.py": "c4a0b642879c8766a24d665e644f5f602b20156b56288d85c0fc146cfcaa1bec",
+    "watchdog.py": "f66a7fddc4c842e405632297debfabebd3d1a24bc3cf03d91f60254da7a40b5c",
+    "stage_archives.py": "560fedaee3f2ed97ebf87d9715d86c7c25a2616ea63cfa8fdf4219a87e9d3001",
+    "api_archive.py": "c33f1d46c86f05a8c3be28a5da3227166b345c3885e02868107a0eb425873c7f",
+    "candidate_verifier.py": "6b4eadfd90539693a6f72442760ca4e7ad306cb79138942cd160103a517d0147",
+    "migration_packet.py": "ab025b3b147a05343601bf21dd3a234b4f0af75da67c55f5c58a438b1df71373",
+    "nginx_delta.py": "558be644ee6010c588a19e3de43398233f86cee911c2a7d96ebac43cf06ed7da",
+    "read_nginx_context.py": "5301d6bbebfa709b6518f953c24edcd2af06ab80fcd86fe42997e13f0e0f23f5",
+    "acceptance_receipt.py": "59cdd7b16af8be400295a034b4efb9fc42054f6c97b2ae88b2936385a9db7cfa",
+    "host_readmission.py": "52d1072481448cee535af30462fe0df54cc5cc550fc2d0f86aa27754cddd8f70"
+  }
+}

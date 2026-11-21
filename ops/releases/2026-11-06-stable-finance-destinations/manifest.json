@@ -1,0 +1,324 @@
+{
+  "status": "prepared-not-installed-physical-acceptance-open",
+  "applicationSourceCommit": "a970978d2617d578dbee14a4562164790ae8b8d3",
+  "buildSourceCommit": "a970978d2617d578dbee14a4562164790ae8b8d3",
+  "trackingSourceCommit": "9262f31728a303f589af708a52bdb70db443a38a",
+  "reviewedIosHead": "a9262b17938c4da04f89668dedd822205117f1e2",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 117,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkPath": "C:\\mrc1105\\artifacts\\task25-customer-117-native.apk",
+  "candidateApkSha256": "529d8e1c1f9a4dbadd8ae0a94cebda736cdb9c48615fab75c92821550b5a0528",
+  "candidateApkBytes": 49512470,
+  "candidateHermesSha256": "59cf6ee723dec940b2cb02e9a705c660538a421b1ee899d7dab8abfa0b511dad",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "hostedMutationRequired": false,
+  "currentInstalledVersion": 115,
+  "currentInstalledApkSha256": "95cbd9aa968e081ac768c665c538357e0d771487e8a88b96fd0a16cb7a10f67d",
+  "canonicalDeliveredVersion": 111,
+  "canonicalDeliveredApkSha256": "d1403ba377a28a8a7c434c4454c499e2b8ac32d1e258238a50ef480eda8b192a",
+  "sameOwnerSdkSessionDataKeysAndExistingQaRequired": true,
+  "changedAndRetainedSource": [
+    {
+      "path": "apps/mobile/app.config.js",
+      "sha256": "bb12d6d839a0c7713815ad0ed1b93a8ba2833baa3707d704ac61e3a5deb59cd5"
+    },
+    {
+      "path": "apps/mobile/app/(tabs)/more.tsx",
+      "sha256": "5599e7d79c096324f9c2a61c569459c4aa42340002862a2d6bbf2822e5ec82c0"
+    },
+    {
+      "path": "apps/mobile/eas.json",
+      "sha256": "456d459c35739b1a335485941591b55e9cb41be80a7c5f8f024a1a088ab4871c"
+    },
+    {
+      "path": "apps/mobile/scripts/check-client-runtime.mjs",
+      "sha256": "2ba0f444934300200c1fbbe46ae10e3fdc7ce3afb2f2a78326c4625f44fa9b78"
+    },
+    {
+      "path": "apps/mobile/scripts/check-client-runtime.test.mjs",
+      "sha256": "c9fe7fc1e4944e21d30b1f82835b0cc8d37db249756054fb44f81f2e9442949f"
+    },
+    {
+      "path": "apps/mobile/scripts/ios-ad-hoc-config.test.mjs",
+      "sha256": "4f09bf0eced3e16adac11c972ea14f295d963101f17e6be2fdb4230c99f16546"
+    },
+    {
+      "path": "apps/mobile/scripts/production-entrypoints.cjs",
+      "sha256": "5dab6b4c643a9076b512cc210c48b4d03d0f9cbd4278cacb22281a9a5f41c07b"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx",
+      "sha256": "dca4807c2887182df9d49ed7b812e0c4146ccae603b9e921f71aec67d0345ac5"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountDetailScreen.tsx",
+      "sha256": "d0136276badb7876d097cbd1974293ee7b02f66acc8030237d9388bf49c80cfd"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountListScreen.test.tsx",
+      "sha256": "57a7f743bb0cc4b634da48a2fb07bc16e518196ea82a7c232728a638dd0d4a22"
+    },
+    {
+      "path": "apps/mobile/src/features/accounts/AccountListScreen.tsx",
+      "sha256": "739c55a62b19164d3b9d12bb8187e2e7ce370cc5bc0298d10349bb73f2f2e494"
+    },
+    {
+      "path": "apps/mobile/src/features/categories/CategoryListScreen.test.tsx",
+      "sha256": "3f059c2e26501a0ec4cddd7daf4b28e42ca6bc66d9f131c75111508f767c3818"
+    },
+    {
+      "path": "apps/mobile/src/features/categories/CategoryListScreen.tsx",
+      "sha256": "917f9a37575e0e67eda8e1db09933cce806f628c9bfb575b962e7ab2476fa1ae"
+    },
+    {
+      "path": "apps/mobile/src/features/core-finance/core-finance-queries.ts",
+      "sha256": "79d9e407816cc9906c28a842727532b0fa199604454dc437f527ee308c1191ab"
+    },
+    {
+      "path": "apps/mobile/src/features/financial-planning/finance-destination-responsiveness.test.tsx",
+      "sha256": "f9f6b27ee7d18f4fbb6e240f556c923bceb693c86febddcfec3d89a1c0113bd2"
+    },
+    {
+      "path": "apps/mobile/src/features/financial-planning/planning-menu-readiness.test.tsx",
+      "sha256": "8ea72ed5df7e455c54cc902d780798302b7b78f792460e3715dedf62d101bef8"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeCachedContent.test.tsx",
+      "sha256": "98d882d0853b062e96bc74be9f6d6b77fa28b43d36760ee7e42d16948a7aa814"
+    },
+    {
+      "path": "apps/mobile/src/features/home/HomeTrackingReadiness.test.tsx",
+      "sha256": "e92bcf72c8d7c24f8369b2a352e77a0842b021d97759f4114e69c3421af082ba"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationCenterScreen.test.tsx",
+      "sha256": "765094d136ca16e653467fb05ca491eb7b935d4dc1dc5edbcc02e9d66ed29f46"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationCenterScreen.tsx",
+      "sha256": "5743d52146ee62587b5287ff55495f8c581fb8e12d9d3e32bd312dd9cd9bcea2"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationPreferencesScreen.test.tsx",
+      "sha256": "4bcda3ba800fa7793866f325b1a3a930e127825b782f4f69563e904f86d9253f"
+    },
+    {
+      "path": "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+      "sha256": "dfabfe33e988d2cf973f98942d217f07c15002a1d8ba2e9ed84f709c81777139"
+    },
+    {
+      "path": "apps/mobile/src/features/obligations/ObligationJourney.test.tsx",
+      "sha256": "2a19bb8812afe3288b8d50c8042e7ebab380d28cb78c9ffe404d7e471e8f7178"
+    },
+    {
+      "path": "apps/mobile/src/features/obligations/ObligationOverviewScreen.tsx",
+      "sha256": "342ff93e67d43b72f376a0317f715908eb0ce6d9117f37efb89ef71a69fe61fb"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsAccessibility.test.tsx",
+      "sha256": "f6ebd51412779b628f1672263505d3c8b68dd908d08c2bd5b5b6dff118ea91ac"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsJourney.test.tsx",
+      "sha256": "cf3fe616198497670c88eda268105934b2f7545a1a5b4b26e331465f32836126"
+    },
+    {
+      "path": "apps/mobile/src/features/reports/ReportsScreen.tsx",
+      "sha256": "1228c57e7bf54ef2df6ce0053a5d83bab96a2a0d763f211a7847537e4a1adf5b"
+    },
+    {
+      "path": "apps/mobile/src/features/salary/SalaryJourney.test.tsx",
+      "sha256": "a8c001197105a4634f75b903055095c08ae110ccce4d43b1343af84e27605c83"
+    },
+    {
+      "path": "apps/mobile/src/features/salary/SalaryOverviewScreen.tsx",
+      "sha256": "6c990c6b48e4d099c7bd68273c1144f80434149070dbc167e3a4a26172e0d2f6"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/ProfileScreen.tsx",
+      "sha256": "b1a7a968b18cfdc326822dbc412e95f360796b827c0bd7220f77f789d3d28d65"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SecurityEventScreen.tsx",
+      "sha256": "a0f2a266f93fb356b3f1a4c890f93625d396c3d2c55d129ff9ab7c7e4497abfb"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SecuritySessionsJourney.test.tsx",
+      "sha256": "decdb6e807713aefbe7f729c927f9fe4ba7af38e4e795612fa01b2c4f36126d4"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SessionListScreen.tsx",
+      "sha256": "632adead645973dbfee5300ddbe49d893bb7504159259f83f9f3fd5eb2c2eacb"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/SettingsJourney.test.tsx",
+      "sha256": "54ba7348d0e5451b9033cda3a06a2fc844f9fbd84679de5fd588a73c25dbb58f"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/InitialHomeLoadingBoundary.test.tsx",
+      "sha256": "54162dfdfdc9307609cc4ed2a19bb645cd94eed33ac6166cfcff44f5a365f74b"
+    },
+    {
+      "path": "apps/mobile/src/features/shell/InitialHomeLoadingBoundary.tsx",
+      "sha256": "4b4e7343ffe64eaebc9067a7e5fcec22c04e9d747b133061a954215464987a22"
+    },
+    {
+      "path": "apps/mobile/src/features/support/TicketJourney.test.tsx",
+      "sha256": "ae8e0c215c36724a22aaaebaf52c24acca1db27899087a1769a77bfdd2f86c4d"
+    },
+    {
+      "path": "apps/mobile/src/features/support/TicketListScreen.tsx",
+      "sha256": "d0126e8f0ac4182306601a8a0561725756d8cc73e87282c45676b3ccc89008df"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/ReviewQueue.tsx",
+      "sha256": "0e6d3c81849489744c5597c781315d6f526c048554e9075211d65bb15b575311"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingHistoryList.tsx",
+      "sha256": "f2d14f656f4986cb97af9cebb34c5c07b5e0bb0973330b45bb4599ecf635fef7"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingHomeCard.test.tsx",
+      "sha256": "f87a1aea92eaaa82c35546c096c9b9c80503e31b37c0927e4431ca0d245ff040"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.test.tsx",
+      "sha256": "7581e347fb2bcb2894cfa61bde4ddaf52338db536fe7991d91e759f404b9626b"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+      "sha256": "5b0b0d2522b636c4fbd7910869a2ae1ce115063370d17c951d3204ad3164519d"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.test.tsx",
+      "sha256": "7ec8cb928d3d2c3ed5c38ebda9545adaad28b3184c930cb0565a4276ac0debab"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/components/TrackingKeywordChips.tsx",
+      "sha256": "6e2ff6e33147cb5fabdec94b8c011285cdb2e0b76ca1b60a28a185819f929ec7"
+    },
+    {
+      "path": "apps/mobile/src/features/tracking/offline-tracking-snapshots.test.tsx",
+      "sha256": "bcaf441d4e3aea694208c0996fc8bfdc38dd350f376b476351eaa777710e45da"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/ar.ts",
+      "sha256": "cd1576b6cbeccc81fde20281e608a73ab03f97626120ec3c4710dbc3f2494411"
+    },
+    {
+      "path": "apps/mobile/src/localization/messages/en.ts",
+      "sha256": "9a93c68c0f0db4daa18b9cdc279fbc54a3ea9735aa38d00d5f16e8b14b1ec907"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.test.ts",
+      "sha256": "b1d77552e5d3449acf258324f7665b46c14bd54f79534ab8a1040b4d37006af8"
+    },
+    {
+      "path": "apps/mobile/src/services/automatic-tracking-coordinator.ts",
+      "sha256": "156ba999d916e82d123e122491a7e3ed4e458ed0d1d76f697266e5e81bbff6f9"
+    },
+    {
+      "path": "apps/mobile/src/services/contracts/automatic-tracking-service.ts",
+      "sha256": "aa0ffe0be0b056dfaa9b5edc696f887d51c7c710d4c2a8b3cf0ebf182abbf8a6"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.test.ts",
+      "sha256": "5ba2ecc627b441bc30749bb82c76bdbe0b2b53edd76b93706950d5aabea987dc"
+    },
+    {
+      "path": "apps/mobile/src/services/live/automatic-tracking-service.ts",
+      "sha256": "1bdd018d5e073ef51e25610b420a3c039f1e34aafce8485bc37e229c51e21035"
+    },
+    {
+      "path": "apps/mobile/src/services/platform/tracking-native-runtime.ts",
+      "sha256": "39bc5bcba005e1431b9440b104e3a184d56cd767a4e53b78a89e6077194d63bd"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-background-runtime.ts",
+      "sha256": "ce5ff362f78e94d3293309f813ab88a686c5ccd98c628a0a257c073eb6eb695d"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-ios-availability.test.ts",
+      "sha256": "9f58af24d5baef771e9d7c14ee1ea9a5e87032949f6863836730fa33c0818dcd"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-owner-context.ts",
+      "sha256": "7140d001654889c609a83edce16f2b2fc571672776f29fcfe14453830e540b32"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-save-confirmation.test.ts",
+      "sha256": "2f880b35da1f687277f6ed04cb60ae6634ec7b72ea8d3178b14476e5d40aa16f"
+    },
+    {
+      "path": "apps/mobile/src/services/tracking-save-confirmation.ts",
+      "sha256": "8a72c66484aa7796dcbcff79a18f380d80132e381176c7dd870c7874564b89b9"
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "ea70c6167abd5d7d9dd27f9b8f3ae277c9a3cf08854520bab2d6d113ff96454f"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "3f142fa4d164c2efd7c4a473db4bd894756df2063a4a721687383359130579de"
+    }
+  ],
+  "freshUniqueTestsPassed": 143,
+  "freshUniqueSuites": 14,
+  "typesExitCode": 0,
+  "scopedLintExitCode": 0,
+  "formatExitCode": 0,
+  "strictChangedSourceIndexAndNewHistoryFindings": 0,
+  "fullPackageRawStrictFindings": 1,
+  "classifiedRetainedPublicClientConfiguration": 1,
+  "unexpectedSecretFindings": 0,
+  "scannerRulesAndIgnoresUnchanged": true,
+  "sameAdmittedPassFreshActorSharedForRulesAndSubmission": true,
+  "preparedActorMaximumAgeMs": 15000,
+  "negativeAgeRequiresFreshAcquisition": true,
+  "standaloneRulesStillFresh": true,
+  "globalTokenCacheAdded": false,
+  "exactSdkOwnerAdmissionLogoutConsentNativeLeaseAndBeforeAfterFencesRetained": true,
+  "statusPermissionConfigurationGateOrderingRetained": true,
+  "rulesMayWaitForPreparedActor": true,
+  "verifiedSignerApis": [24, 28, 32, 33, 35, 36],
+  "alignment16Kb": true,
+  "r8RecordRetained": true,
+  "actualDexNotificationConstructorQualified": true,
+  "unchangedNative88EvidenceReused": true,
+  "unchangedBroaderMobileAreasEvidenceReusedNoFreshFullCommandClaim": true,
+  "qaTransactionsBeforeFreshFixture": 32,
+  "qaNetMinorBeforeFreshFixture": 0,
+  "cashDefaultBeforeFreshFixture": true,
+  "sourcesOffAndServerRevokedBeforeFreshFixture": true,
+  "freshSmsFixtureMinor": 367,
+  "freshSmsReference": "QA117SMSA20261106",
+  "freshVoiceFixtureRequired": false,
+  "prior115FixtureClosedAndRefundedOnce": true,
+  "prior115PostingSpeedFailedAcceptance": true,
+  "installed": false,
+  "productionReady": false,
+  "originalConcretePrimaryApprovalRequired": true,
+  "unchangedTrackingCasesReused": 317,
+  "unchangedConfigCasesReused": 23,
+  "financialParserNativeVoiceAndHostedBehaviorUnchanged": true,
+  "uiChanges": [
+    "Categories stable search/actions through transient first-read failure",
+    "Salary Cycle and Obligations stable cards/filters and quiet background refresh",
+    "Same category query prepared from More with owner/cancellation publication guards"
+  ],
+  "authoritativeAccessDenialsStillWithdrawCachedUi": true,
+  "nativeLibrariesByteIdenticalTo116": 23,
+  "nativeLibrariesBuildIdNoteOnlyDifferences": 0,
+  "unchanged115ReportsTrackingUiPhysicalEvidenceReused": true,
+  "actual117SpeedAccepted": false,
+  "actualThreeDestinationResponseAccepted": false,
+  "uninstalled116ReviewSupersededByCombined117": true
+}

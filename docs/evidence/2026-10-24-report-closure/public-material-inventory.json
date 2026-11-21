@@ -1,0 +1,3113 @@
+{
+  "trackedFiles": 5354,
+  "credentialCandidateFiles": [],
+  "dataContextFiles": [
+    {
+      "path": "apps/admin-web/src/features/governance/contracts.test.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/admin-web/src/features/governance/repository.test.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/admin-web/src/mocks/phase9-governance-state.test.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/package-lock.json",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/integration/ai/voice-journey-master.spec.ts",
+      "categories": [
+        "iban-shaped-value"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/ai/ai-foundation.spec.ts",
+      "categories": [
+        "iban-shaped-value",
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/ai/staging-quota-target.spec.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/engagement/notification-providers.spec.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/identity/clerk-client.service.spec.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/outbox/outbox-k6-runner.spec.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/api/test/unit/reports/reports-schemas.spec.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/mobile/package-lock.json",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/mobile/src/domain/reports-schedule.test.ts",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "apps/mobile/vendor/decode-uri-component/license",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-22-masarifi-staging-environment.md",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/api-off-qualification.test.py",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/customer-operating-cohort.test.py",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/diagnostic-canary/canary-db.test.cjs",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/diagnostic-canary/qualify-activation.cjs",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/off-monitor-rehearsal.test.py",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/operating-db.test.cjs",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "synthetic/test or documentation context; inspect before any removal",
+      "confirmedExposure": false
+    },
+    {
+      "path": "scripts/staging-voice/qualify-operating-db.cjs",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    },
+    {
+      "path": "supabase/config.toml",
+      "categories": [
+        "email-domain-context"
+      ],
+      "context": "source/config context requires specific review",
+      "confirmedExposure": false
+    }
+  ],
+  "images": [
+    {
+      "path": "apps/admin-web/public/brand-icon.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/admin-web/public/download.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/admin-web/public/og.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-audit-ar-large.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-audit-ar.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-audit-en-large.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-audit-en.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-home-final-ar.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/.device-smoke/rtl-more-final-ar.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/adaptive-icon.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/brand-mark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/charity.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/communication.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/education.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/entertainment.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/food.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/fuel.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/generic-finance.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/health.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/housing.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/obligations.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/other-income.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/receipt.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/restaurants.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/salary.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/shopping.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/subscriptions.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/transfers.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/transportation.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/category-visuals/openmoji-17.0/travel.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/favicon.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/icon.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/notification-icon.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/assets/splash.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/current-phone-screen.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/foundation-system-board-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/foundation-system-board-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-sheet-modal-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-sheet-modal-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-states-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-states-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shell-main-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shell-main-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/000-home/home-add-menu-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/000-home/home-add-menu-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/000-home/home-main-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/000-home/home-main-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/account-picker-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/account-picker-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-create-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-create-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-edit-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-edit-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-list-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-list-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-create-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-create-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-list-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-list-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/category-picker-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/02-categories/category-picker-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/sync-conflict-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/sync-conflict-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-edit-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-edit-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-filters-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-filters-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transactions-list-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transactions-list-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/add-manual-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/add-manual-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/add-transfer-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/add-transfer-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-analysis-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-analysis-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-multiple-low-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-multiple-low-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-proposal-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-proposal-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-ready-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-ready-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-recording-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-recording-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-transcript-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-transcript-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/automatic-add-feedback-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/automatic-add-feedback-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-duplicate-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-duplicate-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-history-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-history-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-keywords-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-keywords-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-obligation-match-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-obligation-match-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-permission-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-permission-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-queue-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-queue-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-senders-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-senders-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-status-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-status-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-profile-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-profile-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-receipt-review-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-receipt-review-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-allocation-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-allocation-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-create-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-create-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-edit-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-edit-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-transactions-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-transactions-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budgets-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budgets-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/installment-timeline-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/installment-timeline-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/match-review-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/match-review-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-form-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-form-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-payment-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-payment-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligations-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligations-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-form-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-form-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-movement-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-movement-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/financial-insights-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/financial-insights-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-drilldown-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-drilldown-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-preview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-preview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-schedule-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-schedule-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/reports-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/reports-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/spending-breakdown-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/spending-breakdown-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/trend-comparison-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/11-reports/trend-comparison-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-action-preview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-action-preview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-conversation-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-conversation-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-evidence-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-evidence-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-home-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-home-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-limit-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-limit-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-filters-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-filters-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-preferences-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-preferences-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notifications-center-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notifications-center-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/app-settings-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/app-settings-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/more-hub-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/more-hub-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/profile-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/profile-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-change-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-change-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-create-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-create-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/privacy-settings-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/privacy-settings-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-events-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-events-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-settings-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-settings-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/sessions-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/sessions-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/unlock-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/unlock-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-checkout-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-checkout-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-manage-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-manage-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-overview-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-overview-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-home-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-home-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-new-ticket-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-new-ticket-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-detail-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-detail-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-list-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-list-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-google-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-google-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-language-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-language-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-legal-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-legal-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-otp-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-otp-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-phone-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-phone-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-in-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-in-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-up-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-up-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-welcome-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-welcome-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/android-sms-permission-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/android-sms-permission-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-automation-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-automation-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-capture-options-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-capture-options-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/keyword-setup-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/keyword-setup-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-complete-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-complete-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-intro-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-intro-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-preferences-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-preferences-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/tracking-demo-ar.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/tracking-demo-en.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-11-46 (2).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-11-46.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-11-47 (2).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-11-47 (3).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-11-47.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-07-21_17-12-12.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-08.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (2).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (3).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (4).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (5).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (6).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-09.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (2).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (3).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (4).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (5).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (6).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-10.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (2).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (3).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (4).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (5).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (6).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (7).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (8).jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-19-11.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-25-32.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-26-08.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/new_Desinge/photo_2026-08-08_09-26-21.jpg",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/android-app-screenshot.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/android-launch-screenshot.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/android-loaded-realui.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/android-loaded-screenshot.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/native-evidence/full-review-2026-08-09/37-flag-secure-screencap.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/native-evidence/full-review-2026-08-09/66-font-200-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-google-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-google-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-language-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-language-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-legal-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-otp-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-phone-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-sign-in-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-sign-in-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-welcome-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-welcome-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-complete-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-complete-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-demo-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-demo-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-keywords-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-permission-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-preferences-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-tracking-intro-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r20-tracking-intro-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r21-app-settings-ar-light-200-text.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r21-app-settings-ar-light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r21-home-ar-dark-reduced-motion.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r21-home-ar-light-small.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/regression-after-warning.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/regression-current.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-after-verify.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-appswitcher.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-authed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-english-ltr.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-home-final.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-home2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-otp-invalid.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-otp-sent.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-perm-edu.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-perm-skip.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-prefs.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-recents-overview.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-sms-perm.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t156-tabs.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-arabic-rtl.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-font-200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-home-scrolled.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/t157-small-viewport.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/ui-after-fix.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/ui-load-attempt1.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/ui-load-attempt2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/01-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/02-after-reverse.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/03-home-ready.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/04-transactions.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/05-add.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/06-accounts.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/07-categories.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/08-accounts-route.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/09-categories-route.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/10-accounts-route2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/11-accounts-index.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/12-accounts-tap.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/13-add-keyboard.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/14-app-switcher.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/15-light-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/16-dark-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/17-font-200-add.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/18-reduced-motion-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/19-offline-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/20-app-switcher-privacy.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/21-foundation-accessibility-initial.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/23-ltr-home-before-preference-reset.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/24-rtl-home-default-ar.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/25-ltr-home-restored-preference.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/26-ltr-home-current-preference.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/27-rtl-home-default-ar.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/28-ltr-home-restored-preference.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/29-undo-detail-before-delete.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/30-transactions-before-open-row.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/31-undo-detail-open.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/32-undo-after-delete-window.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/33-undo-after-force-stop-relaunch-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/34-undo-after-restart-transactions.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/35-undo-after-restart-detail.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/36-fix-ltr-home-tabs.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/37-fix-rtl-home-tabs.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/38-fix-ltr-home-tabs-restored.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/44-fix-ltr-home-authenticated.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/45-fix-rtl-home-authenticated.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/46-fix-ltr-home-authenticated-restored.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/47-fix-undo-transactions-before-open.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/48-fix-undo-detail-before-delete.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/49-fix-undo-after-delete-window.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/50-fix-undo-after-force-stop-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/51-fix-undo-after-restart-transactions.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/004-core-finance/android-evidence/52-fix-undo-after-restart-detail.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/actions-bottom.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/after-restart-tracking.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/after-resume.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/app-settings.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/background-resume.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/demo-processed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/demo.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/devclient-open.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/devclient-restart.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/font-200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/paused.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/restart-tracking.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/resumed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/small-screen.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/tracking-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/tracking-status.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/undo.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/android-evidence/unlocked-attempt.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-history-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-keywords-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-review-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-review-detail-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-review-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-senders-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-status-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/005-automatic-tracking/rebaseline-2026-08-16-tracking-status-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/006-voice-capture/native-evidence/android/app.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/006-voice-capture/native-evidence/android/home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/006-voice-capture/native-evidence/android/loaded.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-budget-create-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-budgets-overview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-obligation-detail-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-obligation-form-account-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-obligation-form-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-obligation-payment-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-obligations-overview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-salary-overview-ar-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-salary-overview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-salary-profile-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-salary-profile-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-savings-detail-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-savings-form-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-savings-movement-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/007-financial-planning/rebaseline-2026-08-16-savings-overview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/008-reports/rebaseline-2026-08-16-report-drilldown-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/008-reports/rebaseline-2026-08-16-report-preview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/008-reports/rebaseline-2026-08-16-report-schedule-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/008-reports/rebaseline-2026-08-16-reports-overview-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-autolink-build.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-compat-ok.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-devmenu-continue.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-dont-show.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-rebuild-2min.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/after-rebuild.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/app-after-wait.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/app-open.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/app-visible.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/devmenu-reopen.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/fresh-autolink.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/launch.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/native-missing-module.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/permission-review-tap.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/evidence/android-t144/spec009-small-200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-assistant-action-preview-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-assistant-conversation-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-assistant-home-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-notification-preferences-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-notifications-center-en-dark-hidden.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-app-settings-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-app-settings-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-more-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-more-en-dark-lower.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-more-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r15-profile-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r16-privacy-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r16-security-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r16-security-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r16-security-events-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r16-sessions-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r17-checkout-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r17-manage-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r17-subscriptions-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r17-subscriptions-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r18-new-ticket-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r18-support-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r18-support-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r18-ticket-detail-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/009-assistant-notifications/rebaseline-2026-08-16-r18-ticket-list-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-8083.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-add-tab.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-after-back-from-trust.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-after-devclient.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-complete.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-complete2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-entry.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-home-final.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-keywords-bottom.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-keywords-bottom2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-language.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-language2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-language3.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-otp.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-permission.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-preferences.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-preferences2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-shell.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-system-permission.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-ar-system-permission2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-assistant-after-question.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-assistant-home.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-assistant.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-current.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-english-after-otp.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-english-entry.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-english-otp.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-english-phone.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-english-signin.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-foundation-capture.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-foundation-capture2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-foundation-trust.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-launch.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-more-menu.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-more.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-notification-center.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-notifications.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-permission-request.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-reports-preview.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-reports-tab.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-reports-tab2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-review-detections.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-run-demo.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-tracking-demo.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-tracking-review.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-tracking.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t099-transactions.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-after-wait.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-app-open.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-deeplink-current-pulled.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-deeplink-current.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-main-recovered.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-notifications-route.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-notifications-route2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/010-frontend-quality/evidence/android/t100-notifications-route3.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-design-system-2.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-design-system.png",
+      "category": "design-reference",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-screen-2.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-screen-3.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-screen-4.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/masarifi-r01-screen.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/add-direct.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-ar-light-200-fixed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-ar-light-200-tabs-capped.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-ar-light-200-tabs-fixed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-ar-light-200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-ar-light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-en-dark-tabs-fixed-ready.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-en-dark-tabs-fixed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-en-light-ready.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/home-en-light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/launch-current.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/launch-theme-fixed.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/launch-unlocked.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/more-ar-light-200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/more-ar-light.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/012-shared-ui-foundation/validation/rebaseline-2026-08-16/more-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/r02-account-create.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/r02-account-detail.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/r02-account-edit.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/r02-account-list.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/rebaseline-2026-08-16-accounts-create-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/rebaseline-2026-08-16-accounts-detail-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/rebaseline-2026-08-16-accounts-list-ar-dark-grouped.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/013-r02-accounts/validation/rebaseline-2026-08-16-accounts-list-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/014-r03-categories/validation/rebaseline-2026-08-16-categories-create-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/014-r03-categories/validation/rebaseline-2026-08-16-categories-detail-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/014-r03-categories/validation/rebaseline-2026-08-16-categories-list-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/014-r03-categories/validation/rebaseline-2026-08-16-category-merge-picker-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/transactions-list-ar-web-2026-08-16.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/transactions-list-ar-web-light-2026-08-16.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/transactions-list-en-web-2026-08-16.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/codex-current.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-detail-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-detail-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-edit-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-edit-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-filters-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transaction-filters-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transactions-list-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/015-r04-transactions/validation/rebaseline-2026-08-16-transactions-list-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-add-manual-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-add-manual-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-system-permission-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-ar-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-proposal-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-ready-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-recording-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "apps/mobile/specs/016-r05-add-voice/validation/rebaseline-2026-08-16-voice-transcript-en-dark.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "docs/evidence/2026-10-23-admin-dashboard/recovery-support-ar-dark-390.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "docs/evidence/2026-10-23-admin-dashboard/recovery-support-en-light-1440.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    },
+    {
+      "path": "docs/evidence/2026-10-23-admin-dashboard/recovery-support-zoom200.png",
+      "category": "image-review",
+      "review": "retained; no credential or real-owner provenance established by filename"
+    }
+  ],
+  "actions": {
+    "filesDeleted": [],
+    "credentialsRotated": [],
+    "historyRewritten": false
+  },
+  "limits": "Pattern review is not a forensic history/image audit. Public client IDs/keys and legitimate designs are preserved. No exposed production credential or real-owner financial dataset has been confirmed.",
+  "visualSpotChecks": [
+    {
+      "path": "apps/mobile/.device-smoke/rtl-home-final-ar.png",
+      "result": "Amounts masked; visible merchant/account strings match representative fixture content. No private owner identity established."
+    },
+    {
+      "path": "apps/mobile/specs/003-app-shell-auth-onboarding/rebaseline-2026-08-16-r19-phone-ar-dark.png",
+      "result": "Blank phone input; no phone number or OTP visible."
+    },
+    {
+      "path": "apps/mobile/current-phone-screen.png",
+      "result": "Image decoder rejected the existing file; retained without claiming visual clearance."
+    }
+  ]
+}

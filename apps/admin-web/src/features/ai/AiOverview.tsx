@@ -65,6 +65,8 @@ export function AiOverview({
       {overview.regions.metrics.availability === "empty" && (
         <div className="state-box" role="status">{copy.page.emptyState}</div>
       )}
+      {overview.regions.metrics.message && <p role="status">{overview.regions.metrics.message}</p>}
+      {overview.collectionStartedAt && <p>{locale === "ar" ? "بدء جمع إسناد المنصة: " : "Platform attribution collection began: "}<time dateTime={overview.collectionStartedAt}>{formatDate(overview.collectionStartedAt, true)}</time></p>}
       <div className="metrics-grid">
         {overview.metrics.slice(0, 6).map((metric) => (
           <article className="metric-card" key={metric.key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -106,7 +108,7 @@ export function AiOverview({
             {overview.providerDistribution.map((point) => (
               <div className="progress-row" key={point.label}>
                 <span>{copy.charts.labels[point.label as keyof typeof copy.charts.labels] || point.label}</span>
-                <div className="progress-track"><span style={{background:"var(--bronze)", width:`${Math.min(100, (point.value / Math.max(overview.totalAttempts, 1)) * 100)}%`}}/></div>
+                <div className="progress-track"><span style={{background:"var(--bronze)", width:`${Math.min(100, (point.value / Math.max(overview.totalAttempts ?? 0, 1)) * 100)}%`}}/></div>
                 <strong className="numbers ltr">{point.value.toLocaleString("en-US")}</strong>
               </div>
             ))}
@@ -127,11 +129,11 @@ export function AiOverview({
         </div>
         <div className="summary-item">
           <small>{copy.summary.attempts}</small>
-          <strong className="numbers">{overview.totalAttempts.toLocaleString("en-US")}</strong>
+          <strong className="numbers">{overview.totalAttempts?.toLocaleString("en-US") ?? "—"}</strong>
         </div>
         <div className="summary-item">
           <small>{copy.summary.fallbackAttempts}</small>
-          <strong className="numbers">{overview.fallbackAttempts.toLocaleString("en-US")}</strong>
+          <strong className="numbers">{overview.fallbackAttempts?.toLocaleString("en-US") ?? "—"}</strong>
         </div>
         {overview.costByCurrency.map((cost) => (
           <div className="summary-item" key={cost.currency}>

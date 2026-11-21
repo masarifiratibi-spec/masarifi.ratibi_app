@@ -119,12 +119,7 @@ export function CurrencySelectionScreen({
         >
           <CurrencyFlagIcon code={item.id} size={36} />
 
-          <View
-            style={[
-              styles.textContainer,
-              { alignItems: isRtl ? 'flex-end' : 'flex-start' }
-            ]}
-          >
+          <View style={[styles.textContainer, { alignItems: 'flex-start' }]}>
             <Text
               style={[
                 styles.nameText,

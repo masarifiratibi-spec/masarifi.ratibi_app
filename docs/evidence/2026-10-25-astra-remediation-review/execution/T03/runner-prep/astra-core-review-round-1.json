@@ -1,0 +1,23 @@
+{
+  "reviewer": "Fresh independent Astra High /root/astra_t03_runner_review",
+  "quality": "CHANGES_REQUESTED",
+  "fullAcceptance": "BLOCKED",
+  "findings": [
+    {
+      "priority": 2,
+      "file": "scripts/qa/t03-exact-sync/catalog.sql:15",
+      "title": "Rewrite rules omitted from catalog provenance",
+      "detail": "Additional ON UPDATE DO ALSO rule can change claim effects without current function/catalog hash change",
+      "required": "Pin deterministic pg_rewrite definitions/enabled state or reject non-view execution rules; realPG17 drift regression",
+      "reproExecuted": false
+    }
+  ],
+  "checks": {
+    "manifestPassed": 11,
+    "jestSuites": 2,
+    "jestPassed": 10,
+    "frozenCoreHashesMatched": 13
+  },
+  "nativeOrDatabaseAccess": false,
+  "scope": "Core review only; local fixture approval separate"
+}

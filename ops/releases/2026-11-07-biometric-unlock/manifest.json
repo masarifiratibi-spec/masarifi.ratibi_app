@@ -1,0 +1,25 @@
+{
+  "sourceCommit": "1affc042edb038ea7e6d5f51c827856d02f26e90",
+  "apk": "D:\\Masarifi-delivery-2026-11-04\\task39-customer-128-native.apk",
+  "sha256": "f60407ad966b3de3a224d307741f343b8ee6302cac97c23d52ae609470ec161e",
+  "bytes": 50603774,
+  "package": "com.masarifi.mobile",
+  "versionCode": 128,
+  "versionName": "1.0.0",
+  "abi": "arm64-v8a",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "signerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "signatureVerifiedOnApi": [
+    24,
+    28,
+    32,
+    33,
+    35,
+    36
+  ],
+  "hermesSha256": "b91cbde52495db6f2aaf0ba2dd18fbf7a931509ab70afc58892da413edb7230b",
+  "priorExpectedInstalledSha256": "de174540b4be95b3b549e71c174e4d8d891bf165cdff41f5a22aa35c4e293b1f",
+  "nativeLibraryCount": 23,
+  "deviceTest": "pending"
+}

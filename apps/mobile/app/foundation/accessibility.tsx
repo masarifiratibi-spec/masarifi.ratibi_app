@@ -9,11 +9,13 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { AccessibilityStateGallery } from '@/features/foundation/AccessibilityStateGallery';
 import { useTheme } from '@/state/theme-context';
 
 export default function AccessibilityHarness() {
   const theme = useTheme();
+  const { AccessibilityStateGallery } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/foundation/AccessibilityStateGallery') as typeof import('@/features/foundation/AccessibilityStateGallery');
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}

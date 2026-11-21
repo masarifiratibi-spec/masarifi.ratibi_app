@@ -1,0 +1,33 @@
+{
+  "atUtc": "2026-11-05T09:40:17.929533+00:00",
+  "files": {
+    ".gitattributes": "33955e719070fd14106d8fdaa479c2533cc23f6a567e5c82a18f5c1876e25076",
+    "01_guarded_missing_helpers.sql": "8544f0d66e294ccaea96ef53739895ed2e594c6c1891804a5ea9a4db2db56e6a",
+    "02_guarded_existing_domain_corrections.sql": "5f881bd55f0ca13bb432d4bd909983cad75882f89ddefe2cf8b4d4b60a89e23d",
+    "03_guarded_tracking_owner_context_chain.sql": "4384cf690d7cf990853e17c851333c3424b044bfc7339abfd67af936fbaed1f9",
+    "04_guarded_remaining_semantic_compatibility.sql": "32e5f07df9eed0854cc68181a2e810fcd8ec3a4343b2fbc8f18fbc68f2eb2f36",
+    "05_guarded_production_installation_consent.sql": "e389c869d5d243b4e5663718362651ffe48fdd85bca22e567dcd01996c76cd13",
+    "apply-forward.sql": "7f141f19a7d0ee3ad1a4eb40f6c7c7d6f690eef8e4ffefb7cf0a916528059317",
+    "compose.production.yml": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5",
+    "deployment-runbook.md": "4296d6b0484dd9090ab547e446e23c5e4c1fb7467adcba935089a3eadbf1b784",
+    "forward-manifest.json": "595bdd7158c687f394c469697e6c664827482d9eed226c2e7374df28ef8be3a5",
+    "nginx.legacy-restriction.conf": "423e58d15fec52166cb41808bc395b0051597af87bde1e81df272faa1f7668d3",
+    "nginx.production-bootstrap.conf": "3cde516eedb5d7e591e1274772e59d39a84e5fecda9ae7805899e324f4ac8b14",
+    "nginx.production.conf": "840cd5e73175983deffaf81e3819558c3337b9dc196f0d7b739c68ac49646391",
+    "qualification/ledger-compensation.test.sql": "0cd5b5fe3971474020f0a720abcf412983302f83070333f8ad77d59e89bab681",
+    "qualification/production-capture.test.sql": "d9a0efe0ad3b52f8e9b82e8401c1733f085779e813ea8881b5a102d9bed62a56",
+    "qualification/semantic-compatibility.test.sql": "850120e583a3508dcdb27f7729ef5906cdeefeda43580b7139dd163709bc00fc",
+    "qualification/worker-owner-context.test.sql": "78959dfc0fda515816da1fcaef5f273f83bd4dfbbc58aa96b26531a543158545",
+    "qualification-summary.json": "6d66e96fad99c6014b060dd1568cd1eea5825cb1d857826d94272aba5d214b95",
+    "README.md": "76347a9b743486e682aae952a6594ac36ac5898f65946e51d980dd7b481f24b4",
+    "routing-manifest.json": "c44d2104db12edc606f3bf612840f6f0efd5fdae9c96dfdf75b13ce0b7874194",
+    "runtime-config-manifest.json": "98f648b21f3f11b487fb3b8146e83480f4125d60d175ed623c2ec58ca4c666c6",
+    "signing-manifest.json": "cb91f855ca2849664c3c9b6d39618f28752d7bf78ae223c0852cb14a1e1729ee"
+  },
+  "executionInputsMatchQualifiedRemoteStage": true,
+  "gitAttributesPreserveQualifiedBytes": true,
+  "approvalStatus": "awaiting explicit user approval",
+  "hostedSqlOrDeploymentExecuted": false,
+  "primaryUpdated": false,
+  "crlfMetadataEolRecognizedWithoutIgnoringTrailingSpaces": true
+}

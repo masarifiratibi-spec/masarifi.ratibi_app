@@ -18,6 +18,23 @@ import type { TextStyle } from 'react-native';
 // Teal is the primary interaction family. Bronze is a restrained premium accent,
 // never a second primary.
 export const colorTokens = {
+  auth: {
+    surface: '#F7F4EF',
+    content: '#103F37',
+    secondary: '#63645F'
+  },
+  onboarding: {
+    start: '#2D7264'
+  },
+  google: {
+    surface: '#FFFFFF',
+    content: '#1F1F1F',
+    border: '#747775',
+    blue: '#4285F4',
+    green: '#34A853',
+    yellow: '#FBBC05',
+    red: '#EA4335'
+  },
   teal: {
     50: '#F2F8F6',
     100: '#DBECE7',
@@ -59,10 +76,40 @@ export const colorTokens = {
     background: '#111816',
     surface: '#19231F',
     surfaceMuted: '#202B27',
-    border: '#2C3934',
-    text: '#F8F0E5',
-    textMuted: '#D9CDBD',
-    inverse: '#0F211E'
+    raised: '#27362E',
+    border: '#33453A',
+    borderStrong: '#697D71',
+    text: '#F2EBDD',
+    textSecondary: '#CABB9F',
+    textMuted: '#ADA593',
+    inverse: '#0F211E',
+    primary: '#8DB8A6',
+    primaryPressed: '#A5CABB',
+    accent: '#D0AA7D',
+    brandSubtle: '#203B35',
+    dangerSurface: '#3D2422',
+    status: {
+      success: '#8BBDA6',
+      warning: '#D0AA7D',
+      danger: '#E99B93',
+      info: '#9BC9D7',
+      neutral: '#B5AEA1',
+      pending: '#A8B6B0',
+      offline: '#C4AD8A',
+      sync: '#8BB9C7'
+    },
+    financial: {
+      income: '#9DDBC3',
+      expense: '#F3A59C',
+      transfer: '#A3BECD',
+      refund: '#D5C58F',
+      savings: '#ADC8AB',
+      debt: '#D6AE91'
+    },
+    chart: {
+      donut: ['#8DB8A6', '#D0AA7D', '#9BC9D7', '#F3A59C', '#B6CE9E'],
+      line: ['#8DB8A6', '#D0AA7D', '#9BC9D7', '#F3A59C']
+    }
   },
   border: {
     light: '#E7E9E6',
@@ -86,7 +133,7 @@ export const colorTokens = {
     income: '#0D684A',
     expense: '#B3261E',
     incomeSurface: '#BFEBD9',
-    expenseSurface: '#FBC8C3',
+    expenseSurface: '#FBCCC7',
     incomeOnHero: '#DDF8EF',
     expenseOnHero: '#FF8F87',
     transfer: '#376E86',
@@ -95,6 +142,10 @@ export const colorTokens = {
     debt: '#8B5A44',
     positive: '#0D684A',
     negative: '#B3261E'
+  },
+  obligationDetail: {
+    hero: '#007C5B',
+    heroDark: '#184D3B'
   },
   obligationForm: {
     payableSurface: '#FDF3F2',
@@ -266,6 +317,7 @@ export const colorTokens = {
     FFFFFF: '#FFFFFF'
   },
   effects: {
+    shadow: '#000',
     horizonGlow: 'rgba(49, 179, 151, 0.34)',
     horizonGlowDark: 'rgba(29, 116, 100, 0.24)',
     glass: 'rgba(255, 255, 255, 0.08)',
@@ -332,12 +384,12 @@ const darkCategoryIconPalette: readonly IconBadgeColors[] = [
   {
     background: '#18352E',
     border: '#28564A',
-    foreground: colorTokens.teal['100']
+    foreground: colorTokens.dark.primary
   },
   {
     background: '#3A2C20',
     border: '#62472F',
-    foreground: colorTokens.bronze['300']
+    foreground: colorTokens.dark.accent
   },
   { background: '#1B303A', border: '#315467', foreground: '#9CC4D6' },
   { background: '#3B2424', border: '#633A38', foreground: '#F0A29B' },
@@ -349,6 +401,9 @@ const darkCategoryIconPalette: readonly IconBadgeColors[] = [
 ];
 
 export interface ThemeColors {
+  effects: {
+    shadow: string;
+  };
   primary: string;
   primaryPressed: string;
   accent: string;
@@ -443,7 +498,11 @@ export interface ThemeColors {
     neutral: IconBadgeColors;
     category: readonly IconBadgeColors[];
   };
-  chart: typeof colorTokens.chart;
+  chart: {
+    donut: readonly string[];
+    line: readonly string[];
+    patterns: typeof colorTokens.chart.patterns;
+  };
   horizon: {
     heroStart: string;
     heroEnd: string;
@@ -463,6 +522,7 @@ export interface ThemeColors {
 }
 
 export const lightThemeColors: ThemeColors = {
+  effects: { shadow: colorTokens.effects.shadow },
   primary: colorTokens.teal['900'],
   primaryPressed: colorTokens.teal['950'],
   accent: colorTokens.bronze['700'],
@@ -494,7 +554,7 @@ export const lightThemeColors: ThemeColors = {
   content: {
     primary: colorTokens.ink['900'],
     secondary: colorTokens.ink['700'],
-    muted: colorTokens.ink['500'],
+    muted: colorTokens.ink['700'],
     inverse: colorTokens.surface.white,
     onFinancialHero: colorTokens.surface.white,
     link: colorTokens.teal['900'],
@@ -569,78 +629,79 @@ export const lightThemeColors: ThemeColors = {
 };
 
 export const darkThemeColors: ThemeColors = {
-  primary: colorTokens.teal['100'],
-  primaryPressed: colorTokens.teal['50'],
-  accent: colorTokens.bronze['300'],
-  focus: colorTokens.teal['500'],
+  effects: { shadow: colorTokens.effects.shadow },
+  primary: colorTokens.dark.primary,
+  primaryPressed: colorTokens.dark.primaryPressed,
+  accent: colorTokens.dark.accent,
+  focus: colorTokens.dark.primary,
   background: colorTokens.dark.background,
   surface: colorTokens.dark.surface,
   surfaceMuted: colorTokens.dark.surfaceMuted,
   border: colorTokens.dark.border,
   textPrimary: colorTokens.dark.text,
-  textSecondary: colorTokens.dark.textMuted,
+  textSecondary: colorTokens.dark.textSecondary,
   textInverse: colorTokens.dark.inverse,
-  success: colorTokens.status.success,
-  warning: colorTokens.status.warning,
-  danger: colorTokens.status.danger,
-  info: colorTokens.status.info,
-  financialPositive: colorTokens.financial.positive,
-  financialNegative: colorTokens.financial.negative,
+  success: colorTokens.dark.status.success,
+  warning: colorTokens.dark.status.warning,
+  danger: colorTokens.dark.status.danger,
+  info: colorTokens.dark.status.info,
+  financialPositive: colorTokens.dark.financial.income,
+  financialNegative: colorTokens.dark.financial.expense,
   surfaces: {
     page: colorTokens.dark.background,
     grouped: colorTokens.dark.surfaceMuted,
     card: colorTokens.dark.surface,
     inset: colorTokens.dark.surfaceMuted,
-    brandStrong: colorTokens.teal['100'],
-    brandSubtle: colorTokens.teal['900'],
+    brandStrong: colorTokens.dark.primary,
+    brandSubtle: colorTokens.dark.brandSubtle,
     financialHero: colorTokens.teal['950'],
-    attention: colorTokens.dark.surface,
-    overlay: colorTokens.dark.surface
+    attention: colorTokens.dark.raised,
+    overlay: colorTokens.dark.raised
   },
   content: {
     primary: colorTokens.dark.text,
-    secondary: colorTokens.dark.textMuted,
+    secondary: colorTokens.dark.textSecondary,
     muted: colorTokens.dark.textMuted,
     inverse: colorTokens.dark.inverse,
-    onFinancialHero: colorTokens.surface.white,
-    link: colorTokens.teal['100'],
+    onFinancialHero: colorTokens.dark.text,
+    link: colorTokens.dark.primary,
     disabled: colorTokens.ink['500'],
     sensitive: colorTokens.dark.text
   },
   borders: {
     default: colorTokens.dark.border,
     subtle: colorTokens.dark.surfaceMuted,
-    strong: colorTokens.border.dark,
-    focus: colorTokens.teal['500'],
-    selected: colorTokens.teal['100'],
-    error: colorTokens.status.danger,
+    strong: colorTokens.dark.borderStrong,
+    focus: colorTokens.dark.primary,
+    selected: colorTokens.dark.primary,
+    error: colorTokens.dark.status.danger,
     disabled: colorTokens.dark.border
   },
   interactions: {
-    primary: colorTokens.teal['100'],
-    primaryPressed: colorTokens.teal['50'],
+    primary: colorTokens.dark.primary,
+    primaryPressed: colorTokens.dark.primaryPressed,
     secondary: colorTokens.dark.surfaceMuted,
-    quietPressed: colorTokens.dark.surfaceMuted,
-    destructive: colorTokens.status.danger,
-    premium: colorTokens.bronze['300']
+    quietPressed: colorTokens.dark.raised,
+    destructive: colorTokens.dark.status.danger,
+    premium: colorTokens.dark.accent
   },
   status: {
-    ...colorTokens.status,
-    review: colorTokens.status.info,
-    conflict: colorTokens.status.warning,
-    readOnly: colorTokens.status.neutral
+    ...colorTokens.dark.status,
+    review: colorTokens.dark.status.info,
+    conflict: colorTokens.dark.status.warning,
+    readOnly: colorTokens.dark.status.neutral
   },
   financial: {
-    income: colorTokens.financial.income,
-    expense: colorTokens.financial.expense,
-    incomeSurface: colorTokens.teal['900'],
-    expenseSurface: colorTokens.dark.surfaceMuted,
+    income: colorTokens.dark.financial.income,
+    expense: colorTokens.dark.financial.expense,
+    incomeSurface: colorTokens.dark.brandSubtle,
+    expenseSurface: colorTokens.dark.dangerSurface,
     incomeOnHero: colorTokens.financial.incomeOnHero,
     expenseOnHero: colorTokens.financial.expenseOnHero,
-    transfer: colorTokens.financial.transfer,
-    refund: colorTokens.financial.refund,
-    savings: colorTokens.financial.savings,
-    debt: colorTokens.financial.debt
+    transfer: colorTokens.dark.financial.transfer,
+    refund: colorTokens.dark.financial.refund,
+    savings: colorTokens.dark.financial.savings,
+    debt: colorTokens.dark.financial.debt
   },
   iconBadges: {
     primary: darkCategoryIconPalette[0],
@@ -655,15 +716,15 @@ export const darkThemeColors: ThemeColors = {
     neutral: darkCategoryIconPalette[4],
     category: darkCategoryIconPalette
   },
-  chart: colorTokens.chart,
+  chart: { ...colorTokens.chart, ...colorTokens.dark.chart },
   horizon: {
     heroStart: colorTokens.teal['950'],
     heroEnd: colorTokens.teal['900'],
-    referenceStart: '#007A56',
-    referenceEnd: '#009F70',
+    referenceStart: '#16352B',
+    referenceEnd: '#254D3F',
     glow: colorTokens.effects.horizonGlowDark,
     wash: colorTokens.dark.surfaceMuted,
-    sheet: colorTokens.dark.surface,
+    sheet: colorTokens.dark.raised,
     sheetBorder: colorTokens.dark.border,
     glass: colorTokens.effects.glass,
     metricSurface: colorTokens.teal['950'],
@@ -675,6 +736,30 @@ export const darkThemeColors: ThemeColors = {
 };
 
 // ─── Spacing / radii / typography ────────────────────────────────────────────
+
+// Startup also renders before the theme provider and local fonts are ready.
+export const startupLoading = {
+  light: {
+    background: colorTokens.neutral.warmSurface,
+    text: colorTokens.ink['900'],
+    message: colorTokens.ink['700'],
+    indicator: colorTokens.teal['700'],
+    track: colorTokens.teal['100']
+  },
+  dark: {
+    background: colorTokens.dark.background,
+    text: colorTokens.dark.text,
+    message: colorTokens.dark.textMuted,
+    indicator: colorTokens.dark.accent,
+    track: colorTokens.dark.border
+  },
+  fontFamily: { ar: 'MasarifiArabic-400', en: 'MasarifiLatin-400' },
+  logoSize: 104,
+  logoRadius: 24,
+  indicatorSize: 28,
+  indicatorWidth: 2,
+  rotationDuration: 1150
+} as const;
 
 export const spacing = {
   xs: 4,
@@ -739,7 +824,7 @@ export const iconSize = {
 } as const;
 
 export const controlHeight = {
-  sm: 44,
+  sm: 48,
   md: 48,
   lg: 56
 } as const;
@@ -750,7 +835,7 @@ export const viewport = {
 } as const;
 
 // Minimum touch target per Constitution Principle III and UI Contract §8.
-export const minTouchTarget = 44;
+export const minTouchTarget = 48;
 
 export const typography = {
   caption: { fontSize: 12, lineHeight: 16, fontWeight: '400' },

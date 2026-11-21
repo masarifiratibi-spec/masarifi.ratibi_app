@@ -20,7 +20,7 @@ test('turns a committed registered source event into preference-aware channel wo
     .mockResolvedValue([source]);
   const repository = {
     claimSourceEvents,
-    loadSourceTemplates: jest.fn().mockResolvedValue(
+    loadSourceTemplatesBatch: jest.fn().mockResolvedValue([
       ['in_app', 'push', 'email'].map((channel) => ({
         id: `${channel}-template`,
         key: source.event_type,
@@ -32,8 +32,8 @@ test('turns a committed registered source event into preference-aware channel wo
         enabled: channel !== 'push',
         quiet_hours: {},
       })),
-    ),
-    createNotificationFromSource: jest.fn().mockResolvedValue(true),
+    ]),
+    createNotificationsFromSources: jest.fn().mockResolvedValue(true),
     expireNotifications: jest.fn().mockResolvedValue(0),
     expandCampaigns: jest.fn().mockResolvedValue(0),
     claimNotificationDeliveries: jest.fn().mockResolvedValue([]),
@@ -63,16 +63,18 @@ test('turns a committed registered source event into preference-aware channel wo
   );
   const claimedTypes = claimSourceEvents.mock.calls[0]?.[0];
   expect(claimedTypes).not.toContain('balance.changed');
-  expect(repository.createNotificationFromSource).toHaveBeenCalledWith(
-    source,
-    expect.arrayContaining([
-      expect.objectContaining({ channel: 'in_app', status: 'queued' }),
-      expect.objectContaining({
-        channel: 'push',
-        status: 'suppressed',
-        errorCode: 'PREFERENCE_DISABLED',
-      }),
-      expect.objectContaining({ channel: 'email', status: 'queued' }),
-    ]),
-  );
+  expect(repository.createNotificationsFromSources).toHaveBeenCalledWith([
+    {
+      source,
+      deliveries: expect.arrayContaining([
+        expect.objectContaining({ channel: 'in_app', status: 'queued' }),
+        expect.objectContaining({
+          channel: 'push',
+          status: 'suppressed',
+          errorCode: 'PREFERENCE_DISABLED',
+        }),
+        expect.objectContaining({ channel: 'email', status: 'queued' }),
+      ]) as unknown,
+    },
+  ]);
 });

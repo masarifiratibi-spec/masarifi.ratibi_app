@@ -178,6 +178,11 @@ export const securityHandlers = [
     if (!id || !parsed.success) return safeSecurityError("validation_error", 400);
     return safeMutation(() => revokeSupportAccess(id, parsed.data));
   }),
+  http.get("/api/v1/admin/security/incidents", ({ request }) => {
+    const denied = forbidden(request, "security.incidents.manage");
+    if (denied) return denied;
+    return HttpResponse.json({ items: phase7State.incidents(), nextCursor: null });
+  }),
   http.get("/api/v1/admin/security/incidents/:incidentId", ({ params, request }) => {
     const denied = forbidden(request, "security.incidents.manage");
     if (denied) return denied;

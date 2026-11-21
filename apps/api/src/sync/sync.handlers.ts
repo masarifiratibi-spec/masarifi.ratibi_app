@@ -130,10 +130,23 @@ export class SyncHandlers {
     if (mutation.operation === 'create') return this.ledger.createTransaction(common);
     if (!mutation.resourceId || mutation.baseVersion === null)
       throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
+    const legacyFields = ['title', 'merchant', 'note', 'occurredAt', 'amountMinor'];
+    const legacyUpdate =
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Stored input still needs an exact runtime schema check.
+      mutation.schemaVersion === 1 &&
+      mutation.resourceType === 'transaction' &&
+      mutation.operation === 'update' &&
+      !Object.hasOwn(mutation.payload, 'reason') &&
+      Object.keys(mutation.payload).length === legacyFields.length &&
+      legacyFields.every((field) => Object.hasOwn(mutation.payload, field));
+    // Preserve stored payload/identity; only derive the ordinary ledger command.
+    const payload = legacyUpdate
+      ? { ...mutation.payload, reason: 'Mobile edit' }
+      : mutation.payload;
     const existing = {
       ...common,
       transactionId: mutation.resourceId,
-      body: { ...mutation.payload, expectedVersion: mutation.baseVersion },
+      body: { ...payload, expectedVersion: mutation.baseVersion },
     };
     if (mutation.operation === 'update') return this.ledger.reviseTransaction(existing);
     if (mutation.operation === 'delete' || mutation.operation === 'archive')

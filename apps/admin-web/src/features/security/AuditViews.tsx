@@ -1,6 +1,7 @@
 "use client";
 
-import { ErrorState, LoadingState, PageHeader } from "@/components/admin/ui";
+import { useState } from "react";
+import { ErrorState, LoadingState, PageHeader, RegionState } from "@/components/admin/ui";
 import { getActionLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
 import { useAuditEvent, useSecurityList } from "./hooks";
@@ -55,6 +56,8 @@ const copy = {
     timestamp: "التوقيت",
     title: "سجلات التدقيق",
     time: "الوقت",
+    previous: "السابق",
+    next: "التالي",
   },
   en: {
     action: "Action",
@@ -82,6 +85,8 @@ const copy = {
     timestamp: "Timestamp",
     title: "Audit Logs",
     time: "Time",
+    previous: "Previous",
+    next: "Next",
   },
 } as const;
 
@@ -107,18 +112,26 @@ function MetadataGrid({ rows }: { rows: AuditEventDetail["metadata"] }) {
 }
 
 export function AuditExplorerRoute() {
-  const query = useSecurityList("audit", { page: 1, pageSize: 25 });
+  const [page,setPage] = useState(1);
+  const query = useSecurityList("audit", { page, pageSize: 25 });
   const { locale } = useLocale();
   const c = copy[locale];
   return (
     <div className="page">
       <PageHeader title={c.title} description={c.listDescription} />
-      {query.isPending ? <LoadingState /> : query.isError ? <ErrorState /> : (
+      <RegionState isPending={query.isPending} isError={query.isError} region={query.data?.region} permission="audit.logs.read" onRetry={() => void query.refetch()}>
+      {query.data && (
         <section className="table-card ops-table-card audit-table-card" aria-labelledby="audit-title">
-          <div className="card-heading ops-card-heading"><div><h2 id="audit-title">{c.eventList}</h2><p>{query.data.pagination.totalItems} {c.entries}</p></div></div>
+          <div className="card-heading ops-card-heading"><div><h2 id="audit-title">{c.eventList}</h2><p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {c.entries}</p></div></div>
           <AuditTable events={query.data.items as AuditEventSummary[]} />
         </section>
       )}
+      </RegionState>
+      {(page > 1 || (query.data?.pagination.totalPages ?? 0) > 1) && <nav className="toolbar-actions" aria-label={c.eventList}>
+        <button className="button" disabled={page === 1 || query.isPending} onClick={() => setPage((value) => value - 1)}>{c.previous}</button>
+        <span>{page}</span>
+        <button className="button" disabled={query.isPending || query.isError || page >= (query.data?.pagination.totalPages ?? 0)} onClick={() => setPage((value) => value + 1)}>{c.next}</button>
+      </nav>}
     </div>
   );
 }
@@ -134,12 +147,12 @@ function AuditTable({ events }: { events: AuditEventSummary[] }) {
           <thead><tr><th>{c.auditId}</th><th>{c.event}</th><th>{c.actor}</th><th>{c.target}</th><th>{c.result}</th><th>{c.severity}</th><th>{c.timestamp}</th></tr></thead>
           <tbody>{events.map((event) => (
             <tr key={event.id}>
-              <td><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><small><Id value={event.correlationId} /></small></td>
+              <td><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><small><Id value={event.correlationId ?? "Unavailable"} /></small></td>
               <td><strong className="audit-event-key"><Id value={event.action} /></strong><small>{getActionLabel(locale, event.action)} · {event.resource}</small></td>
-              <td>{event.actor.label}</td>
-              <td>{event.target.label}</td>
-              <td><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></td>
-              <td><Badge value={getSeverityLabel(locale, event.severity)} tone={severityTone(event.severity)} /></td>
+              <td>{(event.actor?.label ?? "Unavailable")}</td>
+              <td>{(event.target?.label ?? "Unavailable")}</td>
+              <td><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></td>
+              <td><Badge value={getSeverityLabel(locale, event.severity ?? "unknown")} tone={severityTone(event.severity ?? "unknown")} /></td>
               <td className="audit-time-cell"><Id value={event.occurredAt} /></td>
             </tr>
           ))}</tbody>
@@ -147,10 +160,10 @@ function AuditTable({ events }: { events: AuditEventSummary[] }) {
       </div>
       <div className="mobile-cards ops-mobile-cards">{events.map((event) => (
         <article className="mobile-data-card" key={event.id}>
-          <div className="mobile-data-head"><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></div>
+          <div className="mobile-data-head"><a className="table-link audit-id-link" href={`/admin/audit/${event.id}`}><Id value={event.id} /></a><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></div>
           <strong className="audit-event-key"><Id value={event.action} /></strong>
-          <p>{event.actor.label} · {event.resource} · {event.target.label}</p>
-          <div className="mobile-data-meta"><div><small>{c.severity}</small><Badge value={getSeverityLabel(locale, event.severity)} tone={severityTone(event.severity)} /></div><div><small>{c.time}</small><Id value={event.occurredAt} /></div></div>
+          <p>{(event.actor?.label ?? "Unavailable")} · {event.resource} · {(event.target?.label ?? "Unavailable")}</p>
+          <div className="mobile-data-meta"><div><small>{c.severity}</small><Badge value={getSeverityLabel(locale, event.severity ?? "unknown")} tone={severityTone(event.severity ?? "unknown")} /></div><div><small>{c.time}</small><Id value={event.occurredAt} /></div></div>
         </article>
       ))}</div>
     </>
@@ -170,10 +183,10 @@ export function AuditEventDetailRoute({ eventId }: { eventId: string }) {
       <section className="table-card audit-detail-card" aria-labelledby="audit-evidence-title">
         <div className="card-heading ops-card-heading"><div><h2 id="audit-evidence-title">{c.evidence}</h2><p><Id value={data.id} /> · {c.immutableRecord}</p></div></div>
         <div className="audit-detail-grid">
-          <DetailCard label={c.result}><Badge value={getStatusLabel(locale, data.result)} tone={resultTone(data.result)} /></DetailCard>
+          <DetailCard label={c.result}><Badge value={getStatusLabel(locale, data.result ?? "unknown")} tone={resultTone(data.result ?? "unknown")} /></DetailCard>
           <DetailCard label={c.action} className="audit-detail-wide"><span className="audit-event-key"><Id value={data.action} /></span></DetailCard>
-          <DetailCard label={c.region}>{data.region}</DetailCard>
-          <DetailCard label={c.correlation}><Id value={data.correlationId} /></DetailCard>
+          <DetailCard label={c.region}>{data.region ?? "Unavailable"}</DetailCard>
+          <DetailCard label={c.correlation}><Id value={data.correlationId ?? "Unavailable"} /></DetailCard>
         </div>
       </section>
       <section className="table-card audit-detail-card" aria-labelledby="audit-metadata-title">

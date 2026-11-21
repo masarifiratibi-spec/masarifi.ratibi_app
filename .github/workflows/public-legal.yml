@@ -1,0 +1,51 @@
+name: Public Legal Resources
+
+"on":
+  push:
+    branches: [codex/voice-promoted-operating-2026-10-13]
+    paths:
+      - apps/public-legal/**
+      - apps/mobile/src/features/legal/privacy.ar.json
+      - apps/mobile/src/features/legal/privacy.en.json
+      - apps/mobile/src/features/legal/terms.ar.json
+      - apps/mobile/src/features/legal/terms.en.json
+      - apps/admin-web/src/features/public-legal/legal.module.css
+      - apps/admin-web/src/features/public-deletion/deletion.module.css
+      - .github/workflows/public-legal.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - apps/public-legal/**
+      - apps/mobile/src/features/legal/privacy.ar.json
+      - apps/mobile/src/features/legal/privacy.en.json
+      - apps/mobile/src/features/legal/terms.ar.json
+      - apps/mobile/src/features/legal/terms.en.json
+      - apps/admin-web/src/features/public-legal/legal.module.css
+      - apps/admin-web/src/features/public-deletion/deletion.module.css
+      - .github/workflows/public-legal.yml
+
+permissions:
+  contents: read
+
+jobs:
+  static-public-resources:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Build committed public resources
+        run: python3 apps/public-legal/build.py --output "$RUNNER_TEMP/public-legal"
+      - name: Qualify content, routes and release source guards
+        run: python3 apps/public-legal/qualify.py --candidate "$RUNNER_TEMP/public-legal" --output "$RUNNER_TEMP/public-legal-qualification.json"
+      - name: Retain public resources and qualification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-legal-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/public-legal
+            ${{ runner.temp }}/public-legal-qualification.json
+          if-no-files-found: error
+          retention-days: 14

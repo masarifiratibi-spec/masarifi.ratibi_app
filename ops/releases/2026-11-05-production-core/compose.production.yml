@@ -1,0 +1,53 @@
+name: masarifi-production-20261105
+
+x-core-runtime: &core-runtime
+  image: masarifi-readiness-production@sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc
+  pull_policy: never
+  user: "65532:65532"
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  volumes:
+    - /etc/masarifi/supabase-ca.crt:/etc/ssl/certs/masarifi-database-ca.crt:ro
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 256
+  mem_limit: 768m
+  cpus: 0.5
+  stop_grace_period: 30s
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+  networks: [production-core]
+
+services:
+  core-api:
+    <<: *core-runtime
+    container_name: masarifi-production-core-api-20261105-97e66588
+    command: [dist/src/main.js]
+    env_file:
+      - /var/tmp/masarifi-production-artifacts-20261105-97e66588/config/api.env
+    ports: [127.0.0.1:3080:3000]
+    healthcheck:
+      test: [CMD, /nodejs/bin/node, dist/src/platform/health/container-healthcheck.js]
+      interval: 10s
+      timeout: 2s
+      start_period: 10s
+      retries: 3
+
+  import-worker:
+    <<: *core-runtime
+    container_name: masarifi-production-import-worker-20261105-97e66588
+    command: [dist/src/worker.js]
+    env_file:
+      - /var/tmp/masarifi-production-artifacts-20261105-97e66588/config/import-worker-v2.env
+    # The validated file admits only import.parse. Existing consumers keep their jobs.
+    healthcheck:
+      disable: true
+
+networks:
+  production-core: {}

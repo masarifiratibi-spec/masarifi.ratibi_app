@@ -1,0 +1,4 @@
+services:
+  core-api:
+    image: masarifi-readiness-production@sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc
+    pull_policy: never

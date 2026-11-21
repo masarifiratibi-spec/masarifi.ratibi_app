@@ -1,0 +1,11 @@
+Read this handoff completely before taking action:
+
+`D:/Masarifi-integration-2026-10-10/docs/handoffs/2026-11-07-dashboard-ui-integration-production-handoff-en.md`
+
+Continue in `D:/Masarifi-integration-2026-10-10` on the SAME branch `codex/voice-promoted-operating-2026-10-13`, using remote `ratibi` at `https://github.com/masarifiratibi-spec/masarifi.ratibi_app.git`. Last verified product/release checkpoint: `b8a75e4884c0c69c9e86bb41fb523c35d3f0eb96`; inspect later published documentation/iOS commits before synchronizing.
+
+Review and FIX the existing dashboard UI, functionality and integration with the application for real production use. Use Playwright to inspect pages and network/console behavior, take and inspect before/after screenshots, and correct spacing, alignment, typography, responsive layouts, RTL/LTR, dialogs, tables, charts, loading/error states and navigation. Verify real end-to-end capabilities and accurate data/permissions. The default Playwright configuration uses mocks; passing it is not proof of live integration. Preserve the approved identity and existing working features, and keep protected administrator routes restricted to their proper roles.
+
+Coordinate directly with iOS chat `01a1abcc-d7b9-7f32-8ce2-eec8e19e82b8`: exchange base commits and current file ownership before shared changes, preserve its iOS-specific work, and share published results to avoid conflicts. The user authorizes this coordination. Preserve all current data, keys, sessions, financial records, pending operations, private documents, Voice001, inherited changes and the sole latest Android APK. No phone reset/logout/new account or unrelated mobile rebuild.
+
+Work autonomously through inspection, repairs, appropriate tests/build and actual browser verification. Reuse valid unchanged evidence and avoid restarting closed benchmarks or historical completed plans. Prepare the exact production deployment/review/rollback package before requesting any still-required hosted execution approval under the standing user condition. Publish qualified changes and English evidence to the SAME branch and verify the remote commit. Communicate with me in Arabic. Do not stop at an audit, plan or screenshots without fixing the problems you can safely complete.

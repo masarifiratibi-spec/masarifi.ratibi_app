@@ -1,0 +1,37 @@
+{
+  "atUtc": "2026-11-13 20:51:26 UTC",
+  "versionCode": 143,
+  "versionEvidence": "E:/Masarifi-tracking-direct-143-20261113/installed143.json",
+  "deviceWindow": "23076RN8DY",
+  "scope": "Physical assistant dark appearance and voice processing consent popup",
+  "checks": {
+    "darkThemeSelectedThroughAppSettings": true,
+    "assistantOpened": true,
+    "assistantAvailableWithoutActivationControls": true,
+    "assistantAccuracyFooterAbsent": true,
+    "assistantHeroAndSuggestionsAndComposerVisible": true,
+    "noVisibleClippingInInspectedAssistantScreen": true,
+    "voicePopupOpenedThroughPrivacyReview": true,
+    "voicePopupDarkTheme": true,
+    "voicePopupIconTitlePrimaryAndManualActionsVisible": true,
+    "voicePopupCloseVisibleAndWorking": true,
+    "noVisibleClippingInInspectedVoicePopup": true,
+    "existingConsentShownAsWithdrawAction": true
+  },
+  "constraints": {
+    "buildPerformed": false,
+    "installationPerformed": false,
+    "permissionsGranted": false,
+    "voiceConsentChanged": false,
+    "audioRecorded": false,
+    "testQuestionSubmitted": false
+  },
+  "finalState": {
+    "theme": "dark",
+    "screen": "privacy",
+    "voicePopup": "closed"
+  },
+  "limitations": [
+    "Visual inspection of the assistant landing screen and consent popup only; no new assistant response, recording or audio processing test performed."
+  ]
+}

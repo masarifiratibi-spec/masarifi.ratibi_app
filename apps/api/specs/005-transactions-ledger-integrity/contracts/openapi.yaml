@@ -327,6 +327,10 @@ components:
       properties:
         expectedVersion: { type: integer, format: int64, minimum: 1 }
         reason: { type: string, minLength: 1, maxLength: 500 }
+        kind:
+          type: string
+          enum: [income, expense]
+          description: Optional correction for a confirmed manual income/expense without linked refunds. Original postings remain immutable.
         amountMinor: { $ref: '#/components/schemas/PositiveMinor' }
         accountId: { $ref: '#/components/schemas/Uuid' }
         categoryId: { oneOf: [ { $ref: '#/components/schemas/Uuid' }, { type: 'null' } ] }

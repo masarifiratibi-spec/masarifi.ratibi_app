@@ -1,0 +1,667 @@
+{
+  "catalogSnapshot": {
+    "at": "2026-11-02T07:32:19.510092+00:00",
+    "schemas": [
+      {
+        "bytes": 399089664,
+        "schema": "private"
+      },
+      {
+        "bytes": 19210240,
+        "schema": "pg_catalog"
+      },
+      {
+        "bytes": 10280960,
+        "schema": "public"
+      },
+      {
+        "bytes": 4161536,
+        "schema": "cron"
+      },
+      {
+        "bytes": 1179648,
+        "schema": "auth"
+      },
+      {
+        "bytes": 884736,
+        "schema": "supabase_migrations"
+      },
+      {
+        "bytes": 598016,
+        "schema": "audit"
+      },
+      {
+        "bytes": 483328,
+        "schema": "storage"
+      },
+      {
+        "bytes": 253952,
+        "schema": "information_schema"
+      },
+      {
+        "bytes": 106496,
+        "schema": "pgmq"
+      },
+      {
+        "bytes": 57344,
+        "schema": "realtime"
+      },
+      {
+        "bytes": 24576,
+        "schema": "vault"
+      }
+    ],
+    "storage": {
+      "objects": 37,
+      "metadata_size_bytes": 59793
+    },
+    "database_bytes": 435457171,
+    "largest_tables": [
+      {
+        "relname": "outbox_events",
+        "n_dead_tup": 0,
+        "n_live_tup": 545555,
+        "schemaname": "private",
+        "index_bytes": 156278784,
+        "table_bytes": 171220992,
+        "total_bytes": 327499776
+      },
+      {
+        "relname": "job_runs",
+        "n_dead_tup": 6004,
+        "n_live_tup": 51312,
+        "schemaname": "private",
+        "index_bytes": 21463040,
+        "table_bytes": 14925824,
+        "total_bytes": 36388864
+      },
+      {
+        "relname": "provider_health_checks",
+        "n_dead_tup": 0,
+        "n_live_tup": 46272,
+        "schemaname": "private",
+        "index_bytes": 10551296,
+        "table_bytes": 4136960,
+        "total_bytes": 14688256
+      },
+      {
+        "relname": "job_attempts",
+        "n_dead_tup": 4822,
+        "n_live_tup": 51394,
+        "schemaname": "private",
+        "index_bytes": 5259264,
+        "table_bytes": 8863744,
+        "total_bytes": 14123008
+      },
+      {
+        "relname": "job_run_details",
+        "n_dead_tup": 455,
+        "n_live_tup": 22419,
+        "schemaname": "cron",
+        "index_bytes": 532480,
+        "table_bytes": 3579904,
+        "total_bytes": 4112384
+      },
+      {
+        "relname": "user_keyword_rules",
+        "n_dead_tup": 113,
+        "n_live_tup": 678,
+        "schemaname": "public",
+        "index_bytes": 1048576,
+        "table_bytes": 196608,
+        "total_bytes": 1245184
+      },
+      {
+        "relname": "idempotency_keys",
+        "n_dead_tup": 17,
+        "n_live_tup": 302,
+        "schemaname": "private",
+        "index_bytes": 352256,
+        "table_bytes": 679936,
+        "total_bytes": 1032192
+      },
+      {
+        "relname": "schema_migrations",
+        "n_dead_tup": 10,
+        "n_live_tup": 173,
+        "schemaname": "supabase_migrations",
+        "index_bytes": 32768,
+        "table_bytes": 851968,
+        "total_bytes": 884736
+      },
+      {
+        "relname": "notification_preferences",
+        "n_dead_tup": 78,
+        "n_live_tup": 468,
+        "schemaname": "public",
+        "index_bytes": 499712,
+        "table_bytes": 122880,
+        "total_bytes": 622592
+      },
+      {
+        "relname": "import_items",
+        "n_dead_tup": 14,
+        "n_live_tup": 43,
+        "schemaname": "public",
+        "index_bytes": 155648,
+        "table_bytes": 401408,
+        "total_bytes": 557056
+      },
+      {
+        "relname": "import_attempts",
+        "n_dead_tup": 80,
+        "n_live_tup": 789,
+        "schemaname": "private",
+        "index_bytes": 311296,
+        "table_bytes": 204800,
+        "total_bytes": 516096
+      },
+      {
+        "relname": "assistant_messages",
+        "n_dead_tup": 0,
+        "n_live_tup": 179,
+        "schemaname": "public",
+        "index_bytes": 212992,
+        "table_bytes": 245760,
+        "total_bytes": 458752
+      },
+      {
+        "relname": "transactions",
+        "n_dead_tup": 19,
+        "n_live_tup": 80,
+        "schemaname": "public",
+        "index_bytes": 376832,
+        "table_bytes": 65536,
+        "total_bytes": 442368
+      },
+      {
+        "relname": "security_events",
+        "n_dead_tup": 37,
+        "n_live_tup": 440,
+        "schemaname": "public",
+        "index_bytes": 286720,
+        "table_bytes": 139264,
+        "total_bytes": 425984
+      },
+      {
+        "relname": "staging_voice_epochs",
+        "n_dead_tup": 3,
+        "n_live_tup": 38,
+        "schemaname": "private",
+        "index_bytes": 16384,
+        "table_bytes": 376832,
+        "total_bytes": 393216
+      },
+      {
+        "relname": "audit_events",
+        "n_dead_tup": 36,
+        "n_live_tup": 215,
+        "schemaname": "audit",
+        "index_bytes": 221184,
+        "table_bytes": 147456,
+        "total_bytes": 368640
+      },
+      {
+        "relname": "ai_usage_events",
+        "n_dead_tup": 65,
+        "n_live_tup": 87,
+        "schemaname": "private",
+        "index_bytes": 212992,
+        "table_bytes": 98304,
+        "total_bytes": 311296
+      },
+      {
+        "relname": "voice_sessions",
+        "n_dead_tup": 0,
+        "n_live_tup": 15,
+        "schemaname": "public",
+        "index_bytes": 229376,
+        "table_bytes": 49152,
+        "total_bytes": 278528
+      }
+    ],
+    "outbox_indexes": [
+      {
+        "bytes": 48513024,
+        "idx_scan": 6122,
+        "indexrelname": "outbox_events_erasure_resource_idx"
+      },
+      {
+        "bytes": 41943040,
+        "idx_scan": 32385,
+        "indexrelname": "outbox_events_claim_order_idx"
+      },
+      {
+        "bytes": 37265408,
+        "idx_scan": 6480738,
+        "indexrelname": "outbox_events_aggregate_history_idx"
+      },
+      {
+        "bytes": 21110784,
+        "idx_scan": 342760975,
+        "indexrelname": "outbox_events_pkey"
+      },
+      {
+        "bytes": 7102464,
+        "idx_scan": 940,
+        "indexrelname": "outbox_events_lease_recovery_idx"
+      },
+      {
+        "bytes": 90112,
+        "idx_scan": 4678,
+        "indexrelname": "outbox_events_sync_delta_idx"
+      },
+      {
+        "bytes": 81920,
+        "idx_scan": 0,
+        "indexrelname": "outbox_events_sync_cursor_uq"
+      },
+      {
+        "bytes": 40960,
+        "idx_scan": 19,
+        "indexrelname": "outbox_events_erasure_profile_idx"
+      },
+      {
+        "bytes": 16384,
+        "idx_scan": 19,
+        "indexrelname": "outbox_events_erasure_user_idx"
+      },
+      {
+        "bytes": 16384,
+        "idx_scan": 1150542,
+        "indexrelname": "outbox_events_voice_confirmation_idx"
+      },
+      {
+        "bytes": 8192,
+        "idx_scan": 0,
+        "indexrelname": "outbox_credit_card_due_reminder_uq"
+      }
+    ],
+    "financial_counts": {
+      "accounts": 13,
+      "profiles": 22,
+      "transactions": 80
+    }
+  },
+  "growthSnapshot": {
+    "at": "2026-11-02T07:32:40.286047+00:00",
+    "jobs": [
+      {
+        "rows": 51249,
+        "status": "succeeded",
+        "job_key": "sync-mutations.retry",
+        "last_at": "2026-11-02T07:32:38.754128+00:00",
+        "first_at": "2026-10-04T11:16:06.172945+00:00",
+        "last_24h": 3450
+      },
+      {
+        "rows": 5,
+        "status": "succeeded",
+        "job_key": "clerk.webhook.process",
+        "last_at": "2026-10-04T11:17:03.167425+00:00",
+        "first_at": "2026-10-04T11:16:02.103945+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 5,
+        "status": "succeeded",
+        "job_key": "operations.maintenance-complete",
+        "last_at": "2026-10-04T11:17:02.170496+00:00",
+        "first_at": "2026-10-04T11:16:00.113551+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "operations.maintenance-activate",
+        "last_at": "2026-10-04T11:17:00.164499+00:00",
+        "first_at": "2026-10-04T11:16:16.117479+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "platform.outbox.dispatch",
+        "last_at": "2026-10-04T11:16:58.162119+00:00",
+        "first_at": "2026-10-04T11:16:14.116791+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "ai.evaluate_route",
+        "last_at": "2026-10-04T11:16:52.152649+00:00",
+        "first_at": "2026-10-04T11:16:07.107779+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "notification.dispatch",
+        "last_at": "2026-10-04T11:16:59.163716+00:00",
+        "first_at": "2026-10-04T11:16:15.169262+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "assistant.respond",
+        "last_at": "2026-10-04T11:16:53.15379+00:00",
+        "first_at": "2026-10-04T11:16:09.109836+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "report.email.deliver",
+        "last_at": "2026-10-04T11:16:57.163984+00:00",
+        "first_at": "2026-10-04T11:16:13.116036+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "report.generate",
+        "last_at": "2026-10-04T11:16:54.156563+00:00",
+        "first_at": "2026-10-04T11:16:10.111112+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 4,
+        "status": "dead_lettered",
+        "job_key": "sync-mutations.retry",
+        "last_at": "2026-11-02T02:05:48.240956+00:00",
+        "first_at": "2026-11-01T18:51:44.496414+00:00",
+        "last_24h": 4
+      },
+      {
+        "rows": 4,
+        "status": "succeeded",
+        "job_key": "voice.transcribe_extract",
+        "last_at": "2026-10-04T11:16:56.159821+00:00",
+        "first_at": "2026-10-04T11:16:12.116267+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 2,
+        "status": "succeeded",
+        "job_key": "import.parse",
+        "last_at": "2026-10-04T11:16:40.140966+00:00",
+        "first_at": "2026-10-04T11:16:05.106464+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 2,
+        "status": "succeeded",
+        "job_key": "report.schedule.enqueue",
+        "last_at": "2026-10-04T11:17:04.169292+00:00",
+        "first_at": "2026-10-04T11:16:01.103068+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "retrying",
+        "job_key": "support-attachment.scan",
+        "last_at": "2026-10-04T11:13:23.91844+00:00",
+        "first_at": "2026-10-04T11:13:23.91844+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "privacy.account-delete",
+        "last_at": "2026-10-04T11:16:33.138462+00:00",
+        "first_at": "2026-10-04T11:16:33.138462+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "security.support-expire",
+        "last_at": "2026-10-04T11:16:21.124123+00:00",
+        "first_at": "2026-10-04T11:16:21.124123+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "ledger.reconcile",
+        "last_at": "2026-10-04T11:16:36.135749+00:00",
+        "first_at": "2026-10-04T11:16:36.135749+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "retrying",
+        "job_key": "source.consume",
+        "last_at": "2026-10-04T11:13:22.91873+00:00",
+        "first_at": "2026-10-04T11:13:22.91873+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "planning.overdue.mark",
+        "last_at": "2026-10-04T11:16:55.159839+00:00",
+        "first_at": "2026-10-04T11:16:55.159839+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "planning.reminders.emit",
+        "last_at": "2026-10-04T11:17:01.16607+00:00",
+        "first_at": "2026-10-04T11:17:01.16607+00:00",
+        "last_24h": 0
+      },
+      {
+        "rows": 1,
+        "status": "succeeded",
+        "job_key": "notification.campaign.expand",
+        "last_at": "2026-10-04T11:16:08.108109+00:00",
+        "first_at": "2026-10-04T11:16:08.108109+00:00",
+        "last_24h": 0
+      }
+    ],
+    "outbox_types": [
+      {
+        "rows": 533334,
+        "leased": 0,
+        "last_at": "2026-11-02T07:32:38.773798+00:00",
+        "first_at": "2026-09-27T14:12:30.611253+00:00",
+        "last_24h": 3450,
+        "event_type": "operations.job-succeeded",
+        "unpublished": 533331,
+        "payload_bytes": 74265209
+      },
+      {
+        "rows": 12994,
+        "leased": 0,
+        "last_at": "2026-11-02T05:22:03.503171+00:00",
+        "first_at": "2026-09-27T14:12:39.082876+00:00",
+        "last_24h": 21,
+        "event_type": "operations.job-failed",
+        "unpublished": 12994,
+        "payload_bytes": 1934917
+      },
+      {
+        "rows": 1828,
+        "leased": 0,
+        "last_at": "2026-11-02T03:27:57.949443+00:00",
+        "first_at": "2026-09-27T14:12:56.079602+00:00",
+        "last_24h": 2,
+        "event_type": "operations.job-dead-lettered",
+        "unpublished": 1828,
+        "payload_bytes": 271060
+      },
+      {
+        "rows": 1555,
+        "leased": 0,
+        "last_at": "2026-11-02T07:31:31.126732+00:00",
+        "first_at": "2026-10-16T13:14:38.208631+00:00",
+        "last_24h": 69,
+        "event_type": "device.registered",
+        "unpublished": 1555,
+        "payload_bytes": 356079
+      },
+      {
+        "rows": 826,
+        "leased": 0,
+        "last_at": "2026-11-02T07:31:09.062529+00:00",
+        "first_at": "2026-10-21T21:41:01.951354+00:00",
+        "last_24h": 66,
+        "event_type": "import.session.changed.v1",
+        "unpublished": 826,
+        "payload_bytes": 170156
+      },
+      {
+        "rows": 96,
+        "leased": 0,
+        "last_at": "2026-11-02T06:15:32.109021+00:00",
+        "first_at": "2026-10-16T13:27:09.93734+00:00",
+        "last_24h": 5,
+        "event_type": "balance.changed",
+        "unpublished": 96,
+        "payload_bytes": 21956
+      },
+      {
+        "rows": 87,
+        "leased": 0,
+        "last_at": "2026-10-23T13:10:45.650454+00:00",
+        "first_at": "2026-10-21T20:03:55.771388+00:00",
+        "last_24h": 0,
+        "event_type": "assistant.response_ready.v1",
+        "unpublished": 87,
+        "payload_bytes": 18792
+      },
+      {
+        "rows": 80,
+        "leased": 0,
+        "last_at": "2026-11-02T06:14:12.087205+00:00",
+        "first_at": "2026-10-21T21:41:01.951354+00:00",
+        "last_24h": 13,
+        "event_type": "import.item.changed.v1",
+        "unpublished": 80,
+        "payload_bytes": 18533
+      },
+      {
+        "rows": 76,
+        "leased": 0,
+        "last_at": "2026-11-02T06:14:12.087205+00:00",
+        "first_at": "2026-10-16T13:27:09.93734+00:00",
+        "last_24h": 4,
+        "event_type": "transaction.created",
+        "unpublished": 76,
+        "payload_bytes": 94956
+      },
+      {
+        "rows": 41,
+        "leased": 0,
+        "last_at": "2026-11-01T07:17:22.866783+00:00",
+        "first_at": "2026-10-13T12:20:14.745602+00:00",
+        "last_24h": 0,
+        "event_type": "notification.delivered",
+        "unpublished": 41,
+        "payload_bytes": 8200
+      },
+      {
+        "rows": 18,
+        "leased": 0,
+        "last_at": "2026-11-01T10:02:16.025516+00:00",
+        "first_at": "2026-10-16T13:15:03.651739+00:00",
+        "last_24h": 1,
+        "event_type": "privacy.deletion_requested",
+        "unpublished": 18,
+        "payload_bytes": 3240
+      },
+      {
+        "rows": 16,
+        "leased": 0,
+        "last_at": "2026-11-02T06:15:32.109021+00:00",
+        "first_at": "2026-10-22T20:02:06.068643+00:00",
+        "last_24h": 1,
+        "event_type": "transaction.revised",
+        "unpublished": 16,
+        "payload_bytes": 20900
+      },
+      {
+        "rows": 16,
+        "leased": 0,
+        "last_at": "2026-11-01T11:04:40.25702+00:00",
+        "first_at": "2026-10-16T14:15:48.55122+00:00",
+        "last_24h": 1,
+        "event_type": "privacy.deletion_completed",
+        "unpublished": 16,
+        "payload_bytes": 2880
+      },
+      {
+        "rows": 14,
+        "leased": 0,
+        "last_at": "2026-10-22T08:53:00.686083+00:00",
+        "first_at": "2026-10-08T10:06:15.010487+00:00",
+        "last_24h": 0,
+        "event_type": "operations.setting-changed",
+        "unpublished": 14,
+        "payload_bytes": 1300
+      },
+      {
+        "rows": 13,
+        "leased": 0,
+        "last_at": "2026-11-01T11:10:32.77325+00:00",
+        "first_at": "2026-10-16T13:26:52.826276+00:00",
+        "last_24h": 1,
+        "event_type": "account.created",
+        "unpublished": 13,
+        "payload_bytes": 11942
+      },
+      {
+        "rows": 11,
+        "leased": 0,
+        "last_at": "2026-10-27T00:00:00.056232+00:00",
+        "first_at": "2026-10-22T19:59:00.177406+00:00",
+        "last_24h": 0,
+        "event_type": "planning.salary_receipt_expected",
+        "unpublished": 11,
+        "payload_bytes": 10554
+      }
+    ],
+    "profile_status": [
+      {
+        "status": "active",
+        "profiles": 6
+      },
+      {
+        "status": "deleted",
+        "profiles": 16
+      }
+    ],
+    "schedule_count": {
+      "total": 53,
+      "enabled": 51
+    },
+    "provider_checks": [
+      {
+        "rows": 38560,
+        "status": "unknown",
+        "last_at": "2026-10-04T11:16:11.148179+00:00",
+        "first_at": "2026-09-27T14:13:14.084325+00:00",
+        "last_24h": 0,
+        "check_type": "shallow"
+      },
+      {
+        "rows": 7712,
+        "status": "up",
+        "last_at": "2026-10-04T11:16:11.148179+00:00",
+        "first_at": "2026-09-27T14:13:14.084325+00:00",
+        "last_24h": 0,
+        "check_type": "shallow"
+      }
+    ]
+  },
+  "limits": [
+    "Table live/dead counts are estimates unless explicitly COUNT(*).",
+    "Only aggregate counts, event classes and scheduler keys retained; no payloads, owner identifiers or financial values.",
+    "Database size excludes filesystem/system/WAL overhead; historical dashboard 0.74GB is not a synchronized current database measurement.",
+    "Pending unpublished events remain protected; missing downstream pgmq consumer does not by itself explain unpublished status."
+  ]
+}

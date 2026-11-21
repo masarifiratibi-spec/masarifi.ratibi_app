@@ -85,6 +85,17 @@ describeLiveDatabase('obligation planning live invariants', () => {
       principalMinor: '1000',
       version: 1,
     });
+    const initialSchedule = await api<{ sequence_no: number; amount_minor: string }>(
+      owner,
+      'select sequence_no,amount_minor::text from public.obligation_schedule_items where obligation_id=$1 order by sequence_no',
+      [obligationId],
+    );
+    expect(initialSchedule.rows).toEqual([
+      { sequence_no: 1, amount_minor: '300' },
+      { sequence_no: 2, amount_minor: '300' },
+      { sequence_no: 3, amount_minor: '300' },
+      { sequence_no: 4, amount_minor: '100' },
+    ]);
     const hidden = await api<{ count: string }>(
       other,
       'select count(*)::text count from public.obligations where id=$1',

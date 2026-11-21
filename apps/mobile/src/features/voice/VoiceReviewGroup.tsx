@@ -4,12 +4,16 @@ import { StyleSheet, View } from 'react-native';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import type { Account, Category } from '@/domain/core-finance';
-import type { VoiceProposalGroup, VoiceTransactionProposal } from '@/domain/voice-capture';
+import type {
+  VoiceProposalGroup,
+  VoiceTransactionProposal
+} from '@/domain/voice-capture';
 import { translate, translateDynamic } from '@/localization/i18n';
 import { VoiceReview } from './VoiceReview';
 
 export function VoiceReviewGroup({
   group,
+  live = false,
   accounts,
   categories,
   onChange,
@@ -20,6 +24,7 @@ export function VoiceReviewGroup({
   onReRecord
 }: {
   group: VoiceProposalGroup;
+  live?: boolean;
   accounts: Account[];
   categories: Category[];
   onChange(id: string, value: Partial<VoiceTransactionProposal>): void;
@@ -48,6 +53,7 @@ export function VoiceReviewGroup({
             })}
           </StyledText>
           <VoiceReview
+            live={live}
             proposal={proposal}
             accounts={accounts}
             categories={categories}

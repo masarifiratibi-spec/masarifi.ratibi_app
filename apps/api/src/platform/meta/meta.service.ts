@@ -6,6 +6,7 @@ import { PlatformConfigService } from '../config/platform-config.service';
 import { PoolService } from '../database/pool.service';
 import { OPERATIONS_METRICS, recordPlatformMetric } from '../observability/platform-metrics';
 import type { MetaResponseDto } from './meta.dto';
+import { configuredAndroidUpdate } from './android-update-policy';
 
 export type MetaContext = Readonly<{
   platform?: 'ios' | 'android' | 'admin';
@@ -30,6 +31,10 @@ export class MetaService {
     private readonly config: PlatformConfigService,
     @Optional() @Inject(PoolService) private readonly pool?: PoolService,
   ) {}
+
+  getMobileUpdate() {
+    return configuredAndroidUpdate(this.config);
+  }
 
   async get(context: MetaContext = {}): Promise<MetaResponseDto> {
     const now = Date.now();
@@ -78,6 +83,25 @@ export class MetaService {
     recordPlatformMetric(OPERATIONS_METRICS.cache, 1, {
       cache: 'safe_meta',
       outcome: 'invalidated',
+    });
+  }
+
+  async getSocialMediaLinks(): Promise<Record<'instagram' | 'tiktok' | 'snapchat', string>> {
+    if (!this.pool) throw new Error('DATABASE_UNAVAILABLE');
+    return this.pool.withClient(async (client) => {
+      await client.query('begin');
+      try {
+        await client.query('set local role masarifi_api');
+        const result = await client.query<{
+          value: Record<'instagram' | 'tiktok' | 'snapchat', string>;
+        }>('select private.read_social_media_links() value');
+        if (!result.rows[0]) throw new Error('SOCIAL_MEDIA_UNAVAILABLE');
+        await client.query('commit');
+        return result.rows[0].value;
+      } catch (error) {
+        await client.query('rollback');
+        throw error;
+      }
     });
   }
 

@@ -107,7 +107,11 @@ export class EngagementService {
         );
         return { uploadId: value.uploadId, ...signed };
       }
-      if (validated.operation === 'downloadSupportAttachment') {
+      if (
+        ['downloadSupportAttachment', 'adminDownloadSupportAttachment'].includes(
+          validated.operation,
+        )
+      ) {
         const value = result as Record<string, unknown>;
         return await this.storage.signDownload(String(value.storageRef));
       }

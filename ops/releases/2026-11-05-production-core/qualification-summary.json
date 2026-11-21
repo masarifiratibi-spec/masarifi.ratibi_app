@@ -1,0 +1,100 @@
+{
+  "atUtc": "2026-11-05T09:25:10.131494+00:00",
+  "backendSourceCommit": "97e66588b2b516ae8c67e285f8439be591439dd6",
+  "mobileSourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+  "backendInputsUnchangedByMobileFix": true,
+  "databaseCases": {
+    "ownerContext": {
+      "tapCases": 18,
+      "passed": true,
+      "receipt": "task5-worker-context-after-production-stdout.private.json",
+      "sqlSha256": "78959dfc0fda515816da1fcaef5f273f83bd4dfbbc58aa96b26531a543158545",
+      "originalDataHistoryAndMembershipsUnchanged": true,
+      "fixtureRolledBack": true
+    },
+    "semanticCompatibility": {
+      "tapCases": 23,
+      "passed": true,
+      "receipt": "task5-semantic-compat-green-stdout.private.json",
+      "sqlSha256": "850120e583a3508dcdb27f7729ef5906cdeefeda43580b7139dd163709bc00fc",
+      "originalDataHistoryAndMembershipsUnchanged": true,
+      "fixtureRolledBack": true
+    },
+    "productionTrackingFlow": {
+      "tapCases": 40,
+      "passed": true,
+      "receipt": "task5-production-capture-qualified-stdout.private.json",
+      "sqlSha256": "d9a0efe0ad3b52f8e9b82e8401c1733f085779e813ea8881b5a102d9bed62a56",
+      "originalDataHistoryAndMembershipsUnchanged": true,
+      "fixtureRolledBack": true
+    },
+    "ledgerAndGuardedCompensation": {
+      "tapCases": 43,
+      "passed": true,
+      "receipt": "task5-ledger-compensation-v4-stdout.private.json",
+      "sqlSha256": "0cd5b5fe3971474020f0a720abcf412983302f83070333f8ad77d59e89bab681",
+      "originalDataHistoryAndMembershipsUnchanged": true,
+      "fixtureRolledBack": true
+    }
+  },
+  "combinedAtomicForward": {
+    "passed": true,
+    "entireCatalogEqual": true,
+    "originalDataHistoryAndMembershipsUnchanged": true,
+    "rollbackOnlyQualification": true,
+    "sqlSha256": "f9b8817c0d61949559a95739636875e3f168c905892c0aa511a96cbd0346f9a3"
+  },
+  "mobileGates": {
+    "atUtc": "2026-11-05T09:17:03.303850+00:00",
+    "sourceCommit": "2d8b5dfefedecd62ff8c48b01c12f89dfee43867",
+    "mobileSuites": 611,
+    "mobileTests": 4889,
+    "mobileFailures": 0,
+    "mobileJsonSuccess": true,
+    "mobileRunnerExitCode": 0,
+    "native": {
+      "tests": 88,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "typecheckExitCode": 0,
+    "changedFilesLintExitCode": 0,
+    "postRunSourcePinsMatch": true,
+    "jestLingeringHandleWarningResolvedByNaturalExit": true,
+    "broadSuiteRerunRequired": false,
+    "primaryPhoneAcceptance": false,
+    "hostedActivated": false
+  },
+  "independentReviewVerifiedCriticalOrImportantRemaining": 0,
+  "imageRuntimeNetworkNoneQualified": true,
+  "runtimeConfigsQualifiedWithExistingKeys": true,
+  "all27OriginalServingContainersRetained": true,
+  "temporarySshRemovedAnd4FirewallFilesEqualOriginal": true,
+  "executionInputSha256": {
+    "01_guarded_missing_helpers.sql": "8544f0d66e294ccaea96ef53739895ed2e594c6c1891804a5ea9a4db2db56e6a",
+    "02_guarded_existing_domain_corrections.sql": "5f881bd55f0ca13bb432d4bd909983cad75882f89ddefe2cf8b4d4b60a89e23d",
+    "03_guarded_tracking_owner_context_chain.sql": "4384cf690d7cf990853e17c851333c3424b044bfc7339abfd67af936fbaed1f9",
+    "04_guarded_remaining_semantic_compatibility.sql": "32e5f07df9eed0854cc68181a2e810fcd8ec3a4343b2fbc8f18fbc68f2eb2f36",
+    "05_guarded_production_installation_consent.sql": "e389c869d5d243b4e5663718362651ffe48fdd85bca22e567dcd01996c76cd13",
+    "apply-forward.sql": "7f141f19a7d0ee3ad1a4eb40f6c7c7d6f690eef8e4ffefb7cf0a916528059317",
+    "compose.production.yml": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5",
+    "nginx.legacy-restriction.conf": "423e58d15fec52166cb41808bc395b0051597af87bde1e81df272faa1f7668d3",
+    "nginx.production-bootstrap.conf": "3cde516eedb5d7e591e1274772e59d39a84e5fecda9ae7805899e324f4ac8b14",
+    "nginx.production.conf": "840cd5e73175983deffaf81e3819558c3337b9dc196f0d7b739c68ac49646391"
+  },
+  "hostedSqlOrDeploymentExecuted": false,
+  "primaryUpdated": false,
+  "deliveryReplaced": false,
+  "branchPushed": false,
+  "productionReady": false,
+  "openGates": [
+    "explicit package/primary transition approval",
+    "production DNS and real TLS",
+    "actual final Redmi customer acceptance",
+    "fresh Google OAuth on independent clean target",
+    "distinct authorized voice acceptance; Voice001 untouched",
+    "approved legal operator/public privacy and deletion notices",
+    "independent Storage/provider/key recovery limits"
+  ]
+}

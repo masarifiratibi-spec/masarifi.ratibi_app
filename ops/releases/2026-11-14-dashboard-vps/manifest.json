@@ -1,0 +1,321 @@
+{
+  "status": "blocked",
+  "candidateSuperseded": false,
+  "hostedChangesAuthorized": false,
+  "source": "fd834905433060551bb71940be1eb0e504097cca",
+  "adminGitTree": "4b4fff5c7d8109a79221a25cd58fe40b25cf135e",
+  "foundationRun": 43528337279,
+  "replacementAdminBuildRun": 43528348422,
+  "foundationStatus": "success",
+  "admin": {
+    "source": "fd834905433060551bb71940be1eb0e504097cca",
+    "artifact": 14086067555,
+    "zipSha256": "51e0b974ac9be06546247450b296db67eaf0caf70fb5524911adce10556930c0",
+    "archiveSha256": "88645aad546af6a7a679ee9c53f6d1dffa99f9eb494f2406479a26cc69a30ac2",
+    "archiveBytes": 263843041,
+    "manifestSha256": "000bdf56ceb7c534aba3f0145cd6f1be3449103ce2e8f1d01c5d8410b5ea4ca2",
+    "sourceFilesVerified": 584,
+    "members": 52794,
+    "internalSymlinks": 44,
+    "staticAssets": 74,
+    "runtimeExecuted": true,
+    "sourceSha": "fd834905433060551bb71940be1eb0e504097cca",
+    "adminGitTree": "4b4fff5c7d8109a79221a25cd58fe40b25cf135e",
+    "sourceArchiveSha256": "1336868c3a389fe58d2bfbf3cde3656c5ee548d19d22e190534d84fac17d5be3",
+    "sourceArchivePaths": [
+      "apps/admin-web",
+      "apps/api/src/reports/reports.admin.ts",
+      "apps/api/src/reports/reports.admin-types.ts"
+    ],
+    "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+    "node": "v24.16.0",
+    "npm": "11.17.0",
+    "buildId": "JnPTcIfQ1KSXKIwHFmZEy",
+    "publicConfigurationSha256": {
+      "NEXT_PUBLIC_API_URL": "6b7b580e69f5bf597cf7f8356951e8fb495959b567c87bd68cfc7ee13fc749c9",
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475",
+      "NEXT_PUBLIC_CLIENT_MODE": "247610f4dedd4ab7247d07dbda19c81ca9817f85820742cad49d407ffae9e4ed",
+      "NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT": "e919a75364398a449f860aeadddc57fa0502145a4e63959ddb33c417a48dc0da",
+      "NEXT_PUBLIC_ENABLE_MOCKS": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+    },
+    "runtimeSecretsIncluded": false,
+    "run": 43528348422,
+    "zipBytes": 263844832,
+    "staticProbe": {
+      "path": "/_next/static/JnPTcIfQ1KSXKIwHFmZEy/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
+    },
+    "runtimeImageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "runtimeExecutionScope": "isolated-github-vm-network-none",
+    "hostedRuntimeExecuted": false
+  },
+  "dataAuthority": "current-vps",
+  "currentHostAdmission": {
+    "receiptPath": "/etc/masarifi/selfhost/admin-admission-readonly-20261113T232930Z.json",
+    "receiptSha256": "02deebf14f26606d9ecd0046352a491c0e2d99c34d0e89a6e5af6118ad672731",
+    "tlsFile": "/etc/nginx/sites-enabled/masarifi-staging",
+    "tlsFileSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "currentAdminUpstream": "127.0.0.1:3041",
+    "proposedCandidateUpstream": "127.0.0.1:3090",
+    "portAvailabilityObservedAt": "2026-11-13T23:29:30Z",
+    "portReserved": false,
+    "requiresFreshAdmission": true,
+    "protectedPrimarySha256": "02a2b1a9380cc7905d13134d31f51ead38fa6c7dc789303016ae857c39d744ee"
+  },
+  "restoreDatabaseOrStorageOnRollback": false,
+  "runFrozenConsumers": false,
+  "supersededPacket": "2026-11-07-temporary-support-access",
+  "blockers": [
+    "Complete Linux requalification of deadline/abort race fixes",
+    "Complete exact-head Foundation CI after scoped source publication",
+    "Identify independent authenticated acceptance participants",
+    "Review final actor-bound packet and obtain user approval"
+  ],
+  "historicalSupersededAdmin": {
+    "source": "90505a908bcb3840e2620f2df442d1774a8753ef",
+    "superseded": true,
+    "adminGitTree": "219861e0e71ca58a8a5b727f7a98d728dce44cbb",
+    "run": 43526390502,
+    "artifact": 14085361943,
+    "zipSha256": "2bce843a8b007e87d402b9efa3d06b2b56e006fc15c62a29457cbe672de885e9",
+    "archiveSha256": "230e907d7bce0c3c665a196979b6ea8ed30c296973d6670588533a964f34a2ec",
+    "archiveBytes": 263833851,
+    "manifestSha256": "cbc85a25005cb3996ef11741406544a53f2de88d716268b707888b2ff3def78e",
+    "sourceArchiveSha256": "a0b90736ad92b959a0584460eb25986363ce081eef2d7c7add8dc8c2d39a2d9b",
+    "lockSha256": "e180cdfe4ded8860ad1435830781bbb5ffd8447875eec7da7b070c50d6b21c52",
+    "buildId": "y4L8Gq1AriCWndaR7ahiS",
+    "node": "v24.16.0",
+    "npm": "11.17.0",
+    "sourceFilesVerified": 584,
+    "members": 52794,
+    "internalSymlinks": 44,
+    "staticAssets": 74,
+    "runtimeExecuted": false,
+    "publicConfigurationSha256": {
+      "NEXT_PUBLIC_API_URL": "6b7b580e69f5bf597cf7f8356951e8fb495959b567c87bd68cfc7ee13fc749c9",
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "b23652e5532792769747186f24295dadd41fcc330abe12da3186951e0f084475"
+    }
+  },
+  "apiOverlay": {
+    "sourceBase": "7e3bbef0cdccc2ee5509dd332f4e32236af01b90",
+    "supportDelta": "ccc7e401dd73d1aa1827af98a4064a8469a17a29",
+    "modules": {
+      "security.repository.js": {
+        "beforeSha256": "2f7a71d47df7c77465d8ecb706adee52c6c457a90d1712603db2cd9321602adc",
+        "normalizedBeforeSha256": "81acc6b1da3fdcd54e4f86034f1c35e8df8f91e846e3037ff8dbefb95075ad9f",
+        "patchSha256": "df3ce17c3bf91e5ac1fbe26e09117ffafde8f6fb356b958207eb8bf49f62a85b",
+        "afterSha256": "ed4255ed38dfec55b80a8c37db244bd2d0f364e78ebc7671099860004722db41",
+        "normalizedAfterSha256": "6403d9a0e7cc1987aeab335e7b4e2f6f8963171f5084dbfa686165465a522057",
+        "bytes": 70877,
+        "crlfCount": 108
+      },
+      "security.service.js": {
+        "beforeSha256": "90d7a5ad7babb923611ba6051b455785ffcb6282eac5397321be471768150021",
+        "normalizedBeforeSha256": "90d7a5ad7babb923611ba6051b455785ffcb6282eac5397321be471768150021",
+        "patchSha256": "4579dd11cf30e381e9657bb621cd702aa9ce473e64af930140111410578549d4",
+        "afterSha256": "3bac1bf818faedf38b031f737cc4f1c73208af71571be687354574cefee6d462",
+        "normalizedAfterSha256": "3bac1bf818faedf38b031f737cc4f1c73208af71571be687354574cefee6d462",
+        "bytes": 24044,
+        "crlfCount": 0
+      }
+    },
+    "unchangedBytesPreserved": true,
+    "liveModulesChanged": false,
+    "runtimeQualified": false,
+    "imageId": "sha256:274f4e7dca0add015e834c9b0af9a8371fac4b78bfabf18833d2467500c424f1",
+    "node": "v24.20.0",
+    "preserveExistingMounts": 29,
+    "candidateUpstream": "127.0.0.1:3091",
+    "portAvailabilityVerified": false,
+    "unitProjectionTests": 15,
+    "hashBoundPatcherTests": 7,
+    "syntaxCheckPassed": true
+  },
+  "foundationHeadSha": "fd834905433060551bb71940be1eb0e504097cca",
+  "foundationMergeSha": "7b02d97abade927ef83d619b9e83d8a004f5a853",
+  "localQualification": {
+    "modulePatcherTests": 7,
+    "nginxDeltaTests": 11,
+    "nginxContextTests": 8,
+    "trialCoordinatorTests": 10,
+    "migrationFixture": {
+      "postgresMajor": 18,
+      "isolated": true,
+      "passed": true,
+      "hostedExecuted": false
+    },
+    "linuxRuntimeRestorationQualified": true
+  },
+  "migration": {
+    "clusterSha256": "719b24d1e37aea5b70b3abaefb193cdaaf6cae4059acb12b68e5e89f7152e18e",
+    "constraint": "CHECK (((NOT customer_approval_required) OR (status = 'pending'::text) OR (customer_approved_at IS NOT NULL)))",
+    "database": "postgres",
+    "executor": "supabase_admin",
+    "latestVersion": "20261107140000",
+    "ledgerCount": 177,
+    "ledgerSha256": "3bcf7b1bcd8a4cabaa00d6a9140249b8149f7ad1b8081e4c3ad0df5e7754725e",
+    "membershipsSha256": "ad188fa4ffd3744f0cdad6793a44c2e373750f2d0a0187c0e3414f7fee9bee2c",
+    "readOnly": true,
+    "sessionUser": "supabase_admin",
+    "targetVersionPresent": false,
+    "version": "20261107140100",
+    "name": "support_access_denial_without_consent",
+    "canonicalSqlSha256": "4a826dda49786f3469f96b6c29dddebc8c652fcae0482e995869193d8fe5051c",
+    "hostedExecuted": false
+  },
+  "qualification": {
+    "linuxPassed": false,
+    "workflow": "dashboard-vps-packet.yml",
+    "localControlsPassed": 78,
+    "hostedRuntimeExecuted": false,
+    "run": 43538257141,
+    "headSha": "6d9dff6210056ef1c91f6c845f4c7d7aee871904",
+    "postgresMajor": 17,
+    "postgresTransactionPassed": true,
+    "nginxMountTrialPassed": true,
+    "systemdOperatorDisconnectTimeoutPassed": true,
+    "adminRuntime": {
+      "actualImageId": "sha256:fbbe2a5ac5a540add77c05927b1f1009f9fb49f13f8dfdc07cd4f3b2747327a8",
+      "artifact": 14086067555,
+      "buildId": "JnPTcIfQ1KSXKIwHFmZEy",
+      "hostedActions": false,
+      "imageReference": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+      "liveSecretsProvided": false,
+      "network": "none",
+      "publicConfigurationHashesMatched": true,
+      "qualified": true,
+      "restartCount": 0,
+      "runtimeNode": "v24.20.0",
+      "serverSecretPlaceholder": true,
+      "source": "fd834905433060551bb71940be1eb0e504097cca",
+      "staticProbePassed": true,
+      "registryDescriptor": {
+        "digest": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+        "verifiedRawDigest": true,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 7157,
+          "digest": "sha256:fbbe2a5ac5a540add77c05927b1f1009f9fb49f13f8dfdc07cd4f3b2747327a8"
+        },
+        "manifests": null,
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux",
+          "variant": null
+        },
+        "configDigestVerified": true
+      }
+    },
+    "completeHistoryScan": {
+      "localPassed": true,
+      "headSha": "6d9dff6210056ef1c91f6c845f4c7d7aee871904",
+      "commits": 1111,
+      "redactedFindings": 17,
+      "unreviewed": 0,
+      "scanner": "gitleaks-8.24.3",
+      "classifierTestsPassed": 19,
+      "remoteRequalificationPending": false
+    },
+    "historicalQualifiedRun": 43540107612,
+    "historicalQualifiedHead": "59436090332d1a7142c5a8949b53790f2197f036",
+    "linuxOnlyControlsPending": 3,
+    "review": {
+      "independentReadOnly": true,
+      "findings": 2,
+      "severity": "P2",
+      "resolvedLocally": true,
+      "reproductionsNowRestore": true,
+      "linuxRequalificationPending": true
+    }
+  },
+  "files": {
+    ".gitattributes": "95bd20e106c0bf5ad7e8ea9be5f1e6c443614628b20284eea258617520732854",
+    "acceptance_receipt.py": "403f16bb43b2a01e01e51b1fef380b203b63a5540b77f83962f5434af4c0424a",
+    "admission.py": "d46c3b5281876468378a808cc8c7400719237e917f4313d08dc93205fa5839c4",
+    "candidate_verifier.py": "4a06f7a3e0a480940385086652f9a6873fa63ef2ae01baaa57e8414e80daf1a5",
+    "host_release.py": "6637de78336d4aafbc474753cd227317f22790d3b672f2f453fad5d7592e23d9",
+    "migration_packet.py": "67261f20d0a7da022c769cc27a681be31665a5e4707631ccdedb1c5e11fabd1d",
+    "nginx_delta.py": "3f1e1da84ff8f7c34fc5d99bfce7710c1a09d61e5c1dcf2a5533a690dd3d26b7",
+    "patch_security_modules.py": "8ae1a44f58eb244c33e41d57326519a0d84b26028471ca5734271773f457b86b",
+    "qualify_admin_runtime.py": "2007e4f9f7c7bf605eea5bee504a2072d0816c8006c86f54b2a142dd7df55386",
+    "qualify_migration.py": "7efd8a8809c296d0fcd1004406b25a40b9cd98d092a00910cdb75ab61b69da0b",
+    "qualify_timeout.py": "d2014ca04356c85d9efdbb0172f8d3dbe34e3e841f28a501fb55cb97bcd3d6f8",
+    "qualify_trial.py": "53d794fc6089bc48c903613abd817e5145a545d43bcacc39aa806f2de25464e8",
+    "read_nginx_context.py": "0eb4d953502ee9b6693bab8a41459aff50dfadc35b4559df10b99f41f0410e30",
+    "README.md": "5fd7f1e3263a3dc92d2dfefcef340e6925b9046f7ae0c4e270c9a369d201fd99",
+    "routing_files.py": "5aa534999afabddba1fc655c07865abe3f6fde437e0efcc7f90117f843546945",
+    "runtime_plan.py": "1d2e0ca17f68ddbcc5678063d51a858db70783ecbb8db1a011634bd34609dc65",
+    "security.repository.js.patch": "df3ce17c3bf91e5ac1fbe26e09117ffafde8f6fb356b958207eb8bf49f62a85b",
+    "security.service.js.patch": "4579dd11cf30e381e9657bb621cd702aa9ce473e64af930140111410578549d4",
+    "stage_admin.py": "ace9982d23bcddddbe07085179282cb26ba6dccbfd0801ff7adbaf8d67c478a6",
+    "test_acceptance_receipt.py": "0cab9f0f3a505c69db0a22ca78c74d308a67fec3d762fac5c6b09c6f00cd3226",
+    "test_candidate_verifier.py": "3d8437445206e9d6fadff6d065a0b7f40c28407ee7fc04bba0098a4eb5903473",
+    "test_host_release.py": "2f41f538ae41d49646e116a4a1a3b3c1c180c23db48b9ddaf73990f2ef277473",
+    "test_nginx_delta.py": "d413e1eaa4a42690f679d66bd0e24ba3b9f810529ee1409ff7b1dd754a5676b3",
+    "test_patch_security_modules.py": "bba1c13febfc1a0411da3089e239bc049927ba226552fd20913f4926a9646e2d",
+    "test_read_nginx_context.py": "542e99e3cfc4ef2974da851609d8f8e1e8ce813cdb5b3f728e96da16453fe947",
+    "test_routing_files.py": "28be2be6c29cd1101a9438130e972066acc292883645fc5e38a0069ad3810d54",
+    "test_runtime_plan.py": "c96120926c44b8e9ec089ce958b6234e232a862357612d6db806973088675db3",
+    "test_stage_admin.py": "2ad0ec1d4a2aa878d7d764e308c84a0535a5ac83e37cb4a43006624ed1cc7079",
+    "test_trial_watchdog.py": "57e056730beedd58756503a68f70658f5a16bd2a2b6bd5111f20666bdc0aa81d",
+    "trial_watchdog.py": "2f5a646a189e9b777ace7175ed61cc288253c819ffb7355d2afa101e3286cf43"
+  },
+  "admission": {
+    "receiptPath": "/etc/masarifi/selfhost/dashboard-collector-qualification-20261114T003239Z.json",
+    "canonicalSha256": "536b0d0c379cb93ad6b461cd659e649630b97783f407cbaf5c2f124b6ee3a6ac",
+    "collectedSha256": "d747503e639620ab655850eb4ceeef7218071293c88c95640b9db4db5cd1fe51",
+    "inventorySha256": "a016f1033291bd300f5cd218aa4e83cef6b77016a6c056eb8ac515d6e1933041",
+    "plannedPayloadSha256": {
+      "admin": "76ae6be618180c1222861cc2070cc0c8ae354ae2ff824058acdf88be2861200b",
+      "api": "94805c3ae816443be2eb229bf6a264317c23b9bc214d20789133283bcfeda002"
+    },
+    "observedAtUtc": "2026-11-14T00:32:39.077041+00:00",
+    "requiresFreshReadmission": true
+  },
+  "routing": {
+    "originalSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9",
+    "candidateSha256": "300833745d8d9aab61f4e1803826b9820c7f44a643c340d2860d7f77311af4a0",
+    "contextSha256": "d61e332313e46699d77078ab37765213f065ac01587430495b8a9bf85eadea32",
+    "protectedPrimarySha256": "02a2b1a9380cc7905d13134d31f51ead38fa6c7dc789303016ae857c39d744ee",
+    "originalStaticProbe": {
+      "path": "/_next/static/HpKjKCcL4BG8PJNVU5_VI/_buildManifest.js",
+      "sha256": "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea"
+    },
+    "diff": {
+      "addedLocations": [
+        {
+          "cacheControl": "no-store",
+          "modifier": "=",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/admin/support-access/requests"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "^~",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/admin/support-access/requests/"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "=",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/me/support-access/requests"
+        },
+        {
+          "cacheControl": "no-store",
+          "modifier": "^~",
+          "upstream": "http://127.0.0.1:3091",
+          "uri": "/api/v1/me/support-access/requests/"
+        }
+      ],
+      "adminHost": "staging.masarifiratibi.com",
+      "apiHost": "api.staging.masarifiratibi.com",
+      "changedAdminUpstream": [
+        "http://127.0.0.1:3041",
+        "http://127.0.0.1:3090"
+      ],
+      "defaultApiRetained": "http://127.0.0.1:3001"
+    }
+  }
+}

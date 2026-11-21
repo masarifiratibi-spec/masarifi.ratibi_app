@@ -69,7 +69,7 @@ export function FinancialInsightCard({
                 {trendDirection === 'down' ? '↓' : '↑'}
               </Text>
               <StyledText style={styles.trendValue}>
-                {`%${trendPercentage}`}
+                {hideBalances ? '••••' : `%${trendPercentage}`}
               </StyledText>
             </View>
             <StyledText style={styles.metricCaption}>
@@ -91,7 +91,7 @@ export function FinancialInsightCard({
             >
               <Text style={styles.categoryEmoji}>{categoryEmoji}</Text>
               <StyledText style={styles.categoryLabel}>
-                {categoryName}
+                {hideBalances ? '••••' : categoryName}
               </StyledText>
             </View>
             {formattedCategory && (

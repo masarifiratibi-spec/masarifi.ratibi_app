@@ -1,0 +1,12 @@
+{
+  "sourceCount": 11410,
+  "allInventoriedPathsAndHashesMatch": true,
+  "dispositions": {
+    "SUPERSEDED": 1006,
+    "ALREADY INCLUDED": 10238,
+    "INTEGRATE": 13,
+    "NEEDS DECISION": 153
+  },
+  "fullHelperReviewApplied": true,
+  "runtimeChangesOrExecution": false
+}

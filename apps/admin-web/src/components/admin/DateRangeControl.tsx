@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { getPeriodLabel } from "@/core/localization/display-labels";
 import { useLocale, useT } from "@/core/localization/provider";
 import type { DateRangeInput } from "@/features/foundation/contracts";
@@ -21,7 +21,8 @@ export function DateRangeControl({
   const { locale } = useLocale();
   const t = useT();
   const [error, setError] = useState("");
-  const { register, reset, getValues } = useForm<DateRangeInput>({ defaultValues: value });
+  const { register, reset, getValues, control } = useForm<DateRangeInput>({ defaultValues: value });
+  const selectedPreset = useWatch({ control, name: "preset" });
   const presets = ALL_PRESETS.filter((preset) => allowedPresets.includes(preset));
   const customEnabled = presets.includes("custom");
 
@@ -48,8 +49,8 @@ export function DateRangeControl({
       <div className="date-presets" role="group" aria-label={t("dateRange.label")}>
         {presets.map((preset) => (
           <button
-            aria-pressed={value.preset === preset}
-            className={value.preset === preset ? "active" : ""}
+            aria-pressed={selectedPreset === preset}
+            className={selectedPreset === preset ? "active" : ""}
             key={preset}
             onClick={() => selectPreset(preset)}
             type="button"
@@ -58,7 +59,7 @@ export function DateRangeControl({
           </button>
         ))}
       </div>
-      {customEnabled && value.preset === "custom" && (
+      {customEnabled && selectedPreset === "custom" && (
         <div className="custom-dates">
           <input aria-label={t("dateRange.start")} type="date" {...register("start")} onBlur={validateCustom} />
           <input aria-label={t("dateRange.end")} type="date" {...register("end")} onBlur={validateCustom} />

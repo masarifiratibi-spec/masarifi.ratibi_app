@@ -39,6 +39,7 @@ export async function bootstrapApi(): Promise<INestApplication> {
       '/api/v1/conflicts/:conflictId': syncBodyLimit,
     },
     { '/api/v1/imports': 6 * 1024 * 1024 },
+    [/^\/api\/v1\/voice\/sessions\/[0-9a-f-]{36}\/audio$/iu],
   );
   configureHttpSecurity(app, config);
   app.useGlobalFilters(new SafeExceptionFilter());

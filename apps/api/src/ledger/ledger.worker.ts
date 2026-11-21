@@ -62,6 +62,7 @@ export class LedgerWorker implements OnModuleDestroy {
     const startedAt = performance.now();
     let outcome = 'failure';
     try {
+      const observedAt = new Date().toISOString();
       const result = await this.repository.reconcile(this.cursor, batchSize);
       const mismatches = result.rows.filter(
         (row): row is typeof row & { mismatchKind: Exclude<typeof row.mismatchKind, null> } =>
@@ -72,7 +73,7 @@ export class LedgerWorker implements OnModuleDestroy {
           accountId: row.accountId,
           mismatchKind: row.mismatchKind,
           ledgerVersion: row.ledgerVersion,
-          observedAt: new Date().toISOString(),
+          observedAt,
           requestId: randomUUID(),
         });
         recordPlatformMetric(LEDGER_METRICS.reconciliationMismatch, 1, {

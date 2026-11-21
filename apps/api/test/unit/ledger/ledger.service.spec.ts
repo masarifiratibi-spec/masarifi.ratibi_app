@@ -2,6 +2,9 @@ import { HttpException } from '@nestjs/common';
 
 import { buildLedgerEvent } from '../../../src/ledger/ledger.events';
 import { LedgerService } from '../../../src/ledger/ledger.service';
+import { LedgerRepository } from '../../../src/ledger/ledger.repository';
+import { hashNormalizedCommand } from '../../../src/ledger/idempotency';
+import { normalizeCreateAccount } from '../../../src/reference/reference.dto';
 
 const principal = { userId: 'user_1', sessionId: 'session_1', factorAgeSeconds: 120 };
 const body = {
@@ -396,6 +399,32 @@ describe('LedgerService revision', () => {
 
 describe('LedgerService linked compensation', () => {
   const transactionId = '10000000-0000-4000-8000-000000000003';
+  it('passes an internal automatic capture identity without widening the public refund body', async () => {
+    const { service, repository } = harness();
+    const input = {
+      principal,
+      transactionId,
+      trackingCaptureId: '20000000-0000-4000-8000-000000000002',
+      body: {
+        expectedVersion: 3,
+        amountMinor: 100,
+        reason: 'Automatic refund',
+        occurredAt: '2026-08-30T08:00:00Z',
+      },
+      idempotencyKey: `tracking:${'a'.repeat(64)}`,
+      requestId: 'tracking-request',
+      now: new Date('2026-08-30T08:01:00Z'),
+    };
+    await service.refundTransaction(input);
+    const calls = repository.mutate.mock.calls as unknown[][];
+    const mutation: unknown = calls[0]?.[0];
+    expect(mutation).toMatchObject({
+      command: {
+        trackingCaptureId: input.trackingCaptureId,
+        trackingCaptureKey: input.idempotencyKey,
+      },
+    });
+  });
   it('checks current effect/version and delegates refund and reversal relationships', async () => {
     const { service, repository } = harness();
     await service.refundTransaction({
@@ -540,6 +569,53 @@ describe('LedgerService delete and restore', () => {
 });
 
 describe('LedgerService account opening', () => {
+  it.each([{}, { notes: null }, { notes: 'Fictional fixture' }])(
+    'replays a normalized account using the same JSON hash as account creation: %j',
+    async (optionalFields) => {
+      const account = normalizeCreateAccount({
+        name: 'Cash',
+        type: 'cash',
+        currency: 'SAR',
+        ...optionalFields,
+      });
+      const replayed = { account: { id: 'existing-account' }, openingTransactionId: null };
+      const query = jest.fn((sql: string) =>
+        Promise.resolve({
+          rows: sql.startsWith('select * from private.lookup_idempotency_key')
+            ? [{ outcome: 'replay', response_status: 201, response_body: replayed }]
+            : [],
+        }),
+      );
+      const repository = new LedgerRepository({
+        withClient: (action: (client: unknown) => unknown) => action({ query }),
+      } as never);
+      const service = new LedgerService(repository, {} as never, {} as never);
+      await expect(
+        service.createAccount(
+          {
+            operation: 'createAccount',
+            principal,
+            requestId: 'account-replay',
+            idempotencyKey: 'account-replay-key',
+            query: {},
+            params: {},
+            body: account,
+          },
+          {} as never,
+        ),
+      ).resolves.toEqual(replayed);
+      expect(query).toHaveBeenCalledWith(
+        'select * from private.lookup_idempotency_key($1,$2,$3,$4)',
+        [
+          principal.userId,
+          'reference.account.create',
+          expect.any(String),
+          hashNormalizedCommand(JSON.parse(JSON.stringify(account))),
+        ],
+      );
+    },
+  );
+
   it('applies absolute configured recent auth and delegates the atomic account boundary', async () => {
     const { service, repository } = harness({ SAR: 500 });
     const reference = { createAccountOnClient: jest.fn() };

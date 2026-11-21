@@ -1,9 +1,18 @@
 import React from 'react';
 
-import { fireEvent } from '@testing-library/react-native';
+import { act, fireEvent } from '@testing-library/react-native';
+import { notifyManager } from '@tanstack/react-query';
 import { changeLocale } from '@/localization/i18n';
 import { renderWithProviders } from '@/test-utils/render';
 import { ReportsScreen } from './ReportsScreen';
+
+beforeAll(() => {
+  notifyManager.setNotifyFunction((callback) => act(callback));
+});
+
+afterAll(() => {
+  notifyManager.setNotifyFunction((callback) => callback());
+});
 
 test('all approved net worth timeframes are visible and selectable', async () => {
   changeLocale('en');

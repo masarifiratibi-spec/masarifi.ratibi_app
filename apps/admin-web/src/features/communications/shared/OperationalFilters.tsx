@@ -16,7 +16,7 @@ interface OperationalFiltersProps {
   filters: OperationalFilterState;
   labels: {
     search: string;
-    platform: string;
+    platform?: string;
     status?: string;
     priority?: string;
   };
@@ -25,6 +25,7 @@ interface OperationalFiltersProps {
   partialMessage?: string;
   unavailableMessage?: string;
   permissionDenied?: boolean;
+  statusOptions?: readonly string[];
 }
 
 const platformLabels: Record<Platform, { ar: string; en: string }> = {
@@ -45,6 +46,7 @@ export function OperationalFilters({
   partialMessage,
   unavailableMessage,
   permissionDenied = false,
+  statusOptions = ticketStateOptions,
 }: OperationalFiltersProps) {
   const { locale } = useLocale();
   const t = useT();
@@ -77,7 +79,7 @@ export function OperationalFilters({
         </span>
       </label>
 
-      <label className="field">
+      {labels.platform && <label className="field">
         <span>{labels.platform}</span>
         <select
           value={filters.platform ?? "all"}
@@ -87,13 +89,13 @@ export function OperationalFilters({
             <option key={platform} value={platform}>{label[locale]}</option>
           ))}
         </select>
-      </label>
+      </label>}
 
       {labels.status && (
         <label className="field">
           <span>{labels.status}</span>
           <select value={filters.status ?? ""} onChange={(event) => onChange({ ...filters, status: event.currentTarget.value })}>
-            {ticketStateOptions.map((state) => <option key={state || "all"} value={state}>{state ? getStatusLabel(locale, state) : t("common.all")}</option>)}
+            {statusOptions.map((state) => <option key={state || "all"} value={state}>{state ? getStatusLabel(locale, state) : t("common.all")}</option>)}
           </select>
         </label>
       )}

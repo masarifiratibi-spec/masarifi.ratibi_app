@@ -1,0 +1,2530 @@
+{
+  "sourcePdfSHA256": "3F8D8BCDD789E6A5A12C64CF3BAD8EA4B92962BD3A3E4A152175CC0077703D7D",
+  "baselineCommit": "7e3bbef0cdccc2ee5509dd332f4e32236af01b90",
+  "preservedCoordinatedCommit": "01ae6311444cee597bda76c20c55399fd6fd913d",
+  "originalFindingCount": 69,
+  "countsAreInventoryNotCompletionPercentage": true,
+  "findings": [
+    {
+      "reference": "1.1",
+      "pdfPage": "1",
+      "initialStatus": "O",
+      "title": "Signing",
+      "units": [
+        {
+          "id": "1.1",
+          "acceptance": "Signing",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "existing_eas_signing_credential_verified_play_match_and_signed_candidate_pending",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.2",
+      "pdfPage": "1",
+      "initialStatus": "P",
+      "title": "Production environment, lock, automation, version",
+      "units": [
+        {
+          "id": "1.2.a",
+          "acceptance": "Approved production API/Clerk identity",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "live_clerk_and_staging_api_verified_production_binding_unselected",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.2.b",
+          "acceptance": "Application lock",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.2.c",
+          "acceptance": "Automation and diagnostic flags",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.2.d",
+          "acceptance": "Approved version/build number",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "existing_0_0_1_code_1_next_eas_code_2_subject_to_play_history_version_decision_pending",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.3",
+      "pdfPage": "1",
+      "initialStatus": "O",
+      "title": "R8/shrinking",
+      "units": [
+        {
+          "id": "1.3",
+          "acceptance": "R8/shrinking",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.4",
+      "pdfPage": "1",
+      "initialStatus": "E",
+      "title": "SMS declaration/approval",
+      "units": [
+        {
+          "id": "1.4",
+          "acceptance": "SMS declaration/approval",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "disclosure_and_permission_path_implemented_console_approval_pending",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.5",
+      "pdfPage": "1",
+      "initialStatus": "P",
+      "title": "Media playback FGS permission",
+      "units": [
+        {
+          "id": "1.5",
+          "acceptance": "Media playback FGS permission",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.6",
+      "pdfPage": "1",
+      "initialStatus": "P",
+      "title": "Permissions and wallet queries",
+      "units": [
+        {
+          "id": "1.6.a",
+          "acceptance": "Unjustified storage/overlay permissions",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.6.b",
+          "acceptance": "Unrelated wallet queries",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.7",
+      "pdfPage": "2",
+      "initialStatus": "O",
+      "title": "Delayed erasure and web deletion",
+      "units": [
+        {
+          "id": "1.7.a",
+          "acceptance": "Immediate/delayed eligible owner-data erasure",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.7.b",
+          "acceptance": "Idempotent retries/provider and late-upload cleanup",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "1.7.c",
+          "acceptance": "Public deletion request and truthful retention disclosure",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.8",
+      "pdfPage": "2",
+      "initialStatus": "P",
+      "title": "Public repository private material",
+      "units": [
+        {
+          "id": "1.8",
+          "acceptance": "Public repository private material",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "bounded_tracked_text_review_no_confirmed_credential_exposure",
+          "externalBlocker": "History and all-image forensic/private-data clearance not established. No blanket deletion or rotation justified.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.9",
+      "pdfPage": "2",
+      "initialStatus": "P",
+      "title": "Main integration and CI",
+      "units": [
+        {
+          "id": "1.9",
+          "acceptance": "Main integration and CI",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Exact integration-candidate remote CI and main required-check configuration remain open; no repository settings changed during read-only inspection.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "1.10",
+      "pdfPage": "2",
+      "initialStatus": "E",
+      "title": "Closed testing",
+      "units": [
+        {
+          "id": "1.10",
+          "acceptance": "Closed testing",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "current_google_account_shows_signup_intended_publisher_and_testing_eligibility_unverified",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.1",
+      "pdfPage": "2",
+      "initialStatus": "O",
+      "title": "Offline startup/categories",
+      "units": [
+        {
+          "id": "2.1",
+          "acceptance": "Offline startup/categories",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.2",
+      "pdfPage": "2",
+      "initialStatus": "P",
+      "title": "Startup latency",
+      "units": [
+        {
+          "id": "2.2",
+          "acceptance": "Startup latency",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.3",
+      "pdfPage": "2",
+      "initialStatus": "O",
+      "title": "Assistant dialect",
+      "units": [
+        {
+          "id": "2.3",
+          "acceptance": "Assistant dialect",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P4",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract tests including AI gateway and assistant data",
+            "Selected actual-PG assistant financial queries",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual provider success/timeout/rate-limit/long voice and deployment replica/limit semantics.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.4",
+      "pdfPage": "2",
+      "initialStatus": "E",
+      "title": "Intermittent hosted assistant failure",
+      "units": [
+        {
+          "id": "2.4",
+          "acceptance": "Intermittent hosted assistant failure",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P4",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract tests including AI gateway and assistant data",
+            "Selected actual-PG assistant financial queries",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "external_reproduction_or_verification_pending",
+          "externalBlocker": "Actual provider success/timeout/rate-limit/long voice and deployment replica/limit semantics.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.5",
+      "pdfPage": "3",
+      "initialStatus": "O",
+      "title": "Support submission",
+      "units": [
+        {
+          "id": "2.5",
+          "acceptance": "Support submission",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.6",
+      "pdfPage": "3",
+      "initialStatus": "P",
+      "title": "Tracking activation/OEM guidance",
+      "units": [
+        {
+          "id": "2.6.a",
+          "acceptance": "Activation persistence and stale-request fencing",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "2.6.b",
+          "acceptance": "OEM battery/settings guidance",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "2.6.c",
+          "acceptance": "Permission revocation and return from settings",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.7",
+      "pdfPage": "3",
+      "initialStatus": "E",
+      "title": "Hosted planning",
+      "units": [
+        {
+          "id": "2.7",
+          "acceptance": "Hosted planning",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "external_reproduction_or_verification_pending",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.8",
+      "pdfPage": "3",
+      "initialStatus": "E",
+      "title": "First onboarding save",
+      "units": [
+        {
+          "id": "2.8",
+          "acceptance": "First onboarding save",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "external_reproduction_or_verification_pending",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.9",
+      "pdfPage": "3",
+      "initialStatus": "O",
+      "title": "Leading zero",
+      "units": [
+        {
+          "id": "2.9",
+          "acceptance": "Leading zero",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "2.10",
+      "pdfPage": "3",
+      "initialStatus": "P",
+      "title": "Period/assistant dates",
+      "units": [
+        {
+          "id": "2.10.a",
+          "acceptance": "Readable localized period chip",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "2.10.b",
+          "acceptance": "Assistant dates",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R4",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Malformed SMS batch",
+      "units": [
+        {
+          "id": "R4",
+          "acceptance": "Malformed SMS batch",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "fix-01",
+      "pdfPage": "4",
+      "initialStatus": "E",
+      "title": "Voice database qualification",
+      "units": [
+        {
+          "id": "fix-01",
+          "acceptance": "Voice database qualification",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "local_pg18_candidate_checks_pass_hosted_pg17_acceptance_pending",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R5",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Lost SQLCipher key",
+      "units": [
+        {
+          "id": "R5",
+          "acceptance": "Lost SQLCipher key",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R6",
+      "pdfPage": "4",
+      "initialStatus": "P",
+      "title": "Model identity",
+      "units": [
+        {
+          "id": "R6",
+          "acceptance": "Model identity",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P4",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract tests including AI gateway and assistant data",
+            "Selected actual-PG assistant financial queries",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual provider success/timeout/rate-limit/long voice and deployment replica/limit semantics.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "جديد 1 (New-1)",
+      "pdfPage": "4",
+      "initialStatus": "P",
+      "title": "Bare riyal",
+      "units": [
+        {
+          "id": "جديد 1 (New-1)",
+          "acceptance": "Bare riyal",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج1 (J1)",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Linked refund entry",
+      "units": [
+        {
+          "id": "ج1 (J1)",
+          "acceptance": "Linked refund entry",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج7 (J7)",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Arabic spelling",
+      "units": [
+        {
+          "id": "ج7 (J7)",
+          "acceptance": "Arabic spelling",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج8 (J8)",
+      "pdfPage": "4",
+      "initialStatus": "P",
+      "title": "Obligation layout/date, net worth, deferred subscriptions",
+      "units": [
+        {
+          "id": "ج8 (J8).a",
+          "acceptance": "Obligation header layout",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "ج8 (J8).b",
+          "acceptance": "Date locale on the actual screen",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "ج8 (J8).c",
+          "acceptance": "Net-worth source/comparison behavior",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "ج8 (J8).d",
+          "acceptance": "Subscriptions - deferred",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P8",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [],
+          "evidenceArtifacts": [
+            "candidate-verification.md"
+          ],
+          "outcome": "deferred_open",
+          "externalBlocker": "Final billing phase and Google Play/Stripe market/program review; purchases remain unavailable.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "21",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Budget/subscription dates",
+      "units": [
+        {
+          "id": "21",
+          "acceptance": "Budget/subscription dates",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "16",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Assistant time locale",
+      "units": [
+        {
+          "id": "16",
+          "acceptance": "Assistant time locale",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "20",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Period chip",
+      "units": [
+        {
+          "id": "20",
+          "acceptance": "Period chip",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "26",
+      "pdfPage": "4",
+      "initialStatus": "O",
+      "title": "Budget validation feedback",
+      "units": [
+        {
+          "id": "26",
+          "acceptance": "Budget validation feedback",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "24",
+      "pdfPage": "4",
+      "initialStatus": "P",
+      "title": "Category mini-bars",
+      "units": [
+        {
+          "id": "24",
+          "acceptance": "Category mini-bars",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "47",
+      "pdfPage": "4",
+      "initialStatus": "P",
+      "title": "Demo bank seeds",
+      "units": [
+        {
+          "id": "47",
+          "acceptance": "Demo bank seeds",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Representative approved Saudi/UAE sender fixtures and release device acceptance remain external; no invented institution mapping.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R10",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Recent-auth step-up",
+      "units": [
+        {
+          "id": "R10",
+          "acceptance": "Recent-auth step-up",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R11",
+      "pdfPage": "5",
+      "initialStatus": "U",
+      "title": "Obsolete flat three-second timeout claim",
+      "units": [
+        {
+          "id": "R11",
+          "acceptance": "Obsolete flat three-second timeout claim",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P4",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract tests including AI gateway and assistant data",
+            "Selected actual-PG assistant financial queries",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "accepted_exception_or_unsupported",
+          "externalBlocker": "Actual provider success/timeout/rate-limit/long voice and deployment replica/limit semantics.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R13",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Latest dependencies",
+      "units": [
+        {
+          "id": "R13",
+          "acceptance": "Latest dependencies",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "verified_closed_local_acceptance",
+          "externalBlocker": null,
+          "evidenceScope": "Applicable source/install/build/test/format checks pass locally and on the source-equivalent remote application/Admin jobs. This closes only this finding, not release acceptance.",
+          "verifiedAtCommit": "41baa43b5ebc75a937b97d7957bba94d6270d5f9"
+        }
+      ]
+    },
+    {
+      "reference": "R14",
+      "pdfPage": "5",
+      "initialStatus": "P",
+      "title": "Toolchain/install",
+      "units": [
+        {
+          "id": "R14",
+          "acceptance": "Toolchain/install",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Final exact-candidate CI, main protection/integration; image/history review is bounded and no credential exposure has been confirmed.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج9 (J9)",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "System dark mode",
+      "units": [
+        {
+          "id": "ج9 (J9)",
+          "acceptance": "System dark mode",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P6",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile full Jest suite; npm run typecheck; npm run lint",
+            "node --test apps/mobile/scripts/production-entrypoints.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Release-device RTL/English, narrow/large-font, live OS theme and screenshots enabled.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج10 (J10)",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Mixed-currency ranking",
+      "units": [
+        {
+          "id": "ج10 (J10)",
+          "acceptance": "Mixed-currency ranking",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "ج11 (J11)",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "API formatting",
+      "units": [
+        {
+          "id": "ج11 (J11)",
+          "acceptance": "API formatting",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "verified_closed_local_acceptance",
+          "externalBlocker": null,
+          "evidenceScope": "Applicable source/install/build/test/format checks pass locally and on the source-equivalent remote application/Admin jobs. This closes only this finding, not release acceptance.",
+          "verifiedAtCommit": "41baa43b5ebc75a937b97d7957bba94d6270d5f9"
+        }
+      ]
+    },
+    {
+      "reference": "R16",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "feeMinor SQL error",
+      "units": [
+        {
+          "id": "R16",
+          "acceptance": "feeMinor SQL error",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R17",
+      "pdfPage": "5",
+      "initialStatus": "U",
+      "title": "Unknown sync operation already rejected",
+      "units": [
+        {
+          "id": "R17",
+          "acceptance": "Unknown sync operation already rejected",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "accepted_exception_or_unsupported",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R18",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Cursor signing key",
+      "units": [
+        {
+          "id": "R18",
+          "acceptance": "Cursor signing key",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R19",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Queued auth age",
+      "units": [
+        {
+          "id": "R19",
+          "acceptance": "Queued auth age",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R20",
+      "pdfPage": "5",
+      "initialStatus": "E",
+      "title": "Deployment circuit/rate topology",
+      "units": [
+        {
+          "id": "R20",
+          "acceptance": "Deployment circuit/rate topology",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P4",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract tests including AI gateway and assistant data",
+            "Selected actual-PG assistant financial queries",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json"
+          ],
+          "outcome": "external_reproduction_or_verification_pending",
+          "externalBlocker": "Actual provider success/timeout/rate-limit/long voice and deployment replica/limit semantics.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "R21",
+      "pdfPage": "5",
+      "initialStatus": "O",
+      "title": "Mock startup rejection",
+      "units": [
+        {
+          "id": "R21",
+          "acceptance": "Mock startup rejection",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P0",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API/Admin/mobile clean installs; npm run typecheck; npm run lint",
+            "API: npm run test:unit; npm run test:contract; npm run build; npm run format:check",
+            "Admin: npm test; diagnostic npm run build",
+            "API: node node_modules/jest/bin/jest.js --selectProjects security --runInBand --runTestsByPath test/security/workflow-pins.spec.ts"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md",
+            "privacy-scan.json",
+            "public-material-inventory.json"
+          ],
+          "outcome": "verified_closed_local_acceptance",
+          "externalBlocker": null,
+          "evidenceScope": "Applicable source/install/build/test/format checks pass locally and on the source-equivalent remote application/Admin jobs. This closes only this finding, not release acceptance.",
+          "verifiedAtCommit": "41baa43b5ebc75a937b97d7957bba94d6270d5f9"
+        }
+      ]
+    },
+    {
+      "reference": "4.1",
+      "pdfPage": "5–6",
+      "initialStatus": "O",
+      "title": "Arabic morphology",
+      "units": [
+        {
+          "id": "4.1",
+          "acceptance": "Arabic morphology",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.2",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Promotion substring",
+      "units": [
+        {
+          "id": "4.2",
+          "acceptance": "Promotion substring",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.3",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "OTP context",
+      "units": [
+        {
+          "id": "4.3",
+          "acceptance": "OTP context",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.4",
+      "pdfPage": "6",
+      "initialStatus": "C",
+      "title": "Encrypted queue/journal: 35 baseline tests",
+      "units": [
+        {
+          "id": "4.4",
+          "acceptance": "Encrypted queue/journal: 35 baseline tests",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "baseline_verified_closed_preserved",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.5",
+      "pdfPage": "6",
+      "initialStatus": "P",
+      "title": "Bills/URLs vs posted transactions",
+      "units": [
+        {
+          "id": "4.5",
+          "acceptance": "Bills/URLs vs posted transactions",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.6",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Credit-limit amount roles",
+      "units": [
+        {
+          "id": "4.6",
+          "acceptance": "Credit-limit amount roles",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.7",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Merchant suffixes",
+      "units": [
+        {
+          "id": "4.7",
+          "acceptance": "Merchant suffixes",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.8",
+      "pdfPage": "6",
+      "initialStatus": "P",
+      "title": "Notification pending retention/performance",
+      "units": [
+        {
+          "id": "4.8.a",
+          "acceptance": "Pending entries kept until acknowledgment",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "4.8.b",
+          "acceptance": "Owner/generation/release policy cache",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "4.8.c",
+          "acceptance": "Measured processing and acknowledgment compaction",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Native correctness/capacity tests pass; device queue-processing performance measurements remain required.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.9",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "PIN escalation",
+      "units": [
+        {
+          "id": "4.9",
+          "acceptance": "PIN escalation",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.10",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Botim/imo exclusions",
+      "units": [
+        {
+          "id": "4.10",
+          "acceptance": "Botim/imo exclusions",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.11",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Release development scheme",
+      "units": [
+        {
+          "id": "4.11",
+          "acceptance": "Release development scheme",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "4.12",
+      "pdfPage": "6",
+      "initialStatus": "O",
+      "title": "Native financial discovery/pagination",
+      "units": [
+        {
+          "id": "4.12",
+          "acceptance": "Native financial discovery/pagination",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.1",
+      "pdfPage": "25,27",
+      "initialStatus": "P",
+      "title": "Currency aliases/bare dinar",
+      "units": [
+        {
+          "id": "8.1",
+          "acceptance": "Currency aliases/bare dinar",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P2",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "node --test --test-concurrency=1 packages/transaction-parser/*.test.js",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "Android Gradle: :masarifi-sms-inbox:testDebugUnitTest",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical SMS/notification/OEM flows; verified real sender fixtures and Play SMS approval; release artifact encryption.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.2",
+      "pdfPage": "25,27–28",
+      "initialStatus": "P",
+      "title": "a billing deferred; b reports; c support; d events; e export",
+      "units": [
+        {
+          "id": "8.2.a",
+          "acceptance": "Billing/subscriptions - deferred",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P8",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [],
+          "evidenceArtifacts": [
+            "candidate-verification.md"
+          ],
+          "outcome": "deferred_open",
+          "externalBlocker": "Final billing phase and Google Play/Stripe market/program review; purchases remain unavailable.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "8.2.b",
+          "acceptance": "Report preview/download/email/schedule/history",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "8.2.c",
+          "acceptance": "Support ticket/conversation",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "8.2.d",
+          "acceptance": "Security-event paging",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "8.2.e",
+          "acceptance": "Export request/status/download",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.3",
+      "pdfPage": "25,28",
+      "initialStatus": "O",
+      "title": "Arabic/Persian amount inputs",
+      "units": [
+        {
+          "id": "8.3",
+          "acceptance": "Arabic/Persian amount inputs",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.4",
+      "pdfPage": "25,29",
+      "initialStatus": "O",
+      "title": "Salary-cycle monthly reports",
+      "units": [
+        {
+          "id": "8.4",
+          "acceptance": "Salary-cycle monthly reports",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.5",
+      "pdfPage": "25,29",
+      "initialStatus": "O",
+      "title": "Local civil today",
+      "units": [
+        {
+          "id": "8.5",
+          "acceptance": "Local civil today",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.6",
+      "pdfPage": "25,29",
+      "initialStatus": "P",
+      "title": "Timezone fallback",
+      "units": [
+        {
+          "id": "8.6.a",
+          "acceptance": "Salary timezone resolution/persistence",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        },
+        {
+          "id": "8.6.b",
+          "acceptance": "Budget timezone resolution/persistence",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P3",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/assistant integration tests",
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Hosted owner/API/RLS compatibility and remaining net-worth/planning/server acceptance; physical Arabic amount entry.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.7",
+      "pdfPage": "25,29",
+      "initialStatus": "U",
+      "title": "User expressly allows screenshots",
+      "units": [
+        {
+          "id": "8.7",
+          "acceptance": "User expressly allows screenshots",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "accepted_exception_or_unsupported",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.8",
+      "pdfPage": "25,29",
+      "initialStatus": "P",
+      "title": "Demo production bundle",
+      "units": [
+        {
+          "id": "8.8",
+          "acceptance": "Demo production bundle",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P7",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Android Gradle: :app:compileReleaseKotlin :app:minifyReleaseWithR8 :app:processReleaseMainManifest :app:mergeReleaseNativeLibs",
+            "python scripts/integration/verify-release-manifest.test.py",
+            "python scripts/integration/verify-release-manifest.py <merged-release-manifest> <receipt>",
+            "Mobile: node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs",
+            "Mobile: expo export --platform android --source-maps --no-bytecode; node scripts/audit-production-bundle.cjs",
+            "node --test scripts/integration/verify-android-identity.test.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "native-diagnostic.json",
+            "merged-release-manifest.json",
+            "production-bundle-audit.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Select approved production origin/Clerk frontend/version; compare existing EAS upload certificate with intended Play publisher; signed AAB, device and Console acceptance; exact candidate CI. Existing key is verified, not missing.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.9",
+      "pdfPage": "25,30",
+      "initialStatus": "O",
+      "title": "Logout retention",
+      "units": [
+        {
+          "id": "8.9",
+          "acceptance": "Logout retention",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P1",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "Mobile: node node_modules/jest/bin/jest.js --runInBand --forceExit --silent",
+            "API unit/contract and selected actual-PG lifecycle/sync integration tests",
+            "node docs/evidence/2026-10-24-report-closure/qualify-sql.cjs",
+            "node docs/evidence/2026-10-24-report-closure/qualify-rls.cjs"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "admin_recovery_final_fresh-closure.json",
+            "admin_recovery_final_upgrade-closure.json",
+            "admin_recovery_rls_fresh-rls.json",
+            "admin_recovery_rls_upgrade-rls.json"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Physical-device interruption/offline/owner switching and actual Clerk re-verification/provider cleanup acceptance.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    },
+    {
+      "reference": "8.10",
+      "pdfPage": "25,30",
+      "initialStatus": "O",
+      "title": "Privacy lifecycle copy",
+      "units": [
+        {
+          "id": "8.10",
+          "acceptance": "Privacy lifecycle copy",
+          "owner": "main agent; external checks by user/authorized service administrator",
+          "phase": "P5",
+          "sourceCommit": "3026ac60100d46c856321ab195c80823dfff1913",
+          "testCommands": [
+            "API unit/contract and selected actual-PG report/deletion integration tests",
+            "Admin: npm test; diagnostic npm run build",
+            "Mobile full Jest suite"
+          ],
+          "evidenceArtifacts": [
+            "candidate-verification.md",
+            "candidate-verification.json",
+            "production-configuration-inspection.md"
+          ],
+          "outcome": "implemented_pending_acceptance",
+          "externalBlocker": "Actual hosted email/storage/support reply/owner isolation and device user journeys.",
+          "evidenceScope": "Phase-level regression evidence; read individual acceptance and remaining external blocker. No blanket end-to-end closure claim."
+        }
+      ]
+    }
+  ],
+  "separateInheritedFollowUps": [
+    {
+      "issue": "Nullable source_version CHECK",
+      "path": "supabase/migrations/20261023173549_admin_ai_import_recovery.sql",
+      "status": "separately tracked; excluded from report denominator"
+    }
+  ],
+  "qualifiedSourceCommit": "7fc9c86d34353d8f9df64799c5a4992542b24a3b",
+  "inventoryUnits": 88,
+  "acceptanceRule": "Local implementation and bounded tests do not close device, hosted provider, signing or Console acceptance. Initial classification is historical inventory, not a completion percentage.",
+  "implementationCommits": [
+    "a85e572710d238bac5933c657e3ad85098cafd4e",
+    "da91cb81f0c7a9cd7354ff1473e2ec87498580c2",
+    "63f995dec462a998536588f7cf394e213a5abc9b",
+    "6de052fb536a9c77009005a19f7f8a637d72747f",
+    "edc4942f106ddd0a4843225f8f087d569452b682",
+    "9f7fc9b7092ffea7a5d71d78a9def09e98469183",
+    "bff8e77719535d89568daad063aadcc19745cb7c",
+    "ff570bedebb092f1b5b221aa22cd1ef6b967af51",
+    "7fc9c86d34353d8f9df64799c5a4992542b24a3b",
+    "1426e90e162cbcbe9a06692872e7a37dc079d28e",
+    "d67dafb768f7d7bcbf1de82e8e424e571b977215",
+    "67638e7ad66e9be2b559f21718d672d4ab4e161c",
+    "70a989e0fa746cce784c0e7725e2d641c0d421a2",
+    "d600096ccae45f688f5c2f4ec59490b60a082f6a"
+  ],
+  "nonPdfFollowUps": [
+    {
+      "reference": "nullable-source-version-check",
+      "path": "supabase/migrations/20261023173549_admin_ai_import_recovery.sql:113",
+      "status": "separately_tracked_open",
+      "inOriginalFindingCount": false
+    }
+  ],
+  "integrationPullRequest": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/9",
+  "latestImplementationCommit": "d600096ccae45f688f5c2f4ec59490b60a082f6a",
+  "latestBoundedVerification": {
+    "apiUnitContract": 2150,
+    "repairedPgIntegration": 171,
+    "rlsPerPath": {
+      "suites": 67,
+      "assertions": 1929
+    },
+    "focusedSqlPerPath": 64,
+    "fullExactCandidateCi": "pending",
+    "releaseQualified": false,
+    "adminTests": 1002,
+    "trackingVoiceRetainedFixtures": {
+      "suites": 7,
+      "tests": 112,
+      "commit": "67638e7ad66e9be2b559f21718d672d4ab4e161c"
+    },
+    "registeredMigrations": 174,
+    "remoteFreshAndUpgradeIntegration": {
+      "head": "42f56aaa",
+      "suitesPerPath": 145,
+      "testsPerPath": 1002,
+      "skippedPerPath": 116
+    },
+    "remoteE2E": {
+      "head": "42f56aaa",
+      "suites": 42,
+      "tests": 83
+    },
+    "fiveBrowserViewportsPassedAt": "42f56aaa",
+    "nativeDiagnosticPassedAt": "42f56aaa"
+  }
+}

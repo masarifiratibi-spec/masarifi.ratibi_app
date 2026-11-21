@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAppShellStore } from '@/state/app-shell';
 
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
@@ -23,12 +26,18 @@ import { currentLocale } from '@/localization/i18n';
 import { useTheme } from '@/state/theme-context';
 import { trackingFieldLabel, trackingReasonSummary } from './tracking-display';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
+import { TrackingReviewFields } from './TrackingReviewFields';
 import {
   invalidateTrackingScopes,
   useReviewItem
 } from './useAutomaticTracking';
 
 export function ReviewDetail({ id }: { id: string }) {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <ReviewDetailContent key={`${ownerId}:${id}`} id={id} />;
+}
+
+function ReviewDetailContent({ id }: { id: string }) {
   const theme = useTheme();
   const client = useQueryClient();
   const query = useReviewItem(id);
@@ -36,11 +45,12 @@ export function ReviewDetail({ id }: { id: string }) {
   const categories = useCategories(true);
   const [resolving, setResolving] = useState(false);
   const [resolutionError, setResolutionError] = useState(false);
-  if (query.isLoading)
+  const [edits, setEdits] = useState<Record<string, unknown>>({});
+  if (query.isLoading && !hasReadableSnapshot(query))
     return (
       <StateView state="loading" title={translate('tracking.state.loading')} />
     );
-  if (query.isError || !query.data)
+  if (!hasReadableSnapshot(query) || !query.data)
     return (
       <StateView
         state="error"
@@ -50,12 +60,22 @@ export function ReviewDetail({ id }: { id: string }) {
       />
     );
   const item = query.data;
+  const proposed = item.proposedValues;
+  const confirmReady = canConfirmRepayment(
+    { ...proposed, ...edits },
+    accounts.data ?? []
+  );
   async function resolve(action: 'confirm' | 'ignore' | 'report_wrong') {
+    if (resolving || query.isError || query.isFetching) return;
+    if (action === 'confirm' && !confirmReady) return;
     setResolving(true);
     setResolutionError(false);
     try {
       const result = await automaticTrackingService.resolveReview(item.id, {
-        action
+        action,
+        ...(action === 'confirm' && Object.keys(edits).length
+          ? { values: edits }
+          : {})
       });
       await invalidateTrackingScopes(client, result.affectedScopes);
       router.back();
@@ -65,7 +85,6 @@ export function ReviewDetail({ id }: { id: string }) {
       setResolving(false);
     }
   }
-  const proposed = item.proposedValues;
   const currency = stringValue(proposed.currencyCode ?? proposed.currency);
   const accountId = stringValue(proposed.accountId);
   const categoryId = stringValue(proposed.categoryId);
@@ -110,6 +129,7 @@ export function ReviewDetail({ id }: { id: string }) {
         {translate('tracking.review.detail')}
       </StyledText>
       <TrackingDemoNotice />
+      <FinancialRefreshStatus query={query} />
       <SurfaceCard
         accessibilityLabel={`${amount}, ${merchant}`}
         style={{
@@ -156,20 +176,26 @@ export function ReviewDetail({ id }: { id: string }) {
           title={translate('tracking.review.resolveError')}
         />
       ) : null}
+      <TrackingReviewFields
+        proposed={proposed}
+        edits={edits}
+        onChange={setEdits}
+      />
       <ActionButton
         label={translate('tracking.action.confirm')}
         loading={resolving}
+        disabled={query.isError || query.isFetching || !confirmReady}
         onPress={() => void resolve('confirm')}
       />
       <ActionButton
         label={translate('tracking.action.ignore')}
-        disabled={resolving}
+        disabled={resolving || query.isError || query.isFetching}
         onPress={() => void resolve('ignore')}
         variant="secondary"
       />
       <ActionButton
         label={translate('tracking.action.reportWrong')}
-        disabled={resolving}
+        disabled={resolving || query.isError || query.isFetching}
         onPress={() => void resolve('report_wrong')}
         variant="destructive"
       />
@@ -179,6 +205,34 @@ export function ReviewDetail({ id }: { id: string }) {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value ? value : null;
+}
+
+function canConfirmRepayment(
+  values: Record<string, unknown>,
+  accounts: readonly Account[]
+): boolean {
+  const classification = values.classification as
+    { subtype?: string; status?: string } | undefined;
+  if (classification?.subtype !== 'card_repayment') return true;
+  const settled =
+    classification.status === 'completed' ||
+    (['pending', 'unknown'].includes(classification.status ?? '') &&
+      values.settlementConfirmed === true);
+  const active = accounts.filter(
+    (account) =>
+      account.status === 'active' && account.currencyCode === values.currency
+  );
+  return (
+    settled &&
+    values.kind === 'transfer' &&
+    values.accountId !== values.destinationAccountId &&
+    active.some((account) => account.id === values.accountId) &&
+    active.some(
+      (account) =>
+        account.id === values.destinationAccountId &&
+        account.type === 'credit_card'
+    )
+  );
 }
 
 const styles = StyleSheet.create({

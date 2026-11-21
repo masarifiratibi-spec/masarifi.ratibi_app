@@ -1,0 +1,246 @@
+{
+  "versionCode": 146,
+  "platformSourceCommit": "e9fe1e70d97c57498611ad50f746565e3ae22e46",
+  "mobileSourceCommit": "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718",
+  "installedApkSha256": "5b6018e3d1ad4e869e1e0227cc0085464c7ac25f5c5dd12dd406bf36ff12ba44",
+  "buildBaseline": "ae290abac9b3d55c1f482ec8198e91200a8ea0b4",
+  "overlayCount": 47,
+  "comparison": "All 47 archived build inputs match this commit after Git LF normalization. Additional files in the mobile commit only align existing tests with already installed behavior.",
+  "files": {
+    "apps/mobile/src/design-system/icons.tsx": {
+      "buildInputSha256": "1d60e287552c1c80cdd890de09e4e18acf6cb380c03058cc4e82cb05931e7036",
+      "gitBlob": "7a1351ccab85836870f6326662af1683fd9f445c",
+      "normalizedSourceSha256": "296d661a2dca8c215db07da4001b9bf873559931a9d6aa7c419e924e1656dfa9"
+    },
+    "apps/mobile/src/features/assistant/AssistantFunctionalAcceptance.test.tsx": {
+      "buildInputSha256": "97af0a10ae59259163d445ba2164a853ab2ad2dc5d0ff04dc897b9c7dc12e850",
+      "gitBlob": "cc1f38080529c40d39cb801b5fcd88f4bcabfcc3",
+      "normalizedSourceSha256": "97af0a10ae59259163d445ba2164a853ab2ad2dc5d0ff04dc897b9c7dc12e850"
+    },
+    "apps/mobile/src/features/assistant/AssistantHomeScreen.tsx": {
+      "buildInputSha256": "a1a511c96450d04dd5db2e509717ec6f6507da4eba5a05e048a592125f8e8e1d",
+      "gitBlob": "7d944c8470b58db7701d5e55b5f1446320105c19",
+      "normalizedSourceSha256": "a1a511c96450d04dd5db2e509717ec6f6507da4eba5a05e048a592125f8e8e1d"
+    },
+    "apps/mobile/src/features/assistant/AssistantJourney.test.tsx": {
+      "buildInputSha256": "26781f7bf9bc1dfae69a839816198a170da360805bcf3ec2eebd17f8177a58f2",
+      "gitBlob": "5bfe98c43054d9b989e8243fbfdc6fa0c5844050",
+      "normalizedSourceSha256": "65795f27c905cd293e85820581dc42e5dc30b77ed490d5c53b639c84b5496f08"
+    },
+    "apps/mobile/src/features/assistant/AssistantLanding.test.tsx": {
+      "buildInputSha256": "2f896ef2aca4134d3c1c48aba9eb58daa9e4f402b3faa885cb8384d33707e36b",
+      "gitBlob": "99520eacca276e031a86586b95ed30f9c0b8c3ae",
+      "normalizedSourceSha256": "2f896ef2aca4134d3c1c48aba9eb58daa9e4f402b3faa885cb8384d33707e36b"
+    },
+    "apps/mobile/src/features/assistant/AssistantLanding.tsx": {
+      "buildInputSha256": "3e5e216f5ad2907eec51c6e095bceec875fb41103c5a3413852e81df30a1b55f",
+      "gitBlob": "ca2800dc0e182697c4572b12af204f6497ddbc48",
+      "normalizedSourceSha256": "3e5e216f5ad2907eec51c6e095bceec875fb41103c5a3413852e81df30a1b55f"
+    },
+    "apps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx": {
+      "buildInputSha256": "d6a450c8f87f276ac928a0c407c70e1bd6b7a6d14aec920bf26950ff77455287",
+      "gitBlob": "150f31944f1cf21faf4194da2dd9ddf68d4857d6",
+      "normalizedSourceSha256": "d6a450c8f87f276ac928a0c407c70e1bd6b7a6d14aec920bf26950ff77455287"
+    },
+    "apps/mobile/src/features/assistant/components/AssistantAskCard.tsx": {
+      "buildInputSha256": "6ee7228fe94f75a3f02956ff26ac8f58ed3f782b44dcbe109a77d3af019ac865",
+      "gitBlob": "eb9752c83e66aaa7d94be7cf30e04c694a3fb110",
+      "normalizedSourceSha256": "6ee7228fe94f75a3f02956ff26ac8f58ed3f782b44dcbe109a77d3af019ac865"
+    },
+    "apps/mobile/src/features/assistant/components/AssistantConsentCard.tsx": {
+      "buildInputSha256": "f8f9d0fd124bafa3a1592470a992dfd0fe64a73080dad141949e98e48228c318",
+      "gitBlob": "bc4e99f59309175d30d1a70bfc306148a9901416",
+      "normalizedSourceSha256": "f8f9d0fd124bafa3a1592470a992dfd0fe64a73080dad141949e98e48228c318"
+    },
+    "apps/mobile/src/features/assistant/components/AssistantHero.tsx": {
+      "buildInputSha256": "f6af3ed0e064c1a2a03cad39103ead71f879a2e31ba3305b44fa4111ad506d08",
+      "gitBlob": "52f5d9c422db52c2b1eb8aaba57a4faa3ccd2792",
+      "normalizedSourceSha256": "f6af3ed0e064c1a2a03cad39103ead71f879a2e31ba3305b44fa4111ad506d08"
+    },
+    "apps/mobile/src/features/assistant/components/AssistantSuggestedQuestions.tsx": {
+      "buildInputSha256": "063fbecf179c090f20ee777ae42428d6a3ec5b8a30428460cd8633bec16b7980",
+      "gitBlob": "7684c2f3fa01aabdd26f14eacedfe1811f97186b",
+      "normalizedSourceSha256": "063fbecf179c090f20ee777ae42428d6a3ec5b8a30428460cd8633bec16b7980"
+    },
+    "apps/mobile/src/features/legal/privacy.ar.json": {
+      "buildInputSha256": "08b06f1eb95c80fba2b4752fab98afc173dce24d1d818f14e5616036c1b10650",
+      "gitBlob": "3db5b4c194f43963de4eccd5dc11314fb2a88a10",
+      "normalizedSourceSha256": "9a1686b3ef612f54dbfedfe0980483e38f1acfac864393303e9eeb76602e4335"
+    },
+    "apps/mobile/src/features/legal/privacy.en.json": {
+      "buildInputSha256": "fb2060601db515b3e9c969a787f131239146b48fd6a1281a0f574810af132235",
+      "gitBlob": "e81d6c910e7cd5787f799a6e67a305a6e94e2f93",
+      "normalizedSourceSha256": "6aebc742e6e6f0328e85a448c0917c9c70353ea93bd0ef273545391d12d6e211"
+    },
+    "apps/mobile/src/features/onboarding/PermissionEducation.test.tsx": {
+      "buildInputSha256": "749591009701c453e8e6c5fb7510ff3d94987927eb7621a2009f0e52e9a04ed8",
+      "gitBlob": "e980fb648189596449d8c4f321a29b48d204c080",
+      "normalizedSourceSha256": "749591009701c453e8e6c5fb7510ff3d94987927eb7621a2009f0e52e9a04ed8"
+    },
+    "apps/mobile/src/features/onboarding/PermissionEducation.tsx": {
+      "buildInputSha256": "4fd3126ff17f9138e496166ac919a0c1113ec4fc203e313f7543536223f0fd22",
+      "gitBlob": "5f1264e03c8891129dfba2e9e55b3e1e48cc3dfc",
+      "normalizedSourceSha256": "4fd3126ff17f9138e496166ac919a0c1113ec4fc203e313f7543536223f0fd22"
+    },
+    "apps/mobile/src/features/shell/NetworkConnectionNotice.tsx": {
+      "buildInputSha256": "bbf064b5122ef55a1c6e38399b8f25111fc8bc95b7be6c91075e66059265c375",
+      "gitBlob": "68b038e246928be8848649b436014526fda40a24",
+      "normalizedSourceSha256": "bbf064b5122ef55a1c6e38399b8f25111fc8bc95b7be6c91075e66059265c375"
+    },
+    "apps/mobile/src/features/tracking/AutomaticTrackingAccessibility.test.tsx": {
+      "buildInputSha256": "1424ca13490fedeee9dd00438fa817ddff85610b6ca8e6cf293fb29dd3d75b69",
+      "gitBlob": "588ccc6e571305e062bddbfd4b6f56ea91dee940",
+      "normalizedSourceSha256": "1424ca13490fedeee9dd00438fa817ddff85610b6ca8e6cf293fb29dd3d75b69"
+    },
+    "apps/mobile/src/features/tracking/TrackingStatusJourney.test.tsx": {
+      "buildInputSha256": "2f32c6202aa969401f87ec02e24a8f3e8d6098f84c25d08111acd7866f98ba25",
+      "gitBlob": "36ebd0ed20057f470c864af413d2bed1f9ce31ae",
+      "normalizedSourceSha256": "2f32c6202aa969401f87ec02e24a8f3e8d6098f84c25d08111acd7866f98ba25"
+    },
+    "apps/mobile/src/features/tracking/TrackingStatusScreen.test.tsx": {
+      "buildInputSha256": "ed7349d5093842a776c77588630e9f589598a81aba719168884bef9d0f8b1a1c",
+      "gitBlob": "b86d4009501d300165421f5722cafbafef589a31",
+      "normalizedSourceSha256": "ed7349d5093842a776c77588630e9f589598a81aba719168884bef9d0f8b1a1c"
+    },
+    "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx": {
+      "buildInputSha256": "cdea3696f6872e3a3fd81a8ca0f2ea602e9be242b8c3d58394a1980b1e09f6b1",
+      "gitBlob": "2e3f9264ee9fc8bc776989957f217071e56f9440",
+      "normalizedSourceSha256": "cdea3696f6872e3a3fd81a8ca0f2ea602e9be242b8c3d58394a1980b1e09f6b1"
+    },
+    "apps/mobile/src/features/voice/useVoiceBatches.test.tsx": {
+      "buildInputSha256": "0fb72b9ae02b863ea4b3b88d8897811f5cb311659cf3cf9fa0998f13a252d11c",
+      "gitBlob": "2e520fa20d7724b1da287e0d11910599b70dd820",
+      "normalizedSourceSha256": "0fb72b9ae02b863ea4b3b88d8897811f5cb311659cf3cf9fa0998f13a252d11c"
+    },
+    "apps/mobile/src/features/voice/useVoiceProcessingConsent.tsx": {
+      "buildInputSha256": "abb74d460771d782adb341ed44a75ae86ac1dfeed5ce44c82ea0352fcef6ae1d",
+      "gitBlob": "d75ed67876114d77547683571a6a2f2f00c2d0dc",
+      "normalizedSourceSha256": "abb74d460771d782adb341ed44a75ae86ac1dfeed5ce44c82ea0352fcef6ae1d"
+    },
+    "apps/mobile/src/features/voice/voice-processing-consent.test.tsx": {
+      "buildInputSha256": "91a3fadd6497f3979ceb8828805934ef440fdd1d30896b70c67b3ab53684d6d0",
+      "gitBlob": "27a5d9db3b365cbc7da6d219ebbc0cbfefe61de2",
+      "normalizedSourceSha256": "91a3fadd6497f3979ceb8828805934ef440fdd1d30896b70c67b3ab53684d6d0"
+    },
+    "apps/mobile/src/localization/messages/ar.ts": {
+      "buildInputSha256": "7f62a9d4963586e7ea196ad41f729694f673e4dd3606fb2d80f70a2213179897",
+      "gitBlob": "9f328acc188c7d63f6f0ddf7c39cbcfba8cf39af",
+      "normalizedSourceSha256": "7f62a9d4963586e7ea196ad41f729694f673e4dd3606fb2d80f70a2213179897"
+    },
+    "apps/mobile/src/localization/messages/en.ts": {
+      "buildInputSha256": "e66b07a4d3fb8f535104dda463f50158ef3d3fe5d61fbf944c47c1363e8460fd",
+      "gitBlob": "c727d37272b348774590e5f4a4a900a41aa95783",
+      "normalizedSourceSha256": "e66b07a4d3fb8f535104dda463f50158ef3d3fe5d61fbf944c47c1363e8460fd"
+    },
+    "apps/mobile/src/services/contracts/assistant-settings-provider-compatibility.test.ts": {
+      "buildInputSha256": "75e820b3738c1d53d8414348fd6e91becac32c66dc2e34466567d751d6d062bd",
+      "gitBlob": "e8b2a319347d5d333432642df0f066b04b5f325f",
+      "normalizedSourceSha256": "9b1c6844f5847ec58bebcc662d149ee17f79ef588d07629ded66a178968c5577"
+    },
+    "apps/mobile/src/services/live/assistant-api-service.test.ts": {
+      "buildInputSha256": "76ddf1ba7b6da3027b79e78896d9326d0bafbf223645ed579f382816ca8e0b14",
+      "gitBlob": "d746ccc8da81129593fb64be7ab2225fb1742c9c",
+      "normalizedSourceSha256": "76ddf1ba7b6da3027b79e78896d9326d0bafbf223645ed579f382816ca8e0b14"
+    },
+    "apps/mobile/src/services/live/assistant-api-service.ts": {
+      "buildInputSha256": "af525fc4954c7693d4bf669edbb681cbcf6aadde49a83dbef8de82a0ddb5cefe",
+      "gitBlob": "522073c8c48695ef27827f092fae3778373463af",
+      "normalizedSourceSha256": "af525fc4954c7693d4bf669edbb681cbcf6aadde49a83dbef8de82a0ddb5cefe"
+    },
+    "apps/mobile/src/services/mocks/assistant-service.test.ts": {
+      "buildInputSha256": "9de6ff331c3b886084483831c983be2870957fc1d356e1e25ecaa8c7617bb2b9",
+      "gitBlob": "b76aa23a9694001f3f5f7a17adb9af1343f19cd9",
+      "normalizedSourceSha256": "9de6ff331c3b886084483831c983be2870957fc1d356e1e25ecaa8c7617bb2b9"
+    },
+    "apps/mobile/src/services/mocks/assistant-service.ts": {
+      "buildInputSha256": "6f6aaeef0109f3709bf22e19a64ee1dde16688bf53561a676e712a7cc8e6e274",
+      "gitBlob": "7684fa13613f769cc0e198d99e5d59416567975b",
+      "normalizedSourceSha256": "6f6aaeef0109f3709bf22e19a64ee1dde16688bf53561a676e712a7cc8e6e274"
+    },
+    "apps/mobile/src/storage/assistant-draft-ui.test.tsx": {
+      "buildInputSha256": "095569c199e84cac8b96291cd40e84593ebf01d8b390951e7d615e2d60764d3b",
+      "gitBlob": "12ac97545a08124af7d4c1d05edbb0693a890649",
+      "normalizedSourceSha256": "095569c199e84cac8b96291cd40e84593ebf01d8b390951e7d615e2d60764d3b"
+    },
+    "apps/mobile/src/features/assistant/components/AssistantLandingHeader.tsx": {
+      "buildInputSha256": "d17309582ff9e8565bc0118e24aff840ffe0758c77bb85fba019cf089f8f894b",
+      "gitBlob": "5982909fa5b873da5eae1b2cfdecf51e1b164807",
+      "normalizedSourceSha256": "d17309582ff9e8565bc0118e24aff840ffe0758c77bb85fba019cf089f8f894b"
+    },
+    "apps/mobile/src/features/voice/VoiceProcessingConsentDialog.tsx": {
+      "buildInputSha256": "daa4a13e1de963bfb18f98181e44bf8a3d447cd0f67de594db2c19f240d4cac6",
+      "gitBlob": "268c0bfc8788515bf9b0f3f995fd1a15e7bcf63d",
+      "normalizedSourceSha256": "daa4a13e1de963bfb18f98181e44bf8a3d447cd0f67de594db2c19f240d4cac6"
+    },
+    "apps/mobile/app/security/settings.tsx": {
+      "buildInputSha256": "703d356c6dc3d65fee7a4e2165e663559246897a176b398bb8f78acf2165d6cb",
+      "gitBlob": "89605b9c5a9eee0d90b2a6b36e0c925aa788a908",
+      "normalizedSourceSha256": "b63f49d37913755524d205e513425d9ee55aa28d5ba317728578cd5ccb3f09d5"
+    },
+    "apps/mobile/src/features/security/SecurityJourney.test.tsx": {
+      "buildInputSha256": "923b00c68196dbca449247626bda47f7cff6153bedbd5d4980dad11361ae2634",
+      "gitBlob": "d2ac3fa0f2609da4c2f20fce9b7b418f2acb18e8",
+      "normalizedSourceSha256": "48103fd5797d8a07f9852a939095f1846b0ab9d9453f3288af07a8db546331fb"
+    },
+    "apps/mobile/src/features/settings/ApplicationSettingsScreen.tsx": {
+      "buildInputSha256": "30cf872a156a141ee9e17405c9516fcd255a00bf2f496678eb025e6be91fa143",
+      "gitBlob": "992cb15eb86cca5d4a042a7ddba9f33bf7d88c72",
+      "normalizedSourceSha256": "30cf872a156a141ee9e17405c9516fcd255a00bf2f496678eb025e6be91fa143"
+    },
+    "apps/mobile/src/features/settings/SettingsJourney.test.tsx": {
+      "buildInputSha256": "65a01a6a3491456c136f1f210f3c2aeea2ecd93b232568d9ad8c8cf2349d19fe",
+      "gitBlob": "a574519b013975a5b85cc5ca7eefa925790faa59",
+      "normalizedSourceSha256": "65a01a6a3491456c136f1f210f3c2aeea2ecd93b232568d9ad8c8cf2349d19fe"
+    },
+    "apps/mobile/app/security/events.tsx": {
+      "buildInputSha256": "cdfe278b25d6928c21d808ddf43ced3db2c754d08ae97d979a4a674a1269cc1f",
+      "gitBlob": "1f687ebc364e5fb2d9c4a422146c310a96f7f339",
+      "normalizedSourceSha256": "cdfe278b25d6928c21d808ddf43ced3db2c754d08ae97d979a4a674a1269cc1f"
+    },
+    "apps/mobile/src/features/notifications/NotificationCenterScreen.tsx": {
+      "buildInputSha256": "02a737164182780c9e3c49cb181688b95d8a9ecd45989016ed368f2653855b6e",
+      "gitBlob": "f0943eb1b3f0b964144e402487afe6fe9ab4f7e0",
+      "normalizedSourceSha256": "02a737164182780c9e3c49cb181688b95d8a9ecd45989016ed368f2653855b6e"
+    },
+    "apps/mobile/src/features/notifications/notification-response-controller.ts": {
+      "buildInputSha256": "dc2c2cb500ce64cee521a512d152104e50c50b274f1dc536af9c1ef9366bf09f",
+      "gitBlob": "a77d3602ad701bdc6f3749a61b58e443cbd8abe4",
+      "normalizedSourceSha256": "dc2c2cb500ce64cee521a512d152104e50c50b274f1dc536af9c1ef9366bf09f"
+    },
+    "apps/mobile/src/features/shell/navigation-context.ts": {
+      "buildInputSha256": "22b534ae13c015d3a4d8ec7dae8a099ac3970d8e7bfdbdadc8736bdcd229888b",
+      "gitBlob": "bb64a23debc4854a76c3cd061b43ce6a7dc68d5b",
+      "normalizedSourceSha256": "22b534ae13c015d3a4d8ec7dae8a099ac3970d8e7bfdbdadc8736bdcd229888b"
+    },
+    "apps/mobile/src/features/settings/SecurityEventsRoute.test.tsx": {
+      "buildInputSha256": "5d53b9821d8eb52167c9cddd7485fedea9be78d9d0262f0f8088279426f95e49",
+      "gitBlob": "03e38ce23622fbcd99c34b628dff4b788ea785c0",
+      "normalizedSourceSha256": "5d53b9821d8eb52167c9cddd7485fedea9be78d9d0262f0f8088279426f95e49"
+    },
+    "apps/mobile/src/features/settings/SettingsRoutes.test.tsx": {
+      "buildInputSha256": "5f4dda224ed75aa3b605c98315f598d8c930609e8c9d8058e2aefcb5871c19a0",
+      "gitBlob": "5f9b503ad736ff2ecddd1c68962f2d86e04db064",
+      "normalizedSourceSha256": "3c2bf93c360ebfe68a28f7000ac7d5e5026f923778bfcf67ee20fbda732ce6ed"
+    },
+    "apps/mobile/src/features/shell/optional-route-loading.test.ts": {
+      "buildInputSha256": "d6da9a9edfa4b5d37a42e4eb38f945b4079b94976a4232b65c30f0c0da761a66",
+      "gitBlob": "68a68e51cd6825dfeb40160d74b595e84b37eb7f",
+      "normalizedSourceSha256": "d6da9a9edfa4b5d37a42e4eb38f945b4079b94976a4232b65c30f0c0da761a66"
+    },
+    "apps/mobile/src/features/shell/navigation-context.test.ts": {
+      "buildInputSha256": "035c45078005f9d8773eb834a0bbd68c063d6abc20a8b398b17eb06960a40316",
+      "gitBlob": "3f1d3c97afc8ceabbc503817e653600942db304d",
+      "normalizedSourceSha256": "828881eeb8ea202353f13c2fc1d1446efb6c08a505a3462867cec81dcb83ea03"
+    },
+    "apps/mobile/src/features/notifications/notification-response-controller.test.ts": {
+      "buildInputSha256": "0586718c1b9108652f46a84935632cdb3f7d443cd448bd167f752e8f3b54af0f",
+      "gitBlob": "f1630913e8119514dda29e6eec75bf32e00474f4",
+      "normalizedSourceSha256": "0586718c1b9108652f46a84935632cdb3f7d443cd448bd167f752e8f3b54af0f"
+    },
+    "apps/mobile/src/features/notifications/NotificationCenterScreen.test.tsx": {
+      "buildInputSha256": "deb2f21fece4572848ff7f151abf8d385a3c2377d4fb296e8b117d3599e85a14",
+      "gitBlob": "085f32923a0fa5d1aee716d1c7f12229b95f3b3b",
+      "normalizedSourceSha256": "deb2f21fece4572848ff7f151abf8d385a3c2377d4fb296e8b117d3599e85a14"
+    }
+  }
+}

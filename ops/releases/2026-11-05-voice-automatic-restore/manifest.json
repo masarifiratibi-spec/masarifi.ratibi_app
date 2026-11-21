@@ -1,0 +1,61 @@
+{
+  "status": "prepared-not-activated",
+  "baseCommit": "152be06588229715dd1fb6669a2d01e0c48f8fdb",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 108,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkSha256": "e946d6071ba3a01b01117253e567b68cbb892c4f3323b934a736868b661220bb",
+  "candidateApkBytes": 49506614,
+  "candidateHermesSha256": "a78fdfdfcae311e4df3b84689ceb9b70c8a7e8ac8622178410d040ff5352eaf5",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "currentInstalledVersion": 107,
+  "currentInstalledApkSha256": "95098ae581392454e0a37fc03975aa9b983eed8c5b0e74c0ad46dabb59177a27",
+  "currentReviewFlag": "true",
+  "candidateReviewFlag": "false",
+  "existingImage": "masarifi-readiness-production@sha256:a9060b3e761495bf8cf0ccbfa769232a0bb3e83edd2ea84c27e435350b812afc",
+  "runtimeFileFingerprint": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389",
+  "baseComposeFingerprint": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5",
+  "retainedContainerFingerprint": "27600b0eb5c6b6a3082cd2334811cfcb0032b4f9ed371cb25be23e39827591fc",
+  "retainedContainers": 30,
+  "changedSource": [
+    {
+      "path": "apps/mobile/eas.json",
+      "sha256": "475f5072df5443e5d3a1106231fec0beb9b884126b577ea429c3853d9214bd46"
+    },
+    {
+      "path": "apps/mobile/src/services/live/voice-api-service.test.ts",
+      "sha256": "42c496ad9671965e5298f4f32cb23e2094ad347c4114795af74f1f20054b0085"
+    },
+    {
+      "path": "apps/mobile/src/services/live/voice-api-service.ts",
+      "sha256": "9794cff333ff62052e236e853acf13a2f652e1ca8b96e874bf7c77bf4cd43796"
+    }
+  ],
+  "packageFiles": {
+    "compose.voice-automatic.yml": "2dce5e027413a3e8a0d3654e3baebf3e66c90e317340060d01d1454f17eeb42e",
+    "deployment-runbook.md": "4f6dda31350aafc2151cdfcc6cf94666aff69a06df68eaede3d6170eb42b3d08"
+  },
+  "focusedTestsPassed": 100,
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "preexistingLintWarnings": 3,
+  "nativeQualification": {
+    "nativeLibraryCount": 23,
+    "fullyByteIdenticalLibraries": 16,
+    "buildIdNoteOnlyDifferences": 7,
+    "allExecutableAndDataSectionsByteEqual": true,
+    "alignment16Kb": true,
+    "sameSdkCompilerVersions": true,
+    "unchangedNative88Reused": true,
+    "sameSignersAcrossSixApis": true,
+    "newHermesSha256": "a78fdfdfcae311e4df3b84689ceb9b70c8a7e8ac8622178410d040ff5352eaf5"
+  },
+  "actualNewAutomaticFinancialAcceptance": false,
+  "primaryInstalled": false,
+  "hostedActivated": false,
+  "productionReady": false
+}

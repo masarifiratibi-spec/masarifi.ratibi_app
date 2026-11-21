@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import parsePhoneNumber, {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode
+} from 'libphonenumber-js/min';
+import { PhoneCountryPicker } from './PhoneCountryPicker';
+import { normalizeLocalizedNumber } from '@/domain/localized-number';
 import { router } from 'expo-router';
 
+import { useAppShellStore } from '@/state/app-shell';
+import { hasReadableSnapshot } from '@/services/read-snapshot';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { FormField } from '@/design-system/components/forms/FormField';
@@ -16,38 +26,32 @@ import { useSaveSettingsProfile, useSettingsProfile } from './settings-queries';
 import { colorTokens } from '@/design-system/tokens';
 
 export function ProfilePhoneScreen() {
+  const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
+  return <ProfilePhoneContent key={ownerId} />;
+}
+
+function ProfilePhoneContent() {
   const theme = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
 
   const profile = useSettingsProfile();
   const save = useSaveSettingsProfile();
 
-  const [countryCode, setCountryCode] = useState('+966');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [edits, setEdits] = useState<{
+    country?: CountryCode;
+    phoneNumber?: string;
+  }>({});
+  const saved = splitPhone(profile.data?.phone, profile.data?.country);
+  const country = edits.country ?? saved.country;
+  const phoneNumber = edits.phoneNumber ?? saved.phoneNumber;
+  const setCountry = (value: CountryCode) =>
+    setEdits((current) => ({ ...saved, ...current, country: value }));
+  const setPhoneNumber = (value: string) =>
+    setEdits((current) => ({ ...saved, ...current, phoneNumber: value }));
   const [errorText, setErrorText] = useState<string | null>(null);
+  const saveBlocked = save.isPending || profile.isError || profile.isFetching;
 
-  useEffect(() => {
-    if (!profile.data?.phone) return;
-    const existing = profile.data.phone;
-    if (existing.startsWith('+')) {
-      const knownCodes = ['+966', '+971', '+965', '+974', '+973', '+968', '+962', '+961', '+20', '+1', '+44'];
-      const matchedCode = knownCodes.find((c) => existing.startsWith(c));
-      if (matchedCode) {
-        setCountryCode(matchedCode);
-        setPhoneNumber(existing.slice(matchedCode.length).trim());
-        return;
-      }
-      const genericMatch = existing.match(/^(\+\d{1,3})(.*)$/);
-      if (genericMatch) {
-        setCountryCode(genericMatch[1]);
-        setPhoneNumber(genericMatch[2].trim());
-        return;
-      }
-    }
-    setPhoneNumber(existing);
-  }, [profile.data?.phone]);
-
-  if (profile.isLoading) {
+  if (profile.isLoading && !hasReadableSnapshot(profile)) {
     return (
       <StateView
         state="loading"
@@ -56,7 +60,7 @@ export function ProfilePhoneScreen() {
     );
   }
 
-  if (profile.isError || !profile.data) {
+  if (!hasReadableSnapshot(profile) || !profile.data) {
     return (
       <StateView
         state="error"
@@ -66,13 +70,23 @@ export function ProfilePhoneScreen() {
   }
 
   const handleSave = () => {
-    const rawDigits = phoneNumber.replace(/\D/g, '');
-    if (rawDigits.length < 7) {
-      setErrorText('appShell.error.unknown');
+    if (saveBlocked) return;
+    const digits = normalizeLocalizedNumber(phoneNumber).replace(
+      /[\s()\-\u200e\u200f]/g,
+      ''
+    );
+    const parsed = /^\d+$/.test(digits)
+      ? parsePhoneNumber(digits, country)
+      : undefined;
+    if (
+      !parsed?.isPossible() ||
+      parsed.countryCallingCode !== getCountryCallingCode(country) ||
+      !/^\+[1-9]\d{1,14}$/.test(parsed.number)
+    ) {
+      setErrorText('appShell.auth.phone.invalid');
       return;
     }
-
-    const fullPhone = `${countryCode.trim()}${rawDigits}`;
+    const fullPhone = parsed.number;
     setErrorText(null);
 
     save.mutate(
@@ -84,13 +98,15 @@ export function ProfilePhoneScreen() {
       {
         onSuccess: () => {
           router.back();
-        }
+        },
+        onError: () => setErrorText('profileSetup.saveError')
       }
     );
   };
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.stack,
         { backgroundColor: theme.colors.surfaces.page }
@@ -108,12 +124,15 @@ export function ProfilePhoneScreen() {
           <DesignIcon
             name="phone"
             label="Phone"
-            color={colorTokens.raw["1F7A5A"]}
+            color={colorTokens.raw['1F7A5A']}
             size="xl"
             decorative
           />
         </View>
-        <StyledText style={styles.heroTitle} variant="subtitle">
+        <StyledText
+          style={[styles.heroTitle, { color: theme.colors.textPrimary }]}
+          variant="subtitle"
+        >
           {translateDynamic('settings.profile.phone.title')}
         </StyledText>
         <StyledText style={styles.heroSubtitle}>
@@ -121,6 +140,7 @@ export function ProfilePhoneScreen() {
         </StyledText>
       </View>
 
+      <FinancialRefreshStatus query={profile} />
       {/* Current Phone Card */}
       <View
         style={[
@@ -134,7 +154,12 @@ export function ProfilePhoneScreen() {
         <StyledText style={styles.cardLabel} variant="caption">
           {translateDynamic('settings.profile.phone.current')}
         </StyledText>
-        <StyledText style={styles.currentPhoneValue}>
+        <StyledText
+          style={[
+            styles.currentPhoneValue,
+            { color: theme.colors.textPrimary }
+          ]}
+        >
           {profile.data.phone ??
             translateDynamic('settings.profile.phone.notSet')}
         </StyledText>
@@ -150,12 +175,7 @@ export function ProfilePhoneScreen() {
           }
         ]}
       >
-        <FormField
-          label={translateDynamic('appShell.auth.phone.countryCode')}
-          value={countryCode}
-          onChangeText={setCountryCode}
-          variant="phone"
-        />
+        <PhoneCountryPicker country={country} onSelect={setCountry} />
         <FormField
           label={translateDynamic('appShell.auth.phone.number')}
           value={phoneNumber}
@@ -166,11 +186,34 @@ export function ProfilePhoneScreen() {
         <ActionButton
           label={translateDynamic('settings.profile.phone.save')}
           loading={save.isPending}
+          disabled={saveBlocked}
           onPress={handleSave}
         />
       </View>
     </ScrollView>
   );
+}
+
+function splitPhone(existing?: string | null, profileCountry?: string) {
+  const fallback =
+    getCountries().find((code) => code === profileCountry) ?? 'SA';
+  const parsed =
+    existing && !existing.includes('*')
+      ? parsePhoneNumber(existing, fallback)
+      : undefined;
+  return {
+    country:
+      parsed?.country ??
+      (parsed && parsed.countryCallingCode !== getCountryCallingCode(fallback)
+        ? getCountries().find(
+            (code) => getCountryCallingCode(code) === parsed.countryCallingCode
+          )
+        : undefined) ??
+      fallback,
+    phoneNumber:
+      parsed?.nationalNumber ??
+      (existing?.includes('*') ? '' : (existing ?? ''))
+  };
 }
 
 const styles = StyleSheet.create({
@@ -188,19 +231,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colorTokens.raw["EBF5EC"],
+    backgroundColor: colorTokens.raw['EBF5EC'],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs
   },
   heroTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colorTokens.raw["10231F"]
+    fontWeight: '700'
   },
   heroSubtitle: {
     fontSize: 13,
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     textAlign: 'center',
     paddingHorizontal: spacing.lg
   },
@@ -211,12 +253,11 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   cardLabel: {
-    color: colorTokens.raw["707870"],
+    color: colorTokens.raw['707870'],
     fontSize: 12
   },
   currentPhoneValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colorTokens.raw["10231F"]
+    fontWeight: '600'
   }
 });

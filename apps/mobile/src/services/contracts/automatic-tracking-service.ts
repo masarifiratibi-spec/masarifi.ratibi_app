@@ -76,14 +76,39 @@ export interface ReviewResolutionInput {
 export type DuplicateResolution =
   'keep_existing' | 'keep_new' | 'keep_both' | 'merge_details';
 
+export type PreparedImportSubmission =
+  AutomaticTrackingService['submitImport'] & {
+    getRuleConfiguration?: NonNullable<
+      AutomaticTrackingService['getRuleConfiguration']
+    >;
+  };
+
 export interface AutomaticTrackingService {
+  prepareImportSubmission?(
+    expectedOwnerId: string
+  ): Promise<PreparedImportSubmission>;
   submitImport(
     input: TrackingImportSubmission,
     idempotencyKey: string,
     expectedOwnerId?: string
   ): Promise<TrackingImportSession>;
-  getImportSession(id: string, expectedOwnerId?: string): Promise<TrackingImportSession>;
+  getImportSession(
+    id: string,
+    expectedOwnerId?: string,
+    signal?: AbortSignal
+  ): Promise<TrackingImportSession>;
   listImportItemIds(sessionId: string): Promise<string[]>;
+  listImportOutcomes?(sessionId: string): Promise<
+    {
+      itemId: string;
+      status: string;
+      transactionId: string | null;
+      notificationId: string | null;
+    }[]
+  >;
+  getRuleConfiguration?(): Promise<
+    import('@/storage/sms-import-queue').SmsRuleSnapshot
+  >;
   listDuplicates(): Promise<DuplicateCandidate[]>;
   getStatus(): Promise<TrackingStatusSnapshot>;
   setMode(mode: TrackingMode): Promise<TrackingStatusSnapshot>;
@@ -110,7 +135,8 @@ export interface AutomaticTrackingService {
   ): Promise<TrackingMutationResult<DuplicateCandidate>>;
   listKeywordRules(query?: RuleQuery): Promise<KeywordRuleSummary[]>;
   saveKeywordRules(
-    rules: readonly KeywordRule[]
+    rules: readonly KeywordRule[],
+    previousRules: readonly KeywordRule[]
   ): Promise<TrackingMutationResult<KeywordRuleSummary[]>>;
   restoreDefaultKeywords(): Promise<
     TrackingMutationResult<KeywordRuleSummary[]>

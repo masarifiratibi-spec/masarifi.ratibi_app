@@ -4,7 +4,8 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View
+  View,
+  useWindowDimensions
 } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
@@ -12,11 +13,19 @@ import { DesignIcon } from '@/design-system/icons';
 import type { KeywordRule } from '@/domain/app-shell';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import {
+  lightThemeColors,
+  darkThemeColors,
+  type ThemeColors,
+  radius,
+  spacing
+} from '@/design-system/tokens';
 import {
   addKeywordRule,
   deleteKeywordRule,
-  editKeywordRule
+  editKeywordRule,
+  setKeywordRuleEnabled
 } from '@/features/onboarding/keyword-rules';
 
 export interface TrackingKeywordChipsProps {
@@ -26,17 +35,23 @@ export interface TrackingKeywordChipsProps {
   disabled?: boolean;
 }
 
-export function TrackingKeywordChips({
+export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
   rules,
   onChange,
   onRestore,
   disabled = false
 }: TrackingKeywordChipsProps) {
+  const { colors, mode: themeMode } = useTheme();
+  const styles = themedStyles[themeMode];
+  // Memoization must still respond to native font and layout changes.
+  useWindowDimensions();
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
   const largeText = PixelRatio.getFontScale() >= 1.5;
 
-  const [languageFilter, setLanguageFilter] = useState<'all' | 'ar' | 'en'>('all');
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'ar' | 'en'>(
+    'all'
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [draftKeyword, setDraftKeyword] = useState('');
   const [draftLang, setDraftLang] = useState<'ar' | 'en'>(isRtl ? 'ar' : 'en');
@@ -47,15 +62,15 @@ export function TrackingKeywordChips({
   const activeCount = rules.filter((r) => r.enabled).length;
 
   const visibleRules = rules.filter((rule) => {
-    if (!rule.enabled) return false;
     if (languageFilter === 'all') return true;
     return rule.language === languageFilter;
   });
 
+  const addDisabled = disabled || !draftKeyword.trim();
   const handleAddSubmit = () => {
-    if (!draftKeyword.trim()) return;
+    if (addDisabled) return;
     const result = addKeywordRule(rules, {
-      group: 'expense',
+      group: 'financial',
       language: draftLang,
       value: draftKeyword.trim()
     });
@@ -81,6 +96,7 @@ export function TrackingKeywordChips({
   };
 
   const submitKeywordEdit = (rule: KeywordRule) => {
+    if (disabled) return;
     const keywordChange = editKeywordRule(rules, rule.id, editKeyword);
     if (keywordChange.error) {
       setAddError(
@@ -111,10 +127,7 @@ export function TrackingKeywordChips({
         {/* START: Title */}
         <StyledText
           variant="subtitle"
-          style={[
-            styles.titleText,
-            { textAlign: isRtl ? 'right' : 'left' }
-          ]}
+          style={[styles.titleText, { textAlign: isRtl ? 'right' : 'left' }]}
         >
           {translate('tracking.keywords.sectionTitle')} ({activeCount})
         </StyledText>
@@ -139,7 +152,7 @@ export function TrackingKeywordChips({
             <DesignIcon
               name="add"
               size="sm"
-              color={colorTokens.teal['700']}
+              color={colors.content.link}
               direction={direction}
               decorative
             />
@@ -163,7 +176,7 @@ export function TrackingKeywordChips({
             <DesignIcon
               name="sync"
               size="sm"
-              color={colorTokens.teal['700']}
+              color={colors.content.link}
               direction={direction}
               decorative
             />
@@ -252,7 +265,7 @@ export function TrackingKeywordChips({
               value={draftKeyword}
               onChangeText={setDraftKeyword}
               placeholder={translate('appShell.tracking.keywords.draft')}
-              placeholderTextColor={colorTokens.ink['500']}
+              placeholderTextColor={colors.content.secondary}
               style={[
                 styles.textInput,
                 {
@@ -280,17 +293,19 @@ export function TrackingKeywordChips({
             <Pressable
               testID="tracking-submit-add-keyword"
               onPress={handleAddSubmit}
-              disabled={!draftKeyword.trim()}
+              accessibilityLabel={translate('appShell.tracking.keywords.add')}
+              accessibilityState={{ disabled: addDisabled }}
+              disabled={addDisabled}
               style={[
                 styles.submitAddButton,
-                !draftKeyword.trim() && styles.submitAddButtonDisabled
+                addDisabled && styles.submitAddButtonDisabled
               ]}
               accessibilityRole="button"
             >
               <DesignIcon
                 name="check"
                 size="sm"
-                color={colorTokens.surface.white}
+                color={colors.content.inverse}
                 direction={direction}
                 decorative
               />
@@ -298,6 +313,7 @@ export function TrackingKeywordChips({
           </View>
           {addError ? (
             <StyledText
+              accessibilityRole="alert"
               style={[
                 styles.addErrorText,
                 {
@@ -315,7 +331,8 @@ export function TrackingKeywordChips({
       {/* Keyword Chips Grid: wraps naturally in reading direction */}
       <View style={styles.chipsContainer}>
         {visibleRules.map((rule) => {
-          const isArabicKeyword = rule.language === 'ar' || /[\u0600-\u06FF]/.test(rule.value);
+          const isArabicKeyword =
+            rule.language === 'ar' || /[\u0600-\u06FF]/.test(rule.value);
           return (
             <View
               key={rule.id}
@@ -346,70 +363,110 @@ export function TrackingKeywordChips({
                 </StyledText>
               )}
 
-              <Pressable
-                testID={
-                  editingId === rule.id
-                    ? `tracking-keyword-save-${rule.id}`
-                    : `tracking-keyword-edit-${rule.id}`
-                }
-                onPress={() => {
-                  if (editingId === rule.id) submitKeywordEdit(rule);
-                  else {
-                    setEditingId(rule.id);
-                    setEditKeyword(rule.value);
-                    setAddError(null);
+              {rule.origin === 'custom' ? (
+                <Pressable
+                  testID={
+                    editingId === rule.id
+                      ? `tracking-keyword-save-${rule.id}`
+                      : `tracking-keyword-edit-${rule.id}`
                   }
-                }}
-                disabled={disabled}
-                hitSlop={6}
-                style={styles.chipRemoveButton}
-                accessibilityLabel={translate(
-                  editingId === rule.id ? 'tracking.action.save' : 'trust.edit'
-                )}
-                accessibilityRole="button"
-              >
-                <DesignIcon
-                  name={editingId === rule.id ? 'check' : 'edit'}
-                  size="xs"
-                  color={colorTokens.ink['700']}
-                  direction={direction}
-                  decorative
-                />
-              </Pressable>
+                  onPress={() => {
+                    if (editingId === rule.id) submitKeywordEdit(rule);
+                    else {
+                      setEditingId(rule.id);
+                      setEditKeyword(rule.value);
+                      setAddError(null);
+                    }
+                  }}
+                  disabled={disabled}
+                  hitSlop={6}
+                  style={styles.chipRemoveButton}
+                  accessibilityLabel={translate(
+                    editingId === rule.id
+                      ? 'tracking.action.save'
+                      : 'trust.edit'
+                  )}
+                  accessibilityRole="button"
+                >
+                  <DesignIcon
+                    name={editingId === rule.id ? 'check' : 'edit'}
+                    size="xs"
+                    color={colors.content.secondary}
+                    direction={direction}
+                    decorative
+                  />
+                </Pressable>
+              ) : null}
 
               {/* END: Remove button × */}
+              {
+                <Pressable
+                  testID={
+                    editingId === rule.id
+                      ? `tracking-keyword-cancel-${rule.id}`
+                      : `tracking-keyword-remove-${rule.id}`
+                  }
+                  onPress={() => {
+                    if (editingId === rule.id) {
+                      setEditingId(null);
+                      setAddError(null);
+                    } else handleRemove(rule);
+                  }}
+                  disabled={disabled}
+                  hitSlop={6}
+                  style={styles.chipRemoveButton}
+                  accessibilityLabel={
+                    editingId === rule.id
+                      ? translate('designSystem.action.cancel')
+                      : translate('appShell.tracking.keywords.delete').replace(
+                          '{{value}}',
+                          rule.value
+                        )
+                  }
+                  accessibilityRole="button"
+                >
+                  <StyledText
+                    accessible={false}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    allowFontScaling={false}
+                    style={styles.chipActionSymbol}
+                  >
+                    ×
+                  </StyledText>
+                </Pressable>
+              }
               <Pressable
-                testID={
-                  editingId === rule.id
-                    ? `tracking-keyword-cancel-${rule.id}`
-                    : `tracking-keyword-remove-${rule.id}`
+                testID={`tracking-keyword-toggle-${rule.id}`}
+                onPress={() =>
+                  onChange(setKeywordRuleEnabled(rules, rule.id, !rule.enabled))
                 }
-                onPress={() => {
-                  if (editingId === rule.id) {
-                    setEditingId(null);
-                    setAddError(null);
-                  } else handleRemove(rule);
+                disabled={
+                  disabled ||
+                  (rule.origin === 'default' &&
+                    rule.group === 'failed_transaction')
+                }
+                accessibilityRole="switch"
+                accessibilityState={{
+                  checked: rule.enabled,
+                  disabled:
+                    disabled ||
+                    (rule.origin === 'default' &&
+                      rule.group === 'failed_transaction')
                 }}
-                disabled={disabled}
+                accessibilityLabel={`${translate(rule.enabled ? 'tracking.action.disable' : 'tracking.action.enable')} ${rule.value}`}
                 hitSlop={6}
                 style={styles.chipRemoveButton}
-                accessibilityLabel={
-                  editingId === rule.id
-                    ? translate('designSystem.action.cancel')
-                    : translate('appShell.tracking.keywords.delete').replace(
-                        '{{value}}',
-                        rule.value
-                      )
-                }
-                accessibilityRole="button"
               >
-                <DesignIcon
-                  name="close"
-                  size="xs"
-                  color={colorTokens.ink['700']}
-                  direction={direction}
-                  decorative
-                />
+                <StyledText
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  allowFontScaling={false}
+                  style={styles.chipActionSymbol}
+                >
+                  {rule.enabled ? '✓' : '+'}
+                </StyledText>
               </Pressable>
             </View>
           );
@@ -422,177 +479,191 @@ export function TrackingKeywordChips({
       ) : null}
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-    width: '100%'
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  titleText: {
-    color: colorTokens.ink['900'],
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  actionsGroup: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs
-  },
-  iconActionButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: 'center',
-    width: 34
-  },
-  addKeywordButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    height: 34,
-    justifyContent: 'center',
-    paddingHorizontal: 10
-  },
-  addKeywordText: {
-    color: colorTokens.teal['700'],
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  buttonPressed: {
-    opacity: 0.7
-  },
-  explanationText: {
-    color: colorTokens.ink['500'],
-    fontSize: 12,
-    lineHeight: 17
-  },
-  filterRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    marginVertical: 2
-  },
-  filterPill: {
-    backgroundColor: colorTokens.sand['100'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4
-  },
-  filterPillActive: {
-    backgroundColor: colorTokens.teal['700'],
-    borderColor: colorTokens.teal['700']
-  },
-  filterPillText: {
-    color: colorTokens.ink['700'],
-    fontSize: 11.5,
-    fontWeight: '600'
-  },
-  filterPillTextActive: {
-    color: colorTokens.surface.white,
-    fontWeight: '700'
-  },
-  addCard: {
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.sm
-  },
-  addInputRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs
-  },
-  textInput: {
-    backgroundColor: colorTokens.surface.white,
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    color: colorTokens.ink['900'],
-    flex: 1,
-    fontSize: 13,
-    minHeight: 38,
-    paddingHorizontal: spacing.sm
-  },
-  langBadge: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['100'],
-    borderRadius: radius.sm,
-    height: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 8
-  },
-  langBadgeText: {
-    color: colorTokens.teal['900'],
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  submitAddButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['700'],
-    borderRadius: radius.sm,
-    height: 38,
-    justifyContent: 'center',
-    width: 38
-  },
-  submitAddButtonDisabled: {
-    opacity: 0.4
-  },
-  addErrorText: {
-    color: colorTokens.status.danger,
-    fontSize: 11
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingTop: spacing.xs
-  },
-  chip: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['100'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 36,
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  chipText: {
-    color: colorTokens.ink['900'],
-    fontSize: 13,
-    fontWeight: '600'
-  },
-  editInput: {
-    color: colorTokens.ink['900'],
-    fontSize: 13,
-    minWidth: 96,
-    padding: 0
-  },
-  chipRemoveButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.sand['400'],
-    borderRadius: radius.pill,
-    height: 18,
-    justifyContent: 'center',
-    width: 18
-  }
 });
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      gap: spacing.sm,
+      width: '100%'
+    },
+    headerRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between'
+    },
+    titleText: {
+      color: colors.content.primary,
+      fontSize: 16,
+      fontWeight: '700'
+    },
+    actionsGroup: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs
+    },
+    iconActionButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      height: 34,
+      justifyContent: 'center',
+      width: 34
+    },
+    addKeywordButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 4,
+      height: 34,
+      justifyContent: 'center',
+      paddingHorizontal: 10
+    },
+    addKeywordText: {
+      color: colors.content.link,
+      fontSize: 12,
+      fontWeight: '700'
+    },
+    buttonPressed: {
+      opacity: 0.7
+    },
+    explanationText: {
+      color: colors.content.secondary,
+      fontSize: 12,
+      lineHeight: 17
+    },
+    filterRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      marginVertical: 2
+    },
+    filterPill: {
+      backgroundColor: colors.surfaces.page,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 4
+    },
+    filterPillActive: {
+      backgroundColor: colors.content.link,
+      borderColor: colors.content.link
+    },
+    filterPillText: {
+      color: colors.content.secondary,
+      fontSize: 11.5,
+      fontWeight: '600'
+    },
+    filterPillTextActive: {
+      color: colors.content.inverse,
+      fontWeight: '700'
+    },
+    addCard: {
+      backgroundColor: colors.surfaces.brandSubtle,
+      borderColor: colors.borders.default,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      gap: spacing.xs,
+      padding: spacing.sm
+    },
+    addInputRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs
+    },
+    textInput: {
+      backgroundColor: colors.surfaces.card,
+      borderColor: colors.borders.default,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      color: colors.content.primary,
+      flex: 1,
+      fontSize: 13,
+      minHeight: 38,
+      paddingHorizontal: spacing.sm
+    },
+    langBadge: {
+      alignItems: 'center',
+      backgroundColor: colors.borders.default,
+      borderRadius: radius.sm,
+      height: 38,
+      justifyContent: 'center',
+      paddingHorizontal: 8
+    },
+    langBadgeText: {
+      color: colors.content.link,
+      fontSize: 12,
+      fontWeight: '700'
+    },
+    submitAddButton: {
+      alignItems: 'center',
+      backgroundColor: colors.content.link,
+      borderRadius: radius.sm,
+      height: 38,
+      justifyContent: 'center',
+      width: 38
+    },
+    submitAddButtonDisabled: {
+      opacity: 0.4
+    },
+    addErrorText: {
+      color: colors.iconBadges.danger.foreground,
+      fontSize: 11
+    },
+    chipsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingTop: spacing.xs
+    },
+    chip: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.page,
+      borderColor: colors.borders.default,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 6,
+      minHeight: 40,
+      paddingHorizontal: 12,
+      paddingVertical: 7
+    },
+    chipText: {
+      color: colors.content.primary,
+      fontSize: 13,
+      fontWeight: '600'
+    },
+    editInput: {
+      color: colors.content.primary,
+      fontSize: 13,
+      minWidth: 96,
+      padding: 0
+    },
+    chipRemoveButton: {
+      alignItems: 'center',
+      backgroundColor: colors.borders.default,
+      borderRadius: radius.pill,
+      height: 18,
+      justifyContent: 'center',
+      width: 18
+    },
+    chipActionSymbol: {
+      color: colors.content.secondary,
+      fontSize: 12,
+      lineHeight: 14,
+      includeFontPadding: false,
+      textAlign: 'center',
+      writingDirection: 'ltr'
+    }
+  });
+
+const themedStyles = {
+  light: createStyles(lightThemeColors),
+  dark: createStyles(darkThemeColors)
+};

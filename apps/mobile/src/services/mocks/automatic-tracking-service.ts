@@ -360,7 +360,16 @@ export function createMockAutomaticTrackingService({
       ]);
     },
     async restoreDefaultKeywords() {
-      await storage.saveKeywords(defaultKeywordRules);
+      const custom = (await storage.loadKeywords()).filter(
+        (rule) => rule.origin === 'custom'
+      );
+      const customValues = new Set(custom.map((rule) => rule.normalizedValue));
+      await storage.saveKeywords([
+        ...defaultKeywordRules.filter(
+          (rule) => !customValues.has(rule.normalizedValue)
+        ),
+        ...custom
+      ]);
       return mutation(await this.listKeywordRules(), [
         'tracking.keywords',
         'tracking.status'

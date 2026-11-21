@@ -185,7 +185,7 @@ describe('report stress budgets', () => {
     };
     const worker = new ReportsWorker(
       repository as never,
-      { sign: jest.fn().mockResolvedValue('https://example.test/report') } as never,
+      { readPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4\nSynthetic\n%%EOF')) } as never,
       config as never,
       undefined,
       {

@@ -12,6 +12,14 @@ export class OperationsRepository {
 
   read(principal: ClerkPrincipal, kind: string, query: unknown): Promise<unknown> {
     return this.asApi(principal, async (client) => {
+      if (kind === 'ai-usage') {
+        const input = query as { userId: string | null };
+        const result = await client.query<{ value: unknown }>(
+          'select private.read_ai_usage_limits($1) value',
+          [input.userId],
+        );
+        return result.rows[0]?.value;
+      }
       const result = await client.query<{ value: unknown }>(
         'select private.read_operations($1,$2::jsonb) value',
         [kind, JSON.stringify(query)],
@@ -93,14 +101,56 @@ export class OperationsRepository {
     });
   }
 
-  claim(workerId: string, limit: number): Promise<Record<string, unknown>[]> {
+  claim(
+    workerId: string,
+    limit: number,
+    jobKeys?: readonly string[],
+  ): Promise<Record<string, unknown>[]> {
+    if (jobKeys && this.pool.runtimeRole === 'masarifi_worker') {
+      // The pool sets the worker role on connect. The FROM clause sets its claims
+      // before the scheduler runs, scoped to this single implicit transaction.
+      return this.pool.withClient(async (client) => {
+        const result = await client.query<{ value: Record<string, unknown> }>(
+          `select private.claim_due_jobs($1,$2,clock_timestamp(),$3::text[]) as value
+           from pg_catalog.set_config('request.jwt.claims','{"role":"worker"}',true)`,
+          [workerId, limit, jobKeys],
+        );
+        return result.rows.map((row) => row.value);
+      });
+    }
     return this.asWorker(async (client) => {
       const result = await client.query<{ value: Record<string, unknown> }>(
-        'select private.claim_due_jobs($1,$2,clock_timestamp()) value',
-        [workerId, limit],
+        jobKeys
+          ? 'select private.claim_due_jobs($1,$2,clock_timestamp(),$3::text[]) value'
+          : 'select private.claim_due_jobs($1,$2,clock_timestamp()) value',
+        jobKeys ? [workerId, limit, jobKeys] : [workerId, limit],
       );
       return result.rows.map((row) => row.value);
     });
+  }
+
+  async claimWithDeadline(workerId: string, limit: number, jobKeys: readonly string[]) {
+    const read = async (client: PoolClient) => {
+      const result = await client.query<{
+        value: { claims: Record<string, unknown>[]; delayMs: number };
+      }>(
+        `select private.claim_scoped_jobs_with_deadline($1,$2,$3::text[]) as value
+         from pg_catalog.set_config('request.jwt.claims','{"role":"worker"}',true)`,
+        [workerId, limit, jobKeys],
+      );
+      const value = result.rows[0]?.value;
+      if (
+        !value ||
+        !Number.isFinite(value.delayMs) ||
+        value.delayMs < 1 ||
+        !Array.isArray(value.claims)
+      )
+        throw new Error('OPERATIONS_DEADLINE_INVALID');
+      return value;
+    };
+    return this.pool.runtimeRole === 'masarifi_worker'
+      ? this.pool.withClient(read)
+      : this.asWorker(read);
   }
 
   heartbeat(attemptId: string, workerId: string): Promise<void> {

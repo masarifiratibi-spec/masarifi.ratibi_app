@@ -9,6 +9,7 @@ const worker = {
   DATABASE_URL: 'postgresql://user:password@localhost:5432/test',
   CLERK_SECRET_KEY: ['sk', 'test', 'nonfunctionalfixture'].join('_'),
   MASARIFI_PUSH_TOKEN_HASH_KEY: pushKey(1),
+  MASARIFI_SYNC_CURSOR_KEY: pushKey(4),
   MASARIFI_PUSH_TOKEN_ENCRYPTION_KEYS: `active:${pushKey(2)}`,
   MASARIFI_SECURITY_IP_HASH_KEYS: `active:${pushKey(3)}`,
   SUPABASE_URL: 'http://127.0.0.1:54321',

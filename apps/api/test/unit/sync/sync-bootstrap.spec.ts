@@ -10,7 +10,7 @@ const deviceId = '63000000-0000-4000-8000-000000000002';
 const scope = { userId: principal.userId, deviceId };
 const key = Buffer.alloc(32, 1).toString('base64url');
 const config = {
-  getRequired: jest.fn((name: string) => (name === 'MASARIFI_PUSH_TOKEN_HASH_KEY' ? key : 524_288)),
+  getRequired: jest.fn((name: string) => (name === 'MASARIFI_SYNC_CURSOR_KEY' ? key : 524_288)),
 } as never;
 
 describe('SyncService bootstrap', () => {
@@ -103,9 +103,7 @@ describe('SyncService bootstrap', () => {
     const service = new SyncService(
       repository as never,
       {
-        getRequired: jest.fn((name: string) =>
-          name === 'MASARIFI_PUSH_TOKEN_HASH_KEY' ? key : 128,
-        ),
+        getRequired: jest.fn((name: string) => (name === 'MASARIFI_SYNC_CURSOR_KEY' ? key : 128)),
       } as never,
     );
     await expect(

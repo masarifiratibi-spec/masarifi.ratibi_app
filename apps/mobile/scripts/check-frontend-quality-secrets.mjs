@@ -27,7 +27,7 @@ export function scanFrontendQualitySecrets(root = process.cwd()) {
 
 function* walk(root) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    if (['node_modules', '.git', 'coverage'].includes(entry.name)) continue;
+    if (['node_modules', '.git', '.expo', 'dist', 'build', 'coverage'].includes(entry.name)) continue;
     const full = path.join(root, entry.name);
     if (entry.isDirectory()) yield* walk(full);
     else if (fileExtensions.has(path.extname(entry.name))) yield full;

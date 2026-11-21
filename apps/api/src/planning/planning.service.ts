@@ -11,6 +11,7 @@ import {
   normalizeObligationCreate,
   normalizeObligationPatch,
   normalizePlanningPeriod,
+  normalizePlanningDate,
   normalizePaymentCreate,
   normalizePlanningId,
   normalizePlanningList,
@@ -281,6 +282,24 @@ export class PlanningService {
     }
   }
 
+  listObligationPayments(
+    principal: ClerkPrincipal,
+    obligationId: string,
+    query: unknown,
+    requestId: string,
+  ): Promise<unknown> {
+    try {
+      return this.repository.listObligationPayments(
+        principal,
+        normalizePlanningId(obligationId),
+        normalizePlanningList(query),
+        requestId,
+      );
+    } catch {
+      throw this.validation();
+    }
+  }
+
   allocateObligationPayment(obligationId: string, input: MutationInput): Promise<unknown> {
     return this.mutation(
       'allocateObligationPayment',
@@ -436,11 +455,15 @@ export class PlanningService {
     try {
       if (!query || typeof query !== 'object' || Array.isArray(query)) throw new Error();
       const input = query as Record<string, unknown>;
-      if (Object.keys(input).some((key) => key !== 'period')) throw new Error();
+      if (Object.keys(input).some((key) => !['period', 'asOf'].includes(key))) throw new Error();
       const period = normalizePlanningPeriod(input.period);
       return this.repository.getPlanningSummary(
         principal,
-        { key: String(input.period), ...period },
+        {
+          key: String(input.period),
+          ...period,
+          ...(input.asOf === undefined ? {} : { asOf: normalizePlanningDate(input.asOf) }),
+        },
         requestId,
       );
     } catch {

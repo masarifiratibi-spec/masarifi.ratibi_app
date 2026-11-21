@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scopeId": "ASSISTANT-RESPONSE-LAYOUT-QA-20261031-05",
+  "status": "prepared_unapproved",
+  "requiresNewHumanApproval": true,
+  "supersedesConsumedScope": "ASSISTANT-RESPONSE-LAYOUT-QA-20261031-04",
+  "owner": "same preserved Redmi account only",
+  "environment": "existing Staging and existing APK/Metro33696",
+  "apiImage": "sha256:e8951af2412b51454cd4045cfa646be788fe8dd979665c64f6ebd0e22298b723",
+  "runtimePromptSha256": "74dc3fd497b41e8e503df2ff5889441f5b4342a078043d00706141f3b98cca4e",
+  "nginxConfigSha256": "f4da6759b5a8d97cff9ff24a92b58c566415fa4ec180ddd595bb38ee3f9dea69",
+  "routeVersion": 4,
+  "primary": {
+    "model": "openai/gpt-6-luna",
+    "provider": "azure"
+  },
+  "fallback": {
+    "model": "google/gemini-3.1-flash-lite",
+    "provider": "google-vertex"
+  },
+  "gateway": "https://openrouter.ai/api/v1/chat/completions",
+  "dataShared": "Same owner's necessary financial context, including the three explicitly authorized new transactions; no raw client data in Git.",
+  "maxQuestions": 1,
+  "maxProviderDispatchesPerQuestion": 6,
+  "maxWindowSeconds": 1200,
+  "maxCostUsd": "0.10",
+  "maxPrice": {
+    "prompt": "0.000000275",
+    "completion": "0.00000165"
+  },
+  "reservationInputTokens": 32000,
+  "reservationOutputTokens": 4096,
+  "maximumReservationUsd": "0.09335040",
+  "quotaChanges": 0,
+  "financialWrites": 0,
+  "otherAccountOrDevice": false,
+  "additionalPdfZipSupportFeedbackOrNativeCapture": false,
+  "questions": [
+    "كم مصروفاتي المؤكدة في أكتوبر 2026 مقارنة بسبتمبر 2026؟ أبي تفسير مختصر واقتراح توفير مبني على المسجّل."
+  ],
+  "stopConditions": [
+    "Unknown or failed admission consumes the slot; no replay, restart or renewal.",
+    "Stop on timeout,429,provider or source unavailability,financial action proposal,owner or runtime or route drift.",
+    "Refresh route/budget/runtime/preservation before first admission and configured route before each question.",
+    "Preserve all existing financial rows and planning draft2026-13, including the three authorized transactions. Only approved assistant conversation/message/usage records may be added.",
+    "Do not execute financial action, permission change, migration, quota increase, native capture or additional delivery."
+  ],
+  "evidence": "One final Saudi read-only question after the suggestion classification regression fix. Scope04 completed two read-only questions, cost0.00468150USD, discovered absent presentation for suggestion answers; closed and never replayed. Require durable intent, actual metadata/card/native screenshot and preserved financial rows; no feedback/action/write.",
+  "authority": "Requires current human approval for one new provider question; implementation/deployment authorization remains valid.",
+  "baseWorkerImage": "sha256:25aad5c1f8c58a21aee9f427e56b6f11d398e62f242494c2414acabc8a31d424",
+  "runtimeModuleSha256": "b46e09fdf5b5b30c2f89c251fc00e14edda88e8fd8c43b9892323296f54f7968",
+  "runtimeHelperSha256": "d042c7a8f69143e600ebc41c671b0287405e9a612cea7c17b82176d1ec41f8ed",
+  "qualifiedWorkerImageRequiredBeforeFirstAdmission": true,
+  "qualifiedWorkerImage": "sha256:2e9f79b3459a4c3540e596df890ad9ffe6bb42693bc803603bedfdbcac19eded"
+}

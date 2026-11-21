@@ -4,6 +4,13 @@ import {
   fixtureTransactions
 } from '@/test-utils/core-finance-fixtures';
 import { CoreFinanceRepository } from './core-finance-repository';
+import {
+  TRANSACTION_EDIT_JOURNAL_PREFIX,
+  writeTransactionEditJournal,
+  deleteTransactionEditJournal,
+  readTransactionEditJournal
+} from './transaction-edit-journal';
+import { transactionInputSchema } from '@/domain/core-finance';
 
 type NativeSqlite = {
   close(): void;
@@ -55,7 +62,9 @@ class ForeignKeySqlite {
         amount_minor INTEGER,
         updated_at INTEGER
       );
-      CREATE TABLE finance_drafts (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      CREATE TABLE finance_drafts (id TEXT PRIMARY KEY, payload TEXT NOT NULL, status TEXT, updated_at INTEGER);
+      CREATE TABLE sync_mutation_queue (operation_id TEXT PRIMARY KEY, domain TEXT, resource_type TEXT, resource_id TEXT, status TEXT);
+      CREATE TABLE sync_id_mappings (domain TEXT, local_id TEXT, server_id TEXT, updated_at INTEGER, PRIMARY KEY(domain, local_id));
       CREATE TABLE finance_sync_conflicts (
         id TEXT PRIMARY KEY,
         transaction_id TEXT NOT NULL REFERENCES finance_transactions(id),
@@ -95,6 +104,14 @@ class ForeignKeySqlite {
 
   async getAllAsync<T>(sql: string, ...values: unknown[]): Promise<T[]> {
     return this.database.prepare(sql).all(...values) as T[];
+  }
+
+  async execAsync(sql: string): Promise<void> {
+    this.database.exec(sql);
+  }
+
+  async getFirstAsync<T>(sql: string, ...values: unknown[]): Promise<T | null> {
+    return (this.database.prepare(sql).all(...values)[0] as T) ?? null;
   }
 
   async runAsync(
@@ -248,5 +265,111 @@ test.each([
     expect(repository.requireAccount(fixtureAccounts[0].id)).toEqual(
       fixtureAccounts[0]
     );
+  }
+);
+
+it('preserves edit journals through ordinary hydration, replacement, save and discard', async () => {
+  const owner = {
+    userId: 'fixture-owner',
+    assertCurrent: async () => undefined
+  };
+  const journal = {
+    version: 1 as const,
+    resourceId: '74000000-0000-4000-8000-000000000003',
+    operationId: '74000000-0000-4000-8000-000000000004',
+    input: transactionInputSchema.parse(fixtureTransactions[0]),
+    body: {
+      expectedVersion: 1,
+      reason: 'Mobile edit' as const,
+      note: 'Frozen wire note'
+    }
+  };
+  await writeTransactionEditJournal(owner, journal);
+  const repository = new CoreFinanceRepository();
+  await repository.hydrate();
+  const draft = {
+    id: 'ordinary-draft',
+    transactionType: 'expense' as const,
+    amountText: '5',
+    accountId: null,
+    destinationAccountId: null,
+    categoryId: null,
+    merchant: null,
+    notes: null,
+    occurredAt: null,
+    status: 'editing' as const,
+    updatedAt: 1
+  };
+  repository.saveDraft(draft);
+  await repository.persistDraft(draft);
+  await repository.persistAll();
+  expect(repository.loadDraft(draft.id)?.amountText).toBe('5');
+  expect(await readTransactionEditJournal(owner, journal.resourceId)).toEqual(
+    journal
+  );
+  const reservedId = TRANSACTION_EDIT_JOURNAL_PREFIX + journal.resourceId;
+  expect(() => repository.saveDraft({ ...draft, id: reservedId })).toThrow();
+  expect(() => repository.discardDraft(reservedId)).toThrow();
+  await expect(
+    repository.persistDraft({ ...draft, id: reservedId })
+  ).rejects.toThrow();
+  await expect(repository.removePersistedDraft(reservedId)).rejects.toThrow();
+  repository.discardDraft(draft.id);
+  await repository.removePersistedDraft(draft.id);
+  expect(await readTransactionEditJournal(owner, journal.resourceId)).toEqual(
+    journal
+  );
+});
+it.each(['write', 'delete'] as const)(
+  'rolls back journal %s when its initiating owner changes before commit',
+  async (operation) => {
+    let current = true;
+    const owner = {
+      userId: 'owner-a',
+      assertCurrent: async () => {
+        if (!current) throw new Error('owner changed');
+      }
+    };
+    const journal = {
+      version: 1 as const,
+      resourceId: '74000000-0000-4000-8000-000000000003',
+      operationId: '74000000-0000-4000-8000-000000000004',
+      input: transactionInputSchema.parse(fixtureTransactions[0]),
+      body: {
+        expectedVersion: 1,
+        reason: 'Mobile edit' as const,
+        note: 'Frozen note'
+      }
+    };
+    if (operation === 'delete')
+      await writeTransactionEditJournal(owner, journal);
+    const originalRun = mockDatabase.runAsync.bind(mockDatabase);
+    const run = jest
+      .spyOn(mockDatabase, 'runAsync')
+      .mockImplementation(async (sql, ...args) => {
+        const receipt = await originalRun(sql, ...args);
+        if (
+          sql.startsWith(
+            operation === 'write'
+              ? 'INSERT INTO finance_drafts'
+              : 'DELETE FROM finance_drafts'
+          )
+        )
+          current = false;
+        return receipt;
+      });
+    try {
+      await expect(
+        operation === 'write'
+          ? writeTransactionEditJournal(owner, journal)
+          : deleteTransactionEditJournal(owner, journal)
+      ).rejects.toThrow('owner changed');
+      current = true;
+      expect(
+        await readTransactionEditJournal(owner, journal.resourceId)
+      ).toEqual(operation === 'write' ? null : journal);
+    } finally {
+      run.mockRestore();
+    }
   }
 );

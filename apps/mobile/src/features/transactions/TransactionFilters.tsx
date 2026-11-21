@@ -1,3 +1,4 @@
+import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -14,7 +15,6 @@ import {
   syncStatuses,
   transactionSources,
   transactionTypes,
-  parseAmountToMinor,
   type Account,
   type Category
 } from '@/domain/core-finance';

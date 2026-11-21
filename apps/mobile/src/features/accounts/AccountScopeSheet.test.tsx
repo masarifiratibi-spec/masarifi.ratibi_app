@@ -13,7 +13,10 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
 const seed = [
   [coreFinanceKeys.accounts(true), fixtureAccounts],
-  [coreFinanceKeys.accountBalances(true), []]
+  [coreFinanceKeys.homeBalanceSource(), {
+    accounts: fixtureAccounts.filter((account) => account.status === 'active'),
+    balances: []
+  }]
 ] as const;
 
 beforeEach(() => {

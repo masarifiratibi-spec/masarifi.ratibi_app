@@ -1,0 +1,48 @@
+{
+  "liveObservation": {
+    "at": "2026-11-02T07:45:50.833107+00:00",
+    "function_acl": {
+      "acl": "{masarifi_migration=X/masarifi_migration,masarifi_worker=X/masarifi_migration}",
+      "owner": "masarifi_migration",
+      "config": [
+        "search_path=\"\""
+      ],
+      "body_md5": "8a5db79cc7d5f7703c2c76ad23dce5ca",
+      "security_definer": true
+    },
+    "window_start": "2026-11-02T07:44:20Z",
+    "membership_fingerprint": "c47ffe096cd56bba3e213241d59cde5e",
+    "zero_claim_success_runs": 9,
+    "success_events_for_those_runs": 0
+  },
+  "migrationVersion": "20261102073431",
+  "migrationSha256": "15542329bbbb2d9bf795c482fb0f89206833454df3bab77e7c259be443c390bb",
+  "sqlMd5": "c91a6177809ad7f28f33e3206d541985",
+  "applied": true,
+  "tests": {
+    "exactSqlCasesPassed": 14,
+    "redFailuresBeforeCorrection": 2,
+    "nonSuperuserMembershipAclAndRollbackPassed": true
+  },
+  "providerCleanup": {
+    "deletedAtUtc": "2026-11-02T07:41:01.460255Z",
+    "deletedRows": 5760,
+    "remainingRows": 40512,
+    "cutoffUtc": "2026-09-28T07:35:00Z",
+    "retentionDays": 35,
+    "archiveSha256": "16cd8dfdb178d32fb6fa3931f955db3c60fc7ddcd10aedae6d7dd220a17efd9e",
+    "archiveRestoreRows": 5760,
+    "allRowHashesMatched": true,
+    "physicalTableBytesBefore": 14688256,
+    "physicalTableBytesAfter": 14688256,
+    "additionalFilesystemBytesReclaimed": 0,
+    "financialRowsDeleted": 0,
+    "pendingEventsDeleted": 0
+  },
+  "limits": [
+    "Natural workload observation only; no financial or provider job invoked to generate test samples.",
+    "Zero executable claims can still perform dependency rejection; job/attempt history is retained.",
+    "Old pending events were neither deleted nor replayed.",
+    "Full current branch CI remains pending; PostgreSQL hosted patch upgrade unqualified."
+  ]
+}

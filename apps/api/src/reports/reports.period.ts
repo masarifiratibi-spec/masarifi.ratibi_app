@@ -174,12 +174,24 @@ export function resolveReportPeriod(
   kind: ReportPeriod,
   anchorDate: string,
   timezone: string,
+  monthStartDay = 1,
 ): ReportPeriodRange {
   if (!(kind in spans)) throw new Error('REPORT_PERIOD_INVALID');
   parseDate(anchorDate);
   formatter(timezone);
-  const startDate = shiftMonth(anchorDate, 1 - spans[kind]);
-  const endDate = addDays(shiftMonth(anchorDate, 1), -1);
+  if (!Number.isInteger(monthStartDay) || monthStartDay < 1 || monthStartDay > 28)
+    throw new Error('REPORT_PERIOD_INVALID');
+  const cycleOffset = Number(anchorDate.slice(8, 10)) < monthStartDay ? -1 : 0;
+  const startDate =
+    kind === 'monthly'
+      ? shiftMonth(anchorDate, cycleOffset, monthStartDay)
+      : shiftMonth(anchorDate, 1 - spans[kind]);
+  const endDate = addDays(
+    kind === 'monthly'
+      ? shiftMonth(anchorDate, cycleOffset + 1, monthStartDay)
+      : shiftMonth(anchorDate, 1),
+    -1,
+  );
   return {
     kind,
     timezone,

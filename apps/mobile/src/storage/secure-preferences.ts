@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { z } from 'zod';
+import { recordPreferencesStorageOutcome } from '@/services/platform/benchmark-observability';
 
 import {
   buildPreferences,
@@ -37,6 +38,9 @@ interface PersistedPreferences {
   assistantPersonalization: boolean;
   analyticsEnabled: boolean;
   monthStartDay: number;
+  returnRemindersEnabled: boolean;
+  returnRemindersOwnerId: string | null;
+  returnReminderChoices: Record<string, boolean>;
 }
 
 const persistedPreferencesSchema = z.object({
@@ -60,7 +64,10 @@ const persistedPreferencesSchema = z.object({
   trackingPersonalization: z.boolean().optional(),
   assistantPersonalization: z.boolean().optional(),
   analyticsEnabled: z.boolean().optional(),
-  monthStartDay: z.number().int().min(1).max(28).optional()
+  monthStartDay: z.number().int().min(1).max(28).optional(),
+  returnRemindersEnabled: z.boolean().optional(),
+  returnRemindersOwnerId: z.string().nullable().optional(),
+  returnReminderChoices: z.record(z.boolean()).optional()
 });
 
 export async function loadPreferences(): Promise<UserPreferences> {
@@ -90,13 +97,22 @@ export async function savePreferences(
     trackingPersonalization: preferences.trackingPersonalization,
     assistantPersonalization: preferences.assistantPersonalization,
     analyticsEnabled: preferences.analyticsEnabled,
-    monthStartDay: preferences.monthStartDay
+    monthStartDay: preferences.monthStartDay,
+    returnRemindersEnabled: preferences.returnRemindersEnabled,
+    returnRemindersOwnerId: preferences.returnRemindersOwnerId,
+    returnReminderChoices: preferences.returnReminderChoices
   };
   const serialized = JSON.stringify(persisted);
   if (Platform.OS === 'web') {
     await AsyncStorage.setItem(STORAGE_KEY, serialized);
   } else {
-    await SecureStore.setItemAsync(STORAGE_KEY, serialized);
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEY, serialized);
+      recordPreferencesStorageOutcome('write', 'success');
+    } catch (error) {
+      recordPreferencesStorageOutcome('write', 'failure', error);
+      throw error;
+    }
   }
 }
 
@@ -106,15 +122,24 @@ export function clearPersistedPreferences(): Promise<void> {
     : SecureStore.deleteItemAsync(STORAGE_KEY);
 }
 
-function readPersistedPreferences(): Promise<string | null> {
-  return Platform.OS === 'web'
-    ? AsyncStorage.getItem(STORAGE_KEY)
-    : SecureStore.getItemAsync(STORAGE_KEY);
+async function readPersistedPreferences(): Promise<string | null> {
+  if (Platform.OS === 'web') return AsyncStorage.getItem(STORAGE_KEY);
+  try {
+    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    recordPreferencesStorageOutcome('read', 'success');
+    return raw;
+  } catch (error) {
+    recordPreferencesStorageOutcome('read', 'failure', error);
+    throw error;
+  }
 }
 
 function deserialize(raw: string): UserPreferences {
   try {
     const parsed = persistedPreferencesSchema.parse(JSON.parse(raw));
+    if (!parsed.returnReminderChoices && parsed.returnRemindersOwnerId && typeof parsed.returnRemindersEnabled === 'boolean') {
+      parsed.returnReminderChoices = { [`account:${parsed.returnRemindersOwnerId}`]: parsed.returnRemindersEnabled };
+    }
     return buildPreferences(parsed);
   } catch {
     // Corrupt store: fall back to defaults rather than crash. Direction is

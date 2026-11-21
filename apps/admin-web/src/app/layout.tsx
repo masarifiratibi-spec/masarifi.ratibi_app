@@ -19,7 +19,7 @@ const tajawal = Tajawal({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://masarifi-admin-prototype.sites.openai.com"),
-  icons: { icon: "/brand-icon.png" },
+  icons: { icon: "/masarifi-favicon-2026.png" },
   title: "مصاريفي | لوحة الإدارة",
   description: "واجهة تشغيلية آمنة لمنصة مصاريفي",
   openGraph: {

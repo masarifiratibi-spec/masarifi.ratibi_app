@@ -1,3 +1,5 @@
+import { normalizeCreateTransaction } from '../ledger/ledger.dto';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MINOR = /^(?:0|[1-9]\d{0,18}|-[1-9]\d{0,18})$/;
@@ -611,6 +613,7 @@ export function normalizePaymentCreate(value: unknown): Record<string, unknown> 
   const input = record(value);
   exact(input, [
     'transactionId',
+    'transaction',
     'expectedVersion',
     'paymentMethod',
     'paymentCase',
@@ -639,8 +642,14 @@ export function normalizePaymentCreate(value: unknown): Record<string, unknown> 
     if (next > MAX_BIGINT) invalid();
     return next;
   }, 0n);
+  if ((input.transactionId !== undefined) === (input.transaction !== undefined)) invalid();
+  const transaction =
+    input.transaction === undefined ? null : normalizeCreateTransaction(input.transaction);
+  if (transaction && transaction.source !== 'manual') invalid();
   return {
-    transactionId: normalizePlanningId(input.transactionId),
+    ...(transaction
+      ? { transaction }
+      : { transactionId: normalizePlanningId(input.transactionId) }),
     expectedVersion: integer(input.expectedVersion, 1, Number.MAX_SAFE_INTEGER),
     paymentMethod: nullableText(input.paymentMethod, 80),
     paymentCase: normalizeLifecycle(input.paymentCase, PAYMENT_CASES),
@@ -656,6 +665,7 @@ export function normalizeMatchDecision(value: unknown): Record<string, unknown> 
   const decision = normalizeLifecycle(input.decision, ['accepted', 'rejected'] as const);
   if ((decision === 'accepted') !== (input.allocation !== null && input.allocation !== undefined))
     invalid();
+  if (decision === 'accepted' && record(input.allocation).transaction !== undefined) invalid();
   return {
     decision,
     expectedVersion: integer(input.expectedVersion, 1, Number.MAX_SAFE_INTEGER),

@@ -1,0 +1,104 @@
+{
+  "scope": "Root authenticated Hostinger browser terminal diagnostics READ ONLY; no hosted mutation, credential read, worker activation or child hosted connection",
+  "authorization": "Direct human approved existing authenticated Hostinger browser session read-only diagnostics; every hosted change needs separate human approval and Astra review",
+  "vps": "2006836",
+  "console": "Temporary metadata-only console tabs closed; user dashboard retained",
+  "worker": {
+    "createdAt": "2026-10-06T09:45:35.240081125Z",
+    "state": "created",
+    "running": false,
+    "startedAt": "zero",
+    "finishedAt": "zero",
+    "exitCode": 0,
+    "error": "none",
+    "logLines": 0,
+    "image": "sha256:a81aed5572a4e5035bfd8cc3116a725ee8ccf32f60aa3c592ce0a87227cc81a9",
+    "processKind": "worker"
+  },
+  "api": {
+    "state": "running healthy",
+    "image": "sha256:a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383",
+    "processKind": "api",
+    "voiceAnalysisOnly": true
+  },
+  "analysisWorker": {
+    "state": "Up 5 days",
+    "processKind": "worker",
+    "voiceAnalysisOnly": true,
+    "aiAssistantOnly": false
+  },
+  "database": {
+    "at": "2026-10-25T16:14:41.517159Z",
+    "mode": "BEGIN READ ONLY",
+    "approvedOperationId": "10de16e6-a966-41b4-a583-1716314b285b",
+    "status": "received",
+    "attemptCount": 0,
+    "lease": false,
+    "dependencies": 0,
+    "processedAt": null,
+    "globalPendingCount": 1,
+    "syncEnabled": true,
+    "syncNextRun": "2026-10-04T11:17:01Z",
+    "latestSyncSuccess": "2026-10-04T11:16:51Z",
+    "allJobsLastStarted": "2026-10-04T11:17:04Z"
+  },
+  "diagnosis": {
+    "independentAstra": "APPROVE diagnosis/strategy only; hosted execution NOT READY",
+    "immediateCause": "No active general OperationsWorker consumer",
+    "historicalContainerReason": "UNKNOWN; Created/zero timestamps/empty logs do not alone explain why container was never started",
+    "historicalIsolationSource": "docs/evidence/2026-10-11-customer-staging-recovery/README.md:27",
+    "historicalIsolationRationale": "General worker intentionally kept stopped; historical audit over497000 unpublished outbox events including operational events",
+    "currentOutboxCount": null,
+    "currentOutboxQuery": "Read-only aggregate canceled after5s, SQLSTATE57014; no retry",
+    "currentOutboxCountStatus": "UNVERIFIED",
+    "imageCompatibility": "Worker/API image mismatch is a gate; neither assumed to contain extracted executor"
+  },
+  "hostAccess": {
+    "transport": "Authenticated Hostinger browser terminal available; old SSH timeout is historical, not current transport blocker",
+    "runnerInvocation": "UNVERIFIED",
+    "artifactInstalled": false,
+    "separateBootstrap": "Existing legitimate authorized path/capabilities UNVERIFIED",
+    "roleCatalog": "postgres has BYPASSRLS/globalSELECT/worker membership; API/worker logins cannot supply the global guard. Catalog metadata does not authorize credential use.",
+    "envFiles": [
+      {
+        "path": "/etc/masarifi/worker.env",
+        "exists": true,
+        "mode": "600",
+        "owner": "masarifi",
+        "group": "masarifi",
+        "bytes": 3118,
+        "mtime": "September29",
+        "contentsRead": false
+      },
+      {
+        "path": "/etc/masarifi/migration.env",
+        "exists": true,
+        "mode": "600",
+        "owner": "masarifi",
+        "group": "masarifi",
+        "bytes": 443,
+        "mtime": "September29",
+        "contentsRead": false
+      }
+    ],
+    "actualApiComposeCohort": "/opt/masarifi/staging-cohort-ac7bc92-client-recovery-20261010",
+    "composeFiles": [
+      "compose.backend.yml",
+      "release-version.yml",
+      "voice-runtime.yml",
+      "voice-analysis.yml",
+      "candidate.yml",
+      "api-ai-admission.yml"
+    ]
+  },
+  "acceptance": {
+    "oneShot": "Only manifest-bound original QA recovery; does not restore continuous sync",
+    "cleanup": "No automatic note restoration; ordinary cleanup may itself queue",
+    "coldEdit": "Without approved continuous consumer, can prove only local preservation/enqueue; additional one-shots prove operator-assisted application only",
+    "automaticSecondEditServerAcceptance": "BLOCKED",
+    "overallT03": "BLOCKED",
+    "T04": "not advanced",
+    "hostedWrites": 0,
+    "childHostedConnections": 0
+  }
+}

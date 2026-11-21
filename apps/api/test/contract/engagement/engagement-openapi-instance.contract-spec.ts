@@ -143,10 +143,29 @@ it('accepts real engagement cursor pages, preferences, categories, ticket detail
       'AdminTicketDetail',
       {
         ...ticket,
+        assignedAdminId: null,
+        customerReference: 'CUS-0123456789abcdef',
         messages: [],
         nextCursor: null,
         hasMore: false,
         internalNotes: [{ id: id(6), body: 'Reviewed by support.', createdAt: at }],
+      },
+    ],
+    [
+      'AdminTicketPage',
+      {
+        items: [{ ...ticket, assignedAdminId: null, customerReference: 'CUS-0123456789abcdef' }],
+        totalItems: 26,
+        nextCursor: 'next',
+        hasMore: true,
+      },
+    ],
+    [
+      'SupportWorkload',
+      {
+        total: 26,
+        unassigned: 20,
+        byStatus: { open: 20, waiting_support: 6, waiting_customer: 0, resolved: 0, closed: 0 },
       },
     ],
     [
@@ -176,4 +195,17 @@ it('rejects unknown engagement response fields', () => {
       internalNotes: ['must not reach an owner list'],
     }),
   ).toBe(false);
+});
+
+it('documents the strict Android-only update audience alongside ordinary campaigns', () => {
+  const validate = validator('AudienceDefinition');
+  const base = { platforms: ['android'], locales: ['en'], activity: 'all', segmentKeys: [] };
+  expect(validate(base)).toBe(true);
+  expect(validate({ ...base, appUpdate: { version: '1.0.1', versionCode: 140 } })).toBe(true);
+  for (const input of [
+    { ...base, platforms: ['ios'], appUpdate: { version: '1.0.1', versionCode: 140 } },
+    { ...base, appUpdate: { version: '1.0.1', versionCode: '140' } },
+    { ...base, appUpdate: { version: '1.0.1', versionCode: 140, url: 'https://example.test' } },
+  ])
+    expect(validate(input)).toBe(false);
 });

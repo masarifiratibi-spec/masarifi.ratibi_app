@@ -1,0 +1,116 @@
+{
+  "task": "T05",
+  "status": "PASS",
+  "acceptedAt": "2026-10-28T20:33:49.561Z",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "xhigh",
+  "scope": "Original current-candidate database qualification with exact retained fresh/upgrade lineage and honest hosted boundary; no deployment approval",
+  "depends": {
+    "T04": "PASS"
+  },
+  "candidate": {
+    "migrationFiles": 176,
+    "historicalQualifiedFiles": 174,
+    "historicalSourcesUnchanged": true,
+    "historicalSqlSuites": 67,
+    "historicalSqlSuiteSourcesUnchanged": true,
+    "newSqlSuites": 1,
+    "sourceVersionFollowup": "N04/P3; recorded separately; not fixed or deployed"
+  },
+  "gates": {
+    "migrationChecksums": "PASS",
+    "actualMigrationRunner165To176BothPaths": "PASS",
+    "idempotentRerunBothPaths": "PASS",
+    "exactInventory": "PASS after two registered expected entries were restored",
+    "focusedJestMigration": {
+      "eachPath": {
+        "suites": 3,
+        "tests": 3,
+        "skipped": 0
+      },
+      "bothPathsPassed": true
+    },
+    "affectedTrackingSql": {
+      "eachPath": {
+        "suites": 3,
+        "assertions": 104
+      },
+      "bothPathsPassed": true
+    },
+    "namedCardPosting": {
+      "eachPath": {
+        "suites": 1,
+        "assertions": 13
+      },
+      "bothPathsPassed": true
+    },
+    "historical67Sql": "REUSED unchanged 174 source/test evidence; not rerun",
+    "testDbCliWrapper": "NOT_INVOKED; Docker engine unavailable. Relevant current SQL executed directly with real pgTAP in the previously approved native fixture; no mock or replacement shared target."
+  },
+  "targets": {
+    "existingCluster": "7699798384845591272",
+    "postgres": "18.6",
+    "port": 55442,
+    "databases": [
+      "admin_recovery_rls_fresh",
+      "admin_recovery_rls_upgrade"
+    ],
+    "initialMigrationCount": 165,
+    "finalMigrationCount": 176,
+    "freshUpgradeLineage": "retained historically qualified canonical fresh/upgrade baselines; no new zero-state environment",
+    "newEnvironment": false,
+    "resetOrDrop": false,
+    "financialDataFingerprintsPreserved": true,
+    "roleMembershipsPreserved": true,
+    "clusterStopped": true
+  },
+  "hosted": {
+    "project": "qcffvfbpzvpwcwxwjyro",
+    "postgres": "17.6",
+    "migrationEntries": 169,
+    "sameVersion": 162,
+    "edgeNormalizedLiteralMatches": 156,
+    "namedWrapperDifferences": 6,
+    "sameNameTimestampAliases": 5,
+    "aliasLiteralMatches": 4,
+    "aliasAdditionalPreflight": 1,
+    "candidateNamesNotRecordedAndNotAliased": 9,
+    "hostedOnlyRuntimeEntries": 2,
+    "writeOperations": 0,
+    "historyParity": "NOT_ESTABLISHED; strict canonical runner must not be aimed at this non-prefix history",
+    "fullCurrent176Supabase17FreshUpgrade": "NOT_RUN; local18 results do not assert this external/release boundary"
+  },
+  "sourceVersionCheck": {
+    "nullable": true,
+    "threeValuedLogicGapConfirmed": true,
+    "currentIncompleteRows": 0,
+    "additiveFixRequiresSpecificApproval": true,
+    "outsideOriginal69": true
+  },
+  "sourceChanges": [
+    "apps/api/test/e2e/migration-apply.e2e-spec.ts: two exact inventory additions",
+    "supabase/tests/068_card_payoff_posting_invariants.test.sql: BR3/BR4 fixture-only 13 assertions"
+  ],
+  "mobileProductChange": false,
+  "newDeviceTestRequiredForT05": false,
+  "review": {
+    "responsible": "Sol self-review",
+    "independentProducers": [
+      "Actual PostgreSQL18 execution and seven full financial-data fingerprints",
+      "Actual Jest e2e runner, checksum rejection and lock contention results",
+      "Actual pgTAP TAP results on both retained targets",
+      "Hosted Supabase READ ONLY catalog/history/source comparison",
+      "Unchanged historical 174/67 local results and named PG17/CI producers; limits retained"
+    ],
+    "assertionsRelaxed": false
+  },
+  "limits": [
+    "No hosted migration/policy/config/financial write or Staging/Production deployment",
+    "Real card payment execution deferred; only synthetic postings tested",
+    "Native loaded bytes and standalone release remain T20–T22",
+    "No historical migration/checksum/SQL test body rewritten",
+    "Browser scratch history discrepancy preserved; target not modified"
+  ],
+  "evidenceRoot": "D:/Masarifi-integration-2026-10-10/.superpowers/sdd/2026-10-25-astra-readiness-remediation/T05/compatibility-2026-10-28",
+  "formalReport": "docs/evidence/2026-10-25-astra-remediation-review/execution/T05/compatibility-acceptance-2026-10-28.md"
+}

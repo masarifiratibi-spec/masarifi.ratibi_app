@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { CustomerSessionRevoker } from './customer-session-revoker';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { IDENTITY_METRICS, recordPlatformMetric } from '../platform/observability/platform-metrics';
@@ -25,6 +26,7 @@ export class ClerkWebhookWorker {
     private readonly repository: IdentityRepository,
     private readonly clerk: ClerkClientService,
     private readonly config: PlatformConfigService,
+    @Optional() private readonly customerSessions?: CustomerSessionRevoker,
   ) {}
 
   start(): void {
@@ -72,8 +74,9 @@ export class ClerkWebhookWorker {
   }
 
   async retryRevokedSession(): Promise<boolean> {
+    const customerCommand = await this.customerSessions?.process();
     const revoked = await this.repository.nextRevokedSession();
-    if (!revoked) return false;
+    if (!revoked) return customerCommand ?? false;
     await this.clerk.revokeSession(revoked.sessionId);
     await this.repository.completeWorkerSessionRevoke(revoked.deviceId, revoked.sessionId);
     recordPlatformMetric(IDENTITY_METRICS.deviceSessionRetry, 1, { outcome: 'success' });

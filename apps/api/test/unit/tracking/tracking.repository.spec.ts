@@ -12,6 +12,7 @@ describe('tracking import repository replay', () => {
   it('ignores delivery-only receivedAt drift and marks a stored response as replayed', async () => {
     const requestHashes: unknown[] = [];
     let claims = 0;
+    let quotaReservations = 0;
     const stored = {
       operationId: 'operation-1',
       replayed: false,
@@ -30,6 +31,10 @@ describe('tracking import repository replay', () => {
                 : { outcome: 'replay', lease_token: null, response_body: stored },
             ],
           });
+        }
+        if (sql.includes('reserve_user_job_quota')) {
+          quotaReservations += 1;
+          return Promise.resolve({ rows: [{ result: { allowed: true } }] });
         }
         if (sql.includes('create_import_session'))
           return Promise.resolve({ rows: [{ result: stored.resource }] });
@@ -58,7 +63,23 @@ describe('tracking import repository replay', () => {
     );
 
     expect(requestHashes[1]).toBe(requestHashes[0]);
+    expect(quotaReservations).toBe(1);
     expect(first.occurredAt).toEqual(expect.any(String));
     expect(replay).toEqual({ ...stored, replayed: true });
+  });
+});
+
+describe('tracking maintenance', () => {
+  it('requests one reconciliation batch of eight sessions per invocation', async () => {
+    const client = {
+      query: jest.fn<Promise<{ rows: unknown[] }>, [string]>().mockResolvedValue({ rows: [] }),
+    };
+    const repository = new TrackingRepository({
+      withClient: (action: (connection: typeof client) => Promise<void>) => action(client),
+    } as never);
+    await repository.maintenance();
+    expect(
+      client.query.mock.calls.filter(([sql]) => sql.includes('reconcile_import_sessions')),
+    ).toEqual([['select private.reconcile_import_sessions(8)']]);
   });
 });

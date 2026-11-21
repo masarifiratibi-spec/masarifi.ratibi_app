@@ -82,6 +82,16 @@ Backup, restore, and DR jobs do not accept or execute backup commands from Admin
 
 Operational events reuse the platform outbox envelope and contain:
 
+Recurring `sync-mutations.retry` runs omit the redundant `operations.job-succeeded`
+notification only when completion succeeds and the validated result summary has
+`outcome: "succeeded"` and numeric `processed: 0`. The job run, attempt, terminal
+timestamps, version, result summary and metrics remain authoritative and retained.
+Zero executable claims can still reject blocked dependencies; it does not mean
+that the handler made no database changes. Nonzero successes, other job keys,
+missing or differently typed summary fields, failures and dead letters keep their
+existing event behavior. This exception neither retires old pending events nor
+enables an unrestricted dispatcher or queue consumer.
+
 ```json
 {
   "type": "operations.job-dead-lettered",
@@ -101,6 +111,8 @@ Operational events reuse the platform outbox envelope and contain:
 No event contains configuration, result payload, provider output, setting value, rule audience, incident note, backup content, personal data, financial data, token, URL, SQL, or stack trace.
 
 ## Event Types
+
+A first-attempt `operations.job-history-retain` success with no retry parent records its run and attempt and omits the outbox notification only for the exact empty retention summary. All five archive and delete counts must be numeric zero, `providerChecksSwept` must be `false`, and the job key and successful outcome must match. A sweep, any work, a retry, or a different summary keeps the usual completion event.
 
 | Type | Required safe data |
 |---|---|

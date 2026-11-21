@@ -1,0 +1,21 @@
+{
+  "diagnosticOnly": true,
+  "bundleSHA256": "58fb9fe3278755f0a21ba975acbae42fb18e506fb410b51bcee10fbf95a363df",
+  "sources": 2082,
+  "productionEntrypoints": [
+    "/src/services/production/demo-session.ts",
+    "/src/services/production/client-demo-locale.ts",
+    "/src/services/production/automatic-tracking-service.ts",
+    "/src/services/production/core-finance-service.ts",
+    "/src/services/production/subscription-settings-service.ts",
+    "/src/services/production/auth-flow.ts",
+    "/src/services/production/engagement-service.ts",
+    "/src/services/production/assistant-service.ts",
+    "/src/services/production/reports-service.ts",
+    "/src/services/production/core-finance-seeds.ts",
+    "/src/services/production/voice-analyzer-service.ts",
+    "/src/services/production/financial-planning-service.ts",
+    "/src/services/production/deferred-subscription-route.tsx"
+  ],
+  "forbiddenSources": []
+}

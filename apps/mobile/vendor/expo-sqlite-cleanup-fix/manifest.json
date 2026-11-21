@@ -1,0 +1,16 @@
+{
+  "version": "55.0.20",
+  "path": "android/src/main/java/expo/modules/sqlite/SQLiteModule.kt",
+  "pristine": "d4197a3729f96c0550698f15b12508dc4b9f83704a59be1ccb965579b8d64b4b",
+  "patched": "c3ec8622565e4f070b9d4d218779af517501533b188d125e49450cdbbf353a56",
+  "replacements": [
+    {
+      "before": "    OnDestroy {\n      try {\n        removeAllCachedDatabases().forEach {\n          closeDatabase(it)\n        }\n      } catch (_: Throwable) {}\n    }",
+      "after": "    OnDestroy {\n      removeAllCachedDatabases().forEach {\n        try {\n          closeDatabase(it)\n        } catch (_: Throwable) {}\n      }\n    }"
+    },
+    {
+      "before": "    val databases = cachedDatabases\n    cachedDatabases.clear()",
+      "after": "    val databases = cachedDatabases.toList()\n    cachedDatabases.clear()"
+    }
+  ]
+}

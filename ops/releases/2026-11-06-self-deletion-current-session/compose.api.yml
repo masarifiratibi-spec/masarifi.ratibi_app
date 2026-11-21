@@ -1,0 +1,3 @@
+services:
+  core-api:
+    image: masarifi-task33-api:d91b5b35abac

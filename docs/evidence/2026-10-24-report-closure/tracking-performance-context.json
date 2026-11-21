@@ -1,0 +1,14 @@
+{
+  "source": "tracking.k6.js actual intake SQL",
+  "connections": 9,
+  "scopedReceipts": 9,
+  "wrongOwnersRejected": 9,
+  "rolledBack": true,
+  "latencyQualified": false,
+  "fixtureFixCommit": "d600096ccae45f688f5c2f4ec59490b60a082f6a",
+  "baselineError": {
+    "code": "28000",
+    "message": "AUTH_TOKEN_INVALID"
+  },
+  "thresholdsChanged": false
+}

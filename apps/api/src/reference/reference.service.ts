@@ -252,7 +252,7 @@ export class ReferenceService {
   private normalize(request: ReferenceRequest): ReferenceOperation {
     const body = record(request.body ?? {}),
       query = { ...(request.query ?? {}) },
-      params = request.params ?? {};
+      params = { ...(request.params ?? {}) };
     switch (request.operation) {
       case 'listCurrencies':
       case 'listCountries':

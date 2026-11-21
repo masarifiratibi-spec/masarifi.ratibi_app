@@ -1,0 +1,34 @@
+{
+  "atUtc": "2026-11-13 21:59:39 UTC",
+  "state": "failed-recipient-scope-do-not-repeat",
+  "versionCode": 143,
+  "attemptId": "47c05bf5-2353-4f63-acb3-4ac5d0afc2b3",
+  "createdAtUtc": "2026-11-13T21:55:26.944467+00:00",
+  "providerMessageId": "<report-47c05bf5-2353-4f63-acb3-4ac5d0afc2b3@gmail.com>",
+  "requestedRecipient": "masarifi.ratibi@gmail.com",
+  "actualRecipientIsProject": false,
+  "otherRecipientAddressRecorded": false,
+  "uiSendTriggers": 1,
+  "backend": {
+    "deliveryStatus": "delivered",
+    "fileStored": true,
+    "errorCode": null
+  },
+  "gmail": {
+    "exactMessageIdFound": true,
+    "inboxLabel": false,
+    "recipientIsProject": false,
+    "verifiedThroughMessageDetails": true
+  },
+  "attachment": {
+    "downloaded": false,
+    "integrityVerified": false
+  },
+  "cause": "Agent clicked the direct-send PDF button before confirming the authenticated account recipient. The app sent to its current account identity.",
+  "additionalSendStopped": true,
+  "rebuildPerformed": false,
+  "installationPerformed": false,
+  "permissionsGranted": false,
+  "requiredNextStep": "Open Android143 authenticated as masarifi.ratibi@gmail.com without clearing current account data; verify identity before any further report action.",
+  "acceptancePassed": false
+}

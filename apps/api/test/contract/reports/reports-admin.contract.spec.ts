@@ -2,6 +2,7 @@ import { ReportsService } from '../../../src/reports/reports.service';
 
 const principal = { userId: 'admin', sessionId: 'session', factorAgeSeconds: 0 };
 const counts = {
+  observedAt: '2026-09-04T00:00:00.000Z',
   totalUsers: 12,
   newUsers: 2,
   iosUsers: 7,
@@ -52,7 +53,7 @@ describe('Admin reports contract', () => {
       reports.getAdminOverview(principal, { platform: 'all', period: '30d', locale: 'en' }),
     ).resolves.toMatchObject({
       query: { platform: 'all', period: '30d', locale: 'en' },
-      metrics: [{ numericValue: 12 }],
+      metrics: expect.arrayContaining([expect.objectContaining({ numericValue: 12 })]) as unknown,
       freshness: { state: 'fresh' },
     });
     await expect(
@@ -90,7 +91,16 @@ describe('Admin reports contract', () => {
     expect(repository.captureAdminExport).toHaveBeenCalledWith(
       principal,
       expect.anything(),
-      expect.objectContaining({ format: 'csv', summary: { adminAggregate: true, counts } }),
+      expect.objectContaining({
+        format: 'csv',
+        summary: expect.objectContaining({
+          adminAggregate: true,
+          exportType: 'overview',
+        }) as unknown,
+        detailedRows: expect.arrayContaining([
+          expect.objectContaining({ metric: 'unique-customers', value: 12 }),
+        ]) as unknown,
+      }),
       'admin-export-key',
       'request',
     );

@@ -1,0 +1,2023 @@
+{
+  "at": "2026-10-28T09:39:32.852263+00:00",
+  "model": "gpt-6.1-sol/xhigh",
+  "scope": "Static route wrappers, layouts, gate markers and literal destinations; not proof of runtime reachability or full screen functionality",
+  "routeFiles": 114,
+  "screenFiles": 97,
+  "controlFiles": 17,
+  "routes": [
+    {
+      "file": "apps/mobile/app/(onboarding)/_layout.tsx",
+      "route": "/(onboarding)/_layout",
+      "kind": "layout/control",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "Stack"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "8bfcad8ee04cf9768fa670309cee8172368a42e03579c1aa40cad69b18e304e6",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "8bfcad8ee04cf9768fa670309cee8172368a42e03579c1aa40cad69b18e304e6"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/android-sms-permission.tsx",
+      "route": "/(onboarding)/android-sms-permission",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "PermissionState",
+        "StateView",
+        "PermissionEducation",
+        "StyledText"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "1cc2e6ac0daa50a7d2ec217adec870bdf401c8019eda2902ba27ae8f2a9ab46c",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "1cc2e6ac0daa50a7d2ec217adec870bdf401c8019eda2902ba27ae8f2a9ab46c"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/complete.tsx",
+      "route": "/(onboarding)/complete",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "OnboardingScaffold",
+        "StyledText"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/(tabs)/home"
+      ],
+      "sha256": "1545cc47908d6528514bd78e72ae7ca3495c81d2a21c968906d2c59fb158372d",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "1545cc47908d6528514bd78e72ae7ca3495c81d2a21c968906d2c59fb158372d"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/ios-automation.tsx",
+      "route": "/(onboarding)/ios-automation",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "OnboardingScaffold",
+        "StyledText",
+        "ActionButton"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/(tabs)/add"
+      ],
+      "sha256": "99ad04e498418f1ef5526c36d1d6659f169b29e62af68124aa8f11f3ccea378b",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "99ad04e498418f1ef5526c36d1d6659f169b29e62af68124aa8f11f3ccea378b"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/ios-capture-options.tsx",
+      "route": "/(onboarding)/ios-capture-options",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "OnboardingScaffold",
+        "StyledText",
+        "ActionButton"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/(tabs)/add",
+        "/assistant",
+        "/(onboarding)/ios-automation"
+      ],
+      "sha256": "138a595d6d114da7bde93712584b7fdbb79cc3ed46d5f013ec8abed0aabd359e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "138a595d6d114da7bde93712584b7fdbb79cc3ed46d5f013ec8abed0aabd359e"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/profile-setup.tsx",
+      "route": "/(onboarding)/profile-setup",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "ProfileSetupScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9976f2aa917559d1bc92e78d1ce880f3117a77249906f11a82cc59e2bf03a779",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9976f2aa917559d1bc92e78d1ce880f3117a77249906f11a82cc59e2bf03a779"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/tracking-demo.tsx",
+      "route": "/(onboarding)/tracking-demo",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "OnboardingScaffold",
+        "StyledText",
+        "ActionButton"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "6950c11311d54f9f04aa375b5e575defba2eb51d0446c538a004c744a114f773",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "6950c11311d54f9f04aa375b5e575defba2eb51d0446c538a004c744a114f773"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/tracking-intro.tsx",
+      "route": "/(onboarding)/tracking-intro",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "OnboardingScaffold",
+        "StyledText"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/(tabs)/home"
+      ],
+      "sha256": "417c1fa9b3bb26063633d4149dd6d4fe77c2fe688edc1ae4c0797284ef0b6e87",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "417c1fa9b3bb26063633d4149dd6d4fe77c2fe688edc1ae4c0797284ef0b6e87"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/tracking-keywords.tsx",
+      "route": "/(onboarding)/tracking-keywords",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "KeywordRule",
+        "StateView",
+        "OnboardingScaffold",
+        "StyledText",
+        "KeywordEditor"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "432ce763b9d9ff4a1a01ea236b141560169ad36cc2eeb86345a5d6c0cbe86be9",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "432ce763b9d9ff4a1a01ea236b141560169ad36cc2eeb86345a5d6c0cbe86be9"
+    },
+    {
+      "file": "apps/mobile/app/(onboarding)/tracking-preferences.tsx",
+      "route": "/(onboarding)/tracking-preferences",
+      "kind": "screen",
+      "visibility": "SESSION/ONBOARDING_CONDITIONAL; do not reset existing account to force entry",
+      "components": [
+        "TrackingPreference",
+        "OnboardingScaffold",
+        "TrackingModeSelector"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "0ba87f5eb671cffa379245145d443243f7dbdbca318b37ca1cd7f2fa4e425a29",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "0ba87f5eb671cffa379245145d443243f7dbdbca318b37ca1cd7f2fa4e425a29"
+    },
+    {
+      "file": "apps/mobile/app/(public)/_layout.tsx",
+      "route": "/(public)/_layout",
+      "kind": "layout/control",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "Stack"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "8a57fa2d148cec49504c347973c2b8f2ca7e4c585ade142e463a09136d6bf126",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "8a57fa2d148cec49504c347973c2b8f2ca7e4c585ade142e463a09136d6bf126"
+    },
+    {
+      "file": "apps/mobile/app/(public)/auth-pending.tsx",
+      "route": "/(public)/auth-pending",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "GoogleAuthScreen",
+        "PhoneVerificationAttempt",
+        "MessageKey",
+        "SafeAreaView",
+        "ScrollView",
+        "StyledText",
+        "FormField",
+        "ActionButton",
+        "GoogleAccountSelector",
+        "AuthResult"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "54a67607bc66db4ac3a8dc4f216eb7b530fa26671762fc807056140daa2f6223",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "54a67607bc66db4ac3a8dc4f216eb7b530fa26671762fc807056140daa2f6223"
+    },
+    {
+      "file": "apps/mobile/app/(public)/legal.tsx",
+      "route": "/(public)/legal",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "ScrollView",
+        "StyledText",
+        "ActionButton"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/"
+      ],
+      "sha256": "46f9c6524c1ddd6159cbfb5a68fd6ce6be00c734d6a07e6871bb7791d5f7062f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "46f9c6524c1ddd6159cbfb5a68fd6ce6be00c734d6a07e6871bb7791d5f7062f"
+    },
+    {
+      "file": "apps/mobile/app/(public)/welcome.tsx",
+      "route": "/(public)/welcome",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "GoogleAuthScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "e0345e0db324128359547efcda2915e5d51018cee3174f00334e4323f0d66475",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e0345e0db324128359547efcda2915e5d51018cee3174f00334e4323f0d66475"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/_layout.tsx",
+      "route": "/(tabs)/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Tabs",
+        "InitialHomeLoadingBoundary",
+        "AppTabs"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "da5e6b9320493de67e66a9c9701be75d674d7d5e288183201393c45c6a260b44",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "da5e6b9320493de67e66a9c9701be75d674d7d5e288183201393c45c6a260b44"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/add.tsx",
+      "route": "/(tabs)/add",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "TransactionForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "460bb51cb94cd66789ec44e3a52123d5902f3fc00d90f7a341dd4420b6111fac",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN empty Add and category picker; Keep Editing preserves draft; no Save",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "460bb51cb94cd66789ec44e3a52123d5902f3fc00d90f7a341dd4420b6111fac"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/home.tsx",
+      "route": "/(tabs)/home",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "TrackingHomeCard",
+        "HomeScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5a8b7809e2c759852653c1430895fab9d0a080387606446f11c7b3a41db09871",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN cached Home, tabs, date picker; no current-day transaction card to tap",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5a8b7809e2c759852653c1430895fab9d0a080387606446f11c7b3a41db09871"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/more.tsx",
+      "route": "/(tabs)/more",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ScrollView",
+        "AppBar",
+        "View",
+        "StyledText",
+        "MenuLink",
+        "Divider",
+        "AccountDeletionPanel",
+        "SocialMediaFooter",
+        "ActionButton"
+      ],
+      "gates": [
+        "isFixtureModeEnabled"
+      ],
+      "literalTargets": [
+        "/(public)/auth-pending",
+        "/profile",
+        "/security/settings",
+        "/profile/application",
+        "/notifications/preferences",
+        "/tracking",
+        "/accounts",
+        "/categories",
+        "/salary",
+        "/obligations",
+        "/assistant",
+        "/support"
+      ],
+      "sha256": "4e7ef5ccc37a6bc2427460239200a353f56aaef937b79c84c323e6d8b8558e3b",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN normal entries and Back; visibility controls preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "4e7ef5ccc37a6bc2427460239200a353f56aaef937b79c84c323e6d8b8558e3b"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/reports.tsx",
+      "route": "/(tabs)/reports",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ReportsScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9f8366798f973b484304ac4d39fb4681892218c3f194e834931d3d28d806953c",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN clean Reports→Assistant→Back; All Accounts/QA contexts retained; EN five visible report actions prepare unsent questions; online report data unavailable",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9f8366798f973b484304ac4d39fb4681892218c3f194e834931d3d28d806953c"
+    },
+    {
+      "file": "apps/mobile/app/(tabs)/transactions.tsx",
+      "route": "/(tabs)/transactions",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "TransactionListScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f4e259527684f54337faf6d30b8ef612fb9db6319d01bb6961a679eefbee1484",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN cached list/details, options dismiss; QA account View all scope and contextual Back fixed; clean AR restart retest",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "26f2115a36b8ed971ce7616d6630d19aef251ad04347935c395968ef316a0579"
+    },
+    {
+      "file": "apps/mobile/app/+native-intent.tsx",
+      "route": "/+native-intent",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "14711112e4399aa3e4822dd999306e092fc6103c173e6a87660b59c39ad048b9",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "14711112e4399aa3e4822dd999306e092fc6103c173e6a87660b59c39ad048b9"
+    },
+    {
+      "file": "apps/mobile/app/_layout.tsx",
+      "route": "/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "MobileIdentityProvider",
+        "StartupLoading",
+        "FoundationProviders",
+        "StartupLoadingBoundary",
+        "FontGate",
+        "AppShellProvider",
+        "DevAccountDeletionRecovery",
+        "VoiceCaptureProvider",
+        "RoutePrivacyGate",
+        "NotificationResponseRuntime",
+        "RootStack",
+        "NetworkConnectionNotice",
+        "AppPrivacyGate",
+        "Stack",
+        "ProtectedRouteGate",
+        "StartupDestinationReady"
+      ],
+      "gates": [
+        "AppPrivacyGate",
+        "ProtectedRouteGate",
+        "isAppLockEnabled"
+      ],
+      "literalTargets": [],
+      "sha256": "c201a7942d6235724fa2a90a5303f57a0cfd11ce19a82b60863e248aa31136f3",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "c201a7942d6235724fa2a90a5303f57a0cfd11ce19a82b60863e248aa31136f3"
+    },
+    {
+      "file": "apps/mobile/app/accounts/[id]/edit.tsx",
+      "route": "/accounts/[id]/edit",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "StateView",
+        "AccountForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f1314458bc87a57a0a7cafa10848cb835347a68eb792987c1f8fdb3fc1d55d7e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR existing QA fields; exited without modification/save",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "f1314458bc87a57a0a7cafa10848cb835347a68eb792987c1f8fdb3fc1d55d7e"
+    },
+    {
+      "file": "apps/mobile/app/accounts/[id]/index.tsx",
+      "route": "/accounts/[id]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AccountDetailScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f79aa94bea5ae9cda542e8e620bdab16b0c560399018fd33c69ce8dacbb998e8",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN correct QA identity; activity Details, Edit entry, View all and Back; no transfer/archive",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "f79aa94bea5ae9cda542e8e620bdab16b0c560399018fd33c69ce8dacbb998e8"
+    },
+    {
+      "file": "apps/mobile/app/accounts/_layout.tsx",
+      "route": "/accounts/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "29673eb7e032586846ff6b6354b1162c17d066da077cee027675a2dfc32a559e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "29673eb7e032586846ff6b6354b1162c17d066da077cee027675a2dfc32a559e"
+    },
+    {
+      "file": "apps/mobile/app/accounts/index.tsx",
+      "route": "/accounts",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AccountListScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "806fa6df042d1aaabde6fae5215a73cc5d8db1f500d648217bcee3490fdd0d15",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN list; normal QA detail and new-account entry",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "806fa6df042d1aaabde6fae5215a73cc5d8db1f500d648217bcee3490fdd0d15"
+    },
+    {
+      "file": "apps/mobile/app/accounts/new.tsx",
+      "route": "/accounts/new",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AccountType",
+        "AccountTypeSelectionScreen",
+        "AccountForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "32746fdad603b34ea8b9af3fd03e60d7abfd6bc73d54c0b8d5c55fcd3e15c326",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR type selector and visible credit-card form; normal visible Back/Close; no input/create/payment",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "32746fdad603b34ea8b9af3fd03e60d7abfd6bc73d54c0b8d5c55fcd3e15c326"
+    },
+    {
+      "file": "apps/mobile/app/assistant/[conversationId]/actions/[previewId].tsx",
+      "route": "/assistant/[conversationId]/actions/[previewId]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AssistantActionPreviewScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "eef5e2d77b16587ab33524c17394512180033019c29f83755114ddbed4bf4c85",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "eef5e2d77b16587ab33524c17394512180033019c29f83755114ddbed4bf4c85"
+    },
+    {
+      "file": "apps/mobile/app/assistant/[conversationId]/index.tsx",
+      "route": "/assistant/[conversationId]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AssistantConversationScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "d298ccfbfe8b8bb0922aeea6d0b41922860301d267a6b5e10052495f76fbf157",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "d298ccfbfe8b8bb0922aeea6d0b41922860301d267a6b5e10052495f76fbf157"
+    },
+    {
+      "file": "apps/mobile/app/assistant/_layout.tsx",
+      "route": "/assistant/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "BackendUnavailableState",
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "3137ad6072f1913e71b65ddef142a5a5b5fb665b1450c05e4344e64ac2ff58cd",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "3137ad6072f1913e71b65ddef142a5a5b5fb665b1450c05e4344e64ac2ff58cd"
+    },
+    {
+      "file": "apps/mobile/app/assistant/index.tsx",
+      "route": "/assistant",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "AssistantHomeScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "d64a0218b9b5af53ee0f2ea4ae842fc40eef68a2ab7472e2921cd3d56ca455eb",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN report handoff and toolbar/Android Back return to Analytics; no message/consent/provider submission; unavailable offline",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "d64a0218b9b5af53ee0f2ea4ae842fc40eef68a2ab7472e2921cd3d56ca455eb"
+    },
+    {
+      "file": "apps/mobile/app/budgets/allocation/[budgetId].tsx",
+      "route": "/budgets/allocation/[budgetId]",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "BudgetAllocationEditor"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "57bb5ad41a8ea7f6b1810aad390836b008616e6809cb2b5e4c9b2ce5b88bf135",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "57bb5ad41a8ea7f6b1810aad390836b008616e6809cb2b5e4c9b2ce5b88bf135"
+    },
+    {
+      "file": "apps/mobile/app/budgets/edit/[budgetId].tsx",
+      "route": "/budgets/edit/[budgetId]",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "BudgetForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "c1b2b620d4be75d68443eb68b892498f63255e25a8b175ebfd2de933af6382e3",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "c1b2b620d4be75d68443eb68b892498f63255e25a8b175ebfd2de933af6382e3"
+    },
+    {
+      "file": "apps/mobile/app/budgets/index.tsx",
+      "route": "/budgets",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "adaa33663fa8f3b27d0040be0b7e26e555775174ee370ee2e1dafc3638b293a8",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "adaa33663fa8f3b27d0040be0b7e26e555775174ee370ee2e1dafc3638b293a8"
+    },
+    {
+      "file": "apps/mobile/app/budgets/new.tsx",
+      "route": "/budgets/new",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "226cd94a8bec5070b7a977314beec721a4c77844515307efe8c88400fbf3acab",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "226cd94a8bec5070b7a977314beec721a4c77844515307efe8c88400fbf3acab"
+    },
+    {
+      "file": "apps/mobile/app/budgets/transactions/[budgetId].tsx",
+      "route": "/budgets/transactions/[budgetId]",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "BudgetTransactionsScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5f3aacd105b15d2937fa75e9b07ff6dd5b25e71f87e01c8287a2b8236bec8e74",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5f3aacd105b15d2937fa75e9b07ff6dd5b25e71f87e01c8287a2b8236bec8e74"
+    },
+    {
+      "file": "apps/mobile/app/categories/[id].tsx",
+      "route": "/categories/[id]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "CategoryDetailScreen",
+        "StateView",
+        "CategoryForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "61c74dba7dc6f107ff4074599707626265ac587309ad4204905bfa3ba42a049a",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN Food system-category identity; no mutation",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "61c74dba7dc6f107ff4074599707626265ac587309ad4204905bfa3ba42a049a"
+    },
+    {
+      "file": "apps/mobile/app/categories/_layout.tsx",
+      "route": "/categories/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "591da0200489b97301628007038532c95734cedd517618900191071da8a6bf0e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "591da0200489b97301628007038532c95734cedd517618900191071da8a6bf0e"
+    },
+    {
+      "file": "apps/mobile/app/categories/index.tsx",
+      "route": "/categories",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "CategoryListScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "effbcff872a42249406d621773f01c5f27a8f6ce7dbb44c4ba7cef421798da50",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN list; AR new-group empty sheet opened/closed without creation",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "effbcff872a42249406d621773f01c5f27a8f6ce7dbb44c4ba7cef421798da50"
+    },
+    {
+      "file": "apps/mobile/app/categories/new.tsx",
+      "route": "/categories/new",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "CategoryForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9453f1718cc22dd57a9638528c4fda704fc8fa921114027b7c7a9084bdb543d0",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR empty form/focus/Close; no save; keyboard rendering not established by XML",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9453f1718cc22dd57a9638528c4fda704fc8fa921114027b7c7a9084bdb543d0"
+    },
+    {
+      "file": "apps/mobile/app/category-picker.tsx",
+      "route": "/category-picker",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "StateView",
+        "CategorySelectionScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "436966ff87252a8e95510f9917d2fc1dcd5c58d4d666b3563d629592908ad79e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN Add category picker opened and Back returns unchanged form",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "436966ff87252a8e95510f9917d2fc1dcd5c58d4d666b3563d629592908ad79e"
+    },
+    {
+      "file": "apps/mobile/app/design-system/_layout.tsx",
+      "route": "/design-system/_layout",
+      "kind": "layout/control",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "Stack",
+        "Redirect"
+      ],
+      "gates": [
+        "isFixtureModeEnabled"
+      ],
+      "literalTargets": [
+        "/(tabs)/home"
+      ],
+      "sha256": "cd1b4892066be0f00ede03d4257669398c4b24f8954324a4f7bc8bd68826c030",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "cd1b4892066be0f00ede03d4257669398c4b24f8954324a4f7bc8bd68826c030"
+    },
+    {
+      "file": "apps/mobile/app/design-system/index.tsx",
+      "route": "/design-system",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "DesignSystemGallery"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "33292916e959b2343ea3aa614fe0a2a38483957139cac1eedaa461c9ebc7b22f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "33292916e959b2343ea3aa614fe0a2a38483957139cac1eedaa461c9ebc7b22f"
+    },
+    {
+      "file": "apps/mobile/app/foundation/_layout.tsx",
+      "route": "/foundation/_layout",
+      "kind": "layout/control",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "Stack",
+        "Redirect"
+      ],
+      "gates": [
+        "isFixtureModeEnabled"
+      ],
+      "literalTargets": [
+        "/(tabs)/home"
+      ],
+      "sha256": "e83341f9e7a90222d358ab817f515283c7749d4f74edf8bf1c00f283ac68940f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e83341f9e7a90222d358ab817f515283c7749d4f74edf8bf1c00f283ac68940f"
+    },
+    {
+      "file": "apps/mobile/app/foundation/accessibility.tsx",
+      "route": "/foundation/accessibility",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "View",
+        "AccessibilityStateGallery"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "67932dce4da1c4897e9b682221cc396e1f436d6a672ad6645d2f5ee2e0197d65",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "67932dce4da1c4897e9b682221cc396e1f436d6a672ad6645d2f5ee2e0197d65"
+    },
+    {
+      "file": "apps/mobile/app/foundation/capture.tsx",
+      "route": "/foundation/capture",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "Platform",
+        "PermissionStatus",
+        "OfflineEntry",
+        "View",
+        "ScrollView",
+        "Pressable",
+        "StyledText",
+        "CaptureFallbackPanel"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "2e0a1dba178ea77c1f89420bd25eb8c9dbe2312c9deab587a0e9a26f1725719d",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "2e0a1dba178ea77c1f89420bd25eb8c9dbe2312c9deab587a0e9a26f1725719d"
+    },
+    {
+      "file": "apps/mobile/app/foundation/notifications.tsx",
+      "route": "/foundation/notifications",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "NativeNotificationValidationScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5f540072ac9ad84c53e2cb81ff5994d570e2e38e8c49f4cac8b670ab21be1858",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5f540072ac9ad84c53e2cb81ff5994d570e2e38e8c49f4cac8b670ab21be1858"
+    },
+    {
+      "file": "apps/mobile/app/foundation/position.tsx",
+      "route": "/foundation/position",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "ScenarioName",
+        "ScrollView",
+        "View",
+        "Pressable",
+        "StyledText",
+        "FinancialPositionPanel"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "e8fbef690757421d965e700bb484fe01cad1e2944563df2eaf2737ac59b00648",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e8fbef690757421d965e700bb484fe01cad1e2944563df2eaf2737ac59b00648"
+    },
+    {
+      "file": "apps/mobile/app/foundation/scenarios.tsx",
+      "route": "/foundation/scenarios",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "d7db1a082316f73c381a42f46dd0e18984c807c4701bcb536c7d022e4725d975",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "d7db1a082316f73c381a42f46dd0e18984c807c4701bcb536c7d022e4725d975"
+    },
+    {
+      "file": "apps/mobile/app/foundation/trust.tsx",
+      "route": "/foundation/trust",
+      "kind": "screen",
+      "visibility": "FIXTURE_ONLY; preserve redirect; excluded from active audit",
+      "components": [
+        "FinancialChangeScenario",
+        "ScrollView",
+        "View",
+        "Pressable",
+        "StyledText",
+        "FinancialTrustPanel"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9b717f5c9d7f93a66c0df0cb23b9705b964b33cce377098f7b55962fa1592284",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9b717f5c9d7f93a66c0df0cb23b9705b964b33cce377098f7b55962fa1592284"
+    },
+    {
+      "file": "apps/mobile/app/index.tsx",
+      "route": "/",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "Redirect",
+        "StartupConnectionState",
+        "StateView",
+        "StartupLoadingStage"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "c0a63283abd2365539ec47ae7b69e72dbd41653ae51bcc26c82e979fc8e3e9e5",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "c0a63283abd2365539ec47ae7b69e72dbd41653ae51bcc26c82e979fc8e3e9e5"
+    },
+    {
+      "file": "apps/mobile/app/modal/planning-conflict.tsx",
+      "route": "/modal/planning-conflict",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "RouteModalContainer",
+        "PlanningConflictScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "1d73a7f37064995f66325079e0011cfee64bcbd202f6f3a77c3ea5b72e259177",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "1d73a7f37064995f66325079e0011cfee64bcbd202f6f3a77c3ea5b72e259177"
+    },
+    {
+      "file": "apps/mobile/app/modals/account-picker.tsx",
+      "route": "/modals/account-picker",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "RouteModalContainer",
+        "AccountPicker"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "4884b42e7609866519c4541e5fe9bfbe2da7cbca6e9f8b241623bcf1bf06ff0a",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "4884b42e7609866519c4541e5fe9bfbe2da7cbca6e9f8b241623bcf1bf06ff0a"
+    },
+    {
+      "file": "apps/mobile/app/modals/sync-conflict.tsx",
+      "route": "/modals/sync-conflict",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "RouteModalContainer",
+        "SyncConflictScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "e3b9035ba69a6512d37d481ee2faedcb3c5783c1550e669841677d0265ed6f82",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e3b9035ba69a6512d37d481ee2faedcb3c5783c1550e669841677d0265ed6f82"
+    },
+    {
+      "file": "apps/mobile/app/modals/transaction-filters.tsx",
+      "route": "/modals/transaction-filters",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "RouteModalContainer",
+        "TransactionFilters"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "ba3db2ede85da8b1a7ba24e86872f053b7f230d25bfb0554a1822dedfc138acc",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "ba3db2ede85da8b1a7ba24e86872f053b7f230d25bfb0554a1822dedfc138acc"
+    },
+    {
+      "file": "apps/mobile/app/notifications/_layout.tsx",
+      "route": "/notifications/_layout",
+      "kind": "layout/control",
+      "visibility": "ENTRY_VISIBILITY_REVIEW; More preferences explicitly disabled; never add entry",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "398d87a0e5df5996d266068dd5fe6246731fc6d2dce56c52a195ff9ef5ddf006",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "398d87a0e5df5996d266068dd5fe6246731fc6d2dce56c52a195ff9ef5ddf006"
+    },
+    {
+      "file": "apps/mobile/app/notifications/index.tsx",
+      "route": "/notifications",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_REVIEW; More preferences explicitly disabled; never add entry",
+      "components": [
+        "NotificationCenterScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9b3c3ce07b8a6d1f0d88438e3561b1a03cb37f6a9de25ef79aa35b8ad7288796",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9b3c3ce07b8a6d1f0d88438e3561b1a03cb37f6a9de25ef79aa35b8ad7288796"
+    },
+    {
+      "file": "apps/mobile/app/notifications/preferences.tsx",
+      "route": "/notifications/preferences",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_REVIEW; More preferences explicitly disabled; never add entry",
+      "components": [
+        "NotificationPreferencesScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "af4b44a9147cf638372fcfb7f74586a9227a1fc81d43513ecd3cc9f2403dceb1",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "af4b44a9147cf638372fcfb7f74586a9227a1fc81d43513ecd3cc9f2403dceb1"
+    },
+    {
+      "file": "apps/mobile/app/obligations/[obligationId]/edit.tsx",
+      "route": "/obligations/[obligationId]/edit",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ObligationForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f3e6f8efaaf1123cc4bfaaaa7cfaf4e4282cbd1d7321621b89a848b0f16585fb",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "f3e6f8efaaf1123cc4bfaaaa7cfaf4e4282cbd1d7321621b89a848b0f16585fb"
+    },
+    {
+      "file": "apps/mobile/app/obligations/[obligationId]/match.tsx",
+      "route": "/obligations/[obligationId]/match",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "PaymentMatchReviewScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "429fd9f5de2e37935d113619c7069ced5b5f82a1d3612d8cffe618849ab9228f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "429fd9f5de2e37935d113619c7069ced5b5f82a1d3612d8cffe618849ab9228f"
+    },
+    {
+      "file": "apps/mobile/app/obligations/[obligationId]/payment.tsx",
+      "route": "/obligations/[obligationId]/payment",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ObligationPaymentScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "a6239b18eea62ac167b931187f670f8495bd0b2da787bc20df63a09d2b06f3c6",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "a6239b18eea62ac167b931187f670f8495bd0b2da787bc20df63a09d2b06f3c6"
+    },
+    {
+      "file": "apps/mobile/app/obligations/[obligationId].tsx",
+      "route": "/obligations/[obligationId]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ObligationDetailScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "94a6d960cca9609ca49652480bf9065176b84d41d2d02034a4e1693dee52e3c0",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "94a6d960cca9609ca49652480bf9065176b84d41d2d02034a4e1693dee52e3c0"
+    },
+    {
+      "file": "apps/mobile/app/obligations/index.tsx",
+      "route": "/obligations",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "73441f6843cfc4a70668782657a1d76b9c5e37c598257f75d256fcc87c6be877",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN planning unavailable offline; no payment",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "73441f6843cfc4a70668782657a1d76b9c5e37c598257f75d256fcc87c6be877"
+    },
+    {
+      "file": "apps/mobile/app/obligations/new.tsx",
+      "route": "/obligations/new",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "cb836d98c0f45629d1bac25a1d179faa589d0984a18af7f85291c3cec67da2c6",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "cb836d98c0f45629d1bac25a1d179faa589d0984a18af7f85291c3cec67da2c6"
+    },
+    {
+      "file": "apps/mobile/app/profile/_layout.tsx",
+      "route": "/profile/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "106470ad5da07b7e8acc435b88c0819926ba3d4accd0319a93c4b85f3723122e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "106470ad5da07b7e8acc435b88c0819926ba3d4accd0319a93c4b85f3723122e"
+    },
+    {
+      "file": "apps/mobile/app/profile/application.tsx",
+      "route": "/profile/application",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ApplicationSettingsScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "1104372f7d90d92954de15b293d2f0da94442269425852fc8be12cc4e4c5eb77",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN settings; locale ordinary switch restored to AR; currency/month-start picker no selection",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "1104372f7d90d92954de15b293d2f0da94442269425852fc8be12cc4e4c5eb77"
+    },
+    {
+      "file": "apps/mobile/app/profile/index.tsx",
+      "route": "/profile",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProfileScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "b10dd07a52c5a929a99bf18a58406df03e4008a4b196be6816459aed5887212e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN unavailable offline; Back returns More; child profile routes not safely reachable",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "b10dd07a52c5a929a99bf18a58406df03e4008a4b196be6816459aed5887212e"
+    },
+    {
+      "file": "apps/mobile/app/profile/phone.tsx",
+      "route": "/profile/phone",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProfilePhoneScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "0488230a7ff8047cfd073665ea0cd8e42518ec33b0318106d5a00c89c62293aa",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "0488230a7ff8047cfd073665ea0cd8e42518ec33b0318106d5a00c89c62293aa"
+    },
+    {
+      "file": "apps/mobile/app/profile/privacy.tsx",
+      "route": "/profile/privacy",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "PrivacySettingsScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5cac3196d4e37778252688c601042c9ce57f390f3d69c85574934d4696916014",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5cac3196d4e37778252688c601042c9ce57f390f3d69c85574934d4696916014"
+    },
+    {
+      "file": "apps/mobile/app/reports/_layout.tsx",
+      "route": "/reports/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "Stack"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "0ee536d0a479c0c62e02f7d6a10e2009674659e43750184bce345f808a6d251e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "0ee536d0a479c0c62e02f7d6a10e2009674659e43750184bce345f808a6d251e"
+    },
+    {
+      "file": "apps/mobile/app/reports/drill-down.tsx",
+      "route": "/reports/drill-down",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ReportDrillDownScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "847ea34503165e73d9a103f081849e3a5fbe47a5ce7bcfc0e98b73b9d862ccd6",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "847ea34503165e73d9a103f081849e3a5fbe47a5ce7bcfc0e98b73b9d862ccd6"
+    },
+    {
+      "file": "apps/mobile/app/reports/preview.tsx",
+      "route": "/reports/preview",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ReportPreviewScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "fd82fd70e2d7930678c4c03053c39d074371a5448d4a0cb41f3d8eb087595300",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "fd82fd70e2d7930678c4c03053c39d074371a5448d4a0cb41f3d8eb087595300"
+    },
+    {
+      "file": "apps/mobile/app/reports/schedule.tsx",
+      "route": "/reports/schedule",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ReportScheduleScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5f95147cda6b8b75b9ab4eaccb8b214e13baec4157fdce4393b96c83319d3c44",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5f95147cda6b8b75b9ab4eaccb8b214e13baec4157fdce4393b96c83319d3c44"
+    },
+    {
+      "file": "apps/mobile/app/salary/index.tsx",
+      "route": "/salary",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9440c6acf5955713726f98da2be672c2bb25795d397a04ff4d257d40e5ec6887",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN planning unavailable offline; no mutation",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9440c6acf5955713726f98da2be672c2bb25795d397a04ff4d257d40e5ec6887"
+    },
+    {
+      "file": "apps/mobile/app/salary/profile.tsx",
+      "route": "/salary/profile",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "78af9bac81dcc495bd55fd9e009affa931ae378f529b5047c07abc8e5a7d668f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "78af9bac81dcc495bd55fd9e009affa931ae378f529b5047c07abc8e5a7d668f"
+    },
+    {
+      "file": "apps/mobile/app/salary/receipt/[receiptId].tsx",
+      "route": "/salary/receipt/[receiptId]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "SalaryReceiptReview"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "776f119d7a62ead3d7c972ae890340b0c15e7a37a1928eb3ac0307832db4943a",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "776f119d7a62ead3d7c972ae890340b0c15e7a37a1928eb3ac0307832db4943a"
+    },
+    {
+      "file": "apps/mobile/app/savings/[goalId]/edit.tsx",
+      "route": "/savings/[goalId]/edit",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "SavingsGoalForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f356676013b9229c691d25864ba06d5eaa878caa8507cdbdb46ec13f1a7ea400",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "f356676013b9229c691d25864ba06d5eaa878caa8507cdbdb46ec13f1a7ea400"
+    },
+    {
+      "file": "apps/mobile/app/savings/[goalId]/movement.tsx",
+      "route": "/savings/[goalId]/movement",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "SavingsMovementForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "aecfe08633ae10ba79960e4348105333aa6aad9b5652a9198ac1d04d60858131",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "aecfe08633ae10ba79960e4348105333aa6aad9b5652a9198ac1d04d60858131"
+    },
+    {
+      "file": "apps/mobile/app/savings/[goalId].tsx",
+      "route": "/savings/[goalId]",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [
+        "SavingsGoalDetailScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "bc46e29df16db60ddbea16a6c7724ad0abff039bfca7b4cb70311fcc2357ee72",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "bc46e29df16db60ddbea16a6c7724ad0abff039bfca7b4cb70311fcc2357ee72"
+    },
+    {
+      "file": "apps/mobile/app/savings/index.tsx",
+      "route": "/savings",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "5324c3ae636d3ce76fbf6f143a8bf47bb865c6e70d8c5869ef4a30fdfb98c1a0",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "5324c3ae636d3ce76fbf6f143a8bf47bb865c6e70d8c5869ef4a30fdfb98c1a0"
+    },
+    {
+      "file": "apps/mobile/app/savings/new.tsx",
+      "route": "/savings/new",
+      "kind": "screen",
+      "visibility": "ENTRY_VISIBILITY_UNCONFIRMED; no menu restoration; inspect existing incoming controls",
+      "components": [],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "94050be7c8293b3dcd76f222f4f7f8764c4156c42742d8a51e5f5dbd72e23c9f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no confirmed visible ordinary entry in inspected current UI; preserve unclear visibility",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "94050be7c8293b3dcd76f222f4f7f8764c4156c42742d8a51e5f5dbd72e23c9f"
+    },
+    {
+      "file": "apps/mobile/app/security/_layout.tsx",
+      "route": "/security/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "ccfafec3a13a5f81fa8dea5510274ba60b7473df49b46be15ca9b72d89db663b",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "ccfafec3a13a5f81fa8dea5510274ba60b7473df49b46be15ca9b72d89db663b"
+    },
+    {
+      "file": "apps/mobile/app/security/events.tsx",
+      "route": "/security/events",
+      "kind": "screen",
+      "visibility": "LIVE_CONTENT_GATED; preserve fixture restriction; menu separately approved; product intent requires review",
+      "components": [
+        "BackendUnavailableState",
+        "SecurityEventScreen"
+      ],
+      "gates": [
+        "isFixtureModeEnabled"
+      ],
+      "literalTargets": [],
+      "sha256": "0d893db5005d20d9d6a2307b6cf2f52248696b61e76e6c337ba5f10030b4f9ac",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "Prior AR journey reached unchanged live-content gate; not a defect in this expanded audit",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "0d893db5005d20d9d6a2307b6cf2f52248696b61e76e6c337ba5f10030b4f9ac"
+    },
+    {
+      "file": "apps/mobile/app/security/pin/change.tsx",
+      "route": "/security/pin/change",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "PinSetupScreen"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/security/settings"
+      ],
+      "sha256": "b60117a48c2ca996f426f8d609dfa24172ed787c9e85a868f67ff8e2ab97eaf8",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "b60117a48c2ca996f426f8d609dfa24172ed787c9e85a868f67ff8e2ab97eaf8"
+    },
+    {
+      "file": "apps/mobile/app/security/pin/create.tsx",
+      "route": "/security/pin/create",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "PinSetupScreen"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/security/settings"
+      ],
+      "sha256": "7400106c3626322ab16b4df2ebc4a97f21ee3843fb296332ee3e23d79f14e696",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "7400106c3626322ab16b4df2ebc4a97f21ee3843fb296332ee3e23d79f14e696"
+    },
+    {
+      "file": "apps/mobile/app/security/pin/forgot.tsx",
+      "route": "/security/pin/forgot",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "StateView",
+        "StyledText",
+        "GoogleAccountSelector"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/security/pin/create"
+      ],
+      "sha256": "281c653660d34596173d6a5f24335aac9797b3f41f0cc3a3540877b86c97eea2",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; cannot force auth/onboarding/PIN flows without changing existing account/security state",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "281c653660d34596173d6a5f24335aac9797b3f41f0cc3a3540877b86c97eea2"
+    },
+    {
+      "file": "apps/mobile/app/security/sessions.tsx",
+      "route": "/security/sessions",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "SessionListScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "3654cb8072f1fafac9bf0f522e00d42ad2d869ccaa378cb17163362d4ec72a50",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN unavailable offline; no revocation; Back to settings",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "3654cb8072f1fafac9bf0f522e00d42ad2d869ccaa378cb17163362d4ec72a50"
+    },
+    {
+      "file": "apps/mobile/app/security/settings.tsx",
+      "route": "/security/settings",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "BiometricAvailability",
+        "MessageKey",
+        "PrivacyLockPreference",
+        "ScrollView",
+        "AppBar",
+        "GroupedList",
+        "NavigationRow",
+        "View",
+        "SwitchRow",
+        "StyledText",
+        "AccountDeletionPanel"
+      ],
+      "gates": [
+        "isAppLockEnabled"
+      ],
+      "literalTargets": [
+        "/(tabs)/more",
+        "/security/pin/forgot",
+        "/security/sessions",
+        "/security/events"
+      ],
+      "sha256": "6c6d08e31dd695fe64f68345a4126ed967e6e78316dd05d04e90f43b8e2374e8",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR prior slice / EN expanded; normal More entry; security settings unchanged",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "6c6d08e31dd695fe64f68345a4126ed967e6e78316dd05d04e90f43b8e2374e8"
+    },
+    {
+      "file": "apps/mobile/app/security/unlock.tsx",
+      "route": "/security/unlock",
+      "kind": "screen",
+      "visibility": "AUTH/LOCK_CONDITIONAL; no credential/security-setting changes",
+      "components": [
+        "UnlockScreen"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/security/pin/forgot"
+      ],
+      "sha256": "491391d8e386530fb9903d7a20d4eec050c960e56fded964b092ed1e257a74b4",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "491391d8e386530fb9903d7a20d4eec050c960e56fded964b092ed1e257a74b4"
+    },
+    {
+      "file": "apps/mobile/app/settings/application.tsx",
+      "route": "/settings/application",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ApplicationSettingsScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "449b5ae73783cfc50942269c75e8ab2d687bcd53619976b2a2e601a3d208fea1",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "449b5ae73783cfc50942269c75e8ab2d687bcd53619976b2a2e601a3d208fea1"
+    },
+    {
+      "file": "apps/mobile/app/settings/currency.tsx",
+      "route": "/settings/currency",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "CurrencySelectionScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "df01f3d56fdc260c9ff55b27c7cb34b74ae1476bf4dea6a11908b121d69db695",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN currency selector; current SAR shown; Back unchanged",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "df01f3d56fdc260c9ff55b27c7cb34b74ae1476bf4dea6a11908b121d69db695"
+    },
+    {
+      "file": "apps/mobile/app/settings/month-start.tsx",
+      "route": "/settings/month-start",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "CycleStartDaySelectionScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "287c5bf8780eff2a07d267287caaf2a12b7abee891afb605259eabecaf34c0f2",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR cycle-start selector current day1; Back unchanged",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "287c5bf8780eff2a07d267287caaf2a12b7abee891afb605259eabecaf34c0f2"
+    },
+    {
+      "file": "apps/mobile/app/subscriptions/_layout.tsx",
+      "route": "/subscriptions/_layout",
+      "kind": "layout/control",
+      "visibility": "DEFERRED/FIXTURE_ONLY; preserve; no billing execution",
+      "components": [
+        "BackendUnavailableState",
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate",
+        "isFixtureModeEnabled"
+      ],
+      "literalTargets": [],
+      "sha256": "8b962dd7ed4adce421489ac212359cd89490d5bf0593a1efff1e2ea46d630fbc",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "8b962dd7ed4adce421489ac212359cd89490d5bf0593a1efff1e2ea46d630fbc"
+    },
+    {
+      "file": "apps/mobile/app/subscriptions/checkout.tsx",
+      "route": "/subscriptions/checkout",
+      "kind": "screen",
+      "visibility": "DEFERRED/FIXTURE_ONLY; preserve; no billing execution",
+      "components": [
+        "SubscriptionCheckoutScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "ecb27edba5af0c37a3da56ec35daae32aa2a0cd84b0064629742d612c7fb200f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "ecb27edba5af0c37a3da56ec35daae32aa2a0cd84b0064629742d612c7fb200f"
+    },
+    {
+      "file": "apps/mobile/app/subscriptions/index.tsx",
+      "route": "/subscriptions",
+      "kind": "screen",
+      "visibility": "DEFERRED/FIXTURE_ONLY; preserve; no billing execution",
+      "components": [
+        "SubscriptionScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "59c955e64394d273434e4845438b722b54a27d7a4fdca56cd14ea5b31ed286f2",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "59c955e64394d273434e4845438b722b54a27d7a4fdca56cd14ea5b31ed286f2"
+    },
+    {
+      "file": "apps/mobile/app/subscriptions/manage.tsx",
+      "route": "/subscriptions/manage",
+      "kind": "screen",
+      "visibility": "DEFERRED/FIXTURE_ONLY; preserve; no billing execution",
+      "components": [
+        "SubscriptionManageScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9955525b59a7c86537cf0e5c613d54f3c318dc492691418379305c5894f01581",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "INTENTIONALLY_EXCLUDED; visibility restrictions preserved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9955525b59a7c86537cf0e5c613d54f3c318dc492691418379305c5894f01581"
+    },
+    {
+      "file": "apps/mobile/app/support/_layout.tsx",
+      "route": "/support/_layout",
+      "kind": "layout/control",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate"
+      ],
+      "literalTargets": [],
+      "sha256": "d2c7b70c30e6a0d8ac892437adf37bbc0d9d481b3103a63a9c0186f63d9e472c",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "d2c7b70c30e6a0d8ac892437adf37bbc0d9d481b3103a63a9c0186f63d9e472c"
+    },
+    {
+      "file": "apps/mobile/app/support/index.tsx",
+      "route": "/support",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "SupportHomeScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "e07f29594bc4d1cfc4e2cfb556862896104833e75318046bdc6161339df79c88",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN support form correct feature; Back; no text or submit",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e07f29594bc4d1cfc4e2cfb556862896104833e75318046bdc6161339df79c88"
+    },
+    {
+      "file": "apps/mobile/app/support/new.tsx",
+      "route": "/support/new",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "BackendUnavailableState",
+        "SupportFormScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "206be7956b26d8f780a0dcc3f5a9bd4daff5d39b199a6136075e5b463319d649",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "206be7956b26d8f780a0dcc3f5a9bd4daff5d39b199a6136075e5b463319d649"
+    },
+    {
+      "file": "apps/mobile/app/support/tickets/[id].tsx",
+      "route": "/support/tickets/[id]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "BackendUnavailableState",
+        "TicketDetailScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "0ec2bba642c50571db01649be6dda3b58579fcb9072fb5ff966aa267720bbdec",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "0ec2bba642c50571db01649be6dda3b58579fcb9072fb5ff966aa267720bbdec"
+    },
+    {
+      "file": "apps/mobile/app/support/tickets/index.tsx",
+      "route": "/support/tickets",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "BackendUnavailableState",
+        "TicketListScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "d1abbb5965e165f447e647343804b5fb781679912c1f408653f328d5434091b8",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "d1abbb5965e165f447e647343804b5fb781679912c1f408653f328d5434091b8"
+    },
+    {
+      "file": "apps/mobile/app/tracking/_layout.tsx",
+      "route": "/tracking/_layout",
+      "kind": "layout/control",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "Redirect",
+        "ProtectedRouteGate",
+        "Stack"
+      ],
+      "gates": [
+        "ProtectedRouteGate",
+        "resolveTrackingRouteCapability"
+      ],
+      "literalTargets": [],
+      "sha256": "e35739038d2ed4198494f17df978d4e6aff2cbf5d09161a62d74076eaf0c588f",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "CONTROL_FILE; exercised only through documented dependent journeys, not a screen",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "e35739038d2ed4198494f17df978d4e6aff2cbf5d09161a62d74076eaf0c588f"
+    },
+    {
+      "file": "apps/mobile/app/tracking/demo.tsx",
+      "route": "/tracking/demo",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "TrackingDemoScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "53722c57fcf0965b0c0b9a784986b8cb085c2fe5bddca1d205fefa8d3cafc673",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "53722c57fcf0965b0c0b9a784986b8cb085c2fe5bddca1d205fefa8d3cafc673"
+    },
+    {
+      "file": "apps/mobile/app/tracking/duplicates/[id].tsx",
+      "route": "/tracking/duplicates/[id]",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "DuplicateComparison"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "4093a30a5c8228deeb040e5f2b525f2ff1fe181184b72eac68a99ba26dedc0b5",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "4093a30a5c8228deeb040e5f2b525f2ff1fe181184b72eac68a99ba26dedc0b5"
+    },
+    {
+      "file": "apps/mobile/app/tracking/history.tsx",
+      "route": "/tracking/history",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "TrackingHistoryList"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "9bc06ccf9c1b3eaca355fa10c6c67e5bf366ec94205c7a86922f663ede5820b7",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "9bc06ccf9c1b3eaca355fa10c6c67e5bf366ec94205c7a86922f663ede5820b7"
+    },
+    {
+      "file": "apps/mobile/app/tracking/index.tsx",
+      "route": "/tracking",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "TrackingStatusScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "7b8f45c26416a0d6d080edfef8bcd16d27fd7f2f2c6813db0e165a6aad80e421",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "EN tracking unavailable offline; no permission/consent/import/retry",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "7b8f45c26416a0d6d080edfef8bcd16d27fd7f2f2c6813db0e165a6aad80e421"
+    },
+    {
+      "file": "apps/mobile/app/tracking/keywords.tsx",
+      "route": "/tracking/keywords",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "KeywordRule",
+        "StateView",
+        "ScrollView",
+        "StyledText",
+        "KeywordEditor",
+        "ActionButton"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "2170d47f55377de477be1fde32d4f0808e0ebc6268b2e0549a4158bededd1065",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "2170d47f55377de477be1fde32d4f0808e0ebc6268b2e0549a4158bededd1065"
+    },
+    {
+      "file": "apps/mobile/app/tracking/permission.tsx",
+      "route": "/tracking/permission",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "PermissionState",
+        "PermissionEducation",
+        "StyledText"
+      ],
+      "gates": [],
+      "literalTargets": [
+        "/tracking"
+      ],
+      "sha256": "bd7accd3e3f39e101efc02240df5a05d18e82baea9b1e815d7ce51c4c07b3c6d",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "bd7accd3e3f39e101efc02240df5a05d18e82baea9b1e815d7ce51c4c07b3c6d"
+    },
+    {
+      "file": "apps/mobile/app/tracking/review/[id].tsx",
+      "route": "/tracking/review/[id]",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "ReviewDetail"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "f4f3e65b0c56b87575deec700949287aacaa3c1074221b3766eb310d6b9a210e",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "f4f3e65b0c56b87575deec700949287aacaa3c1074221b3766eb310d6b9a210e"
+    },
+    {
+      "file": "apps/mobile/app/tracking/review/index.tsx",
+      "route": "/tracking/review",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "ReviewQueue"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "019d4ea8242779d6ca3401a693d398cb7f7b971f1f8a59346bcaba9468e19aea",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "019d4ea8242779d6ca3401a693d398cb7f7b971f1f8a59346bcaba9468e19aea"
+    },
+    {
+      "file": "apps/mobile/app/tracking/senders.tsx",
+      "route": "/tracking/senders",
+      "kind": "screen",
+      "visibility": "CAPABILITY_CONDITIONAL; Android normal entry only; preserve consent/permissions",
+      "components": [
+        "SenderRuleList"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "358ac595b03c148cd32fbb14d7b7e01cb26ab6f561d44dec4f6d389de356fc8a",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; conditional data/normal-entry/API prerequisite unavailable offline, hidden entry or protected action; not classified defective",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "358ac595b03c148cd32fbb14d7b7e01cb26ab6f561d44dec4f6d389de356fc8a"
+    },
+    {
+      "file": "apps/mobile/app/transactions/[id]/edit.tsx",
+      "route": "/transactions/[id]/edit",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "StateView",
+        "TransactionForm"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "38dec1155a5f0ccc7d5ae3cdc5622bfb6fafe5f4af54eb18465c10f06d3a14a2",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN existing QA form opened/closed; no fields changed/saved",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "38dec1155a5f0ccc7d5ae3cdc5622bfb6fafe5f4af54eb18465c10f06d3a14a2"
+    },
+    {
+      "file": "apps/mobile/app/transactions/[id].tsx",
+      "route": "/transactions/[id]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "TransactionDetailScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "a15fa04c8e6c0778f07c08dfd291a3be220131e75139e1038eef97b3699285d9",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "AR/EN QA20 and earlier QA expense details matching amount/account; Edit retained",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "a15fa04c8e6c0778f07c08dfd291a3be220131e75139e1038eef97b3699285d9"
+    },
+    {
+      "file": "apps/mobile/app/transactions/conflicts/[id].tsx",
+      "route": "/transactions/conflicts/[id]",
+      "kind": "screen",
+      "visibility": "CANDIDATE_EXISTING_ROUTE; runtime reachability must be verified",
+      "components": [
+        "SyncConflictScreen"
+      ],
+      "gates": [],
+      "literalTargets": [],
+      "sha256": "abf76233d3d20142bf51c870a197d3967959de14e247ca38e915c10015a5c75a",
+      "sourceInspection": "wrapper/layout/guard/destination scan; manual transitive review limited to documented journeys",
+      "device": "NOT_RUN; no safe confirmed normal path/record prerequisite established; no route bypass used",
+      "online": "NOT_RUN/BLOCKED: unknown local work cannot be reconnected under present authorization",
+      "initialSourceSha256": "abf76233d3d20142bf51c870a197d3967959de14e247ca38e915c10015a5c75a"
+    }
+  ],
+  "updatedAt": "2026-10-28T10:17:45.492965+00:00",
+  "expandedApprovalSha256": "51224a79dc271a35ede4b1e81f35e1e15eb48ed599c8d86a8c535f4ec20f8d81",
+  "deviceCoveredRouteFiles": 27,
+  "acceptance": "PARTIAL; T04/T05/full T06 BLOCKED",
+  "latestReportContinuation": "reports-assistant-device-continuation.json"
+}

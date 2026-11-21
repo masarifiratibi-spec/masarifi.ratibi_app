@@ -1,17 +1,20 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from "@/components/admin/ui";
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader, UnavailableState } from "@/components/admin/ui";
+import { ApiError } from "@/core/api/errors";
 import { getActionLabel, getPlatformLabel, getSeverityLabel, getStatusLabel } from "@/core/localization/display-labels";
 import { useLocale } from "@/core/localization/provider";
+import { useCurrentPermission } from "@/core/permissions/current-permissions";
 import {
   useSecurityAction,
   useSecurityIncident,
+  useSecurityIncidents,
   useSecurityList,
   useSecurityOverview,
 } from "./hooks";
 import { securityRepository } from "./repository";
-import type { ActionResult, AuthenticationEvent, IncidentDetail, OperationsIncidentMutationResult, SuspiciousActivity, SupportAccessGrant } from "./contracts";
+import type { ActionResult, AuthenticationEvent, IncidentDetail, SuspiciousActivity, SupportAccessGrant } from "./contracts";
 
 const defaultContext = (state: string, revision: number) => ({
   expectedState: state,
@@ -39,7 +42,7 @@ const securityCopy = {
     incident: "الحادث",
     action: "الإجراء",
     overviewTitle: "مركز الأمن",
-    overviewDescription: "مراقبة أمنية عربية أولا باستخدام أدلة mock مقنعة فقط.",
+    overviewDescription: "متابعة أحداث الأمن وحالات الوصول من السجلات المتاحة.",
     authenticationTitle: "أحداث المصادقة",
     authenticationDescription: "أدلة مصادقة مفلترة دون IP خام أو رموز أو معرفات أجهزة.",
     suspiciousTitle: "النشاط المشبوه",
@@ -85,7 +88,7 @@ const securityCopy = {
     incident: "Incident",
     action: "Action",
     overviewTitle: "Security Center",
-    overviewDescription: "Arabic-first security monitoring with sanitized mock evidence only.",
+    overviewDescription: "Monitor security events and access states from available records.",
     authenticationTitle: "Authentication Events",
     authenticationDescription: "Filtered authentication evidence without raw IP, token, or device identifiers.",
     suspiciousTitle: "Suspicious Activity",
@@ -156,14 +159,21 @@ function SimpleList({ resource, title }: { resource: string; title: string }) {
   const copy = securityCopy[locale];
   const query = useSecurityList(resource, { page: 1, pageSize: 25 });
   if (query.isPending) return <LoadingState />;
-  if (query.isError) return <ErrorState />;
+  if (query.isError) return (
+    <section className="table-card ops-table-card" aria-labelledby={`${resource}-title`}>
+      <h2 id={`${resource}-title`}>{title}</h2>
+      {query.error instanceof ApiError && query.error.code === "provider_unavailable"
+        ? <UnavailableState />
+        : <ErrorState error={query.error} />}
+    </section>
+  );
   const items = query.data.items;
   return (
     <section className="table-card ops-table-card" aria-labelledby={`${resource}-title`}>
       <div className="card-heading ops-card-heading">
         <div>
           <h2 id={`${resource}-title`}>{title}</h2>
-          <p>{query.data.pagination.totalItems} {copy.records}</p>
+          <p>{query.data.pagination.totalItemsRelation === "lower-bound" ? "≥" : ""}{query.data.pagination.totalItems} {copy.records}</p>
         </div>
       </div>
       {items.length === 0 ? <p role="status">{copy.empty}</p> : (
@@ -202,10 +212,10 @@ function AuthenticationTable({ items }: { items: AuthenticationEvent[] }) {
           <thead><tr><th>{copy.event}</th><th>{copy.actor}</th><th>{copy.risk}</th><th>{copy.result}</th><th>{copy.platform}</th><th>{copy.time}</th></tr></thead>
           <tbody>{items.map((event) => (
             <tr key={event.id}>
-              <td><strong>{event.eventType}</strong><small><Id value={event.id} /> · <Id value={event.correlationId} /></small></td>
-              <td>{event.actor.label}<small>{event.actorType} · {event.broadRegion}</small></td>
+              <td><strong>{event.eventType}</strong><small><Id value={event.id} /> · <Id value={event.correlationId ?? "Unavailable"} /></small></td>
+              <td>{(event.actor?.label ?? "Unavailable")}<small>{event.actorType} · {event.broadRegion}</small></td>
               <td><Badge value={getSeverityLabel(locale, event.risk)} tone={riskTone(event.risk)} /></td>
-              <td><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></td>
+              <td><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></td>
               <td><span>{getPlatformLabel(locale, event.platform)}</span></td>
               <td><Id value={event.occurredAt} /></td>
             </tr>
@@ -214,9 +224,9 @@ function AuthenticationTable({ items }: { items: AuthenticationEvent[] }) {
       </div>
       <div className="mobile-cards ops-mobile-cards">{items.map((event) => (
         <article className="mobile-data-card" key={event.id}>
-          <div className="mobile-data-head"><Id value={event.id} /><Badge value={getStatusLabel(locale, event.result)} tone={resultTone(event.result)} /></div>
+          <div className="mobile-data-head"><Id value={event.id} /><Badge value={getStatusLabel(locale, event.result ?? "unknown")} tone={resultTone(event.result ?? "unknown")} /></div>
           <strong>{event.eventType}</strong>
-          <p>{event.actor.label} · {event.broadRegion}</p>
+          <p>{(event.actor?.label ?? "Unavailable")} · {event.broadRegion}</p>
           <div className="mobile-data-meta"><div><small>{copy.risk}</small><Badge value={getSeverityLabel(locale, event.risk)} tone={riskTone(event.risk)} /></div><div><small>{copy.time}</small><Id value={event.occurredAt} /></div></div>
         </article>
       ))}</div>
@@ -257,7 +267,7 @@ export function SecurityOverviewRoute() {
   const overview = useSecurityOverview({ platform: "all", period: "30d" });
   return (
     <div className="page">
-      <PageHeader title={copy.overviewTitle} eyebrow="Spec 008" description={copy.overviewDescription} />
+      <PageHeader title={copy.overviewTitle} description={copy.overviewDescription} />
       {overview.isPending ? <LoadingState /> : overview.isError ? <ErrorState /> : (
         <section className="metrics-grid security-metrics-grid">
           {overview.data.metrics.map((metric) => (
@@ -269,10 +279,36 @@ export function SecurityOverviewRoute() {
           ))}
         </section>
       )}
+      <SecurityIncidentList />
       <SimpleList resource="authentication" title={copy.authenticationTitle} />
       <SimpleList resource="suspicious" title={copy.suspiciousTitle} />
     </div>
   );
+}
+
+export function SecurityIncidentList() {
+  const { locale } = useLocale();
+  const allowed = useCurrentPermission()("security.incidents.manage");
+  const [page, setPage] = useState(1);
+  const query = useSecurityIncidents(page, allowed);
+  if (!allowed) return null;
+  const ar = locale === "ar";
+  return <section className="table-card ops-table-card" aria-labelledby="security-incidents-title">
+    <h2 id="security-incidents-title">{ar ? "الحوادث الأمنية" : "Security incidents"}</h2>
+    {query.isPending ? <LoadingState /> : query.isError ? <ErrorState error={query.error} /> : <>
+      {query.data.items.length === 0 ? <p role="status">{ar ? "لا توجد حوادث أمنية." : "No security incidents."}</p> :
+        <div className="phase7-cards">{query.data.items.map((item) => <article className="mobile-data-card" key={item.id}>
+          <a href={`/admin/security/incidents/${encodeURIComponent(item.id)}`}>{item.title}</a>
+          <p><Id value={item.id} /></p>
+          <p>{ar && item.state === "Contained" ? "تم الاحتواء" : statusText(locale, item.state)} · {getSeverityLabel(locale, item.severity)}</p>
+        </article>)}</div>}
+      <div className="card-heading">
+        <button className="button" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{ar ? "السابق" : "Previous"}</button>
+        <span>{ar ? "صفحة" : "Page"} {page}</span>
+        <button className="button" disabled={page >= query.data.pagination.totalPages} onClick={() => setPage((value) => value + 1)}>{ar ? "التالي" : "Next"}</button>
+      </div>
+    </>}
+  </section>;
 }
 
 export function AuthenticationEventsRoute() {
@@ -405,8 +441,8 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
     <article className="mobile-data-card">
       <div className="mobile-data-head"><Id value={grant.id} /><span>{getStatusLabel(locale, grant.state)}</span></div>
       <strong>{grant.agent.label} · {grant.customer.label}</strong>
-      <p>{grant.scopes.join(" · ")} · {copy.expires} <Id value={grant.expiresAt} /></p>
-      {grant.state === "active" && <button className="button" onClick={() => setOpen(true)}>{copy.endAccess}</button>}
+      <p>{grant.scopes.join(" · ")} · {copy.expires} <Id value={grant.expiresAt ?? "Unavailable"} /></p>
+      {(grant.state === "active" || grant.state === "approved") && <button className="button" onClick={() => setOpen(true)}>{copy.endAccess}</button>}
       <ConfirmDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -419,7 +455,7 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
         title={copy.confirmSupport}
         scope={grant.id}
         consequence={copy.supportConsequence}
-        permission="security.support_access.revoke"
+        permission="support.access.revoke"
         auditEvent="security.support_access.revoked"
         pending={mutation.isPending}
         outcomes={{ success: "revoked", failure: "failed", conflict: "conflict" }}
@@ -429,30 +465,70 @@ function SupportAccessCard({ grant }: { grant: SupportAccessGrant }) {
 }
 
 export function IncidentDetailRoute({ incidentId }: { incidentId: string }) {
+  const { locale } = useLocale();
   const incident = useSecurityIncident(incidentId);
   const mutation = useSecurityAction();
-  const [result, setResult] = useState<ActionResult | OperationsIncidentMutationResult | null>(null);
+  const [result, setResult] = useState<{ auditReference: ActionResult["auditReference"] } | { version: number } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    id: string;
+    action: IncidentDetail["allowedActions"][number];
+    context: ReturnType<typeof defaultContext>;
+  } | null>(null);
   if (incident.isPending) return <div className="page"><LoadingState /></div>;
-  if (incident.isError) return <div className="page"><ErrorState /></div>;
+  if (incident.isError) return <div className="page"><ErrorState error={incident.error} /></div>;
   const data: IncidentDetail = incident.data;
   const action = data.allowedActions[0];
+  const ar = locale === "ar";
+  const actionLabel = (value: NonNullable<typeof action>) => {
+    if (ar && value === "contain") return "احتواء الحادث";
+    if (ar && value === "resolve") return "حل الحادث";
+    return getActionLabel(locale, value);
+  };
   return (
     <div className="page">
-      <PageHeader title={`Incident ${data.id}`} description="Sanitized incident detail and timeline." />
+      <PageHeader title={`${ar ? "الحادث الأمني" : "Security incident"} ${data.id}`}
+        description={ar ? "تفاصيل الحادث وسجل إجراءاته." : "Incident details and action history."} />
       <FieldList rows={[
-        ["State", data.state],
-        ["Severity", data.severity],
-        ["Owner", data.owner?.label ?? data.assignedAdminId ?? "Unavailable"],
-        ["Affected customers", data.affectedCustomerCount ?? "Unavailable"],
+        [ar ? "الحالة" : "State", ar && data.state === "Contained" ? "تم الاحتواء" : statusText(locale, data.state)],
+        [ar ? "الخطورة" : "Severity", getSeverityLabel(locale, data.severity)],
+        [ar ? "المسؤول" : "Owner", data.owner?.label ?? data.assignedAdminId ?? (ar ? "غير متاح" : "Unavailable")],
+        [ar ? "العملاء المتأثرون" : "Affected customers", data.affectedCustomerCount ?? (ar ? "غير متاح" : "Unavailable")],
       ]} />
       <ol>{data.timeline.map((item) => <li key={`${item.at}:${item.label}`}><Id value={item.at} /> {item.label}</li>)}</ol>
-      {action && <button className="button primary" onClick={() => mutation.mutate({
-        resource: "incident",
-        id: data.id,
-        action,
-        run: () => securityRepository.actOnSecurityIncident(data.id, { action, context: defaultContext(data.state, data.revision) }),
-      }, { onSuccess: (value) => setResult(value as ActionResult | OperationsIncidentMutationResult) })}>{action}</button>}
-      {result && <p role="status">{"auditReference" in result ? <>Audit reference <Id value={result.auditReference.eventId} /></> : <>Incident version {result.version}</>}</p>}
+      {action && <button className="button primary" onClick={() => {
+        mutation.reset();
+        setConfirmation({ id: data.id, action, context: defaultContext(data.state, data.revision) });
+      }}>{actionLabel(action)}</button>}
+      {confirmation && (
+        <ConfirmDialog
+          open
+          onClose={() => setConfirmation(null)}
+          onConfirm={() => mutation.mutate({
+            resource: "incident",
+            id: confirmation.id,
+            action: confirmation.action,
+            run: () => securityRepository.actOnSecurityIncident(confirmation.id, {
+              action: confirmation.action,
+              context: confirmation.context,
+            }),
+          }, { onSuccess: (value) => {
+            setConfirmation(null);
+            setResult(value as ActionResult | { version: number });
+          } })}
+          title={actionLabel(confirmation.action)}
+          scope={confirmation.id}
+          consequence={ar ? "سيتم تحديث حالة الحادث الأمني وتسجيل الإجراء." : "This updates the security incident and records the action."}
+          permission="security.incidents.manage"
+          auditEvent="security.update-security-incident"
+          pending={mutation.isPending}
+          outcomes={{ success: "updated", failure: "failed", conflict: "conflict" }}
+        >
+          {mutation.isError && <ErrorState error={mutation.error} />}
+        </ConfirmDialog>
+      )}
+      {result && <p role="status">{"auditReference" in result
+        ? <>{ar ? "مرجع التدقيق" : "Audit reference"} <Id value={result.auditReference.eventId} /></>
+        : <>{ar ? "إصدار الحادث" : "Incident version"} {result.version}</>}</p>}
     </div>
   );
 }

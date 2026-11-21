@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-11-06T21:35:55.815583+00:00",
+  "status": "signed_and_static_qualified_physical_acceptance_pending",
+  "sourceCommit": "ee6168c69660e59dda1ba40a71cc017d6297e266",
+  "package": "com.masarifi.mobile",
+  "versionCode": 125,
+  "versionName": "1.0.0",
+  "apkPath": "C:\\mrc1105\\artifacts\\task35-customer-125-native.apk",
+  "apkSha256": "f28b846aa543acbe75a111ad36e3efa334b07e1561c8261bd635a747afd24522",
+  "apkBytes": 49517202,
+  "hermesSha256": "83afad749acdd6e4e981d65237a7a023bd89fd316760cd3bde944db94eb064a9",
+  "signerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "minSdk": 24,
+  "abi": "arm64-v8a",
+  "sixApiSignerChecks": true,
+  "alignment16Kb": true,
+  "nonDebuggable": true,
+  "nativeLibrariesIdenticalToInstalled124": 23,
+  "actualDexConsumer": {
+    "concrete": true,
+    "exactPublicConstructorPresent": true,
+    "stableConsumerClassName": true
+  },
+  "sourcePins": {
+    "apps/mobile/src/features/settings/DevAccountDeletionRecovery.tsx": "54f346883a6db833b1076537411f5647793ad1a2256228be05542e9be283f7a7",
+    "apps/mobile/src/services/dev-account-deletion-recovery.test.tsx": "6637ff7f5feca592fca3ddb0c5f77251d43483ef31789d3eed6a7ff0f04ed626"
+  },
+  "validation": {
+    "uniqueMobileCases": 204,
+    "affectedSuites": 7,
+    "typesExit": 0,
+    "scopedLintExit": 0,
+    "genuineStartupCoverRedCases": 1,
+    "unchangedApi53Worker245Native88Reused": true
+  },
+  "priorInstalledVersion": 124,
+  "priorInstalledApkSha256": "a9e3f4b22e3536a7f9bb11bc461b71b55ef0d9b2a9237bd894989d7cd78312dd",
+  "scope": "Expose the existing fenced-owner deletion recovery above the startup cover and retain progress during manual continuation. Reuse the confirmed journal/capability, no extra factor verification or automatic POST. Original owner/receipt/native guards unchanged.",
+  "execution": "One ordinary in-place same-package/signer Android update. User performs final original-account continuation on phone. No agent deletion POST, app clear/uninstall/force-stop/logout or new account/profile.",
+  "hostedChanges": false,
+  "unchangedApiImage": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+  "unchangedAssistantImage": "sha256:e5816ff8ed70adc619e8bf271d80d70e6584e6db88e490902fcb01045d8bb052",
+  "sshAndRootConsoleClosed": true,
+  "assistantSpeedAccepted": false,
+  "canonicalDeliveryPromoted": false,
+  "productionReady": false
+}

@@ -5,7 +5,12 @@ select plan(19);
 grant authenticated, masarifi_api, masarifi_worker, masarifi_migration to current_user with inherit true, set true;
 grant usage on schema extensions to masarifi_api;
 set local role masarifi_migration;
-insert into public.profiles(id,status) values ('rbac_admin','active'),('rbac_backup','active'),('rbac_customer','active'),('rbac_invitee','active'),('rbac_inactive','suspended');
+insert into public.profiles(id,primary_email,status) values
+  ('rbac_admin',null,'active'),
+  ('rbac_backup',null,'active'),
+  ('rbac_customer',null,'active'),
+  ('rbac_invitee','invitee@example.test','active'),
+  ('rbac_inactive',null,'active');
 insert into public.admin_profiles(user_id,status) values ('rbac_admin','active'),('rbac_backup','active'),('rbac_inactive','active');
 insert into public.admin_role_assignments(user_id,role_id,assigned_by,reason)
 select 'rbac_admin',id,'rbac_admin','Initial controlled bootstrap assignment' from public.roles where key='super-admin';
@@ -15,6 +20,9 @@ insert into public.admin_role_assignments(user_id,role_id,assigned_by,starts_at,
 select 'rbac_inactive',id,'rbac_admin',clock_timestamp()-interval '1 minute','Inactive profile permission test' from public.roles where key='super-admin';
 insert into public.admin_invitations(email,role_id,token_hash,invited_by,expires_at)
 select 'invitee@example.test',id,'h1:'||repeat('a',64),'rbac_admin',clock_timestamp()+interval '1 hour' from public.roles where key='support-agent';
+
+-- Suspend after seeding: frozen-owner payload writes are intentionally forbidden.
+update public.profiles set status='suspended' where id='rbac_inactive';
 
 select ok(private.admin_has_permission('rbac_admin','audit.read',clock_timestamp()),'active exact permission allows');
 select ok(not private.admin_has_permission('rbac_admin','audit.logs.read',clock_timestamp()),'client alias is not a second authority');

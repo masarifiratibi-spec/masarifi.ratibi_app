@@ -1,5 +1,11 @@
 import React, { type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -13,6 +19,8 @@ interface OnboardingScaffoldProps {
   totalSteps?: number;
   primaryLabel?: string;
   onPrimary?: () => void;
+  primaryDisabled?: boolean;
+  primaryLoading?: boolean;
   onSkip?: () => void;
 }
 
@@ -23,6 +31,8 @@ export function OnboardingScaffold({
   totalSteps,
   primaryLabel = translate('appShell.onboarding.continue'),
   onPrimary,
+  primaryDisabled = false,
+  primaryLoading = false,
   onSkip
 }: OnboardingScaffoldProps) {
   return (
@@ -35,23 +45,32 @@ export function OnboardingScaffold({
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-        {currentStep && totalSteps ? (
-          <StyledText variant="caption">
-            {translate('appShell.onboarding.progress')
-              .replace('{{current}}', String(currentStep))
-              .replace('{{total}}', String(totalSteps))}
-          </StyledText>
-        ) : null}
-        <StyledText variant="title">{title}</StyledText>
-        {children ? <SurfaceCard style={styles.body}>{children}</SurfaceCard> : null}
-        {onPrimary ? <ActionButton label={primaryLabel} onPress={onPrimary} /> : null}
-        {onSkip ? (
-          <ActionButton
-            label={translate('appShell.onboarding.skip')}
-            onPress={onSkip}
-            variant="secondary"
-          />
-        ) : null}
+          {currentStep && totalSteps ? (
+            <StyledText variant="caption">
+              {translate('appShell.onboarding.progress')
+                .replace('{{current}}', String(currentStep))
+                .replace('{{total}}', String(totalSteps))}
+            </StyledText>
+          ) : null}
+          <StyledText variant="title">{title}</StyledText>
+          {children ? (
+            <SurfaceCard style={styles.body}>{children}</SurfaceCard>
+          ) : null}
+          {onPrimary ? (
+            <ActionButton
+              label={primaryLabel}
+              onPress={onPrimary}
+              disabled={primaryDisabled}
+              loading={primaryLoading}
+            />
+          ) : null}
+          {onSkip ? (
+            <ActionButton
+              label={translate('appShell.onboarding.skip')}
+              onPress={onSkip}
+              variant="secondary"
+            />
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

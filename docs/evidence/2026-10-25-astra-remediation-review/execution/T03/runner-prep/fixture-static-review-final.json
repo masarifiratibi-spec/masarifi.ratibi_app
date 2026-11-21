@@ -1,0 +1,21 @@
+{
+  "reviewer": "Independent Astra High /root/astra_t03_review",
+  "verdict": "APPROVE_STATIC",
+  "scope": "Concrete local fixture action readiness only; not execution authorization, policy override, runner approval or PG17 acceptance",
+  "closureSha256": "53BDFE9EB004DEF16A1D8CC079B9B84DA8A97080E0A59B7E95DA703D6CCE38F1",
+  "bundleSha256": "9227C7BF66C34112D8E63958450F8E206EBE39EC462CEE767F0C108B71D8D77D",
+  "allPinnedArtifactsMatch": true,
+  "runtimeFilesPreviouslyVerified": 20489,
+  "findings": [],
+  "currentStartCleanup": "Exact verified retained own-launch fallback covers record present plus provisional-receipt/PID-file failure",
+  "normalStop": "Strict exact receipt/PID-file/system identity; no replacement adoption",
+  "nativeActionExecuted": false,
+  "clusterInitialized": false,
+  "originalAutomaticRejection": {
+    "action": "Local isolated PostgreSQL17 fixture initialization/start",
+    "reason": "blocked by policy",
+    "moreDetailedReason": false
+  },
+  "approvalStatus": "PENDING_EXPLICIT_LOCAL_USER_POLICY_STEP",
+  "stagingApproval": false
+}

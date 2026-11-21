@@ -1,0 +1,1075 @@
+{
+  "date": "2026-10-25",
+  "clientIdCount": 62,
+  "missingIds": [],
+  "extraIds": [],
+  "originalRequest": "C:/Users/DELL/.codex/attachments/62331b2c-ce0c-4c49-ad00-23c26fae2596/pasted-text.txt",
+  "historicalTranscription": "docs/CLIENT_REMEDIATION_PLAN.md#4-client-feedback-verification-matrix",
+  "currentStatusMeaning": "Paths exist in current candidate; capabilities still need task-specific source/runtime acceptance. Historical classifications are preserved solely as history.",
+  "items": [
+    {
+      "clientId": 1,
+      "title": "Account deletion",
+      "historicalRequirementAndEvidence": "Account deletion: **Partial / missing live backend capability.** Mobile submits a fixture-only review request in PrivacySettingsScreen.tsx:35-50; Admin has mock deletion routes and workflow; backend plan has account_deletion_requests but no deletion-to-subscription-cancel orchestration.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz. Existing mock deletion lifecycle only. Missing live recent-auth, cancellation, retention-hold, idempotency, and post-delete access tests. Depends BE-002, BE-003, BE-012, BE-014.",
+      "historicalRecommendedAcceptance": "Extend existing privacy/billing phases; do not invent a client-only delete. High risk, Phase 1. Accept when double confirmation creates one idempotent request, active/trial subscription is cancelled, retention results reconcile, and deleted users cannot authenticate or retrieve data.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/api/src/security/security.service.ts",
+        "apps/api/src/security/security.worker.ts",
+        "apps/mobile/src/features/settings/AccountDeletionPanel.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T12"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 2,
+      "title": "Default EGP",
+      "historicalRequirementAndEvidence": "Default EGP: **Partially fixed / screenshot outdated.** foundation.ts:230-231 defaults SAR/Riyadh and AccountForm.tsx:53-64 follows the preference; EGP still appears first in currencies.ts:18-30.",
+      "historicalTestsDependencies": "M/B/DB/API/Loc/UI. AccountForm test covers preference default; missing deterministic regional-order contract/device test. Depends BE-002/004/014 and #14/#59.",
+      "historicalRecommendedAcceptance": "Keep optional non-Gulf currencies but sort the Gulf six first and use country/preference default. Medium risk, Phase 1. Accept SA→SAR, AE→AED, and fresh account creation never derives default from array position.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 3,
+      "title": "Inconsistent expense totals/refund",
+      "historicalRequirementAndEvidence": "Inconsistent expense totals/refund: **Already fixed in current local engine.** core-finance.ts:301-310 and :452-480 validate/link refunds; reports.ts:783-860 and core-finance-service.ts:145-173 use the same effects.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Existing core-finance-transfer-refund tests; missing one Home/list/report/assistant golden-fixture parity test and future live API parity. Depends BE-005→BE-010→BE-014 and #35.",
+      "historicalRecommendedAcceptance": "Keep code; add regression and preserve semantics in live ledger. High risk if regressed, Phase 1 verification. Accept exact matching net expense for partial/full refund across every surface and ledger version.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T05",
+        "T09"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 4,
+      "title": "Assistant card contradicts itself",
+      "historicalRequirementAndEvidence": "Assistant card contradicts itself: **Partially fixed locally, mock-backed.** assistant-service.ts:33-42 and :86-118 consume current finance/planning/report snapshots, but the assistant remains a mock. Backend BE-009 precedes canonical report BE-010.",
+      "historicalTestsDependencies": "M/A/B/API/Biz/UI. Existing assistant snapshot/action tests; missing zero-total/nonzero-breakdown invariant and live report-assistant parity. Depends BE-005, amended BE-009/010 order, BE-014.",
+      "historicalRecommendedAcceptance": "Move shared monthly/category read model to BE-005 or make BE-009 depend on BE-010. High risk, Phase 1. Accept same ledger version/totals from reports and assistant and suppress invalid breakdowns.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/assistant/AssistantActionPreviewScreen.tsx",
+        "apps/mobile/src/domain/assistant-actions.test.ts",
+        "apps/api/src/ai/ai.gateway.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T09",
+        "T17"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 5,
+      "title": "Obligation total mismatch",
+      "historicalRequirementAndEvidence": "Obligation total mismatch: **Partially fixed.** financial-planning-service.ts:495-525 sums remaining balances, while ObligationOverviewScreen.tsx:25-38 still labels/displays contracted totals on rows. Backend BE-007 is narrower than the current nine-type/rich Mobile contract.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. Existing planning service tests; current ObligationJourney has one failing test. Missing round-trip parity and payable/receivable numeric fixtures. Depends amended BE-007/014.",
+      "historicalRecommendedAcceptance": "Preserve the current rich contract and label contracted versus remaining explicitly. High risk, Phase 1. Accept overview payable total equals visible active payable remaining balances; receivables are separate; no fields are lost on sync.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 6,
+      "title": "Net worth excludes/mis-signs accounts",
+      "historicalRequirementAndEvidence": "Net worth excludes/mis-signs accounts: **Partially fixed with an unguarded card opening balance.** Home includes active accounts and card spending becomes negative; report-net-worth.ts:20-43 sums balances, but AccountForm permits a positive card opening balance and backend plan has no card-liability convention.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Existing report-net-worth tests; missing cash+bank+wallet+card+obligation golden fixture and double-count prevention. Depends BE-004/005/007/010/014.",
+      "historicalRecommendedAcceptance": "Define signed card postings and one net-worth formula. High risk, Phase 1. Accept SAR 320 card debt reduces net worth exactly SAR 320, with obligation/card overlap not counted twice.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T05",
+        "T09"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 7,
+      "title": "Egyptian account-creation heading",
+      "historicalRequirementAndEvidence": "Egyptian account-creation heading: **Confirmed localization issue.** ar.ts:669 and related account strings remain Egyptian.",
+      "historicalTestsDependencies": "M/Loc/UI. Missing approved Gulf-neutral glossary and string snapshot. Parallel to backend.",
+      "historicalRecommendedAcceptance": "Replace copy only; no layout redesign. Low engineering/high brand risk, Phase 1. Accept approved Gulf-neutral Arabic and unchanged English/layout.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 8,
+      "title": "Egyptian account-type descriptions",
+      "historicalRequirementAndEvidence": "Egyptian account-type descriptions: **Confirmed localization issue** in ar.ts/account flow.",
+      "historicalTestsDependencies": "M/Loc/UI. Missing glossary regression. Depends localization workstream.",
+      "historicalRecommendedAcceptance": "Replace strings using the same glossary. Phase 1. Accept all three/four account types use consistent Gulf-neutral terminology.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 9,
+      "title": "“Almost done” Egyptian wording",
+      "historicalRequirementAndEvidence": "“Almost done” Egyptian wording: **Confirmed localization issue.**",
+      "historicalTestsDependencies": "M/Loc/UI. Missing exact Arabic string assertion.",
+      "historicalRecommendedAcceptance": "Replace with approved neutral “Account details” wording. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 10,
+      "title": "Egyptian last-four explanation",
+      "historicalRequirementAndEvidence": "Egyptian last-four explanation: **Confirmed localization issue.**",
+      "historicalTestsDependencies": "M/Loc/UI/Biz. Preserve privacy meaning; missing string test.",
+      "historicalRecommendedAcceptance": "Replace copy without implying unimplemented SMS ingestion. Phase 1. Accept explanation is Gulf-neutral and states matching is available only when tracking is enabled.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 11,
+      "title": "Non-Gulf bank examples",
+      "historicalRequirementAndEvidence": "Non-Gulf bank examples: **Confirmed demo/localization issue.** AccountForm.tsx:304-315 retains Egyptian examples.",
+      "historicalTestsDependencies": "M/Loc/UI. Missing locale/market example test. Depends #46/#47 for real institutions.",
+      "historicalRecommendedAcceptance": "Use Saudi default examples now; later derive examples from supported country reference. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 12,
+      "title": "Colloquial loanword used instead of the standard Arabic term for card",
+      "historicalRequirementAndEvidence": "Colloquial loanword used instead of the standard Arabic term for card: **Confirmed localization issue.**",
+      "historicalTestsDependencies": "M/Loc/UI. Missing glossary test.",
+      "historicalRecommendedAcceptance": "Replace terminology only. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 13,
+      "title": "“House money” wording",
+      "historicalRequirementAndEvidence": "“House money” wording: **Confirmed localization issue.**",
+      "historicalTestsDependencies": "M/Loc/UI. Missing glossary test.",
+      "historicalRecommendedAcceptance": "Replace terminology only. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 14,
+      "title": "Currency ordering",
+      "historicalRequirementAndEvidence": "Currency ordering: **Partially fixed.** default follows preferences, but hardcoded list still starts EGP.",
+      "historicalTestsDependencies": "M/B/DB/API/Loc/UI. Missing order test. Depends #2/#59 and BE-004 reference seed.",
+      "historicalRecommendedAcceptance": "Deterministic Gulf-first ordering with optional currencies after. Phase 1. Accept first six are SAR/AED/KWD/QAR/BHD/OMR in approved market order.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 15,
+      "title": "Dialect inconsistency",
+      "historicalRequirementAndEvidence": "Dialect inconsistency: **Confirmed.** Account flow and other screens use different regional registers.",
+      "historicalTestsDependencies": "M/Loc/UI. Existing i18n completeness tests do not enforce terminology.",
+      "historicalRecommendedAcceptance": "Add one canonical bilingual glossary and a banned Egyptian-term regression list limited to product copy. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 16,
+      "title": "English AM/PM in Arabic",
+      "historicalRequirementAndEvidence": "English AM/PM in Arabic: **Likely fixed; native verification missing.** transaction-presentation.ts:85-90 uses Intl and an Arabic locale with Latin digits.",
+      "historicalTestsDependencies": "M/Loc/UI. Missing Android/iOS Arabic meridiem assertion. Depends RTL/LTR audit plan.",
+      "historicalRecommendedAcceptance": "Do not change until device evidence. Low risk, Phase 3. Accept approved numeral policy and Arabic meridiem on device.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 17,
+      "title": "English demo data in Arabic",
+      "historicalRequirementAndEvidence": "English demo data in Arabic: **Confirmed.** core-finance-seeds.ts and financial-planning-seeds.ts contain English titles rendered raw.",
+      "historicalTestsDependencies": "M/Loc/UI. Existing demo seeder tests; missing locale-aware fixture assertion.",
+      "historicalRecommendedAcceptance": "Localize explicit demo fixtures; never seed them into production DB. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T21"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 18,
+      "title": "Truncated financial amounts",
+      "historicalRequirementAndEvidence": "Truncated financial amounts: **Likely fixed / needs visual proof.** TransactionRow dynamically stacks; report styles shrink/wrap.",
+      "historicalTestsDependencies": "M/UI/accessibility. Existing financial primitive tests; missing smallest-device and 200% text evidence.",
+      "historicalRecommendedAcceptance": "Validate before editing; use existing responsive primitives only if reproduced. Phase 3. Accept no amount/currency truncation at supported widths/text scale.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 19,
+      "title": "Leading-side ellipsis",
+      "historicalRequirementAndEvidence": "Leading-side ellipsis: **Likely fixed after 8180b6e; needs device proof.** TransactionRow is direction-aware.",
+      "historicalTestsDependencies": "M/RTL/UI. Existing row tests; missing native RTL screenshot assertion.",
+      "historicalRecommendedAcceptance": "Validate through RTL plan. Phase 3. Accept ellipsis hides the logical end, not beginning.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 20,
+      "title": "Clipped date-period chip",
+      "historicalRequirementAndEvidence": "Clipped date-period chip: **Already fixed.** date-period.ts and DateRangeSheet use localized compact labels.",
+      "historicalTestsDependencies": "M/Loc/UI. Existing date-period/DateRangeSheet tests.",
+      "historicalRecommendedAcceptance": "Keep as-is; device regression only. Phase 3 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 21,
+      "title": "Raw ISO dates",
+      "historicalRequirementAndEvidence": "Raw ISO dates: **Already fixed.** date-period and transaction presentation use Intl.",
+      "historicalTestsDependencies": "M/Loc/UI. Existing date tests.",
+      "historicalRecommendedAcceptance": "Keep as-is. Phase 3 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13",
+        "T17"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 22,
+      "title": "Ambiguous numeric date",
+      "historicalRequirementAndEvidence": "Ambiguous numeric date: **Already fixed.** native date picker and localized display are implemented.",
+      "historicalTestsDependencies": "M/Loc/UI. Existing TransactionDateField tests.",
+      "historicalRecommendedAcceptance": "Keep as-is. Phase 3 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 23,
+      "title": "Broken net-worth change badge",
+      "historicalRequirementAndEvidence": "Broken net-worth change badge: **Already fixed.** ReportsScreen.tsx:434-476 shows one delta and percentage.",
+      "historicalTestsDependencies": "M/Biz/UI. Existing net-worth/report journey tests.",
+      "historicalRecommendedAcceptance": "Keep as-is. Phase 3 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T09",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 24,
+      "title": "Empty/broken cash-flow chart",
+      "historicalRequirementAndEvidence": "Empty/broken cash-flow chart: **Partially fixed / current implementation exists.** LineChart and ledger-derived series exist; exact screenshot state not reproduced.",
+      "historicalTestsDependencies": "M/B/API/UI. Existing LineChart/report tests; missing nonempty-series and explicit-empty-state screen assertion. Depends BE-010 for live series.",
+      "historicalRecommendedAcceptance": "Add contract/state test, then native evidence. Phase 3. Accept ordered points or explicit empty state, never a half-rendered chart.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T09",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 25,
+      "title": "Mixed Arabic/Latin bidi reversal",
+      "historicalRequirementAndEvidence": "Mixed Arabic/Latin bidi reversal: **Partially addressed.** Reports isolates money, but the specific mixed budget/category label lacks proof.",
+      "historicalTestsDependencies": "M/RTL/Loc/UI. Missing targeted bidi test and device evidence.",
+      "historicalRecommendedAcceptance": "Use existing Unicode isolation helper only where reproduced. Phase 3.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 26,
+      "title": "Disabled save without explanation",
+      "historicalRequirementAndEvidence": "Disabled save without explanation: **Likely fixed / screen-specific proof missing.** Current forms expose validation; budget journeys exist.",
+      "historicalTestsDependencies": "M/API/UI. Existing form/budget tests; missing exact invalid-field message assertion.",
+      "historicalRecommendedAcceptance": "Reproduce on current budget form; add the smallest validation test if present. Phase 3.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 27,
+      "title": "Transfer styled as income",
+      "historicalRequirementAndEvidence": "Transfer styled as income: **Mostly fixed for new writes.** form clears category and presentation is neutral; legacy demo seed still assigns “transfers.”",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. Existing presentation tests; missing schema invariant and old-row migration test. Depends #58/#62 and BE-004/005.",
+      "historicalRecommendedAcceptance": "Reject categoryId on internal transfers and clean/migrate seed/local rows. Phase 1. Accept neutral display and zero income/expense effect.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T05",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 28,
+      "title": "Off-brand blue chart controls",
+      "historicalRequirementAndEvidence": "Off-brand blue chart controls: **Cannot verify current code.** Current reports use tokens; screenshot predates latest commit.",
+      "historicalTestsDependencies": "M/UI. Missing current native visual evidence.",
+      "historicalRecommendedAcceptance": "No automatic change. Phase 3 visual audit; accept only token violations proven on current build.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 29,
+      "title": "Plan naming inconsistency",
+      "historicalRequirementAndEvidence": "Plan naming inconsistency: **Resolved in current Mobile/Admin mocks; live billing absent.** Both use free/basic/premium.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Loc/UI. Existing subscription UI/repository tests; missing shared live contract/storefront parity. Depends BE-012/014 and #60.",
+      "historicalRecommendedAcceptance": "Seed stable three-tier keys and localize display labels. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "D00"
+      ],
+      "currentDisposition": "DEFERRED billing/subscriptions; no entitlement/storefront implementation",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 30,
+      "title": "Category deletion without confirmation",
+      "historicalRequirementAndEvidence": "Category deletion without confirmation: **Released on `main` on 2026-09-05.** Archive/merge fetch an owner-scoped authoritative linked-transaction count before confirmation; execution rechecks count/version, and merge atomically reclassifies all owned transaction headers while preserving postings/revisions/audit/outbox.",
+      "historicalTestsDependencies": "M/B/DB/API/UX. pgTAP, live repository integration, API contract/security, live/mock adapter, localized UI tests, and remote Backend Foundation run `33987079570`. BE-004/005 and Mobile 004/014 own the evidence.",
+      "historicalRecommendedAcceptance": "Complete for the approved archive/merge + usage-count decision. System/foreign/missing/stale inputs fail safely. Separate undo and bulk actions remain deliberately out of scope.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07c"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 31,
+      "title": "Home does not surface planning cards",
+      "historicalRequirementAndEvidence": "Home does not surface planning cards: **Confirmed composition request / Requires Explicit UI/Product Approval.** Home renders HomeSummary; PlanningHomeCard is separate.",
+      "historicalTestsDependencies": "M/UI/product. Existing Home/planning tests; a change would alter approved Home composition.",
+      "historicalRecommendedAcceptance": "Do not implement automatically. Phase 3 decision. If approved, add one compact existing planning component without new visual language and verify first viewport/accessibility.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T13"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 32,
+      "title": "Clipped filter strip lacks affordance",
+      "historicalRequirementAndEvidence": "Clipped filter strip lacks affordance: **Cannot verify current build.**",
+      "historicalTestsDependencies": "M/UI. Missing current narrow-device reproduction. Depends RTL/LTR audit.",
+      "historicalRecommendedAcceptance": "No change until reproduced. Phase 3. If confirmed, add the smallest native edge affordance without restructuring filters.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/localization/messages/ar.ts",
+        "apps/mobile/src/localization/messages/en.ts",
+        "apps/mobile/src/features/transactions/TransactionListScreen.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 33,
+      "title": "Profile image upload absent",
+      "historicalRequirementAndEvidence": "Profile image upload absent: **Missing low-priority feature / product decision.** Current setting stores a default avatar token and has no picker/upload lifecycle.",
+      "historicalTestsDependencies": "M/B/DB/API/UI/security. No upload tests. Backend BE-002 also lacks avatar storage; implementing it adds private object lifecycle.",
+      "historicalRecommendedAcceptance": "Recommended V1: remove misleading upload copy. Add upload only with explicit scope. Phase 3.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T13"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 34,
+      "title": "Account detail navigation",
+      "historicalRequirementAndEvidence": "Account detail navigation: **Already fixed.** app/accounts/[id]/index.tsx, AccountDetailScreen, and AccountJourney tests exist.",
+      "historicalTestsDependencies": "M/UI/navigation. Existing journey test; native smoke remains.",
+      "historicalRecommendedAcceptance": "Keep as-is; verify on Android/iOS. Phase 3 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 35,
+      "title": "Refund entry flow absent",
+      "historicalRequirementAndEvidence": "Refund entry flow absent: **Partially fixed.** Domain kind/link/aggregation exist, but add/edit UI exposes expense/income/transfer only and has no original-expense picker.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. Existing refund domain tests; missing manual entry/edit, eligibility, double-refund, and cross-surface tests. Depends BE-005/014 and #3.",
+      "historicalRecommendedAcceptance": "Add refund vertical slice using existing transaction model and originalTransactionId mapping. Phase 1. Accept only eligible original expenses can be refunded and net expense updates everywhere.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T06",
+        "T05"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 36,
+      "title": "Savings goals missing",
+      "historicalRequirementAndEvidence": "Savings goals missing: **Already fixed in Mobile and covered in backend plan.** Full savings routes/model/SQLite tests exist; BE-007 owns server goals/movements.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Existing savings journey/persistence tests; future live ledger reconciliation missing. Depends BE-007/014.",
+      "historicalRecommendedAcceptance": "Keep as-is; extend to live adapter without redesign. Phase 2 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/savings/SavingsJourney.test.tsx",
+        "apps/mobile/src/storage/financial-planning-savings.test.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 37,
+      "title": "Statement PDF/CSV import missing",
+      "historicalRequirementAndEvidence": "Statement PDF/CSV import missing: **Confirmed missing Mobile capability; backend/admin planned but not live.** Admin has sanitized triage UI; BE-008 owns imports/parsers. Product docs conflict on V1 versus post-MVP scope.",
+      "historicalTestsDependencies": "M/A/B/DB/API/security. Existing Admin mock parser tests; no real upload/parser/corpus/E2E. Depends product decision, BE-008/010/014, Admin Spec 005.",
+      "historicalRecommendedAcceptance": "Do not restore the Base44 browser parser. If V1 approved, use private upload + async backend parsing with an explicit 300-row contract and 299/300/301 tests. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T15"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 38,
+      "title": "Card payoff/interest calculator",
+      "historicalRequirementAndEvidence": "Card payoff/interest calculator: **Implemented and remote-CI verified.** API and Mobile use matching BigInt monthly-basis-point calculations, half-up minor-unit rounding, explicit inputs, non-payoff outcomes, and a 1,200-month ceiling.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. Golden tests cover zero balance/interest, ×100 scale, insufficient payment, multi-month/final rounding, and ceiling behavior. Phase 14 production binding remains separate.",
+      "historicalRecommendedAcceptance": "Released in `812935f2e7be1b8054070d3155c13e770c63e3eb`; Backend Foundation run `34018736375` passed every required job.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/domain/credit-card-payoff.ts",
+        "apps/mobile/src/domain/credit-card-payoff.test.ts",
+        "apps/api/src/reference/credit-card-payoff.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07b"
+      ],
+      "currentDisposition": "preserve delivered calculator/terms; old open labels superseded; qualify current artifact",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 39,
+      "title": "Card statement terms",
+      "historicalRequirementAndEvidence": "Card statement terms: **Implemented and remote-CI verified.** Nullable statement/due days, monthly rate basis points, and minimum payment minor units round-trip through DB/API/sync/Mobile; non-card values reject or clear.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. DB/API/Mobile tests cover 1–28 bounds, legacy nulls, ownership, type clearing, sync, local-time reminders, policy routing, and payload privacy.",
+      "historicalRecommendedAcceptance": "Released in the same Slice 3 SHA/run. Phase 11 reminder creation is proven; APNs/FCM/SMTP and physical-device acceptance remain genuine external gates.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/domain/credit-card-payoff.ts",
+        "apps/mobile/src/domain/credit-card-payoff.test.ts",
+        "apps/api/src/reference/credit-card-payoff.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07b",
+        "T16"
+      ],
+      "currentDisposition": "preserve delivered calculator/terms; old open labels superseded; qualify current artifact",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 40,
+      "title": "Merchant rules missing",
+      "historicalRequirementAndEvidence": "Merchant rules missing: **Partial.** Mobile has voice category preferences, not a general merchant-rule entity/UI. Admin mock route and BE-008 merchant/category rules are planned.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz. Existing Admin/parser mocks and tracking tests; missing live normalization, user isolation, corpus, and learning tests. Depends BE-008/014 and Admin Spec 005.",
+      "historicalRecommendedAcceptance": "Implement only as part of the tracking/import slice, reusing current Admin screens. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "currentAcceptanceTasks": [
+        "T15a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 41,
+      "title": "Saudi VAT missing",
+      "historicalRequirementAndEvidence": "Saudi VAT missing: **Confirmed missing / Requires Product Decision.** No VAT model exists in backend plan or current code.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/UI. No eligibility/gross/net/VAT tests. Would affect BE-005/010.",
+      "historicalRecommendedAcceptance": "Do not apply 15% blindly. Decide whether this is V1 and define eligible VAT-inclusive transactions/categories first. Recommended defer. Phase 3 decision.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 42,
+      "title": "Notification center/preferences missing",
+      "historicalRequirementAndEvidence": "Notification center/preferences missing: **Screenshot outdated; locally implemented, live delivery incomplete.** Mobile notification routes/preferences/policy exist; Admin communication routes are mock; BE-011 owns live events/preferences/delivery.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz/native. Existing local notification tests; missing live provider, timezone, quiet-hours, dedupe, and device evidence. Depends BE-011/014.",
+      "historicalRecommendedAcceptance": "Keep local UI; wire live pipeline and validate devices. Phase 2. Accept in-app/push preference behavior and one Gulf-time reminder without duplicate delivery.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/notifications/notification-response-controller.ts",
+        "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+        "apps/api/src/engagement/notification.policy.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T16",
+        "T16a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 43,
+      "title": "Zakat",
+      "historicalRequirementAndEvidence": "Zakat: **Explicitly deferred and absent by design.**",
+      "historicalTestsDependencies": "Product/Biz. No V1 dependency.",
+      "historicalRecommendedAcceptance": "Record post-MVP deferral; no code in this plan. Phase 3 deferred.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 44,
+      "title": "Phone notifications/quick actions",
+      "historicalRequirementAndEvidence": "Phone notifications/quick actions: **Partially fixed locally.** Native adapter and response controller exist; production delivery/device proof is missing.",
+      "historicalTestsDependencies": "M/A/B/API/native/security. Existing response-controller tests; missing Android/iOS delivery, lock-screen privacy, authentication, retry/dedupe. Depends BE-011/014.",
+      "historicalRecommendedAcceptance": "Complete with #42; do not create a second notification system. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/notifications/notification-response-controller.ts",
+        "apps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+        "apps/api/src/engagement/notification.policy.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T16a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 45,
+      "title": "Merchant rules and ignored cards",
+      "historicalRequirementAndEvidence": "Merchant rules and ignored cards: **Partial.** Sender-rule UI/model exists; merchant rules are planned; ignored-card behavior is absent.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz. Missing per-card opt-out tests. Depends BE-004/008/014 and #40/#47.",
+      "historicalRecommendedAcceptance": "Add automaticTrackingEnabled to account rather than a separate ignored-card subsystem, and enforce before parser proposal. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "currentAcceptanceTasks": [
+        "T15a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 46,
+      "title": "Generic bank keywords",
+      "historicalRequirementAndEvidence": "Generic bank keywords: **Confirmed defect if automatic capture is advertised.** default-keywords.ts contains broad terms; approved remediation intentionally disables risky READ_SMS production behavior until a reviewed path exists.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz/native/security. Missing redacted Gulf corpus and false-positive tests. Depends BE-008/014.",
+      "historicalRecommendedAcceptance": "Phase 1 release rule: capability remains unavailable/undisclosed. Phase 2 implements sender-specific corpus-tested parsers. Accept generic words alone never auto-confirm.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "currentAcceptanceTasks": [
+        "T15"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 47,
+      "title": "Sender-ID binding missing",
+      "historicalRequirementAndEvidence": "Sender-ID binding missing: **Partially fixed locally; live registry absent.** Mobile sender rules/routes exist; BE-008 plans institutions/senders/parser publication.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz/security. Existing sender journey tests; missing approved registry/corpus/live-ingestion tests. Depends BE-008/014 and Admin Spec 005.",
+      "historicalRecommendedAcceptance": "Keep current UI, implement governed live registry and review fallback. Phase 2. Unknown senders never create confirmed transactions.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "apps/api/src/tracking/tracking.repository.ts",
+        "packages/transaction-parser/index.js"
+      ],
+      "currentAcceptanceTasks": [
+        "T15"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 48,
+      "title": "Assistant cannot execute",
+      "historicalRequirementAndEvidence": "Assistant cannot execute: **Partial.** Preview/confirmation exists and mock executes create_goal only; BE-009 plans deterministic action preview/confirm.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Biz/security. Existing preview/replay tests; missing transaction add/edit, authorization, idempotency, expiry, and live audit. Depends domain commands, BE-009/014.",
+      "historicalRecommendedAcceptance": "Extend allowlisted actions only after their owning domain APIs. Phase 2. Accept explicit confirmation and exactly one mutation; no arbitrary tool execution.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/assistant/AssistantActionPreviewScreen.tsx",
+        "apps/mobile/src/domain/assistant-actions.test.ts",
+        "apps/api/src/ai/ai.gateway.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T17a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 49,
+      "title": "Weekly report/family/referral",
+      "historicalRequirementAndEvidence": "Weekly report/family/referral: **Partial and mixed scope.** Scheduled reports exist; household sharing/referrals do not.",
+      "historicalTestsDependencies": "M/B/DB/API/product/security. Weekly report can extend BE-010; family/referral have no approved model.",
+      "historicalRecommendedAcceptance": "Keep weekly schedule as smallest approved option; defer family/referral pending product/security design. Phase 3 decision.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/reports/ReportsScreen.tsx",
+        "apps/api/src/reports/reports.service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T09"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 50,
+      "title": "Real customer data in screenshot bundle",
+      "historicalRequirementAndEvidence": "Real customer data in screenshot bundle: **Confirmed external privacy incident.** No such archive is tracked under apps/mobile.",
+      "historicalTestsDependencies": "External governance/privacy; no M/A/B code fix. Missing distribution audit.",
+      "historicalRecommendedAcceptance": "Immediately remove/restrict/redact the external image and record recipients. Phase 1 external gate. Accept no shared artifact contains name, phone, address, or shipment details.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T21"
+      ],
+      "currentDisposition": "external historical archive/privacy claim; request existing redaction/distribution disposition, no assumed current incident",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 51,
+      "title": "Investments missing",
+      "historicalRequirementAndEvidence": "Investments missing: **Confirmed implementation gap but report's “no decision” is outdated.** Mobile product spec explicitly places investments post-MVP; Backend Master omits them, while the older product plan includes them.",
+      "historicalTestsDependencies": "M/B/DB/API/product. No V1 tests. Conflict between documents.",
+      "historicalRecommendedAcceptance": "Record one canonical post-MVP decision in Backend Master and do not add V1 code unless owner reverses it. Phase 3 decision/deferred.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "T01"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 52,
+      "title": "Budget income/savings targets missing",
+      "historicalRequirementAndEvidence": "Budget income/savings targets missing: **Already fixed locally; Backend Master would regress it.** financial-planning.ts:89-100 includes both targets; BE-007 budgets has total only.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Existing budget persistence tests; missing server round-trip/golden utilization. Depends amended BE-007/014.",
+      "historicalRecommendedAcceptance": "Extend BE-007 before schema generation with expenseLimitMinor, incomeTargetMinor, savingsTargetMinor. Phase 2. Accept lossless round-trip and explicit target calculations.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 53,
+      "title": "Recurring transactions entity missing",
+      "historicalRequirementAndEvidence": "Recurring transactions entity missing: **Partial / product-model decision.** Current transaction kind and obligations cover recurring concepts, but there is no general recurrence rule or idempotent generator. BE-007 omits it.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/jobs. Missing month-end/timezone/retry/no-duplicate/link tests. Depends decision and BE-005/007/013/014.",
+      "historicalRecommendedAcceptance": "Decide whether obligations intentionally replace general recurrence. Recommended add one minimal recurrence_rules model/job if salary/rent/subscription generation is required. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/domain/financial-planning.ts",
+        "apps/mobile/src/features/budgets/BudgetJourney.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T01",
+        "T07a"
+      ],
+      "currentDisposition": "T01 current-canonical decision check; preserve approved behavior; new product scope requires amendment",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 54,
+      "title": "Card payment concept missing",
+      "historicalRequirementAndEvidence": "Card payment concept missing: **Confirmed contract gap.** Generic transfer postings can move money but no card-payoff command/subtype/queryable purpose exists.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Missing bank-to-card liability golden test. Depends BE-004/005/014 and #38/#39.",
+      "historicalRecommendedAcceptance": "Do not copy a redundant Base44 FK. Add validated card-payoff command using the same transfer postings. Phase 1. Accept bank decreases, card liability approaches zero, and income/expense remain unchanged.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T05",
+        "T07b",
+        "D00"
+      ],
+      "currentDisposition": "ledger intent/invariants fixture-only; actual payment execution DEFERRED",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 55,
+      "title": "Wallet account type missing",
+      "historicalRequirementAndEvidence": "Wallet account type missing: **Already fixed/current plan covered.** Mobile and BE-004 include wallet.",
+      "historicalTestsDependencies": "M/B/DB/API. Existing account-type tests; future adapter parity.",
+      "historicalRecommendedAcceptance": "Keep as-is. Phase 2 verification.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07",
+        "T05"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 56,
+      "title": "Custom category lacks income/expense kind",
+      "historicalRequirementAndEvidence": "Custom category lacks income/expense kind: **Confirmed current Mobile gap; Backend Master covers it with a caveat.** BE-004 allows income/expense/transfer kind, but transfer kind contradicts its own ledger rule.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Missing ambiguous backfill review and kind compatibility tests. Depends BE-004/014 and #58.",
+      "historicalRecommendedAcceptance": "Add income/expense selection to Mobile and remove transfer from category kinds. Backfill only unambiguous rows; route ambiguous rows to review. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07c"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 57,
+      "title": "Feedback channel missing",
+      "historicalRequirementAndEvidence": "Feedback channel missing: **Partial substitute.** Mobile support/new accepts feedback; Admin moderation UI exists; BE-011 feedback_items is planned but lacks optional star rating.",
+      "historicalTestsDependencies": "M/A/B/DB/API/authz. Existing mock support/Admin tests; missing live owner isolation, Admin-only status mutation, and rating bounds. Depends BE-011/014.",
+      "historicalRecommendedAcceptance": "Reuse support/feedback surfaces and implement one live entity/workflow. Add rating only if still approved. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/support/SupportJourney.test.tsx",
+        "apps/admin-web/src/app/admin/feedback/page.tsx",
+        "apps/api/src/engagement/engagement.service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T10",
+        "T19a"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 58,
+      "title": "Transfers modeled as expense category",
+      "historicalRequirementAndEvidence": "Transfers modeled as expense category: **Partially fixed at write/presentation, invariant/seed remains wrong.** BE-004 also incorrectly allows category kind transfer.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz. Missing schema rejection, local migration, and remittance separation tests. Depends #27/#62, BE-004/005.",
+      "historicalRecommendedAcceptance": "Remove transfer category kind and forbid categoryId on internal transfers. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07c",
+        "T05"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 59,
+      "title": "Base44 six currencies/AED default",
+      "historicalRequirementAndEvidence": "Base44 six currencies/AED default: **Conflict/outdated authority.** Current Saudi default is SAR and product supports additional currencies; only Gulf-first order is unresolved.",
+      "historicalTestsDependencies": "M/A/B/DB/API/Loc/product. Missing deterministic seed/order test. Depends #2/#14 and product confirmation.",
+      "historicalRecommendedAcceptance": "Reject a global AED default. Use country/preference default and keep optional currencies after Gulf six. Phase 1.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/accounts/AccountForm.tsx",
+        "apps/mobile/src/features/accounts/AccountForm.test.tsx"
+      ],
+      "currentAcceptanceTasks": [
+        "T07",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 60,
+      "title": "Subscription-tier count mismatch",
+      "historicalRequirementAndEvidence": "Subscription-tier count mismatch: **Resolved in current Mobile/Admin mocks, backend seed unspecified.** Both clients use free/basic/premium.",
+      "historicalTestsDependencies": "M/A/B/DB/API/product. Existing mock tests; missing live plan/entitlement/storefront contract. Depends BE-012/014.",
+      "historicalRecommendedAcceptance": "Amend BE-012 with exact stable keys and migration policy before Stripe price linkage. Phase 2.",
+      "currentExistingSourceAndTestAreas": [
+        "docs/CLIENT_REMEDIATION_PLAN.md",
+        "docs/product/masarifi-full-product-technical-plan-v3.md"
+      ],
+      "currentAcceptanceTasks": [
+        "D00"
+      ],
+      "currentDisposition": "DEFERRED billing/subscriptions; no entitlement/storefront implementation",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 61,
+      "title": "Transaction time missing",
+      "historicalRequirementAndEvidence": "Transaction time missing: **Already fixed using a better model.** occurredAt is a full epoch/timestamptz; separate HH:MM would duplicate truth.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/Loc. Existing date/presentation tests; future timezone sync parity missing. Depends BE-005/006/014.",
+      "historicalRecommendedAcceptance": "Keep one timestamp. Phase 1 verification. Accept minute/timezone survives create, sync, report, and assistant evidence.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/services/core-finance-runtime.ts",
+        "apps/mobile/src/storage/core-finance-repository.test.ts",
+        "apps/api/src/ledger/ledger.dto.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T05",
+        "T13"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    },
+    {
+      "clientId": 62,
+      "title": "External remittance category missing",
+      "historicalRequirementAndEvidence": "External remittance category missing: **Confirmed.** Current seed has internal “transfers” but no remittance expense category; backend seed is unspecified.",
+      "historicalTestsDependencies": "M/B/DB/API/Biz/Loc. Missing seed and aggregation tests. Depends #58 and BE-004/005.",
+      "historicalRecommendedAcceptance": "Seed a stable remittance expense system category after transfer/category separation. Phase 1. Accept remittance counts as expense while internal transfer counts as neither.",
+      "currentExistingSourceAndTestAreas": [
+        "apps/mobile/src/features/categories/CategoryJourney.test.tsx",
+        "apps/mobile/src/services/live/category-lifecycle-service.ts"
+      ],
+      "currentAcceptanceTasks": [
+        "T07c"
+      ],
+      "currentDisposition": "current behavior to qualify; historical table status is not current verdict",
+      "freshDeviceAcceptance": false
+    }
+  ]
+}

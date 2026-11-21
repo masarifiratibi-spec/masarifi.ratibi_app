@@ -13,6 +13,7 @@ describe('request-to-email delivery without provider credentials', () => {
             EMAIL_SMTP_USERNAME: 'fixture',
             EMAIL_SMTP_PASSWORD: 'fixture',
             EMAIL_FROM: 'reports@example.test',
+            MASARIFI_REPORT_MAX_BYTES: 1_000_000,
             MASARIFI_EMAIL_SMTP_CONNECTION_TIMEOUT_MS: 250,
             MASARIFI_EMAIL_SMTP_SOCKET_TIMEOUT_MS: 500,
             SUPABASE_URL: 'https://project.supabase.co',
@@ -72,11 +73,7 @@ describe('request-to-email delivery without provider credentials', () => {
         ),
     };
     const storage = {
-      sign: jest
-        .fn()
-        .mockResolvedValue(
-          'https://project.supabase.co/storage/v1/object/sign/report-exports/reports/key?token=opaque',
-        ),
+      readPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4\nSynthetic\n%%EOF')),
     };
     const workerConfig = {
       getRequired: (key: string) =>
@@ -101,7 +98,13 @@ describe('request-to-email delivery without provider credentials', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({
       messageId: '<report-99000000-0000-4000-8000-000000000001@example.test>',
-      attachments: undefined,
+      attachments: [
+        {
+          filename: 'Masarifi-report-99000000-0000-4000-8000-000000000001.pdf',
+          contentType: 'application/pdf',
+          content: Buffer.from('%PDF-1.4\nSynthetic\n%%EOF'),
+        },
+      ],
     });
   });
 });

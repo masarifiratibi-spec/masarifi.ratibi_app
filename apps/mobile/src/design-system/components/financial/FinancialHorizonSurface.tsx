@@ -1,5 +1,11 @@
 import React, { type ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+  type ViewProps
+} from 'react-native';
 import Svg, {
   Defs,
   LinearGradient,
@@ -12,14 +18,17 @@ import { useTheme } from '@/state/theme-context';
 
 export function FinancialHorizonSurface({
   children,
-  style
+  style,
+  onLayout
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  onLayout?: ViewProps['onLayout'];
 }) {
   const colors = useTheme().colors.horizon;
   return (
     <View
+      onLayout={onLayout}
       testID="financial-horizon-surface"
       style={[styles.root, { backgroundColor: colors.heroStart }, style]}
     >

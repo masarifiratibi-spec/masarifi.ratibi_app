@@ -1,0 +1,197 @@
+{
+  "at": "2026-10-28T11:34:19.360765+00:00",
+  "model": "gpt-6.1-sol/xhigh",
+  "review": "self-review plus real-device and authoritative read-only evidence",
+  "head": "e7ad90e8b91c118e6365f57cc6cc542f94873595",
+  "tests": {
+    "focusedReports": 14,
+    "typecheck": 0,
+    "twoFileLint": 0,
+    "repeated241": false
+  },
+  "source": [
+    {
+      "path": "apps/mobile/src/services/live/reports-service.ts",
+      "sha256": "0810d369685885bf068d5f644962a6a045568e8a1b9369515b893892976816ec"
+    },
+    {
+      "path": "apps/mobile/src/services/live/reports-service.test.ts",
+      "sha256": "3a7375390c96f42fb2d99e0a6bd50271dd20abee2f19b6e074f8b36b68ba0857"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-default-fix-ar.xml",
+      "sha256": "9f6dfb441e1c4aa0ce7e1b7895b97bbb259a833315abf736d6cfdb2d56f26054"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-default-fix-en.xml",
+      "sha256": "f36fc738ad6e107912416927c671794c62223fbe6c1701e5abcce77bb39396a4"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-scoped-september-en.xml",
+      "sha256": "6d6255701761bd64a0047bab8f8000b07fcd57ae9c6dc22a962899905c7f77d0"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-scoped-live-ar-verified.xml",
+      "sha256": "01c7a11cceb395e62b94a3f50b64ae66f9d41ae384e462759f74cde280e73a54"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-assistant-online-en.xml",
+      "sha256": "703cc9e22e3ef5cc80d67f39b29bf8ac3171b50f9da2359750d1445403f786b8"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-assistant-back-online-en.xml",
+      "sha256": "d68d5c5e550436f6abb4a2ac3ddc9a440ad147a24ac7c7acf73d47695e5bc7ea"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-scoped-assistant-online-en.xml",
+      "sha256": "2f5cb6ff6dbb88cdaeb408e1fc58aadc46938553532927a454a6be152e85fed6"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-assistant-ar-verified.xml",
+      "sha256": "4e70a758912a1e924721b7ef354bd0a99aa6d6f060a5699fb3c48204420f2c1e"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-toolbar-back-ar-verified.xml",
+      "sha256": "886326f27d264f0c0286c3361e71dcb1ad8e1623eac90a3151a302522df61af2"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-profile-online-en.xml",
+      "sha256": "cfde8618778efa53410a83f1686c0d21efd1ef893c313c3058989536fcb920a3"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-profile-online-ar-final.xml",
+      "sha256": "c0998aa3b1c1014b0cd3f3f1c99985a835ee6a7d3d21f533f268a467c6048c7f"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-sessions-online-en.xml",
+      "sha256": "fb30f809ebd078507898c1e53bef4d2c8115b1c38fe64d9d78f6855aa33f09db"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-sessions-online-ar-verified.xml",
+      "sha256": "cbeeca8aa3f5bab2b76e78fae753aee9b6e3263804f3ef799bc000c091c98e95"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-tracking-online-en.xml",
+      "sha256": "052fcbcc5a7d140ff64a5b3414afa42aa5e46dc4b7b90a745dd1c369a96ae5e4"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-tracking-recovery-ar-loaded.xml",
+      "sha256": "38856e7497a09db4e6a701ea11a1fbcc1c585b3cf6b8539ac87fa7a76fb89761"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-salary-online-en.xml",
+      "sha256": "8a3192b10da411f9481a63858b8f948f8327ce341c159137733a511cec166a8a"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-salary-online-ar.xml",
+      "sha256": "7015754b559ac1d32249df782b86492d099730c1cbe12a10ed57491a65728193"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligations-online-en.xml",
+      "sha256": "a4b353bd132ca26aaece910cd3611203ebd456e185628afcbf8dc33a1f64f837"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligations-online-ar.xml",
+      "sha256": "72d148989f1b26784b173bc852b1ec6020028a95b4842aad8f2531cc8c3cbbe9"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligation-detail-online-en.xml",
+      "sha256": "036fa851404fbcd89b5149e3e3faf93689b70321509d600ac772b5c352efba0f"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligation-detail-online-ar.xml",
+      "sha256": "76bee4c3ee32ee48fb03ce62bfbb88cb41867f2cd9b678b1c0ff44fc773f0bd4"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligation-history-online-en.xml",
+      "sha256": "c7744b975c3f214bb0f70e1aa1cbc96cfdf39269ebcab4e5652b70e693fdac69"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-obligation-history-online-ar.xml",
+      "sha256": "da858c277c573a452b5710d620a42cf650887162cf3c0be9ef1d623dc747e6c8"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-warm-offline-ar.xml",
+      "sha256": "0caf3eb326a859f9f1a4d9d8331cadbc29a9ce2a9980e88dd10a5a0e8538ebd5"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-warm-offline-retained-ar.xml",
+      "sha256": "fc1e900ce54f57f580acbd2685c23d752ce24465fa79525ac53b5d9464a2d956"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-recovered-after-warm-reconnect-ar.xml",
+      "sha256": "fc1e900ce54f57f580acbd2685c23d752ce24465fa79525ac53b5d9464a2d956"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-sqlite-queue-counts.json",
+      "sha256": "67ac52447434cd0ce1007a9bb5643dd3c3ba1b899f04829ada6db5a8018d51ad"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-sqlite-queue-after-online.json",
+      "sha256": "e1ce40fd002a0e40f4b4bbbe5e57279faf51adec0040528e5e6fe4e470bf7ad9"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-native-queue-metadata.json",
+      "sha256": "724bf909c4d9604622c7dfe5101b09a53c19ffccc99a77906a1ddc96f3959bf2"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-native-queue-after-online.json",
+      "sha256": "87aea39b87e9c5538cb3ac03e3937b94503af2a912947816ba8610d61ddf0d24"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-actual-upstream-contract.json",
+      "sha256": "3f33237f77c9b6a1fb7c5d624710235a71ddec9b321d92baba9052e43216a3ed"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-reports-network-status.json",
+      "sha256": "3d1fd767d33babd17050766345c5416461bf87e35b5cee79b02f4a3b0d3aee26"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-fixed-network-en.json",
+      "sha256": "5dc3f201e0351b57585b6d91da1ab2f7f2bb8f061a17b287628d7183b5204265"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-scoped-network-en.json",
+      "sha256": "1dde6533a28f5dc3de39f7026a099d5747d9e3ca0ff3c0be89bf3e729940af8a"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-warm-network-recovery.json",
+      "sha256": "1169a096e698e386e01d4f5c07fb5529fc699b1acd99a841c9db5852f9288e4e"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-online-read-baseline.json",
+      "sha256": "ce80814b852aa065f0764dcee70ff305a20cbdc87da168d5e1fb3b118abf2a44"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-online-read-post.json",
+      "sha256": "291480d3dd26b4598eef3e4633be14f8decfe45a677ccdc98ec8ecd806a90162"
+    },
+    {
+      "path": ".superpowers/sdd/2026-10-25-astra-readiness-remediation/T04/access-restoration-2026-10-27T0735Z/sol-report-authoritative-totals.json",
+      "sha256": "3ee05c0dfb9cd5a5b006666894e65275c3965d8af1478828ef223e28c60c1410"
+    }
+  ],
+  "cleanup": {
+    "appStoppedOffline": true,
+    "pidAbsent": true,
+    "ownedMetroPidsStopped": [
+      37340,
+      32912
+    ],
+    "ownReverseRemoved": true,
+    "port8081Absent": true,
+    "locale": "ar",
+    "accountScope": "All Accounts",
+    "month": "October2026",
+    "wifi": 1,
+    "mobileData": 0,
+    "airplane": 0
+  },
+  "taskStatus": {
+    "T04": "BLOCKED; retry-root-cause investigation active",
+    "T05": "NOT_STARTED; exception unapproved",
+    "T06": "BLOCKED; bounded repairs verified"
+  }
+}

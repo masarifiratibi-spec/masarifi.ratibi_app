@@ -1,0 +1,4 @@
+services:
+  core-api:
+    image: masarifi-task30-api:d1bff2c2921a
+    pull_policy: never

@@ -9,11 +9,13 @@ import type {
   Phase4Resource,
   PlatformScope,
 } from "./contracts";
+import { importsQuerySchema, listQuerySchema } from "./contracts";
 import { importsRepository, phase4Repository } from "./repository";
 
 export const importsQueryKeys = {
   all: ["imports"] as const,
-  list: (input: ImportsQuery) => [...importsQueryKeys.all, input] as const,
+  list: (input: ImportsQuery) =>
+    [...importsQueryKeys.all, importsQuerySchema.parse(input)] as const,
 };
 
 export function useImports(input: ImportsQuery) {
@@ -47,7 +49,7 @@ export const phase4QueryKeys = {
   overview: (platform: PlatformScope) =>
     [...phase4QueryKeys.all, "overview", platform] as const,
   list: (resource: Phase4Resource, input: ListQuery) =>
-    [...phase4QueryKeys.all, resource, input] as const,
+    [...phase4QueryKeys.all, resource, listQuerySchema.parse(input)] as const,
   detail: (resource: Phase4Resource, id: string) =>
     [...phase4QueryKeys.all, resource, "detail", id] as const,
 };

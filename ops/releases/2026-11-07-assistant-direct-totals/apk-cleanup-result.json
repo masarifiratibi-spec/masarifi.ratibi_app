@@ -1,0 +1,22 @@
+{
+  "atUtc": "2026-11-06T22:51:42.632109+00:00",
+  "explicitUserOldApkCleanupCompleted": true,
+  "assistantPhysicallyProvedFirst": true,
+  "removedProjectApkFiles": 569,
+  "removedBytes": 17874718926,
+  "retainedProjectApkFiles": 1,
+  "retainedApkPath": "C:/mrc1105/artifacts/task37-customer-127-native.apk",
+  "physicalPath": "E:\\Masarifi-task30-build-artifacts-20261106\\task37-customer-127-native.apk",
+  "sha256": "de174540b4be95b3b549e71c174e4d8d891bf165cdff41f5a22aa35c4e293b1f",
+  "thirdPartySdkOverlayApksPreserved": 16,
+  "nonApkDataKeysSessionsDocumentsUntouchedByRemoval": true,
+  "recursiveDeleteUsed": false,
+  "phoneDataChangedByCleanup": false,
+  "excludedDependencyDirectories": [
+    "node_modules",
+    ".git",
+    ".gradle"
+  ],
+  "former111DeliveryBinaryRemovedByExplicitRequest": true,
+  "archivesAndDependenciesNotExpandedOrDeleted": true
+}

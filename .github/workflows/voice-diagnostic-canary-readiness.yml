@@ -1,0 +1,35 @@
+name: Voice Diagnostic Canary Readiness
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/voice-diagnostic-canary-readiness-2026-10-13, codex/voice-promoted-operating-2026-10-13]
+    paths:
+      - scripts/staging-voice/diagnostic-canary/**
+      - .github/workflows/voice-diagnostic-canary-readiness.yml
+permissions:
+  contents: read
+jobs:
+  offline-readiness:
+    if: github.repository == 'masarifiratibi-spec/masarifi.ratibi_app' && (github.ref == 'refs/heads/codex/voice-diagnostic-canary-readiness-2026-10-13' || github.ref == 'refs/heads/codex/voice-promoted-operating-2026-10-13')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: apps/api/.nvmrc
+      - name: Select validated npm version
+        run: npm install --global npm@11.17.0 --ignore-scripts
+      - name: Test read-only diagnostic admission and reused qualified lifecycle controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/staging-voice/diagnostic-canary/canary-db.test.cjs | tee "$RUNNER_TEMP/readiness-node.log"
+          python3 -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/readiness-linux.log"
+          python3 -O -m unittest discover -s scripts/staging-voice/diagnostic-canary -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/readiness-linux-optimized.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: voice-diagnostic-canary-readiness-${{ github.sha }}
+          path: ${{ runner.temp }}/readiness-*.log
+          if-no-files-found: error

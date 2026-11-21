@@ -27,7 +27,7 @@ export interface SecurityRouteDefinition {
   operation: string;
   status: number;
   permission?: string;
-  recentMfa?: boolean;
+  recentAuth?: boolean;
 }
 
 export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze(
@@ -177,7 +177,7 @@ export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze
     ['GET', 'api/v1/admin/audit/events/:eventId', 'getAuditEvent', 200, 'audit.read'],
     ['POST', 'api/v1/me/privacy/exports', 'createMyPrivacyExport', 202, undefined, true],
     ['GET', 'api/v1/me/privacy/exports/:exportId', 'getMyPrivacyExport', 200],
-    ['POST', 'api/v1/me/deletion-requests', 'createMyDeletionRequest', 202, undefined, true],
+    ['POST', 'api/v1/me/deletion-requests', 'createMyDeletionRequest', 202],
     ['GET', 'api/v1/me/deletion-requests/:deletionId', 'getMyDeletionRequest', 200],
     ['DELETE', 'api/v1/me/deletion-requests/:deletionId', 'cancelMyDeletionRequest', 204],
     ['GET', 'api/v1/admin/privacy/exports', 'listPrivacyExports', 200, 'privacy.exports.read'],
@@ -223,14 +223,14 @@ export const SECURITY_ROUTES: readonly SecurityRouteDefinition[] = Object.freeze
       true,
     ],
   ].map(
-    ([method, path, operation, status, permission, recentMfa]) =>
+    ([method, path, operation, status, permission, recentAuth]) =>
       ({
         method,
         path,
         operation,
         status,
         permission,
-        recentMfa,
+        recentAuth,
       }) as SecurityRouteDefinition,
   ),
 );
@@ -309,7 +309,7 @@ for (const route of SECURITY_ROUTES) {
   );
   ApiBearerAuth('ClerkBearer')(SecurityController.prototype, route.operation, descriptor);
   if (route.permission) {
-    adminPermission(route.permission, { recentMfa: route.recentMfa })(
+    adminPermission(route.permission, { recentAuth: route.recentAuth })(
       SecurityController.prototype,
       route.operation,
       descriptor,

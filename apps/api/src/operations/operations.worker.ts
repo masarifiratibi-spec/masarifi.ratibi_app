@@ -1,39 +1,101 @@
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
-import { OperationsJobRegistry } from './job-registry';
+import { GOVERNED_JOB_KEYS, OperationsJobRegistry } from './job-registry';
+import { SchedulerWakeListener } from './scheduler-wake-listener';
 import { OperationsRepository } from './operations.repository';
+import { PlatformConfigService } from '../platform/config/platform-config.service';
 import {
   OPERATIONS_METRICS,
   recordPlatformMetric,
 } from '../platform/observability/platform-metrics';
 
-type Store = Pick<OperationsRepository, 'claim' | 'heartbeat' | 'complete'>;
+type Store = Pick<OperationsRepository, 'claim' | 'heartbeat' | 'complete'> &
+  Partial<Pick<OperationsRepository, 'claimWithDeadline'>>;
 type Registry = Pick<OperationsJobRegistry, 'run'>;
 
 @Injectable()
 export class OperationsWorker {
   private readonly workerId = `operations-${String(process.pid)}-${randomUUID()}`;
+  private started = false;
+  private driving = false;
+  private wakePending = false;
+  private nextPollAt = 0;
+  private retryDeadlineAfter = 0;
+  private listener?: SchedulerWakeListener;
+  private readonly databaseUrl?: string;
   private timer: NodeJS.Timeout | undefined;
   private inFlight: Promise<void> | undefined;
+  private readonly jobKeys?: string[];
 
   constructor(
     @Inject(OperationsRepository) private readonly repository: Store,
     @Inject(OperationsJobRegistry) private readonly registry: Registry,
-  ) {}
+    @Optional() config?: PlatformConfigService,
+  ) {
+    const scope = config?.get('MASARIFI_OPERATIONS_JOB_KEYS');
+    if (scope === undefined) return;
+    const keys = scope.split(',');
+    if (
+      !scope ||
+      keys.length !== new Set(keys).size ||
+      keys.some((key) => !(GOVERNED_JOB_KEYS as readonly string[]).includes(key))
+    )
+      throw new Error('OPERATIONS_JOB_SCOPE_INVALID');
+    this.jobKeys = keys;
+    this.databaseUrl = config?.get('DATABASE_URL');
+  }
 
   start(): void {
-    if (this.timer) return;
-    this.timer = setInterval(() => void this.runOnce().catch(() => undefined), 1_000);
-    this.timer.unref();
+    if (this.started) return;
+    this.started = true;
+    if (this.databaseUrl && this.jobKeys && this.repository.claimWithDeadline) {
+      this.listener = new SchedulerWakeListener(this.databaseUrl, this.jobKeys, () => this.wake());
+      void this.listener.connect();
+    }
+    this.schedule(1000);
   }
 
   async stop(): Promise<void> {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = undefined;
-    await this.inFlight;
+    this.started = false;
+    clearTimeout(this.timer);
+    await Promise.all([this.listener?.stop(), this.inFlight]);
+    this.listener = undefined;
+  }
+
+  private wake(): void {
+    if (!this.started) return;
+    if (this.driving) {
+      this.wakePending = true;
+    } else if (!this.wakePending) {
+      this.wakePending = true;
+      this.schedule(1);
+    }
+  }
+
+  private schedule(ms: number): void {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.drive(), ms);
+  }
+
+  private async drive(): Promise<void> {
+    if (!this.started) return;
+    this.driving = true;
+    this.wakePending = false;
+    this.nextPollAt = performance.now() + 1000;
+    try {
+      await this.runOnce();
+    } catch {
+      this.nextPollAt = performance.now() + 1000;
+    } finally {
+      this.driving = false;
+      if (this.started) {
+        const delay = this.wakePending ? 1 : this.nextPollAt - performance.now();
+        this.schedule(Math.max(1, Math.ceil(delay)));
+      }
+    }
   }
 
   runOnce(): Promise<void> {
@@ -45,7 +107,27 @@ export class OperationsWorker {
   }
 
   private async poll(): Promise<void> {
-    const claims = await this.repository.claim(this.workerId, 1);
+    let claims: Record<string, unknown>[];
+    if (
+      this.listener?.ready &&
+      this.jobKeys &&
+      this.repository.claimWithDeadline &&
+      performance.now() >= this.retryDeadlineAfter
+    ) {
+      try {
+        const result = await this.repository.claimWithDeadline(this.workerId, 1, this.jobKeys);
+        this.nextPollAt = performance.now() + result.delayMs;
+        claims = result.claims;
+      } catch (error) {
+        // During a rolling migration the original claim remains available on the next tick.
+        this.retryDeadlineAfter = performance.now() + 30_000;
+        throw error;
+      }
+    } else {
+      claims = this.jobKeys
+        ? await this.repository.claim(this.workerId, 1, this.jobKeys)
+        : await this.repository.claim(this.workerId, 1);
+    }
     recordPlatformMetric(OPERATIONS_METRICS.jobBacklog, claims.length, { status: 'claimed' });
     for (const claim of claims) await this.execute(claim);
   }

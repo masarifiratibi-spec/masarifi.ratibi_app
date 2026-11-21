@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
 import { useLockedMutation } from "@/features/foundation/useLockedMutation";
 import {
   communicationsRepository,
@@ -79,12 +79,27 @@ export function useSupportTickets(
   });
 }
 
-export function useSupportTicketDetail(ticketId: string, enabled = true, options?: QueryOptions<CommunicationDetail>) {
+export function useSupportTicketDetail(ticketId: string, enabled = true, options?: QueryOptions<CommunicationDetail>, cursor?: string) {
   return useQuery({
-    queryKey: communicationsQueryKeys.support.ticket(ticketId),
-    queryFn: () => communicationsRepository.getSupportTicket(ticketId),
+    queryKey: [...communicationsQueryKeys.support.ticket(ticketId), cursor ?? ""],
+    queryFn: () => communicationsRepository.getSupportTicket(ticketId, cursor),
     enabled: isEnabledId(ticketId, enabled),
     ...options,
+  });
+}
+
+export function useSupportConversation(ticketId: string) {
+  return useInfiniteQuery({
+    queryKey: [
+      ...communicationsQueryKeys.support.ticket(ticketId),
+      "conversation",
+    ],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      communicationsRepository.getSupportTicket(ticketId, pageParam),
+    getNextPageParam: (page) =>
+      page.hasMoreMessages ? (page.nextMessageCursor ?? undefined) : undefined,
+    enabled: isEnabledId(ticketId),
   });
 }
 

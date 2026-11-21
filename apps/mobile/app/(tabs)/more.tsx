@@ -1,6 +1,8 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { beginScreenNavigation } from '@/services/platform/screen-performance';
+import React, { useCallback, useRef } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { MenuLink } from '@/components/MenuLink';
 import { StyledText } from '@/components/StyledText';
@@ -20,11 +22,40 @@ import { colorTokens } from '@/design-system/tokens';
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { authService } from '@/features/auth/auth-flow';
 import { signOutAppShellSession } from '@/features/auth/session-controller';
+import { useSettingsProfile } from '@/features/settings/settings-queries';
+import { resolvePublicDisplayName } from '@/services/live/clerk-name';
+import { getLiveClerkDisplayName } from '@/services/live/clerk-provider';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { prefetchPlanningDestinations } from '@/features/financial-planning/financial-planning-queries';
+import { prefetchCategories } from '@/features/core-finance/core-finance-queries';
+import { prefetchTrackingKeywords } from '@/features/tracking/useAutomaticTracking';
+import { AccountDeletionPanel } from '@/features/settings/AccountDeletionPanel';
+import { FinancialResetCard } from '@/features/settings/FinancialResetCard';
+import { SocialMediaFooter } from '@/features/settings/SocialMediaLinks';
+
+const SHOW_SECURITY_SETTINGS = true;
+const SHOW_NOTIFICATION_PREFERENCES = false;
 
 export default function MoreRoute() {
+  const loggingOut = useRef(false);
+  const signOut = async () => {
+    if (loggingOut.current) return;
+    loggingOut.current = true;
+    try {
+      const completed = await signOutAppShellSession(authService, 'local');
+      if (completed !== false) router.replace('/(public)/auth-pending');
+    } catch {
+      if (!useAppShellStore.getState().logoutRecoveryOwnerId)
+        Alert.alert(translate('logout.failed'));
+    } finally {
+      loggingOut.current = false;
+    }
+  };
+  const client = useQueryClient();
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
+  const timeZone = usePreferenceStore((state) => state.timeZone);
   const isRtl = direction === 'rtl';
 
   const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
@@ -44,13 +75,31 @@ export default function MoreRoute() {
         : null;
 
   const session = useAppShellStore((state) => state.session);
-  const userName = session?.userId
-    ? session.userId.split('@')[0]
-    : translate('appShell.more.defaultUserName', locale);
-  const userEmail =
-    session?.userId ?? translate('appShell.more.defaultUserEmail', locale);
+  const ownerId = session?.status === 'authenticated' ? session.userId : null;
+  useFocusEffect(
+    useCallback(() => {
+      if (ownerId) {
+        void prefetchCategories(client, ownerId);
+        void prefetchPlanningDestinations(
+          client,
+          localDateInTimeZone(Date.now(), timeZone),
+          timeZone
+        );
+        void prefetchTrackingKeywords(client, ownerId);
+      }
+    }, [client, ownerId, timeZone])
+  );
+  const profile = useSettingsProfile(Boolean(ownerId));
+  const userName = resolvePublicDisplayName(
+    ownerId ? profile.data?.name : null,
+    getLiveClerkDisplayName(ownerId),
+    translate('appShell.more.defaultUserName', locale)
+  );
+  const accountLabel =
+    (ownerId && profile.data?.googleAccount?.trim()) ||
+    translate('appShell.more.defaultUserEmail', locale);
   const initial =
-    userName.trim().charAt(0).toUpperCase() || (isRtl ? '\u0639' : 'M');
+    Array.from(userName.trim())[0]?.toUpperCase() || (isRtl ? '\u0639' : 'M');
 
   return (
     <ScrollView
@@ -91,7 +140,7 @@ export default function MoreRoute() {
               { color: theme.colors.content.secondary }
             ]}
           >
-            {userEmail}
+            {accountLabel}
           </StyledText>
         </View>
       </View>
@@ -120,16 +169,20 @@ export default function MoreRoute() {
             onPress={() => router.push('/profile')}
           />
           <Divider />
-          <MenuLink
-            label={translate('appShell.shell.security')}
-            icon="security"
-            iconBackground={colorTokens.raw['EAF2FB']}
-            iconColor={colorTokens.raw['2E7087']}
-            showChevron
-            hideBorder
-            onPress={() => router.push('/security/settings')}
-          />
-          <Divider />
+          {SHOW_SECURITY_SETTINGS ? (
+            <>
+              <MenuLink
+                label={translate('appShell.shell.security')}
+                icon="security"
+                iconBackground={colorTokens.raw['EAF2FB']}
+                iconColor={colorTokens.raw['2E7087']}
+                showChevron
+                hideBorder
+                onPress={() => router.push('/security/settings')}
+              />
+              <Divider />
+            </>
+          ) : null}
           <MenuLink
             label={translate('settings.profile.applicationOwner')}
             icon="settings"
@@ -140,16 +193,20 @@ export default function MoreRoute() {
             onPress={() => router.push('/profile/application')}
           />
           <Divider />
-          <MenuLink
-            label={translate('appShell.shell.notifications')}
-            icon="notifications"
-            iconBackground={colorTokens.raw['EAF2FB']}
-            iconColor={colorTokens.raw['2E7087']}
-            showChevron
-            hideBorder
-            onPress={() => router.push('/notifications/preferences')}
-          />
-          <Divider />
+          {SHOW_NOTIFICATION_PREFERENCES ? (
+            <>
+              <MenuLink
+                label={translate('appShell.shell.notifications')}
+                icon="notifications"
+                iconBackground={colorTokens.raw['EAF2FB']}
+                iconColor={colorTokens.raw['2E7087']}
+                showChevron
+                hideBorder
+                onPress={() => router.push('/notifications/preferences')}
+              />
+              <Divider />
+            </>
+          ) : null}
           <MenuLink
             label={translate('tracking.action.openTracking')}
             icon="tracking"
@@ -161,6 +218,8 @@ export default function MoreRoute() {
           />
         </View>
       </View>
+
+      {ownerId ? <FinancialResetCard ownerId={ownerId} key={ownerId} /> : null}
 
       {/* Section 2: Finance and Planning */}
       <View style={styles.section}>
@@ -183,7 +242,10 @@ export default function MoreRoute() {
             iconColor={colorTokens.raw['175B4F']}
             showChevron
             hideBorder
-            onPress={() => router.push('/accounts')}
+            onPress={() => {
+              beginScreenNavigation('/accounts');
+              router.push('/accounts');
+            }}
           />
           <Divider />
           <MenuLink
@@ -194,16 +256,6 @@ export default function MoreRoute() {
             showChevron
             hideBorder
             onPress={() => router.push('/categories')}
-          />
-          <Divider />
-          <MenuLink
-            label={translate('planning.savings.title')}
-            icon="savings"
-            iconBackground={colorTokens.raw['FFF5EB']}
-            iconColor={colorTokens.raw['93663D']}
-            showChevron
-            hideBorder
-            onPress={() => router.push('/savings')}
           />
           <Divider />
           <MenuLink
@@ -277,14 +329,29 @@ export default function MoreRoute() {
       </View>
 
       <View style={styles.actionsWrapper}>
-        <ActionButton
-          label={translate('appShell.auth.signOut')}
-          onPress={async () => {
-            await signOutAppShellSession(authService, 'local');
-            router.replace('/(public)/auth-pending');
-          }}
-          variant="destructive"
-        />
+        <View
+          style={[
+            styles.cardGroup,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border
+            }
+          ]}
+        >
+          <MenuLink
+            label={translate('appShell.auth.signOut')}
+            accessibilityRole="button"
+            icon="signOut"
+            iconBackground={colorTokens.raw['F1F5F3']}
+            iconColor={theme.colors.content.secondary}
+            hideBorder
+            onPress={signOut}
+          />
+        </View>
+        <View>
+          <AccountDeletionPanel presentation="link" />
+          <SocialMediaFooter />
+        </View>
         {isFixtureModeEnabled() ? (
           <ActionButton
             label={translate('appShell.security.mockSignOutAll')}

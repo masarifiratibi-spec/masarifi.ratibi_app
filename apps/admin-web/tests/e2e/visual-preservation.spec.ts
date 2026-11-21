@@ -56,39 +56,43 @@ test("/admin/imports retains its approved operational hierarchy after Spec 005",
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("Phase 9 routes preserve approved shell direction theme and overflow", async ({ page }, testInfo) => {
-  test.skip(
-    !["desktop-1440", "tablet-768", "mobile-390"].includes(testInfo.project.name),
-    "Phase 9 visual preservation runs at the representative approved widths.",
-  );
-  const phase9Routes = [
-    "/admin/admin-team",
-    "/admin/admin-team/invite",
-    "/admin/admin-team/ADM-DEMO-SECURITY-02",
-    "/admin/roles",
-    "/admin/roles/new",
-    "/admin/roles/permissions",
-    "/admin/roles/ROLE-DEMO-SUPPORT",
-    "/admin/roles/ROLE-DEMO-CUSTOM-01/edit",
-    "/admin/settings",
-    "/admin/settings/mobile",
-    "/admin/settings/feature-flags",
-    "/admin/settings/imports",
-    "/admin/settings/ai",
-    "/admin/settings/subscriptions",
-    "/admin/settings/security",
-    "/admin/settings/maintenance",
-  ] as const;
+const phase9Routes = [
+  "/admin/admin-team",
+  "/admin/admin-team/invite",
+  "/admin/admin-team/ADM-DEMO-SECURITY-02",
+  "/admin/roles",
+  "/admin/roles/new",
+  "/admin/roles/permissions",
+  "/admin/roles/ROLE-DEMO-SUPPORT",
+  "/admin/roles/ROLE-DEMO-CUSTOM-01/edit",
+  "/admin/settings",
+  "/admin/settings/mobile",
+  "/admin/settings/feature-flags",
+  "/admin/settings/imports",
+  "/admin/settings/ai",
+  "/admin/settings/subscriptions",
+  "/admin/settings/security",
+  "/admin/settings/maintenance",
+] as const;
 
-  for (const route of phase9Routes) {
+// Keep independent routes from sharing the 90s budget that expired in CI
+// (2026-10-04, tablet-768); cold dev-server navigations have variable cost.
+for (const route of phase9Routes) {
+  test(`Phase 9 ${route} preserves approved shell direction and overflow`, async ({ page }, testInfo) => {
+    test.skip(
+      !["desktop-1440", "tablet-768", "mobile-390"].includes(testInfo.project.name),
+      "Phase 9 visual preservation runs at the representative approved widths.",
+    );
     await page.goto(route);
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
 
-  await page.locator(".topbar-actions > .icon-button").first().click();
-  await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-});
+    if (route === "/admin/settings/maintenance") {
+      await page.locator(".topbar-actions > .icon-button").first().click();
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+    }
+  });
+}

@@ -70,7 +70,7 @@ export class ReportsAdminController {
   @Post('exports')
   @HttpCode(202)
   @ApiOperation({ operationId: 'createAdminExport' })
-  @adminPermission('privacy.exports.manage', { recentMfa: true })
+  @adminPermission('privacy.exports.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   createExport(
     @Req() request: AdminRequest,
@@ -89,7 +89,7 @@ export class ReportsAdminController {
 
   @Get('exports/:attemptId')
   @ApiOperation({ operationId: 'getAdminExport' })
-  @adminPermission('privacy.exports.manage', { recentMfa: true })
+  @adminPermission('privacy.exports.manage', { recentAuth: true })
   @UseGuards(AdminAuthGuard)
   getExport(
     @Req() request: AdminRequest,

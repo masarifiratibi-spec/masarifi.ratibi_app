@@ -1,6 +1,26 @@
+import Constants from 'expo-constants';
 import { SyncHttpService } from './sync-service';
 
+jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { android: { package: 'com.masarifi.mobile' } } } }));
+
 describe('SyncHttpService', () => {
+  it.each([
+    ['com.masarifi.mobile.dev', 'https://api.staging.masarifiratibi.com', 'staging-development'],
+    ['com.masarifi.mobile', 'https://api.staging.masarifiratibi.com', undefined],
+    ['com.masarifi.mobile.dev', 'https://api.example.test', undefined]
+  ])('scopes the DEV sync route to %s on %s', async (packageName, baseUrl, expectedVariant) => {
+    const previous = Constants.expoConfig!.android!.package;
+    Constants.expoConfig!.android!.package = packageName;
+    const request = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ data: {}, meta: { requestId: 'r' } }) }));
+    try {
+      const service = new SyncHttpService(baseUrl!, async () => 'token', async () => 'device', request as never);
+      await service.delta('accounts', 'cursor');
+      const init = (request.mock.calls as unknown as [string, RequestInit][])[0]![1];
+      expect((init.headers as Record<string, string>)['X-Masarifi-Client-Variant']).toBe(expectedVariant);
+    } finally {
+      Constants.expoConfig!.android!.package = previous;
+    }
+  });
   it('maps every authenticated sync route and stable headers', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     const request = jest.fn(
@@ -13,9 +33,10 @@ describe('SyncHttpService', () => {
         };
       }
     );
+    const token = jest.fn(async (readOnly?: boolean) => readOnly ? 'read-token' : 'write-token');
     const service = new SyncHttpService(
       'https://api.example.test/',
-      async () => 'token',
+      token,
       async () => 'device',
       request as never
     );
@@ -39,6 +60,9 @@ describe('SyncHttpService', () => {
     await service.conflicts();
     await service.conflict('conflict-one');
     await service.resolveConflict('conflict-one', 'server', 'resolve-key');
+    expect(token.mock.calls).toEqual([[true], [true], [false], [false], [true], [true], [false]]);
+    expect(calls.every(({ init }) => (init.headers as Record<string, string>).Authorization ===
+      (init.method === 'GET' ? 'Bearer read-token' : 'Bearer write-token'))).toBe(true);
     expect(calls.map(({ url }) => url)).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/api/v1/sync/bootstrap'),

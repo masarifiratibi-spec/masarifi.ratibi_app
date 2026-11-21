@@ -61,10 +61,12 @@ it('maps the Phase 10 summary, verification, schedule, and output contracts with
             id: '99000000-0000-4000-8000-000000000010',
             version: 1,
             enabled: true,
+            reportType: 'financial_summary',
             frequency: 'monthly',
             timezone: 'Asia/Riyadh',
             deliveryChannel: 'email',
             recipientMasked: 'o***@example.test',
+            recipient: 'owner@example.test',
             nextRunAt: '2026-10-01T05:00:00.000Z',
             createdAt: generatedAt,
             updatedAt: generatedAt
@@ -121,7 +123,13 @@ it('maps the Phase 10 summary, verification, schedule, and output contracts with
       null,
       'schedule-key'
     )
-  ).rejects.toMatchObject({ code: 'report_schedule_settings_unavailable' });
+  ).resolves.toMatchObject({
+    value: {
+      version: 1,
+      status: 'active',
+      recipient: { normalizedEmail: 'owner@example.test' }
+    }
+  });
   const preview = await service.previewOutput({
     ...input,
     language: 'ar',

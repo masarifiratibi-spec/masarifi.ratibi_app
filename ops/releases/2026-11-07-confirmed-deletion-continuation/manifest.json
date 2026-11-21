@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-11-06T21:18:47.116039+00:00",
+  "status": "signed_and_static_qualified_physical_acceptance_pending",
+  "sourceCommit": "1de53753cd832606b751803b853422252045df0d",
+  "package": "com.masarifi.mobile",
+  "versionCode": 124,
+  "versionName": "1.0.0",
+  "apkPath": "C:\\mrc1105\\artifacts\\task34-customer-124-native.apk",
+  "apkSha256": "a9e3f4b22e3536a7f9bb11bc461b71b55ef0d9b2a9237bd894989d7cd78312dd",
+  "apkBytes": 49517182,
+  "hermesSha256": "9286b8a61608493217957e7130f4c2dcbea707d28508ec08d305f70e3bdc7e22",
+  "signerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "minSdk": 24,
+  "abi": "arm64-v8a",
+  "sixApiSignerChecks": true,
+  "alignment16Kb": true,
+  "nonDebuggable": true,
+  "nativeLibrariesIdenticalToInstalled123": 23,
+  "actualDexConsumer": {
+    "concrete": true,
+    "exactPublicConstructorPresent": true,
+    "stableConsumerClassName": true
+  },
+  "sourcePins": {
+    "apps/mobile/src/features/settings/DevAccountDeletionPanel.tsx": "c9c280fdf7b5964982f60c20526b0ce7dcfc722df52fc8fdbd52ad92caf50426",
+    "apps/mobile/src/services/dev-account-deletion-recovery.test.tsx": "c4fe393b44580ec48f10a0592ec89bbd83262cc77fd03aae82e70fce7c8130f9",
+    "apps/mobile/src/localization/messages/ar.ts": "03329a7688a29074e9533d219a76bfc0ac5074058f7d07533296ff9344d37baf",
+    "apps/mobile/src/localization/messages/en.ts": "dd3150487bac396af0dd91c95c763fd73b2c03184d90f704c4902f5c260c7f17"
+  },
+  "validation": {
+    "uniqueMobileCases": 203,
+    "affectedSuites": 7,
+    "typesExit": 0,
+    "scopedLintExit": 0,
+    "genuineMissingContinuationRedCases": 2,
+    "unchangedApi53Worker245Native88Reused": true
+  },
+  "priorInstalledVersion": 123,
+  "priorInstalledApkSha256": "2e1f90619b7ff5f54620eead63bb19299433831fed028cc134d4c5770f523d4d",
+  "scope": "Continue the existing confirmed deletion journal/capability manually on the same authenticated owner, without extra factor verification. Initial deletion retains one confirmation; no automatic destructive dispatch on mount.",
+  "execution": "One ordinary in-place same-package/signer Android update. User performs final original-account continuation on phone. No agent deletion POST, app clear/uninstall/force-stop/logout or new account/profile.",
+  "hostedChanges": false,
+  "unchangedApiImage": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+  "unchangedAssistantImage": "sha256:e5816ff8ed70adc619e8bf271d80d70e6584e6db88e490902fcb01045d8bb052",
+  "sshAndRootConsoleClosed": true,
+  "assistantSpeedAccepted": false,
+  "canonicalDeliveryPromoted": false,
+  "productionReady": false
+}

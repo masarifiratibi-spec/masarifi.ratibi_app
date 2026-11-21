@@ -1,0 +1,66 @@
+{
+  "receipt": "logo-activation-preflight",
+  "observedDateUtc": "2026-11-07",
+  "host": "srv2006836",
+  "runningCount": 31,
+  "allRunningIdentitySha256": "e15ecf76df2b499f9257800594c003be25119e6668d0f85381137c058bb623d1",
+  "protectedCount": 30,
+  "protectedIdentitySha256": "8062ab6a932b5a33371ea12825b970f25dc95a6b13e5f3bd6f7b75e0689d1b62",
+  "old": {
+    "id": "47ecec2481c32a6cc801498d4681a6acfa0e7f2fb7f627c40cdbf3e7e966cbda",
+    "image": "sha256:53a7a4530dfa0fb9b296d0c5bca3c330bf308fa7160fd7966cea681d092ca2c5",
+    "startedAt": "2026-11-01T22:01:42.80418481Z",
+    "environmentSha256": "995cbca1a1699ad63e532bae6ee6849fb30ce467385cf5e10703e66d3c856cc3",
+    "commandSha256": "f8c318506b2d2a09d9f523001748e7ec00c99267e1f1d497009dbaf3c8c984b4",
+    "entrypointSha256": "da45971ec1fa8d54095962c28290fe971d1368d5a50cb2fbbef98ebcb45f2b7c",
+    "buildId": "RfJI7jhDb6BdroFc-2TBT"
+  },
+  "routing": {
+    "resolved": "/etc/nginx/sites-available/masarifi-staging",
+    "sha256": "be7856f0d5f6183f14fdf01b136e5f4d30eaa15ecefc091aed0cc91c870b7b17",
+    "replacementCount": 1,
+    "candidateSha256": "81c6ca948a8264214b1c64fa1d72c06079403814064bda62311143691466c9b9"
+  },
+  "port3041Listeners": "",
+  "staticStatus": 200,
+  "staticSha256": "47e885f0b6ce11f7149a2fe4e58a29ce5dab1d384ab57a365ce74d05549db2f1",
+  "freeBytes": 72363028480,
+  "memoryAvailableKiB": 3344232,
+  "loadAverage": [
+    0.39794921875,
+    0.53564453125,
+    0.5595703125
+  ],
+  "access": "Human-completed root login in the actual Chrome hPanel console. Existing SSH probe timed out; no SSH/firewall/password/OS change.",
+  "anonymousChallenge": {
+    "status": 307,
+    "locationPrefix": "https://accounts.staging.masarifiratibi.com/sign-in"
+  },
+  "mountRepresentation": "HostConfig.Binds=null; exactly two HostConfig.Mounts bind objects, readonly workspace and separate writable cache",
+  "pendingWork": {
+    "receipt": "preactivation-pending-work",
+    "httpStatus": 200,
+    "rows": 53,
+    "partial": false,
+    "freshness": {
+      "state": "fresh",
+      "staleAt": "2026-11-07T09:57:30.059301+00:00",
+      "observedAt": "2026-11-07T09:56:30.059301+00:00"
+    },
+    "counters": {
+      "active": {
+        "sum": 0,
+        "unknownRows": 0
+      },
+      "waiting": {
+        "sum": 2,
+        "unknownRows": 0
+      },
+      "failed": {
+        "sum": 0,
+        "unknownRows": 0
+      }
+    },
+    "actionsPerformed": "GET only; no retry/cancel/dispatch/customer mutation"
+  }
+}

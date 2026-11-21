@@ -1,0 +1,118 @@
+{
+  "decision": "explicit_user_approval_for_exact_fixed_group",
+  "expectedAndAcknowledgedDeletedRows": 408734,
+  "committedBatches": 409,
+  "maxBatchRows": 1000,
+  "firstBatchRolledBackBeforeExecution": 1000,
+  "archive": {
+    "plaintextBytes": 238913812,
+    "sha256": "8857c69039cd32d2f2192221b3e22a03c27087f6fedef09485efb24d1038d0bd",
+    "encryptedChunks": 57,
+    "dpapiReadbackVerified": true,
+    "fullRestoredRows": 408734,
+    "uniqueIds": 408734,
+    "matchingServerRowHashes": 408734,
+    "exact13ColumnsVerified": true,
+    "isolatedDatabaseDropped": true
+  },
+  "controller": {
+    "sha256": "b1e766cacc6075265d8f047cd14be62afaf7cca6c6b3220627b741a0de376824",
+    "tlsVerification": "verify-full",
+    "statementDeadlineSeconds": 5,
+    "lockDeadlineSeconds": 1,
+    "rowHashAndEligibilityRechecked": true,
+    "membershipRestoredEveryBatch": true,
+    "postCommitAcknowledgements": true,
+    "committedRowsBeforeLocalCheckpointError": 361000,
+    "readOnlyNextBatchReconciliationPassed": true,
+    "resumedFromNextUnsentBatch": true,
+    "ambiguousCommits": 0,
+    "completed": true
+  },
+  "before": {
+    "atUtc": "2026-11-02T08:02:54.633557Z",
+    "outboxBytes": 327581696,
+    "databaseBytes": 435760275,
+    "accounts": 13,
+    "transactions": 80
+  },
+  "after": {
+    "at": "2026-11-02T08:08:49.877305+00:00",
+    "outbox_bytes": 327630848,
+    "outbox_stats": {
+      "dead_estimate": 47734,
+      "live_estimate": 142429,
+      "last_autovacuum": "2026-11-02T08:06:08.585603+00:00",
+      "last_autoanalyze": "2026-11-02T08:06:09.456501+00:00"
+    },
+    "database_bytes": 436530323,
+    "running_vacuum": 0,
+    "all_outbox_rows": 142429,
+    "financial_counts": {
+      "accounts": 13,
+      "profiles": 22,
+      "transactions": 80
+    },
+    "retained_failures": [
+      {
+        "rows": 12994,
+        "event_type": "operations.job-failed"
+      },
+      {
+        "rows": 1828,
+        "event_type": "operations.job-dead-lettered"
+      }
+    ],
+    "membership_fingerprint": "c47ffe096cd56bba3e213241d59cde5e",
+    "eligible_old_success_remaining": 0
+  },
+  "limits": [
+    "Fixed-cutoff operational-success retirement only; no automatic age-based Outbox retention enabled.",
+    "Failures, dead letters, financial/domain events and newer success events were excluded.",
+    "No physical compaction was authorized; table/database files did not shrink in this postflight snapshot.",
+    "Encrypted recovery is Windows CurrentUser DPAPI bound; copying the file alone is not portable disaster recovery.",
+    "Transient export-client OOM was isolated to its128MiB client container; the successful export used COPY streaming without raising that limit.",
+    "Local Windows checkpoint publication stopped before the next SQL dispatch; read-only reconciliation established safe continuation."
+  ],
+  "maintenanceFollowUp": {
+    "atUtc": "2026-11-02T08:11:05.574175Z",
+    "deadTupleEstimate": 0,
+    "liveTupleEstimate": 142431,
+    "lastAutovacuumAtUtc": "2026-11-02T08:09:08.291450Z",
+    "lastAutoanalyzeAtUtc": "2026-11-02T08:09:09.154541Z",
+    "activeRuntimeQueries": 0,
+    "zeroClaimSuccessRunsSinceFix": 160,
+    "unnecessarySuccessEventsForThoseRuns": 0
+  },
+  "settledManagedHostMetrics": {
+    "observedAtUtc": "2026-11-02T08:11:57.775407+00:00",
+    "existingProtectedKeyOnly": true,
+    "newCredentialsCreated": false,
+    "collectorInstalled": false,
+    "httpStatus": 200,
+    "memoryAndSettings": {
+      "node_memory_SwapFree_bytes": 755720192.0,
+      "node_load5": 0.16,
+      "node_load1": 0.1,
+      "node_memory_Buffers_bytes": 2826240.0,
+      "node_memory_Shmem_bytes": 200564736.0,
+      "node_memory_Cached_bytes": 445415424.0,
+      "node_memory_SReclaimable_bytes": 39464960.0,
+      "node_memory_MemFree_bytes": 107384832.0,
+      "node_memory_MemAvailable_bytes": 379879424.0,
+      "node_memory_MemTotal_bytes": 948191232.0,
+      "node_memory_SwapTotal_bytes": 1073737728.0
+    },
+    "aggregateCpuSeconds": {
+      "idle": 9306.6,
+      "iowait": 93.06,
+      "irq": 0.0,
+      "nice": 0.19,
+      "softirq": 32.980000000000004,
+      "steal": 1.42,
+      "system": 101.73,
+      "user": 353.70000000000005
+    },
+    "memoryAvailablePercent": 40.06
+  }
+}

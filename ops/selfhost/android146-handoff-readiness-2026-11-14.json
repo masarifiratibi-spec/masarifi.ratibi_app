@@ -1,0 +1,11 @@
+{
+  "atUtc": "2026-11-14T07:42:57.460639+00:00",
+  "httpStatus": 200,
+  "body": {
+    "status": "ready",
+    "checks": {
+      "database": "up",
+      "queue": "up"
+    }
+  }
+}

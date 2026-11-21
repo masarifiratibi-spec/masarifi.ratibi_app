@@ -1,3 +1,11 @@
+import { formatMonthPeriod } from '@/utils/format-month-period';
+import { localDateInTimeZone } from '@/domain/financial-period';
+import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefreshStatus';
+import {
+  hasReadableSnapshot,
+  isAuthoritativeReadDenial
+} from '@/services/read-snapshot';
+import { usePlanningDrafts } from '@/features/financial-planning/usePlanningDraft';
 import React from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -7,11 +15,7 @@ import { ActionButton } from '@/design-system/components/ActionButton';
 import { ConfirmationDialog } from '@/design-system/components/overlays/ConfirmationDialog';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { NavigationRow } from '@/design-system/components/navigation/GroupedList';
-import {
-  colorTokens,
-  radius,
-  spacing
-} from '@/design-system/tokens';
+import { radius, spacing } from '@/design-system/tokens';
 import { safeMinorSum } from '@/domain/core-finance';
 import type { BudgetDetail } from '@/services/contracts/financial-planning-service';
 import {
@@ -27,22 +31,23 @@ import {
 } from '@/localization/i18n';
 import { financialPlanningService } from '@/services/financial-planning-service';
 import { useSensitiveVisibility } from '@/state/SensitiveVisibilityProvider';
+import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { BudgetForm } from './BudgetForm';
 import { useBudgets, usePlanningMutation } from './budget-queries';
 
-export function BudgetOverviewScreen({
-  periodKey = new Date().toISOString().slice(0, 7)
-}: {
-  periodKey?: string;
-}) {
+export function BudgetOverviewScreen({ periodKey }: { periodKey?: string }) {
+  const theme = useTheme();
+  const timeZone = usePreferenceStore((state) => state.timeZone);
+  periodKey ??= localDateInTimeZone(Date.now(), timeZone).slice(0, 7);
   const query = useBudgets(periodKey);
   const budgets = query.data ?? [];
+  const drafts = usePlanningDrafts('budget');
 
   return (
     <PlanningScreen
-      backgroundColor={colorTokens.neutral.warmSurface}
+      backgroundColor={theme.colors.surfaces.page}
       titleKey="planning.budgets.title"
       action={
         budgets.length
@@ -53,10 +58,30 @@ export function BudgetOverviewScreen({
           : undefined
       }
     >
+      <FinancialRefreshStatus query={query} />
       {query.isLoading ? (
         <PlanningState state="loading" />
-      ) : query.isError ? (
-        <PlanningState state="error" onRetry={() => void query.refetch()} />
+      ) : query.isError && !hasReadableSnapshot(query) ? (
+        <>
+          <PlanningState state="error" onRetry={() => void query.refetch()} />
+          {!isAuthoritativeReadDenial(query.error) &&
+          !isAuthoritativeReadDenial(drafts.error)
+            ? drafts.data?.map((draft) => (
+                <ActionButton
+                  key={draft.id}
+                  label={savedDraftLabel(draft.payload)}
+                  variant="secondary"
+                  onPress={() =>
+                    router.push(
+                      draft.entityId
+                        ? `/budgets/edit/${draft.entityId}`
+                        : '/budgets/new'
+                    )
+                  }
+                />
+              ))
+            : null}
+        </>
       ) : budgets.length === 0 ? (
         <BudgetForm
           embedded
@@ -65,7 +90,9 @@ export function BudgetOverviewScreen({
         />
       ) : (
         <>
-          <StyledText variant="caption">{periodKey}</StyledText>
+          <StyledText variant="caption">
+            {formatMonthPeriod(periodKey, currentLocale())}
+          </StyledText>
           {budgets.map((detail) => (
             <BudgetCard key={detail.budget.id} detail={detail} />
           ))}
@@ -79,6 +106,7 @@ function BudgetCard({ detail }: { detail: BudgetDetail }) {
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const hideBalances = usePreferenceStore((state) => state.hideBalances);
   const { revealed } = useSensitiveVisibility();
+  const theme = useTheme();
   const item = detail.budget;
   const lifecycle = usePlanningMutation(
     (status: 'active' | 'paused' | 'deleted') =>
@@ -131,11 +159,11 @@ function BudgetCard({ detail }: { detail: BudgetDetail }) {
           ? translate('reports.state.unavailable')
           : amount(total)}
       </StyledText>
-      <View style={styles.progressTrack}>
+      <View style={[styles.progressTrack, { backgroundColor: theme.colors.borders.subtle }]}>
         <View
           style={[
             styles.progressFill,
-            { width: `${Math.min(100, Math.max(0, percentage))}%` }
+            { backgroundColor: theme.colors.primary, width: `${Math.min(100, Math.max(0, percentage))}%` }
           ]}
         />
       </View>
@@ -226,13 +254,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   progressTrack: {
-    backgroundColor: colorTokens.neutral.warmBorder,
     borderRadius: radius.pill,
     height: 8,
     overflow: 'hidden'
   },
   progressFill: {
-    backgroundColor: colorTokens.teal[600],
     height: '100%'
   },
   metrics: {
@@ -242,3 +268,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   }
 });
+
+function savedDraftLabel(payload: unknown) {
+  const name = (payload as { name?: unknown } | null)?.name;
+  const label = translate('planning.action.resumeDraft');
+  return typeof name === 'string' && name.trim()
+    ? `${label}: ${name.trim()}`
+    : label;
+}

@@ -1,163 +1,131 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View,
-  TextInput,
+  ActivityIndicator,
   Pressable,
-  StyleSheet
+  StyleSheet,
+  TextInput,
+  View
 } from 'react-native';
-import { SparkleIcon } from './AssistantIcons';
+import { useTheme } from '@/state/theme-context';
+import { DesignIcon } from '@/design-system/icons';
+import { fontFamilyForLocale } from '@/design-system/typography';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { colorTokens, radius, spacing } from '@/design-system/tokens';
+import { type ThemeColors } from '@/design-system/tokens';
 
 export interface AssistantAskCardProps {
+  text: string;
+  onChangeText: (text: string) => void;
   onAskQuestion: (question: string) => void;
   loading?: boolean;
+  canSend?: boolean;
 }
 
 export function AssistantAskCard({
+  text,
+  onChangeText,
   onAskQuestion,
-  loading = false
+  loading = false,
+  canSend = true
 }: AssistantAskCardProps) {
-  const [text, setText] = useState('');
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
-  const isRtl = direction === 'rtl';
-
-  const handleSubmit = () => {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    onAskQuestion(trimmed);
-    setText('');
+  const locale = usePreferenceStore((state) => state.locale);
+  const disabled = !text.trim() || loading || !canSend;
+  const submit = () => {
+    if (!disabled) onAskQuestion(text.trim());
   };
-
   return (
-    <View testID="assistant-ask-card" style={styles.card}>
-      <View style={styles.innerBox}>
-        {isRtl ? (
-          <>
-            {/* Submit button on the left in RTL */}
-            <Pressable
-              testID="assistant-ask-submit-button"
-              onPress={handleSubmit}
-              disabled={!text.trim() || loading}
-              style={({ pressed }) => [
-                styles.sparkleButton,
-                !text.trim() && styles.sparkleButtonEmpty,
-                pressed && styles.sparkleButtonPressed
-              ]}
-              accessibilityLabel={translate('assistant.action.ask')}
-              accessibilityRole="button"
-            >
-              <SparkleIcon size={20} color={colorTokens.surface.white} />
-            </Pressable>
-
-            {/* Input field on the right in RTL */}
-            <TextInput
-              testID="assistant-ask-input"
-              value={text}
-              onChangeText={setText}
-              placeholder={translate('assistant.ask.placeholder')}
-              placeholderTextColor={colorTokens.ink['500']}
-              style={[styles.input, styles.inputRtl]}
-              returnKeyType="send"
-              onSubmitEditing={handleSubmit}
-              editable={!loading}
-              multiline
-            />
-          </>
+    <View
+      testID="assistant-ask-card"
+      style={[
+        styles.card,
+        { flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }
+      ]}
+    >
+      <TextInput
+        testID="assistant-ask-input"
+        value={text}
+        onChangeText={onChangeText}
+        maxLength={1000}
+        multiline
+        editable={!loading}
+        returnKeyType="send"
+        onSubmitEditing={submit}
+        accessibilityLabel={translate('assistant.ask.title')}
+        placeholder={translate('assistant.ask.placeholder')}
+        placeholderTextColor={colors.content.secondary}
+        style={[
+          styles.input,
+          {
+            fontFamily: fontFamilyForLocale(locale, 400),
+            writingDirection: direction,
+            textAlign: direction === 'rtl' ? 'right' : 'left'
+          }
+        ]}
+      />
+      <Pressable
+        testID="assistant-ask-submit-button"
+        onPress={submit}
+        disabled={disabled}
+        accessibilityLabel={translate('assistant.action.ask')}
+        accessibilityRole="button"
+        accessibilityState={{ disabled, busy: loading }}
+        style={({ pressed }) => [
+          styles.send,
+          disabled && styles.disabled,
+          pressed && styles.pressed
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.content.inverse} />
         ) : (
-          <>
-            {/* Input field on the left in LTR */}
-            <TextInput
-              testID="assistant-ask-input"
-              value={text}
-              onChangeText={setText}
-              placeholder={translate('assistant.ask.placeholder')}
-              placeholderTextColor={colorTokens.ink['500']}
-              style={[styles.input, styles.inputLtr]}
-              returnKeyType="send"
-              onSubmitEditing={handleSubmit}
-              editable={!loading}
-              multiline
-            />
-
-            {/* Submit button on the right in LTR */}
-            <Pressable
-              testID="assistant-ask-submit-button"
-              onPress={handleSubmit}
-              disabled={!text.trim() || loading}
-              style={({ pressed }) => [
-                styles.sparkleButton,
-                !text.trim() && styles.sparkleButtonEmpty,
-                pressed && styles.sparkleButtonPressed
-              ]}
-              accessibilityLabel={translate('assistant.action.ask')}
-              accessibilityRole="button"
-            >
-              <SparkleIcon size={20} color={colorTokens.surface.white} />
-            </Pressable>
-          </>
+          <DesignIcon
+            name="arrowUp"
+            decorative
+            size="md"
+            color={colors.content.inverse}
+          />
         )}
-      </View>
+      </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colorTokens.sand['50'],
-    borderColor: colorTokens.sand['400'],
-    borderRadius: radius.card,
-    borderWidth: 1,
-    marginHorizontal: spacing.md,
-    padding: 10,
-    shadowColor: colorTokens.teal['950'],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2
-  },
-  innerBox: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['50'],
-    borderColor: colorTokens.teal['100'],
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 70,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs
-  },
-  input: {
-    color: colorTokens.ink['900'],
-    flex: 1,
-    fontSize: 15,
-    maxHeight: 90,
-    minHeight: 48,
-    paddingVertical: 8
-  },
-  inputRtl: {
-    textAlign: 'right',
-    writingDirection: 'rtl'
-  },
-  inputLtr: {
-    textAlign: 'left',
-    writingDirection: 'ltr'
-  },
-  sparkleButton: {
-    alignItems: 'center',
-    backgroundColor: colorTokens.teal['900'],
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: 'center',
-    width: 44
-  },
-  sparkleButtonEmpty: {
-    backgroundColor: colorTokens.teal['900'],
-    opacity: 0.95
-  },
-  sparkleButtonPressed: {
-    opacity: 0.75
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaces.card,
+      borderColor: colors.borders.default,
+      borderRadius: 32,
+      borderWidth: 1,
+      direction: 'ltr',
+      gap: 8,
+      minHeight: 64,
+      padding: 7
+    },
+    input: {
+      color: colors.content.primary,
+      flex: 1,
+      fontSize: 16,
+      lineHeight: 24,
+      maxHeight: 120,
+      minHeight: 48,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      textAlignVertical: 'center'
+    },
+    send: {
+      alignItems: 'center',
+      backgroundColor: colors.interactions.primary,
+      borderRadius: 24,
+      flexShrink: 0,
+      height: 48,
+      justifyContent: 'center',
+      width: 48
+    },
+    disabled: { opacity: 0.5 },
+    pressed: { opacity: 0.75 }
+  });

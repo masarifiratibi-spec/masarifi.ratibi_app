@@ -1,0 +1,1321 @@
+{
+  "base": "3bd0c5d3149259ad69fb6a5e86083a820052b7f4",
+  "branchAndRemoteRefs": 87,
+  "uniqueDivergentCommits": 28,
+  "dispositions": {
+    "SUPERSEDED": 12,
+    "ALREADY INCLUDED": 14,
+    "INTEGRATE": 2
+  },
+  "allDivergentCommitsAccountedFor": true,
+  "refs": [
+    {
+      "ref": "refs/heads/001-admin-foundation",
+      "commit": "ab4e4fb4c48f1df4b0f160f5faf6e96107ec8c66",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/009-admin-system-health-and-jobs",
+      "commit": "ab4e4fb4c48f1df4b0f160f5faf6e96107ec8c66",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/010-admin-governance-and-settings",
+      "commit": "60d0b3404eea8366f7489191c4377c465dde0e14",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex-mobile-foundation-validation",
+      "commit": "1b7fe739f41f8c853af2116d7533f06de1bff6b0",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "1b7fe739f41f8c853af2116d7533f06de1bff6b0"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/ai-assistant-voice-reminders",
+      "commit": "3b3f45868a6fb9ba31efc5eecf6d6bba6e7a0019",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/ai-assistant-voice-reminders-source",
+      "commit": "4d1f0dd1373f87500c3a075823d74262683e0a52",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "4d1f0dd1373f87500c3a075823d74262683e0a52",
+        "dafc462d0902c0a46b90a17bf475e2524ccd14ec",
+        "02756a6474eb6531ecd2f21931a94e80ee1ceb7e",
+        "7b2a52729e76df2f871d492a315f071935b46790",
+        "6e1d371be67767df1441b5485e52153f5b13fdcc",
+        "6c51433528d774dc332d73aa33a3ec0d4967cce1"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/ai-usage-limits",
+      "commit": "bea9aaa9f260ba28dc47fa9ec24ea1499a2ea5a0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/ai-voice-continuation",
+      "commit": "ec94d0abaf34b90fb1db67c4f2ffb61003f9905e",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "ec94d0abaf34b90fb1db67c4f2ffb61003f9905e",
+        "b8b4a3b6b7760c072048226890aac77f70af5e9d"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/assistant-runtime-alignment",
+      "commit": "bb3cdff0d14b27d51a004694367915786b458fa8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/automatic-sms-tracking",
+      "commit": "2b4746f6f7310c30019d1258b8b0176cc8460ba8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/backend",
+      "commit": "b1ba259c6fbd0c3b6dc34615c50aae2a69a001a3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/backend-spec-be-001",
+      "commit": "ef1e7aea4c47a63710f8ece6fb5546e3772b1ae8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/backend-spec-be-002",
+      "commit": "b43c1a371fac0271ee9d0f086227f926c66135e3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/biometric-unlock-fix",
+      "commit": "0e7da6cdcf83d5200ac921f57d0126356c0ae3fe",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "0e7da6cdcf83d5200ac921f57d0126356c0ae3fe",
+        "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/canonical-repository-migration",
+      "commit": "440f68044c47415612efe3de60de19a303c6321b",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/complete-phase-06-offline-sync",
+      "commit": "3e685e0a19cfa6854c15728b47854ce74be7391e",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/masarifi-staging-environment",
+      "commit": "10cbfb54203e1847d2ab30d72b02444a58fe03c9",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "10cbfb54203e1847d2ab30d72b02444a58fe03c9"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/master-voice-repair",
+      "commit": "8434640dbefecb188bbf1def0fac0a7b92655dac",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/mobile-onboarding-tracking-updates",
+      "commit": "0718d67c114b2b3fb3ab314b8757c5fe25466a0d",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/new-owner-onboarding-bootstrap",
+      "commit": "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+        "08fda461c653605b3f921001b7bc588fe90dd50a"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/r01-shared-ui-foundation",
+      "commit": "8180b6e58127a67716e82131e1b6ad9994b0adf0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/ratibi-staging-security",
+      "commit": "ca01a4eb34d5c97c5df34264c5b6a9bca374b041",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/samsung-voice-acceptance-readiness",
+      "commit": "bb9235f094b7b795f6debf25fe5f42ceca46ae16",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/spec-be-005",
+      "commit": "b407931ca4635f1dcef3d7a9988a8fad506f1b74",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/spec-be-013-local-verification-fix",
+      "commit": "d3b46b2a15336bd2e3f44b8666945b31e1847bc0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/staging-readiness",
+      "commit": "54cc83c60ee4ded5267c90b5bcf565746ea7c84f",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "54cc83c60ee4ded5267c90b5bcf565746ea7c84f",
+        "fe7520652e80cbad02a28ea43911926d26ddc4e3",
+        "97ab913a18ed4c011c342387fa3a1f97d848be0e",
+        "821f00f9050719534e4b4aff4c88be0b66218fc2"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/staging-readiness-review",
+      "commit": "e64f36c3b3250f928e4765dba8bd27af2bb7a0d3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/staging-voice-owner-quota",
+      "commit": "a4d648ff642e77238a4c18c47fd9b84e2d9ea336",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "a4d648ff642e77238a4c18c47fd9b84e2d9ea336",
+        "57d7b3a7a057b9069993519c3ee23002dd047f6d",
+        "a84312da12662250bcb6a2780a41891cbfbb1273",
+        "887130bc1ca1584a8034bacb8e97bab7a2d7ff56",
+        "d74281c78a9086b00253ea2285111d95f434265c",
+        "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+        "08fda461c653605b3f921001b7bc588fe90dd50a"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/tracking-final-automatic",
+      "commit": "3bd0c5d3149259ad69fb6a5e86083a820052b7f4",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/tracking-staging-combined",
+      "commit": "de74723f63f6f0d04b652b26efdebce2eb758cb6",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/voice-auto-batches",
+      "commit": "0ad0c0410b77d83b1d665b72f2f6b9bf8c38c979",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/voice-capture-time-and-home-order",
+      "commit": "976dd92fe73fccb0f4f9bde42e1fa41b8aa934bb",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/voice-category-taxonomy",
+      "commit": "7e3595dfeafa97927db98f70e0986616bb3d8e94",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/voice-occurrence-acceptance",
+      "commit": "e33d67039ee016dee8938cfd7a7984ae9ca08859",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/codex/voice-provider-diagnostics",
+      "commit": "dc7d8617a7bcf8dcd372df310d4951dd7d3f402d",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "dc7d8617a7bcf8dcd372df310d4951dd7d3f402d",
+        "410a3b1cf9c9bfd57b48be1c53b27f45eb6c7167",
+        "9721a51c8c8447cef0b7f7f4b6c569dcccebbe1c",
+        "d31817a1b17a963179119c9f5d5089876113a483"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/heads/codex/voice-review-runtime-isolation",
+      "commit": "2e9daea47049433633c1f0e9faa1499a4f55e56a",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/heads/main",
+      "commit": "730aa8c459d27d3849a6001d827cfa231f7ce81b",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "730aa8c459d27d3849a6001d827cfa231f7ce81b"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/masarifiratibi-spec/main",
+      "commit": "5eeaa0e58b62f0e62db594d612343bc9bfdfdeea",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/001-admin-foundation",
+      "commit": "ab4e4fb4c48f1df4b0f160f5faf6e96107ec8c66",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/009-admin-system-health-and-jobs",
+      "commit": "ab4e4fb4c48f1df4b0f160f5faf6e96107ec8c66",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/010-admin-governance-and-settings",
+      "commit": "02d6247a7a7b8099a7b3cb16809a3daf3af0f2b5",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "commit": "6fdc6506d3a6541efd5b20c1a467fa6265059caf",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex-mobile-foundation-validation",
+      "commit": "93c3ad80343e71e46d1471eeb444f1fe0c4e4fc8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/ai-assistant-voice-reminders",
+      "commit": "3b3f45868a6fb9ba31efc5eecf6d6bba6e7a0019",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/backend",
+      "commit": "b1ba259c6fbd0c3b6dc34615c50aae2a69a001a3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/backend-spec-be-001",
+      "commit": "ef1e7aea4c47a63710f8ece6fb5546e3772b1ae8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/backend-spec-be-002",
+      "commit": "b43c1a371fac0271ee9d0f086227f926c66135e3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/masarifi-staging-environment",
+      "commit": "10cbfb54203e1847d2ab30d72b02444a58fe03c9",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "10cbfb54203e1847d2ab30d72b02444a58fe03c9"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/mobile-onboarding-tracking-updates",
+      "commit": "0718d67c114b2b3fb3ab314b8757c5fe25466a0d",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/r01-shared-ui-foundation",
+      "commit": "8180b6e58127a67716e82131e1b6ad9994b0adf0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/spec-be-005",
+      "commit": "b407931ca4635f1dcef3d7a9988a8fad506f1b74",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/spec-be-013-local-verification-fix",
+      "commit": "d3b46b2a15336bd2e3f44b8666945b31e1847bc0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/staging-readiness-review",
+      "commit": "e64f36c3b3250f928e4765dba8bd27af2bb7a0d3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/voice-auto-batches",
+      "commit": "1b1d5558221939b3655b5992546a1d8a98452779",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/codex/voice-occurrence-acceptance",
+      "commit": "14047e9cf064266fa0fd322d5a21d7523c968848",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "commit": "6fdc6506d3a6541efd5b20c1a467fa6265059caf",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/HEAD",
+      "commit": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/ai-usage-limits",
+      "commit": "f8be521f6fae58ef968f82e9cae29c6deeed86de",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/ai-voice-continuation",
+      "commit": "ec94d0abaf34b90fb1db67c4f2ffb61003f9905e",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "ec94d0abaf34b90fb1db67c4f2ffb61003f9905e",
+        "b8b4a3b6b7760c072048226890aac77f70af5e9d"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/assistant-runtime-alignment",
+      "commit": "bb3cdff0d14b27d51a004694367915786b458fa8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/backend",
+      "commit": "b1ba259c6fbd0c3b6dc34615c50aae2a69a001a3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/backend-spec-be-001",
+      "commit": "ef1e7aea4c47a63710f8ece6fb5546e3772b1ae8",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/backend-spec-be-002",
+      "commit": "b43c1a371fac0271ee9d0f086227f926c66135e3",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/biometric-unlock-fix",
+      "commit": "0e7da6cdcf83d5200ac921f57d0126356c0ae3fe",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "0e7da6cdcf83d5200ac921f57d0126356c0ae3fe",
+        "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/masarifi-staging-environment",
+      "commit": "eae3ecbcf9bdfbdbf846df109f2e5319abe5d63e",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/master-voice-repair",
+      "commit": "8434640dbefecb188bbf1def0fac0a7b92655dac",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/new-owner-onboarding-bootstrap",
+      "commit": "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+        "08fda461c653605b3f921001b7bc588fe90dd50a"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/r01-shared-ui-foundation",
+      "commit": "8180b6e58127a67716e82131e1b6ad9994b0adf0",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/samsung-voice-acceptance-readiness",
+      "commit": "bb9235f094b7b795f6debf25fe5f42ceca46ae16",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/staging-voice-owner-quota",
+      "commit": "a4d648ff642e77238a4c18c47fd9b84e2d9ea336",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "a4d648ff642e77238a4c18c47fd9b84e2d9ea336",
+        "57d7b3a7a057b9069993519c3ee23002dd047f6d",
+        "a84312da12662250bcb6a2780a41891cbfbb1273",
+        "887130bc1ca1584a8034bacb8e97bab7a2d7ff56",
+        "d74281c78a9086b00253ea2285111d95f434265c",
+        "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+        "08fda461c653605b3f921001b7bc588fe90dd50a"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-cash-red",
+      "commit": "4f6bfa405eed86187dab5b1084505540a6ea84d9",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-cohort-red",
+      "commit": "405b9ce66059c33a7d6c84b5f9b0ca53311bda8d",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-compensation-red",
+      "commit": "6918542b2132af74c740454129284ede4b10b635",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-final-automatic",
+      "commit": "3bd0c5d3149259ad69fb6a5e86083a820052b7f4",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-linked-red",
+      "commit": "14a2b3a224ee79e0ba5b33d0c839b5766462e26e",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-recovery-diagnostic",
+      "commit": "ffefe2e0c7506a2676b5820d123f0f38bde72a04",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-safety-red",
+      "commit": "8cafc3f71ceb22828d5fd1a6aa6f00e4a650201e",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-staging-acceptance",
+      "commit": "dcd43ed5cf32f3c94a697d2af5f3a1d09a82ec8b",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/tracking-staging-combined",
+      "commit": "de74723f63f6f0d04b652b26efdebce2eb758cb6",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-auto-batches",
+      "commit": "0ad0c0410b77d83b1d665b72f2f6b9bf8c38c979",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-capture-time-and-home-order",
+      "commit": "976dd92fe73fccb0f4f9bde42e1fa41b8aa934bb",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-category-taxonomy",
+      "commit": "7e3595dfeafa97927db98f70e0986616bb3d8e94",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-empty-balance-regression",
+      "commit": "ecddfa3860ea31c9a4c77ac28344a9b889e7267a",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-occurrence-acceptance",
+      "commit": "e33d67039ee016dee8938cfd7a7984ae9ca08859",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-provider-diagnostics",
+      "commit": "dc7d8617a7bcf8dcd372df310d4951dd7d3f402d",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "dc7d8617a7bcf8dcd372df310d4951dd7d3f402d",
+        "410a3b1cf9c9bfd57b48be1c53b27f45eb6c7167",
+        "9721a51c8c8447cef0b7f7f4b6c569dcccebbe1c",
+        "d31817a1b17a963179119c9f5d5089876113a483"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    },
+    {
+      "ref": "refs/remotes/ratibi/codex/voice-review-runtime-isolation",
+      "commit": "2e9daea47049433633c1f0e9faa1499a4f55e56a",
+      "disposition": "ALREADY INCLUDED",
+      "divergentCommits": [],
+      "proof": "Ancestor of pinned Tracking; all committed source/history included."
+    },
+    {
+      "ref": "refs/remotes/ratibi/main",
+      "commit": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
+      "disposition": "SEE COMMIT DISPOSITIONS",
+      "divergentCommits": [
+        "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294"
+      ],
+      "proof": "Every missing ancestor SHA classified individually below; no whole-branch merge."
+    }
+  ],
+  "commits": [
+    {
+      "commit": "a4d648ff642e77238a4c18c47fd9b84e2d9ea336",
+      "subject": "Isolate quota activation fixture data and role cleanup",
+      "disposition": "SUPERSEDED",
+      "proof": "Accepted quota fixture isolation/role cleanup carried into later Voice history; current per-user admission replaces old activation fixture. No service activation.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/test/integration/ai/voice-owner-quota.spec.ts",
+        "M\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "57d7b3a7a057b9069993519c3ee23002dd047f6d",
+      "subject": "Keep polling contract fixture valid across calendar dates",
+      "disposition": "SUPERSEDED",
+      "proof": "Current quota contract fixtures retain date-independent windows; old polling fixture is represented by current accepted Voice tests.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/test/unit/ai/ai-service.spec.ts",
+        "M\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "a84312da12662250bcb6a2780a41891cbfbb1273",
+      "subject": "Pin quota migration to the deployed onboarding baseline",
+      "disposition": "SUPERSEDED",
+      "proof": "Current registered migration ordering follows accepted onboarding baseline; do not duplicate historical migration versions.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md",
+        "M\tscripts/staging-voice-owner-quota-migration.cjs"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "887130bc1ca1584a8034bacb8e97bab7a2d7ff56",
+      "subject": "Register scoped Voice allowance helper in migration inventory",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Scoped allowance inventory registration carried into later accepted Voice migration inventory.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/test/e2e/migration-apply.e2e-spec.ts",
+        "M\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "d74281c78a9086b00253ea2285111d95f434265c",
+      "subject": "Scope approved Staging Voice quota to the test owner",
+      "disposition": "SUPERSEDED",
+      "proof": "Owner-scoped quota helper carried/updated by later accepted Voice/per-user quota policies.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "A\tapps/api/test/integration/ai/voice-owner-quota.spec.ts",
+        "A\tapps/api/test/unit/ai/staging-quota-target.spec.ts",
+        "A\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md",
+        "A\tscripts/staging-voice-owner-quota-migration.cjs",
+        "M\tsupabase/migration-checksums.sha256",
+        "A\tsupabase/migrations/20261003083000_staging_voice_owner_quota.sql"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "ec94d0abaf34b90fb1db67c4f2ffb61003f9905e",
+      "subject": "Register scoped Voice allowance helper in migration inventory",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Inventory patch equivalent to887130b; functionality included in accepted Voice inventory.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/test/e2e/migration-apply.e2e-spec.ts",
+        "M\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "b8b4a3b6b7760c072048226890aac77f70af5e9d",
+      "subject": "Scope approved Staging Voice quota to the test owner",
+      "disposition": "SUPERSEDED",
+      "proof": "Same owner-quota functionality carried/updated underd74281c and later accepted policies.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "A\tapps/api/test/integration/ai/voice-owner-quota.spec.ts",
+        "A\tapps/api/test/unit/ai/staging-quota-target.spec.ts",
+        "A\tdocs/handoffs/2026-10-03-staging-voice-owner-quota-design.md",
+        "A\tscripts/staging-voice-owner-quota-migration.cjs",
+        "M\tsupabase/migration-checksums.sha256",
+        "A\tsupabase/migrations/20261003083000_staging_voice_owner_quota.sql"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "5113fb7046372183fea4f8a8b1e23a9ec947dcd2",
+      "subject": "test(identity): register bootstrap migration inventory and evidence",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Bootstrap migration inventory and evidence carried into bb9235f ancestor of Tracking.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/test/e2e/migration-apply.e2e-spec.ts",
+        "M\tdocs/superpowers/plans/2026-10-02-new-owner-onboarding-repair.md",
+        "A\tdocs/superpowers/plans/2026-10-02-samsung-pending-voice-observation.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "08fda461c653605b3f921001b7bc588fe90dd50a",
+      "subject": "fix(identity): provision new owners before profile setup reads",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "New-owner provisioning before profile setup reads carried into bb9235f ancestor of Tracking.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/identity/identity.repository.ts",
+        "M\tapps/api/src/identity/identity.service.ts",
+        "A\tapps/api/test/integration/identity/new-owner-bootstrap.spec.ts",
+        "M\tapps/mobile/src/services/live/auth-service.test.ts",
+        "M\tapps/mobile/src/services/live/auth-service.ts",
+        "A\tdocs/superpowers/plans/2026-10-02-new-owner-onboarding-repair.md",
+        "M\tsupabase/migration-checksums.sha256",
+        "A\tsupabase/migrations/20261002134352_authenticated_profile_bootstrap.sql"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "dc7d8617a7bcf8dcd372df310d4951dd7d3f402d",
+      "subject": "fix(ai): retain bounded Google rejection classifications",
+      "disposition": "SUPERSEDED",
+      "proof": "Allowlisted Google rejection classifications present; current helper additionally fences cancellation/timeouts. Safe logger exact at Tracking.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/ai/ai.gateway.ts",
+        "M\tapps/api/src/platform/observability/platform-logger.ts",
+        "M\tapps/api/test/unit/ai/ai-gateway.spec.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "410a3b1cf9c9bfd57b48be1c53b27f45eb6c7167",
+      "subject": "fix(ai): recognize Google diagnostic field bullet prefix",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Google diagnostic bullet-prefix parsing retained in current diagnostic helper and tests.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/ai/ai.gateway.ts",
+        "M\tapps/api/test/unit/ai/ai-gateway.spec.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "9721a51c8c8447cef0b7f7f4b6c569dcccebbe1c",
+      "subject": "fix(ai): retain allowlisted Google rejection field paths",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Allowlisted provider field paths retained in current safe diagnostics and gateway tests.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/ai/ai.gateway.ts",
+        "M\tapps/api/test/unit/ai/ai-gateway.spec.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "d31817a1b17a963179119c9f5d5089876113a483",
+      "subject": "fix(ai): retain bounded allowlisted provider rejection diagnostics",
+      "disposition": "SUPERSEDED",
+      "proof": "Bounded diagnostic fields retained; current helper has newer cancellation/timeout fences.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/ai/ai.gateway.ts",
+        "M\tapps/api/src/ai/ai.worker.ts",
+        "M\tapps/api/src/platform/observability/platform-logger.ts",
+        "M\tapps/api/test/integration/ai/voice-worker.spec.ts",
+        "M\tapps/api/test/unit/ai/ai-gateway.spec.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "730aa8c459d27d3849a6001d827cfa231f7ce81b",
+      "subject": "feat(mobile): rename app to Masarifi.Ratibi",
+      "disposition": "INTEGRATE",
+      "proof": "Recover only Masarifi.Ratibi display name and local-main ancestry into candidate. Preserve current slug/package/EAS/Firebase/native entry.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/mobile/app.json"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "10cbfb54203e1847d2ab30d72b02444a58fe03c9",
+      "subject": "feat(mobile): rename app to Masarifi.Ratibi",
+      "disposition": "INTEGRATE",
+      "proof": "Same display name requirement; supersede all obsolete app identity fields with pinned Tracking configuration.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/mobile/app.json"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "0e7da6cdcf83d5200ac921f57d0126356c0ae3fe",
+      "subject": "feat(mobile): switch app lock to biometrics",
+      "disposition": "SUPERSEDED",
+      "proof": "Biometric behavior carried by e29c30e then salted PBKDF2 PIN/lifecycle/owner repairs. Preserve secure current implementation.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/mobile/app/_layout.tsx",
+        "D\tapps/mobile/app/security/pin/change.tsx",
+        "D\tapps/mobile/app/security/pin/confirm.tsx",
+        "D\tapps/mobile/app/security/pin/create.tsx",
+        "D\tapps/mobile/app/security/pin/forgot.tsx",
+        "M\tapps/mobile/app/security/sessions.tsx",
+        "M\tapps/mobile/app/security/settings.tsx",
+        "M\tapps/mobile/app/security/unlock.tsx",
+        "M\tapps/mobile/src/features/security/AppPrivacyGate.test.tsx",
+        "M\tapps/mobile/src/features/security/AppPrivacyGate.tsx",
+        "D\tapps/mobile/src/features/security/PinForm.test.tsx",
+        "D\tapps/mobile/src/features/security/PinForm.tsx",
+        "M\tapps/mobile/src/features/security/SecurityJourney.test.tsx",
+        "M\tapps/mobile/src/features/security/UnlockScreen.test.tsx",
+        "M\tapps/mobile/src/features/security/UnlockScreen.tsx",
+        "M\tapps/mobile/src/features/security/privacy-lock.test.ts",
+        "M\tapps/mobile/src/features/security/privacy-lock.ts",
+        "M\tapps/mobile/src/features/settings/SecurityEventScreen.tsx",
+        "M\tapps/mobile/src/features/settings/SecuritySessionsJourney.test.tsx",
+        "M\tapps/mobile/src/features/settings/SessionListScreen.tsx",
+        "M\tapps/mobile/src/features/settings/settings-queries.ts",
+        "M\tapps/mobile/src/features/shell/AppShellAccessibility.test.tsx",
+        "M\tapps/mobile/src/features/shell/AppShellLocalization.test.tsx",
+        "M\tapps/mobile/src/features/shell/AppShellStates.test.tsx",
+        "M\tapps/mobile/src/features/shell/ProtectedNavigation.test.tsx",
+        "M\tapps/mobile/src/features/shell/ProtectedRouteGate.tsx",
+        "M\tapps/mobile/src/localization/messages/ar.ts",
+        "M\tapps/mobile/src/localization/messages/en.ts",
+        "M\tapps/mobile/src/services/contracts/app-shell-service.ts",
+        "M\tapps/mobile/src/services/platform/biometric-service.test.ts",
+        "M\tapps/mobile/src/services/platform/biometric-service.ts",
+        "M\tapps/mobile/src/state/app-shell-live.test.ts",
+        "M\tapps/mobile/src/state/app-shell.test.ts",
+        "M\tapps/mobile/src/state/app-shell.ts",
+        "M\tapps/mobile/src/storage/app-shell-storage.test.ts",
+        "M\tapps/mobile/src/storage/app-shell-storage.ts",
+        "M\tapps/mobile/src/storage/settings-storage.test.ts",
+        "M\tapps/mobile/src/test-utils/app-shell-fixtures.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "ecfba4d7de40555c122bd3b5e53e7e7fd71f6294",
+      "subject": "Merge pull request #7 from masarifiratibi-spec/codex/masarifi-staging-environment",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Historical canonical main merge commit adds no missing source functionality; source ancestry represented in Tracking.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "4d1f0dd1373f87500c3a075823d74262683e0a52",
+      "subject": "feat: integrate planning tracking and mobile fixes",
+      "disposition": "SUPERSEDED",
+      "proof": "Planning/tracking/UI carried by3d422e3 and later fixes; residual NavigationJourney duplicate mock already replaced by exactly one current mock. Home200% regression separately recovered from stash6.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/specs/007-financial-planning/contracts/openapi.yaml",
+        "M\tapps/api/src/planning/planning.controller.ts",
+        "M\tapps/api/src/planning/planning.repository.ts",
+        "M\tapps/api/src/tracking/tracking.dto.ts",
+        "M\tapps/api/src/tracking/tracking.service.ts",
+        "M\tapps/api/src/tracking/tracking.worker.ts",
+        "M\tapps/api/test/contract/planning/planning.payment.contract-spec.ts",
+        "M\tapps/api/test/contract/planning/planning.summary.contract-spec.ts",
+        "M\tapps/api/test/integration/planning/planning.match.integration.spec.ts",
+        "M\tapps/api/test/integration/planning/planning.summary.integration.spec.ts",
+        "M\tapps/api/test/unit/tracking/tracking.dto.spec.ts",
+        "M\tapps/api/test/unit/tracking/tracking.review.spec.ts",
+        "M\tapps/api/test/unit/tracking/tracking.worker.spec.ts",
+        "M\tapps/mobile/app/(tabs)/more.tsx",
+        "M\tapps/mobile/modules/masarifi-sms-inbox/android/build.gradle",
+        "A\tapps/mobile/modules/masarifi-sms-inbox/android/src/main/AndroidManifest.xml",
+        "A\tapps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/MasarifiNotificationListenerService.kt",
+        "M\tapps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/MasarifiSmsInboxModule.kt",
+        "A\tapps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/NotificationQueueTest.kt",
+        "M\tapps/mobile/modules/masarifi-sms-inbox/index.ts",
+        "M\tapps/mobile/scripts/check-app-shell-boundaries.mjs",
+        "M\tapps/mobile/src/design-system/components/SurfaceCard.tsx",
+        "M\tapps/mobile/src/design-system/components/financial/FinancialProgress.test.tsx",
+        "M\tapps/mobile/src/design-system/components/financial/FinancialProgress.tsx",
+        "M\tapps/mobile/src/design-system/components/financial/FinancialPulse.tsx",
+        "A\tapps/mobile/src/design-system/components/financial/FinancialTransition.tsx",
+        "M\tapps/mobile/src/design-system/components/financial/InstallmentTimeline.tsx",
+        "A\tapps/mobile/src/design-system/components/financial/ObligationSurfaces.test.tsx",
+        "M\tapps/mobile/src/design-system/components/navigation/GroupedList.test.tsx",
+        "M\tapps/mobile/src/design-system/components/navigation/GroupedList.tsx",
+        "M\tapps/mobile/src/design-system/components/overlays/ConfirmationDialog.tsx",
+        "M\tapps/mobile/src/design-system/components/primitives.test.tsx",
+        "M\tapps/mobile/src/design-system/icons.test.tsx",
+        "M\tapps/mobile/src/design-system/icons.tsx",
+        "M\tapps/mobile/src/design-system/tokens.test.ts",
+        "M\tapps/mobile/src/design-system/tokens.ts",
+        "M\tapps/mobile/src/design-system/typography.test.ts",
+        "M\tapps/mobile/src/design-system/typography.ts",
+        "M\tapps/mobile/src/domain/automatic-tracking.ts",
+        "M\tapps/mobile/src/domain/core-finance-seeds.test.ts",
+        "M\tapps/mobile/src/domain/core-finance-seeds.ts",
+        "M\tapps/mobile/src/domain/financial-planning.ts",
+        "M\tapps/mobile/src/features/accounts/AccountDetailScreen.test.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountDetailScreen.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountListScreen.test.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountRow.test.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountRow.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountTypeSelectionScreen.test.tsx",
+        "M\tapps/mobile/src/features/accounts/AccountTypeSelectionScreen.tsx",
+        "M\tapps/mobile/src/features/budgets/BudgetForm.tsx",
+        "M\tapps/mobile/src/features/budgets/BudgetOverviewScreen.tsx",
+        "M\tapps/mobile/src/features/categories/CategorySelectionScreen.test.tsx",
+        "M\tapps/mobile/src/features/categories/CategorySelectionScreen.tsx",
+        "M\tapps/mobile/src/features/filters/DateRangeSheet.tsx",
+        "M\tapps/mobile/src/features/financial-planning/PlanningHomeCard.test.tsx",
+        "M\tapps/mobile/src/features/financial-planning/PlanningHomeCard.tsx",
+        "M\tapps/mobile/src/features/financial-planning/PlanningScaffold.tsx",
+        "M\tapps/mobile/src/features/financial-planning/financial-planning-queries.ts",
+        "M\tapps/mobile/src/features/home/HomeScreen.test.tsx",
+        "M\tapps/mobile/src/features/obligations/ObligationDetailScreen.tsx",
+        "M\tapps/mobile/src/features/obligations/ObligationForm.tsx",
+        "M\tapps/mobile/src/features/obligations/ObligationJourney.test.tsx",
+        "M\tapps/mobile/src/features/obligations/ObligationOverviewScreen.tsx",
+        "M\tapps/mobile/src/features/obligations/ObligationPaymentScreen.tsx",
+        "A\tapps/mobile/src/features/obligations/ObligationVisuals.tsx",
+        "M\tapps/mobile/src/features/obligations/PaymentJourney.test.tsx",
+        "M\tapps/mobile/src/features/obligations/PaymentMatchReviewScreen.tsx",
+        "M\tapps/mobile/src/features/onboarding/FirstLaunchOnboarding.test.tsx",
+        "M\tapps/mobile/src/features/onboarding/FirstLaunchOnboardingScreen.tsx",
+        "M\tapps/mobile/src/features/onboarding/OnboardingJourney.test.tsx",
+        "M\tapps/mobile/src/features/onboarding/ProfileSetupScreen.tsx",
+        "M\tapps/mobile/src/features/onboarding/onboarding-progress.test.ts",
+        "M\tapps/mobile/src/features/onboarding/onboarding-progress.ts",
+        "M\tapps/mobile/src/features/reports/ReportsScreen.tsx",
+        "M\tapps/mobile/src/features/reports/report-invalidation.test.ts",
+        "M\tapps/mobile/src/features/salary/SalaryJourney.test.tsx",
+        "M\tapps/mobile/src/features/salary/SalaryOverviewScreen.tsx",
+        "M\tapps/mobile/src/features/salary/SalaryProfileForm.tsx",
+        "M\tapps/mobile/src/features/salary/SalaryReceiptReview.tsx",
+        "M\tapps/mobile/src/features/salary/salary-queries.ts",
+        "M\tapps/mobile/src/features/savings/SavingsGoalDetailScreen.tsx",
+        "M\tapps/mobile/src/features/savings/SavingsGoalForm.tsx",
+        "M\tapps/mobile/src/features/savings/SavingsJourney.test.tsx",
+        "M\tapps/mobile/src/features/savings/SavingsMovementForm.tsx",
+        "M\tapps/mobile/src/features/settings/CurrencySelectionScreen.test.tsx",
+        "M\tapps/mobile/src/features/settings/CurrencySelectionScreen.tsx",
+        "M\tapps/mobile/src/features/settings/CycleStartDaySelectionScreen.test.tsx",
+        "M\tapps/mobile/src/features/settings/CycleStartDaySelectionScreen.tsx",
+        "M\tapps/mobile/src/features/shell/NavigationJourney.test.tsx",
+        "M\tapps/mobile/src/features/tracking/TrackingHomeCard.test.tsx",
+        "M\tapps/mobile/src/features/tracking/TrackingHomeCard.tsx",
+        "M\tapps/mobile/src/features/tracking/TrackingStatusJourney.test.tsx",
+        "M\tapps/mobile/src/features/tracking/TrackingStatusScreen.tsx",
+        "M\tapps/mobile/src/features/tracking/sms-import.test.ts",
+        "M\tapps/mobile/src/features/tracking/sms-import.ts",
+        "M\tapps/mobile/src/features/tracking/useAutomaticTracking.ts",
+        "A\tapps/mobile/src/features/transactions/TransactionCard.test.tsx",
+        "M\tapps/mobile/src/features/transactions/TransactionCard.tsx",
+        "M\tapps/mobile/src/features/transactions/TransactionForm.test.tsx",
+        "M\tapps/mobile/src/features/transactions/TransactionForm.tsx",
+        "M\tapps/mobile/src/features/transactions/transaction-presentation.test.ts",
+        "M\tapps/mobile/src/features/transactions/transaction-presentation.ts",
+        "M\tapps/mobile/src/localization/messages/ar.ts",
+        "M\tapps/mobile/src/localization/messages/en.ts",
+        "M\tapps/mobile/src/services/automatic-tracking-coordinator.test.ts",
+        "M\tapps/mobile/src/services/automatic-tracking-coordinator.ts",
+        "M\tapps/mobile/src/services/contracts/financial-planning-service.ts",
+        "M\tapps/mobile/src/services/live/financial-planning-service.test.ts",
+        "M\tapps/mobile/src/services/live/financial-planning-service.ts",
+        "M\tapps/mobile/src/services/mocks/financial-planning-service.test.ts",
+        "M\tapps/mobile/src/services/mocks/financial-planning-service.ts",
+        "A\tapps/mobile/src/services/platform/bank-notification-service.android.ts",
+        "A\tapps/mobile/src/services/platform/bank-notification-service.test.ts",
+        "A\tapps/mobile/src/services/platform/bank-notification-service.ts",
+        "M\tapps/mobile/src/state/FoundationProviders.tsx",
+        "M\tapps/mobile/src/test-utils/financial-planning-fixtures.ts",
+        "M\tapps/mobile/src/test-utils/setup.ts",
+        "A\tdocs/superpowers/plans/2026-09-14-mobile-card-color-hierarchy.md",
+        "A\tdocs/superpowers/plans/2026-09-15-voice-runtime-stabilization.md",
+        "A\tdocs/superpowers/plans/2026-09-19-obligations-experience-redesign.md",
+        "A\tdocs/superpowers/specs/2026-09-14-mobile-card-color-hierarchy-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "dafc462d0902c0a46b90a17bf475e2524ccd14ec",
+      "subject": "feat(ai): complete financial assistant architecture",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Assistant architecture carried then current live service/capability routing, durable operation and owner fences supersede fixture-only behavior.",
+      "equivalentTrackingCommits": [
+        "722c4bacccaa3edf82aeb632dee4634a70df8bd6"
+      ],
+      "changedPaths": [
+        "M\tapps/api/specs/009-voice-openrouter-financial-assistant/contracts/openapi.yaml",
+        "A\tapps/api/src/ai/ai-financial-tools.ts",
+        "M\tapps/api/src/ai/ai-privacy.handler.ts",
+        "A\tapps/api/src/ai/ai-routing.ts",
+        "M\tapps/api/src/ai/ai.controller.ts",
+        "M\tapps/api/src/ai/ai.dto.ts",
+        "M\tapps/api/src/ai/ai.module.ts",
+        "M\tapps/api/src/ai/ai.repository.ts",
+        "M\tapps/api/src/ai/ai.schemas.ts",
+        "M\tapps/api/src/ai/ai.service.ts",
+        "M\tapps/api/src/ai/ai.worker.ts",
+        "M\tapps/api/src/engagement/engagement.events.ts",
+        "A\tapps/api/src/engagement/engagement.reminders.ts",
+        "M\tapps/api/src/engagement/engagement.repository.ts",
+        "M\tapps/api/src/engagement/engagement.worker.ts",
+        "M\tapps/api/src/engagement/notification.providers.ts",
+        "M\tapps/api/src/operations/job-registry.ts",
+        "M\tapps/api/test/contract/ai/assistant.contract-spec.ts",
+        "M\tapps/api/test/integration/ai/assistant-actions.spec.ts",
+        "M\tapps/api/test/integration/ai/voice-worker.spec.ts",
+        "M\tapps/api/test/integration/engagement/notification-create.integration.spec.ts",
+        "A\tapps/api/test/integration/engagement/reminder-delivery-revalidation.integration.spec.ts",
+        "A\tapps/api/test/integration/engagement/reminder-eligibility.integration.spec.ts",
+        "M\tapps/api/test/integration/identity/profile-preferences.spec.ts",
+        "M\tapps/api/test/integration/operations/operations-scheduler.integration.spec.ts",
+        "M\tapps/api/test/performance/engagement/engagement-queries.sql",
+        "M\tapps/api/test/performance/engagement/engagement.performance.spec.ts",
+        "M\tapps/api/test/security/engagement/engagement-scope.security.spec.ts",
+        "M\tapps/api/test/security/engagement/provider-isolation.security.spec.ts",
+        "A\tapps/api/test/unit/ai/ai-financial-tools.spec.ts",
+        "M\tapps/api/test/unit/ai/ai-foundation.spec.ts",
+        "A\tapps/api/test/unit/ai/ai-insights-worker.spec.ts",
+        "A\tapps/api/test/unit/ai/ai-message-routing.spec.ts",
+        "A\tapps/api/test/unit/ai/ai-privacy-retention.spec.ts",
+        "A\tapps/api/test/unit/ai/ai-routing.spec.ts",
+        "M\tapps/api/test/unit/ai/ai-service.spec.ts",
+        "M\tapps/api/test/unit/ai/ai-stream.spec.ts",
+        "A\tapps/api/test/unit/engagement/engagement-reminder-worker.spec.ts",
+        "A\tapps/api/test/unit/engagement/engagement-reminders.spec.ts",
+        "M\tapps/api/test/unit/engagement/notification-providers.spec.ts",
+        "M\tapps/api/test/unit/operations/operations-worker.spec.ts",
+        "M\tapps/mobile/eas.json",
+        "M\tapps/mobile/scripts/check-client-runtime.mjs",
+        "M\tapps/mobile/scripts/check-client-runtime.test.mjs",
+        "M\tapps/mobile/src/config/client-runtime.test.ts",
+        "M\tapps/mobile/src/config/client-runtime.ts",
+        "M\tapps/mobile/src/config/demo-mode.test.ts",
+        "M\tapps/mobile/src/config/demo-mode.ts",
+        "M\tapps/mobile/src/domain/assistant.ts",
+        "M\tapps/mobile/src/domain/notifications.ts",
+        "M\tapps/mobile/src/domain/voice-capture.ts",
+        "M\tapps/mobile/src/features/assistant/AssistantActionPreviewScreen.test.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantActionPreviewScreen.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantHomeScreen.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantJourney.test.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantLanding.test.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantLanding.tsx",
+        "M\tapps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx",
+        "M\tapps/mobile/src/features/assistant/assistant-queries.ts",
+        "M\tapps/mobile/src/features/assistant/components/AssistantMessageBubble.tsx",
+        "M\tapps/mobile/src/features/assistant/components/AssistantSuggestedQuestions.tsx",
+        "M\tapps/mobile/src/features/auth/auth-flow.ts",
+        "M\tapps/mobile/src/features/home/HomeScreen.test.tsx",
+        "M\tapps/mobile/src/features/home/HomeSummary.tsx",
+        "M\tapps/mobile/src/features/notifications/NotificationPreferencesScreen.test.tsx",
+        "M\tapps/mobile/src/features/notifications/NotificationPreferencesScreen.tsx",
+        "M\tapps/mobile/src/features/notifications/notification-preferences-queries.test.ts",
+        "M\tapps/mobile/src/features/notifications/notification-preferences-queries.ts",
+        "M\tapps/mobile/src/features/notifications/notification-response-controller.test.ts",
+        "M\tapps/mobile/src/features/notifications/notification-response-controller.ts",
+        "A\tapps/mobile/src/features/onboarding/FirstLaunchOnboardingScreen.test.tsx",
+        "M\tapps/mobile/src/features/voice/useVoiceCapture.test.tsx",
+        "M\tapps/mobile/src/features/voice/useVoiceCapture.ts",
+        "M\tapps/mobile/src/localization/messages/ar.ts",
+        "M\tapps/mobile/src/localization/messages/en.ts",
+        "M\tapps/mobile/src/services/assistant-service.ts",
+        "M\tapps/mobile/src/services/contracts/app-shell-service.ts",
+        "M\tapps/mobile/src/services/contracts/assistant-notifications-service.ts",
+        "M\tapps/mobile/src/services/contracts/voice-capture-service.ts",
+        "M\tapps/mobile/src/services/live/assistant-api-service.test.ts",
+        "M\tapps/mobile/src/services/live/assistant-api-service.ts",
+        "M\tapps/mobile/src/services/live/auth-service.test.ts",
+        "M\tapps/mobile/src/services/live/auth-service.ts",
+        "M\tapps/mobile/src/services/live/engagement-service.test.ts",
+        "M\tapps/mobile/src/services/live/engagement-service.ts",
+        "M\tapps/mobile/src/services/live/voice-api-service.test.ts",
+        "M\tapps/mobile/src/services/live/voice-api-service.ts",
+        "M\tapps/mobile/src/services/mocks/assistant-service.ts",
+        "M\tapps/mobile/src/services/mocks/auth-service.ts",
+        "M\tapps/mobile/src/services/platform/phone-notification-service.test.ts",
+        "M\tapps/mobile/src/services/platform/phone-notification-service.ts",
+        "M\tapps/mobile/src/services/platform/voice-recorder-service.test.ts",
+        "M\tapps/mobile/src/services/platform/voice-recorder-service.ts",
+        "A\tapps/mobile/src/services/pre-signup-reminder-service.test.ts",
+        "A\tapps/mobile/src/services/pre-signup-reminder-service.ts",
+        "M\tapps/mobile/src/state/AppShellProvider.test.tsx",
+        "M\tapps/mobile/src/state/AppShellProvider.tsx",
+        "M\tapps/mobile/src/state/SensitiveVisibilityProvider.test.tsx",
+        "M\tapps/mobile/src/state/SensitiveVisibilityProvider.tsx",
+        "M\tapps/mobile/src/storage/assistant-notifications-repository.test.ts",
+        "M\tapps/mobile/src/storage/assistant-notifications-repository.ts",
+        "A\tapps/mobile/src/storage/voice-pending-session.test.ts",
+        "A\tapps/mobile/src/storage/voice-pending-session.ts",
+        "M\tdocs/runbooks/ai-voice-operations.md",
+        "A\tdocs/runbooks/user-reminder-staging.md",
+        "M\tsupabase/migration-checksums.sha256",
+        "A\tsupabase/migrations/20260914110249_user_reminders.sql",
+        "A\tsupabase/migrations/20260915150000_ai_assistant_routing.sql",
+        "A\tsupabase/tests/059_user_reminders.sql",
+        "A\tsupabase/tests/060_assistant_routing.test.sql"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "02756a6474eb6531ecd2f21931a94e80ee1ceb7e",
+      "subject": "docs: plan mobile notification tracking implementation",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Historical notification tracking plan carried or superseded by current automatic Tracking implementation/specs; no product runtime patch.",
+      "equivalentTrackingCommits": [
+        "1e7cd9d7d5860d1bb93b87b57e151f52ef0bdba9"
+      ],
+      "changedPaths": [
+        "A\tdocs/superpowers/plans/2026-09-15-automatic-tracking-implementation.md",
+        "A\tdocs/superpowers/plans/2026-09-15-push-notifications-implementation.md",
+        "M\tdocs/superpowers/specs/2026-09-15-mobile-notifications-automatic-tracking-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "7b2a52729e76df2f871d492a315f071935b46790",
+      "subject": "docs: design mobile notification tracking separation",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Historical tracking separation design carried or superseded by current parser/native inbox/consent/admission implementation.",
+      "equivalentTrackingCommits": [
+        "3741efe05184341615af9897d0b6adb89cd5a0b6"
+      ],
+      "changedPaths": [
+        "A\tdocs/superpowers/specs/2026-09-15-mobile-notifications-automatic-tracking-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "6e1d371be67767df1441b5485e52153f5b13fdcc",
+      "subject": "docs: plan user reminder system",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Historical reminders plan carried or superseded by current reminders architecture; no missing runtime implementation established.",
+      "equivalentTrackingCommits": [
+        "f12c965af80c24ca70af1a6453a20840dc9b4548"
+      ],
+      "changedPaths": [
+        "A\tdocs/superpowers/plans/2026-09-14-user-reminder-system.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "6c51433528d774dc332d73aa33a3ec0d4967cce1",
+      "subject": "docs: design user reminder system",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Historical reminders design carried or superseded by current reminders implementation/specification.",
+      "equivalentTrackingCommits": [
+        "4b580c7e954ed60f03892a77f2b31f0c7b229068"
+      ],
+      "changedPaths": [
+        "A\tdocs/superpowers/specs/2026-09-14-user-reminder-system-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "54cc83c60ee4ded5267c90b5bcf565746ea7c84f",
+      "subject": "fix: reserve Clerk webhook capacity for verified events",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Verification-first Clerk webhook limiter retains reserved capacity for verified events.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "M\tapps/api/src/identity/clerk-webhook.controller.ts",
+        "M\tapps/api/test/security/identity/clerk-webhook-boundary.spec.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "fe7520652e80cbad02a28ea43911926d26ddc4e3",
+      "subject": "fix: make mobile CI checks checkout-safe",
+      "disposition": "SUPERSEDED",
+      "proof": "Drops AndroidManifest backup/SMS privacy assertions; keep current privacy checks and correct clean prebuild setup.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "D\t.superpowers/sdd/2026-09-13-staging-readiness/task-1-report.md",
+        "M\tapps/mobile/src/features/accounts/AccountScopeSheet.test.tsx",
+        "M\tapps/mobile/src/features/transactions/TransactionForm.test.tsx",
+        "M\tapps/mobile/src/services/platform/platform-privacy-config.test.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "97ab913a18ed4c011c342387fa3a1f97d848be0e",
+      "subject": "fix: stabilize staging CI gates",
+      "disposition": "SUPERSEDED",
+      "proof": "Removes25ms parser budget to accept mocked26ms work; keep current safety/latency budget and fixtures.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "A\t.superpowers/sdd/2026-09-13-staging-readiness/task-1-report.md",
+        "M\tapps/api/src/tracking/tracking.parser.ts",
+        "M\tapps/api/test/unit/tracking/tracking.parser.spec.ts",
+        "M\tapps/mobile/src/features/accounts/AccountScopeSheet.test.tsx",
+        "M\tapps/mobile/src/features/transactions/TransactionForm.test.tsx",
+        "M\tapps/mobile/src/services/live/auth-service.test.ts",
+        "M\tapps/mobile/src/services/mocks/subscription-settings-service.test.ts"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "821f00f9050719534e4b4aff4c88be0b66218fc2",
+      "subject": "docs: plan staging readiness work",
+      "disposition": "SUPERSEDED",
+      "proof": "Historical staging plan superseded by current safe-phase specs and approved isolated consolidation; services/configuration untouched.",
+      "equivalentTrackingCommits": [],
+      "changedPaths": [
+        "A\tdocs/superpowers/plans/2026-09-13-staging-readiness.md",
+        "A\tdocs/superpowers/specs/staging-readiness.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    },
+    {
+      "commit": "1b7fe739f41f8c853af2116d7533f06de1bff6b0",
+      "subject": "docs: design canonical category picker",
+      "disposition": "ALREADY INCLUDED",
+      "proof": "Exact stable patch equivalence in pinned Tracking history; Canonical category picker design patch equivalent to17ac4b2 ancestor of Tracking.",
+      "equivalentTrackingCommits": [
+        "17ac4b2ccddc689f75b601abefdd846c06c5fbd8"
+      ],
+      "changedPaths": [
+        "A\tdocs/superpowers/specs/2026-08-18-category-picker-design.md"
+      ],
+      "semanticEvidence": "Masarifi-Repository-Audit-2026-10-10.md sections B/C; Stashes-4-to-6-and-Source-Review.md proof groups"
+    }
+  ]
+}

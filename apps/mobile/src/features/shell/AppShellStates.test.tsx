@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react-native';
 
 import { mapAppShellError } from './app-shell-errors';
 import { createMockTrackingPermissionService } from '@/services/mocks/tracking-permission-service';
+import { createMockBiometricService } from '@/services/mocks/biometric-service';
 import { UnlockScreen } from '@/features/security/UnlockScreen';
 import { renderWithProviders } from '@/test-utils/render';
 
@@ -11,11 +12,18 @@ describe('app shell states', () => {
     expect(mapAppShellError({ code: 'offline' })).toMatchObject({
       recoveryAction: 'retry'
     });
-    await expect(createMockTrackingPermissionService('denied').getState()).resolves.toMatchObject({
+    await expect(
+      createMockTrackingPermissionService('denied').getState()
+    ).resolves.toMatchObject({
       recoveryAction: 'retry'
     });
 
-    renderWithProviders(<UnlockScreen expectedHash="pin:123456" sessionExpired />);
+    renderWithProviders(
+      <UnlockScreen
+        biometricService={createMockBiometricService()}
+        sessionExpired
+      />
+    );
     expect(screen.getByText('سجل الدخول للمتابعة')).toBeOnTheScreen();
   });
 });

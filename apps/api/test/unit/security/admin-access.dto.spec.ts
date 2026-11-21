@@ -9,18 +9,24 @@ describe('admin access boundary DTOs', () => {
   };
 
   it('keeps invitation entropy process-local and returns only masked data', async () => {
-    const execute = jest
-      .fn<Promise<unknown>, [{ body: Record<string, unknown> }]>()
-      .mockResolvedValue({ id: 'invitation-1', emailMasked: 'ad***@example.test' });
+    const persistedBodies: Record<string, unknown>[] = [];
     const repository = {
       consumeRateLimit: jest.fn().mockResolvedValue(true),
-      execute,
+      executeProviderMutation: (_input: unknown, prepare: () => Record<string, unknown>) => {
+        persistedBodies.push(prepare());
+        return Promise.resolve({
+          outcome: 'new',
+          value: { id: 'invitation-1', emailMasked: 'ad***@example.test' },
+        });
+      },
+      finishProviderMutation: () => Promise.resolve(),
     };
     const clerk = { deliverAdminInvitation: jest.fn().mockResolvedValue(undefined) };
     const service = new SecurityService(
       repository as never,
       { get: jest.fn(() => 600), getRequired: jest.fn(() => 72) } as never,
       clerk as never,
+      {} as never,
       {} as never,
     );
 
@@ -35,11 +41,11 @@ describe('admin access boundary DTOs', () => {
       idempotencyKey: 'invitation-request-1',
     });
 
-    const persisted = execute.mock.calls[0]?.[0];
+    const persisted = persistedBodies[0];
     expect(persisted).toBeDefined();
     if (!persisted) throw new Error('PERSISTED_INPUT_MISSING');
-    expect(persisted.body.tokenHash).toMatch(/^h1:[0-9a-f]{64}$/);
-    expect(persisted.body).not.toHaveProperty('deliveryToken');
+    expect(persisted.tokenHash).toMatch(/^h1:[0-9a-f]{64}$/);
+    expect(persisted).not.toHaveProperty('deliveryToken');
     expect(clerk.deliverAdminInvitation).toHaveBeenCalledWith(
       'admin@example.test',
       expect.stringMatching(/^[A-Za-z0-9_-]{32,}$/),
@@ -52,6 +58,7 @@ describe('admin access boundary DTOs', () => {
     const service = new SecurityService(
       repository as never,
       { get: jest.fn(() => 600) } as never,
+      {} as never,
       {} as never,
       {} as never,
     );

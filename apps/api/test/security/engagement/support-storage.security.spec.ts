@@ -7,6 +7,7 @@ const sha256 = 'a'.repeat(64);
 function config(): PlatformConfigService {
   return {
     getRequired: jest.fn((name: string) => {
+      if (name === 'MASARIFI_STORAGE_PROVIDER') return 'supabase';
       if (name === 'SUPABASE_URL') return 'https://storage.example.test';
       if (name === 'SUPABASE_SERVICE_ROLE_KEY') return 'server-only-secret';
       if (name === 'MASARIFI_SUPPORT_SIGNED_URL_SECONDS') return 120;

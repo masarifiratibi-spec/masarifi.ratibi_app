@@ -3,8 +3,71 @@ import {
   parseAudience,
   transitionCampaign,
 } from '../../../src/engagement/campaign.service';
+import { validateEngagementCommand } from '../../../src/engagement/engagement.dto';
+import { EngagementService } from '../../../src/engagement/engagement.service';
+import type { EngagementRepository } from '../../../src/engagement/engagement.repository';
+import type { SupportStorage } from '../../../src/engagement/support.storage';
+import type { SecurityRepository } from '../../../src/security/security.repository';
 
 describe('campaign governance', () => {
+  it('binds an Android-only update audience to an exact release identity', () => {
+    expect(
+      parseAudience({ platforms: ['android'], appUpdate: { version: '1.0.1', versionCode: 140 } }),
+    ).toEqual({
+      platforms: ['android'],
+      appUpdate: { version: '1.0.1', versionCode: 140 },
+    });
+  });
+
+  it('admits an Android update audience through the actual preview command boundary', () => {
+    const command = {
+      operation: 'adminPreviewNotificationAudience',
+      body: {
+        platforms: ['android'],
+        appUpdate: { version: '1.0.1', versionCode: 140 },
+      },
+      requestId: 'update-preview',
+      idempotencyKey: 'update-preview-1',
+    };
+    expect(validateEngagementCommand(command)).toMatchObject(command);
+  });
+
+  it('returns a client validation error for malformed update input before any campaign write', async () => {
+    const service = new EngagementService(
+      {} as EngagementRepository,
+      {} as SupportStorage,
+      {} as SecurityRepository,
+    );
+    await expect(
+      service.execute(
+        { userId: 'admin', sessionId: 's', factorAgeSeconds: 0 },
+        {
+          operation: 'adminPreviewNotificationAudience',
+          body: { platforms: ['android'], appUpdate: { version: '1.0.1', versionCode: '140' } },
+          idempotencyKey: 'update-preview-invalid',
+          requestId: 'update-preview',
+        },
+      ),
+    ).rejects.toMatchObject({ status: 400, response: { code: 'ENGAGEMENT_INPUT_INVALID' } });
+  });
+
+  it.each([
+    { appUpdate: { version: '1.0.1', versionCode: 140 } },
+    { platforms: ['ios'], appUpdate: { version: '1.0.1', versionCode: 140 } },
+    { platforms: ['android', 'ios'], appUpdate: { version: '1.0.1', versionCode: 140 } },
+    ...[
+      null,
+      [],
+      { version: '1.0.1' },
+      { version: '1.0.1', versionCode: '140' },
+      { version: '1.0.1', versionCode: 0 },
+      { version: '1.0.1', versionCode: 140, url: 'https://example.test' },
+      { version: '1.0.1-beta', versionCode: 140 },
+    ].map((appUpdate) => ({ platforms: ['android'], appUpdate })),
+  ])('rejects malformed or non-Android update audience %j', (input) => {
+    expect(() => parseAudience(input)).toThrow('CAMPAIGN_AUDIENCE_INVALID');
+  });
+
   it('normalizes a bounded server-known audience and creates a stable hash', () => {
     const audience = parseAudience({
       platforms: ['web', 'ios'],

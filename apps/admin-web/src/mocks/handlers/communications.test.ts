@@ -1,8 +1,34 @@
 import { describe, expect, test } from "vitest";
+import { communicationsRepository } from "@/features/communications/repository";
 
 const base = "/api/v1/admin";
 
 describe("communications MSW handlers", () => {
+  test("serves the current support overview and ticket contracts through the live client", async () => {
+    const overview = await communicationsRepository.getSupportOverview({});
+    expect(overview.metrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "total", value: 1 }),
+      expect.objectContaining({ key: "waiting_support", value: 1 }),
+    ]));
+    const list = await communicationsRepository.getSupportTickets({ page: 1, pageSize: "25" });
+    expect(list.pagination.totalItems).toBe(1);
+    const item = list.tickets[0];
+    if (!item) throw new Error("Expected the synthetic support ticket");
+    expect(item).toMatchObject({ assignedAdminId: null, customerReference: "CUS-0000000000000001" });
+    const detail = await communicationsRepository.getSupportTicket(item.id);
+    expect(detail.messages).toHaveLength(1);
+    expect(detail.internalNotes).toHaveLength(1);
+    const result = await communicationsRepository.actOnSupportTicket(item.id, {
+      action: "resolve", expectedVersion: detail.revision, reason: "Resolved after reviewing the conversation",
+    });
+    expect(result.currentState).toBe("resolved");
+    expect((await communicationsRepository.getSupportTicket(item.id)).state).toBe("resolved");
+    expect((await communicationsRepository.getSupportOverview({})).metrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "resolved", value: 1 }),
+      expect.objectContaining({ key: "waiting_support", value: 0 }),
+    ]));
+  });
+
   test("returns exact resources, persists supported actions, and rejects unknown actions", async () => {
     const listResponse = await fetch(`${base}/notifications/campaigns`);
     expect(listResponse.status).toBe(200);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
 import { translate } from '@/localization/i18n';
@@ -8,21 +8,16 @@ import { PlanningHomeCard } from './PlanningHomeCard';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
-it('hides budgets while keeping the available planning destinations', async () => {
+it('hides budgets and goals while keeping salary and obligations available', async () => {
   renderWithProviders(<PlanningHomeCard />);
 
   expect(
     await screen.findByText(translate('coreFinance.home.financialProgress'))
   ).toBeTruthy();
-  await waitFor(() => {
-    expect(
-      screen.getAllByLabelText(new RegExp(translate('planning.field.progress')))
-        .length
-    ).toBeGreaterThan(0);
-  });
-
   expect(screen.queryByText(translate('planning.budgets.title'))).toBeNull();
-
-  fireEvent.press(screen.getByText(translate('planning.savings.title')));
-  expect(router.push).toHaveBeenCalledWith('/savings');
+  expect(screen.queryByText(translate('planning.savings.title'))).toBeNull();
+  fireEvent.press(screen.getByText(translate('planning.salary.title')));
+  expect(router.push).toHaveBeenCalledWith('/salary');
+  fireEvent.press(screen.getByText(translate('planning.obligations.title')));
+  expect(router.push).toHaveBeenCalledWith('/obligations');
 });

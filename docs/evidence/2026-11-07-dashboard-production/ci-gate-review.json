@@ -1,0 +1,110 @@
+{
+  "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42346940801",
+  "headCommit": "b3b6d2f3c4c85ab1f5fb5d7de403c069d210ef19",
+  "checkout": "32bea19d099ead06daf6c55a87d4ed4784c44368 (PR merge)",
+  "overallConclusion": "failure",
+  "adminJobs": {
+    "admin": "success",
+    "desktop-1440": "success",
+    "desktop-1280": "success",
+    "tablet-1024": "success",
+    "tablet-768": "success",
+    "mobile-390": "success"
+  },
+  "failures": [
+    {
+      "job": "database",
+      "receipt": "migration-apply.e2e-spec.ts expected registered inventory; actual contains additional private.tracking_installations",
+      "privateLog": "ci-database-failed.log",
+      "logSha256": "53a0aa3f428b5826c5bc0f809e234ddf350486ee2ba7c14632a61b6521dd2038"
+    },
+    {
+      "job": "application",
+      "receipt": "Prettier format:check: src/ai/ai-routing.ts and test/unit/ai/assistant-agent-admission.spec.ts",
+      "privateLog": "ci-application-failed.log",
+      "logSha256": "0afa17b22e4e4aa6b21335d4f14a80a8cfa69dcd61b9afc1b04598336269fe47"
+    },
+    {
+      "job": "mobile",
+      "receipt": "check:app-shell: src/services/platform/tracking-native-runtime.ts:2 SMS behavior outside Android boundary",
+      "privateLog": "ci-mobile-failed.log",
+      "logSha256": "84c1aa97500effc0b70a899c6de6ff818f3081451a9c65aed76d2f514bd10446"
+    },
+    {
+      "job": "secrets",
+      "receipt": "Full-history scan found four inherited matches; current dashboard source not listed",
+      "findings": [
+        {
+          "RuleID": "generic-api-key",
+          "File": "apps/mobile/eas.json",
+          "StartLine": 73,
+          "Commit": "21f6836ea5f93479c10870e53f11f6bd593ddd21",
+          "Fingerprint": "21f6836ea5f93479c10870e53f11f6bd593ddd21:apps/mobile/eas.json:generic-api-key:73",
+          "classification": "public Clerk publishable key"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "apps/mobile/eas.json",
+          "StartLine": 73,
+          "Commit": "513ebac39475c030d1dccf6517c99279ffa9c5dd",
+          "Fingerprint": "513ebac39475c030d1dccf6517c99279ffa9c5dd:apps/mobile/eas.json:generic-api-key:73",
+          "classification": "public Clerk publishable key"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "apps/mobile/eas.json",
+          "StartLine": 73,
+          "Commit": "0389dff3936211b968c1128471cc313af3b2aef2",
+          "Fingerprint": "0389dff3936211b968c1128471cc313af3b2aef2:apps/mobile/eas.json:generic-api-key:73",
+          "classification": "public Clerk publishable key"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "ops/releases/2026-11-05-voice-review-recovery/manifest.json",
+          "StartLine": 14,
+          "Commit": "152be06588229715dd1fb6669a2d01e0c48f8fdb",
+          "Fingerprint": "152be06588229715dd1fb6669a2d01e0c48f8fdb:ops/releases/2026-11-05-voice-review-recovery/manifest.json:generic-api-key:14",
+          "classification": "environment SHA256, not a credential"
+        }
+      ]
+    }
+  ],
+  "ownership": "Dashboard source changes do not modify these shared API/mobile/migration/history files. Responsible concurrent chat informed; no broad retry or guard change requested.",
+  "readinessLimit": "Scoped Admin qualification is not whole-repository CI success or whole-product production readiness.",
+  "packetPublicationSecretGate": {
+    "workflowRun": "https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/42349455279",
+    "headCommit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+    "jobId": 128334269811,
+    "conclusion": "failure",
+    "totalFindings": 7,
+    "inheritedFindings": 4,
+    "newMetadataFindings": [
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/host-baseline.json",
+        "StartLine": 118,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/host-baseline.json:generic-api-key:118",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      },
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/manifest.json",
+        "StartLine": 168,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/manifest.json:generic-api-key:168",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      },
+      {
+        "RuleID": "generic-api-key",
+        "File": "ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json",
+        "StartLine": 16,
+        "Commit": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be",
+        "Fingerprint": "2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json:generic-api-key:16",
+        "classification": "SHA256 of the existing public Clerk publishable key; independently recomputed and equal in all three metadata files; no credential"
+      }
+    ],
+    "guardChanges": "none; no ignore entry, bypass, history rewrite or scanner change",
+    "scope": "Only completed secret job inspected for the documentation/tooling publication. The unchanged Admin application is already qualified by prior accepted suites and the exact Linux artifact; no new whole-repository CI success claimed."
+  }
+}

@@ -23,8 +23,12 @@ import {
   makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithQueryData } from '@/test-utils/render';
-import { lightThemeColors } from '@/design-system/tokens';
+import { lightThemeColors, spacing } from '@/design-system/tokens';
 import { TransactionListScreen } from './TransactionListScreen';
+import * as presentation from './transaction-presentation';
+import * as periods from '@/features/filters/date-period';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { StyledText } from '@/components/StyledText';
 import {
   applyAccountScope,
   useCoreFinanceViewState
@@ -77,6 +81,172 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
+it('lets a full cross-year period grow at normal font scale instead of clipping its years', () => {
+  const filters = {...emptyTransactionFilters, periodStart: Date.UTC(2025, 11, 1), periodEnd: Date.UTC(2026, 1, 1) - 1};
+  useCoreFinanceViewState.setState({filters});
+  const view = renderWithQueryData(<TransactionListScreen />, [
+    [coreFinanceKeys.transactionPages(filters), {pages: [{items: [], nextCursor: null, total: 0}], pageParams: [null]}],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    [coreFinanceKeys.home('SAR', filters), homeSummary]
+  ]);
+  const period = view.getByTestId('transaction-period-control');
+  expect(period.props.accessibilityLabel).toMatch(/2025.*2026/);
+  expect(period).toHaveStyle({height: 'auto', minHeight: 52, paddingVertical: spacing.sm});
+});
+
+it('refreshes retained section and filter labels when the locale changes without new ledger data', async () => {
+  changeLocale('ar');
+  const filters = {...emptyTransactionFilters, periodStart: Date.UTC(2025, 11, 1), periodEnd: Date.UTC(2027, 1, 1) - 1};
+  useCoreFinanceViewState.setState({filters});
+  const transaction = makeTransaction(912, {id: 'locale-retained', title: 'عنوان يخص المستخدم', occurredAt: Date.UTC(2026, 7, 16, 12)});
+  const view = renderWithQueryData(<TransactionListScreen />, [
+    [coreFinanceKeys.transactionPages(filters), {pages: [{items: [transaction], nextCursor: null, total: 1}], pageParams: [null]}],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    [coreFinanceKeys.home('SAR', filters), homeSummary]
+  ]);
+  expect(await view.findByText('اليوم')).toBeTruthy();
+  expect(view.getByRole('button', {name: 'إزالة تاريخ البداية'})).toBeTruthy();
+  act(() => {
+    changeLocale('en');
+    usePreferenceStore.setState({locale: 'en', direction: 'ltr'});
+  });
+  expect(view.getByText('Today')).toBeTruthy();
+  expect(view.getByRole('button', {name: 'Remove Start date'})).toBeTruthy();
+  expect(view.getByRole('button', {name: 'Remove End date'})).toBeTruthy();
+  expect(view.getByText('عنوان يخص المستخدم')).toBeTruthy();
+});
+
+it.each([
+  [1, '+'],
+  [-1, '-']
+] as const)(
+  'shows an opening adjustment with posting direction %i',
+  (adjustmentSign, prefix) => {
+    const opening = {
+      ...fixtureTransactions[0],
+      id: 'qa-opening-direction',
+      type: 'adjustment' as const,
+      source: 'adjustment' as const,
+      categoryId: null,
+      title: 'Opening balance',
+      amountMinor: 100000,
+      adjustmentSign,
+      accountId: fixtureAccounts[0].id,
+      currencyCode: 'SAR'
+    };
+    renderWithQueryData(<TransactionListScreen />, [
+      [
+        coreFinanceKeys.transactionPages(emptyTransactionFilters),
+        { pages: [{ items: [opening], nextCursor: null }], pageParams: [null] }
+      ],
+      [coreFinanceKeys.accounts(true), fixtureAccounts],
+      [coreFinanceKeys.categories(true), fixtureCategories],
+      summarySeed
+    ]);
+    expect(
+      within(screen.getByTestId('transaction-row')).getByText(
+        new RegExp(`${prefix === '+' ? '\\+' : '-'}1,000\\.00`)
+      )
+    ).toBeTruthy();
+    expect(
+      screen.queryByTestId('category-visual-openmoji-salary') === null
+    ).toBe(true);
+  }
+);
+
+it('reuses the screen for unrelated parent renders while receiving new query data and privacy state', async () => {
+  const label = jest.spyOn(periods, 'formatPeriodLabel');
+  let client!: QueryClient;
+  function Parent() {
+    const [count, setCount] = React.useState(0);
+    client = useQueryClient();
+    return (
+      <>
+        <StyledText onPress={() => setCount(count + 1)}>
+          Parent {count}
+        </StyledText>
+        <TransactionListScreen />
+      </>
+    );
+  }
+  renderWithQueryData(<Parent />, [
+    [
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          { items: fixtureTransactions.slice(0, 2), nextCursor: null, total: 2 }
+        ],
+        pageParams: [null]
+      }
+    ],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+  label.mockClear();
+  fireEvent.press(screen.getByText('Parent 0'));
+  expect(label).not.toHaveBeenCalled();
+  act(() =>
+    client.setQueryData(
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          {
+            items: [{ ...fixtureTransactions[0], title: 'Fresh query row' }],
+            nextCursor: null,
+            total: 1
+          }
+        ],
+        pageParams: [null]
+      }
+    )
+  );
+  await waitFor(() => expect(screen.getByText('Fresh query row')).toBeTruthy());
+  act(() => usePreferenceStore.setState({ hideBalances: true }));
+  expect(
+    within(screen.getByTestId('transaction-row')).getByText('•••• SAR')
+  ).toBeTruthy();
+});
+
+it('reuses unchanged rows when opening filters but updates localized row content', () => {
+  const timestamp = jest.spyOn(presentation, 'formatTransactionTimestamp');
+  renderWithQueryData(<TransactionListScreen />, [
+    [
+      coreFinanceKeys.transactionPages(emptyTransactionFilters),
+      {
+        pages: [
+          { items: fixtureTransactions.slice(0, 2), nextCursor: null, total: 2 }
+        ],
+        pageParams: [null]
+      }
+    ],
+    [coreFinanceKeys.accounts(true), fixtureAccounts],
+    [coreFinanceKeys.categories(true), fixtureCategories],
+    summarySeed
+  ]);
+  timestamp.mockClear();
+  fireEvent.press(screen.getByTestId('transaction-filter-action'));
+  expect(timestamp).not.toHaveBeenCalled();
+
+  act(() => {
+    changeLocale('ar');
+    usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
+  });
+  expect(timestamp).toHaveBeenCalledWith(
+    expect.any(Number),
+    expect.any(Number),
+    'ar',
+    'UTC'
+  );
+  expect(screen.getAllByTestId('transaction-row')).toHaveLength(2);
+  const category = fixtureCategories.find(
+    (item) => item.id === fixtureTransactions[1].categoryId
+  )!;
+  expect(screen.getAllByText(category.labelAr).length).toBeGreaterThan(0);
+});
+
 it('renders populated ledger rows from the service query', () => {
   renderWithQueryData(<TransactionListScreen />, [
     [
@@ -116,7 +286,7 @@ it('renders populated ledger rows from the service query', () => {
 
   fireEvent.press(screen.getByText(transaction.title));
   expect(router.push).toHaveBeenCalledWith(
-    `/transactions/${transaction.id}/edit`
+    `/transactions/${transaction.id}`
   );
 });
 
@@ -860,7 +1030,7 @@ it('opens the shared period flow and preserves unrelated transaction filters', a
     periodEnd: Date.UTC(2026, 7, 17) - 1,
     sources: ['manual']
   });
-  expect(screen.getByText('Aug 1, 2026 – Aug 16, 2026')).toBeTruthy();
+  expect(screen.getByText(/Aug 1\s*–\s*16, 2026/)).toBeTruthy();
 });
 
 it('uses shared transfer and income visuals when no category owns the row', () => {
@@ -993,11 +1163,16 @@ it('keeps the ledger available when the monthly summary fails', async () => {
     screen.getByRole('button', {
       name: translate('coreFinance.action.retry')
     })
-  ).toHaveStyle({ minHeight: 44, minWidth: 44 });
+  ).toHaveStyle({ minHeight: 48, minWidth: 48 });
   expect(screen.getByText(translate('coreFinance.ledger.empty'))).toBeTruthy();
 });
 
 describe('selected account scope', () => {
+  const mixedCurrencyAccounts = fixtureAccounts.map((account) =>
+    account.id === 'account-wallet'
+      ? { ...account, currencyCode: 'EGP' }
+      : account
+  );
   const scopedFilters = applyAccountScope(
     emptyTransactionFilters,
     'account-wallet'
@@ -1020,6 +1195,137 @@ describe('selected account scope', () => {
   beforeEach(() => {
     useCoreFinanceViewState.getState().selectAccount(null);
   });
+
+  it('keeps the EGP income in the selected wallet summary and changes currency with the account scope', () => {
+    const monthlyFilters = periodFilters(monthPeriod(Date.UTC(2026, 7, 1)));
+    const egpSummary = {
+      ...homeSummary,
+      currencyCode: 'EGP',
+      periodIncomeMinor: 100,
+      periodExpenseMinor: 0
+    };
+    const sarSummary = {
+      ...homeSummary,
+      periodIncomeMinor: 200,
+      periodExpenseMinor: 0
+    };
+    useCoreFinanceViewState.getState().selectAccount('account-wallet');
+    renderWithQueryData(<TransactionListScreen />, [
+      [coreFinanceKeys.accounts(true), mixedCurrencyAccounts],
+      [coreFinanceKeys.categories(true), fixtureCategories],
+      [
+        coreFinanceKeys.home(
+          'EGP',
+          applyAccountScope(monthlyFilters, 'account-wallet')
+        ),
+        egpSummary
+      ],
+      [
+        coreFinanceKeys.home(
+          'SAR',
+          applyAccountScope(monthlyFilters, 'account-wallet')
+        ),
+        { ...sarSummary, periodIncomeMinor: 0 }
+      ],
+      [
+        coreFinanceKeys.home(
+          'SAR',
+          applyAccountScope(monthlyFilters, 'account-bank')
+        ),
+        sarSummary
+      ],
+      [coreFinanceKeys.home('SAR', monthlyFilters), sarSummary],
+      [
+        coreFinanceKeys.transactionPages(scopedFilters),
+        {
+          pages: [
+            {
+              items: [
+                makeTransaction(701, {
+                  accountId: 'account-wallet',
+                  type: 'income',
+                  currencyCode: 'EGP',
+                  amountMinor: 100
+                })
+              ],
+              nextCursor: null,
+              total: 1
+            }
+          ],
+          pageParams: [null]
+        }
+      ]
+    ]);
+
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    expect(screen.getByTestId('transaction-summary-expense')).toHaveTextContent(
+      /-0\.00\sEGP/u
+    );
+    expect(
+      within(screen.getByTestId('transaction-row')).getByText('+1.00 EGP')
+    ).toBeTruthy();
+    act(() => usePreferenceStore.setState({ baseCurrencyCode: 'USD' }));
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    act(() => {
+      usePreferenceStore.setState({ baseCurrencyCode: 'SAR' });
+      useCoreFinanceViewState.getState().selectAccount('account-bank');
+    });
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+2\.00\sSAR/u
+    );
+    act(() =>
+      useCoreFinanceViewState.getState().selectAccount('account-wallet')
+    );
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+1\.00\sEGP/u
+    );
+    act(() => useCoreFinanceViewState.getState().selectAccount(null));
+    expect(screen.getByTestId('transaction-summary-income')).toHaveTextContent(
+      /\+2\.00\sSAR/u
+    );
+  });
+
+  it.each(['ar', 'en'] as const)(
+    'discloses currencies excluded from the All Accounts summary in %s',
+    (locale) => {
+      changeLocale(locale);
+      renderWithQueryData(<TransactionListScreen />, [
+        [coreFinanceKeys.accounts(true), mixedCurrencyAccounts],
+        [coreFinanceKeys.categories(true), fixtureCategories],
+        [
+          coreFinanceKeys.transactionPages(emptyTransactionFilters),
+          {
+            pages: [{ items: [], nextCursor: null, total: 0 }],
+            pageParams: [null]
+          }
+        ],
+        [
+          summarySeed[0],
+          {
+            ...homeSummary,
+            periodIncomeMinor: 0,
+            periodExpenseMinor: 0,
+            excludedAccountIds: ['account-wallet'],
+            isEstimated: true,
+            dataState: 'partial'
+          }
+        ]
+      ]);
+
+      expect(
+        within(screen.getByTestId('transaction-month-summary')).getByText(
+          translate('coreFinance.accounts.otherCurrenciesExcluded')
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByTestId('transaction-summary-income')
+      ).toHaveTextContent(/\+0\.00\sSAR/u);
+    }
+  );
 
   it('scopes ledger rows and the monthly summary to the selected account', () => {
     useCoreFinanceViewState.getState().selectAccount('account-wallet');

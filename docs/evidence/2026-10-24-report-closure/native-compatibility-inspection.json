@@ -1,0 +1,434 @@
+{
+  "diagnosticOnly": true,
+  "scope": "Existing merged ELF64 libraries; checks PT_LOAD alignment and RELRO protected-page overlap with other writable data, including the documented separate-LOAD exception. Final signed APK/AAB zip alignment and device runtime are not qualified.",
+  "officialGuidance": "https://developer.android.com/guide/practices/page-sizes",
+  "count": 38,
+  "failures": [],
+  "libraries": [
+    {
+      "abi": "arm64-v8a",
+      "library": "libandroidx.graphics.path.so",
+      "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libanimation-decoder-gif.so",
+      "sha256": "1a36faccdc2df2d03b399bd20113768f04fe5f9c873c32974d89e588f63b6933",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libappmodules.so",
+      "sha256": "73c0d1bb3fc2325c5e1b62ef0c318649ae1ba9df3de93380ffc3a4219691c493",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libavif_android.so",
+      "sha256": "278211a4aa0fe5034aef8ef9717736242b3b6868708dcd1e1b6d941c5f05150c",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libc++_shared.so",
+      "sha256": "e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libcrypto.so",
+      "sha256": "f8d880e3f14913da95ad31c12650f8c44630962740b05b1e925e930976bd9118",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libdatastore_shared_counter.so",
+      "sha256": "d3e48717c9aa147e0ab21063ba0e8e0211cabf8bf40b222640829519edbf58e1",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libexpo-modules-core.so",
+      "sha256": "c3095ae2c6b1099507b4e4e96d49f01ab7e36c11ec733202ee6139a944a06d62",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libexpo-sqlite.so",
+      "sha256": "7db32c371f5995307eace8150ce6b2a477208ee29141b82e28b7428a4dacc2c3",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libfbjni.so",
+      "sha256": "34a0af206f660461e3da687f64172830cc61a32a93732fd7e984c43996d6fd91",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libgifimage.so",
+      "sha256": "9f605249728da7091569772a38a4dde298ed48e1e73fed3da0e4b662ef38715c",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libhermestooling.so",
+      "sha256": "fd2e39f4e3a968a868445e01ae3294e779f1e7c3838103b5e667b06ab865b387",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libhermesvm.so",
+      "sha256": "eb5a852e438dd9efcf85076abd89c7c38372e9b3b7ee85cd40915dabf6593d85",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libimagepipeline.so",
+      "sha256": "1b377992e4256fa9398ec057722f84a359c7d588e570c8a41f51d930c19ece7d",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libjsi.so",
+      "sha256": "031093271420c68af8fd8a8084fc7fdde6de16cd6024caa3c164afb43bae1829",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libnative-filters.so",
+      "sha256": "4294b57460e70a6351ce7ae2733a79c088c907dfa54673a657227ec5bb669594",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libnative-imagetranscoder.so",
+      "sha256": "2aed28298a25afd52ac670cf9682398c6c7ba42a57195c01efd565e7ddfe17ca",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libreact_codegen_rnscreens.so",
+      "sha256": "ea296fbf061c2ebd51a7bc4f463f33c96a41a924d9bade82c45562722ab1c214",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libreact_codegen_rnsvg.so",
+      "sha256": "0b37b92fb6afada3c29d51fd2202f32c0b8c7a059fc3eb404b03ecf666b25720",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libreact_codegen_safeareacontext.so",
+      "sha256": "49d54c526ec9b78447c9680fdcb10a0f02f09a7a80112e755d21ba7fbb4c9692",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libreactnative.so",
+      "sha256": "d2257b407732aa810d78626b33aa5fc1596cec7bc805e056c583f33ef3e8ad77",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "librnscreens.so",
+      "sha256": "67cb23dbb9a7c4eb0d93331616d9d12da2331c174dce6d11074f582b3050f5c2",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "arm64-v8a",
+      "library": "libstatic-webp.so",
+      "sha256": "f3e5f9ab4f93f2a0a057285a2de9c93ba0ab59c76c22874d0356493ce283c4c7",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libandroidx.graphics.path.so",
+      "sha256": "4e56c996f13670e70082658de7880c4020eabf4f25e43387f88ed78a713fc9f0",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libanimation-decoder-gif.so",
+      "sha256": "ac33356aa5d6fc6d8c749e95192440a693f5095f1532e2405cc133fab78e493c",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libavif_android.so",
+      "sha256": "d63e4fe8cba8992b28a4497b9a174c0549ed875ec4b28115ec7cf6c55136c5a4",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libc++_shared.so",
+      "sha256": "0a2c7afa35b183fdd5a3cb20e2080ad54cbea06c2a4f0bc8f122cb7d1e9e0b9f",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libdatastore_shared_counter.so",
+      "sha256": "fb6c9208988c49ae94943bc3236fa763ba584722e044fa4ea9a12d2941027105",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libfbjni.so",
+      "sha256": "a51410366a0394e05bc04052cfb237c70dcf7d4d53a56e1d00a041436cb0b653",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libgifimage.so",
+      "sha256": "20768d822119deee9beeccfd4340987976381587b519b630f5393fee4d731c1f",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libhermestooling.so",
+      "sha256": "ca834ac984a34cbcd14381f4fc63287af58495ec0bf3f3466976e1c0fc96e5ec",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libhermesvm.so",
+      "sha256": "002bec5ba8cee35b4799f6ab4881efe19962088d53fc9e0dcedb552a86a4b524",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libimagepipeline.so",
+      "sha256": "2e596f4955f65abaa93c891b49eb58b5416581806a04bde0097cc369ae4dbfb3",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libjsi.so",
+      "sha256": "d728958aa4ea58816c557ea0ae5b87e44983a5b056e27b6a3ddc2413c9e52bc1",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libnative-filters.so",
+      "sha256": "1a5270f007dd4b2f0fc52ceac82e05143648ba9be59c2213a21cf61c84f1f5e5",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libnative-imagetranscoder.so",
+      "sha256": "f6b92ad7f1c30973f40704c46987504757c3d079c7f4ace6efc8b318dd9c22f3",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libreactnative.so",
+      "sha256": "c12e10c5f8b892a0836fe79ecaef26e05c245b7a9b3d87d2be479b1e83b489ba",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    },
+    {
+      "abi": "x86_64",
+      "library": "libstatic-webp.so",
+      "sha256": "e7884cd18761b5ee54de98b9a3f4b9e4b0dea364c186e24ff9b740b29742562b",
+      "loadAlignments": [
+        16384
+      ],
+      "loadAligned16KB": true,
+      "relroProtectionSafe16KB": true,
+      "writableRelroOverlaps": []
+    }
+  ],
+  "inspectedAtUtc": "2026-10-24T09:56:37.100008+00:00",
+  "sourceCommit": "7f227c5ecb6d2fa45562faedee6b742e3756f726",
+  "targetSdk": 36,
+  "minSdk": 24,
+  "targetApiPolicySource": "https://support.google.com/googleplay/android-developer/answer/11926878?hl=en-EN",
+  "mobileLockfileSHA256": "bbfa6527873444cc4a8531203328a6e4b60bafb3148fa886843f0b87c3acb4c3",
+  "manifestSHA256": "b79d57b059d4fdbab22014dfbcca9a3af7b1ffa71c66e8cae141a2ea768fff51"
+}

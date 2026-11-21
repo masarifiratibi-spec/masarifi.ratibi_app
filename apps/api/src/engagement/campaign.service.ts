@@ -1,13 +1,15 @@
 import { createHash } from 'node:crypto';
+import { validAndroidRelease, type AndroidRelease } from '../platform/meta/android-update-policy';
 
 export interface AudienceDefinition {
   platforms?: readonly ('ios' | 'android' | 'web')[];
   locales?: readonly ('ar' | 'en')[];
   activity?: 'all' | 'active' | 'inactive';
   segmentKeys?: readonly string[];
+  appUpdate?: AndroidRelease;
 }
 
-const keys = new Set(['platforms', 'locales', 'activity', 'segmentKeys']);
+const keys = new Set(['platforms', 'locales', 'activity', 'segmentKeys', 'appUpdate']);
 export const CAMPAIGN_SEGMENTS = new Set(['salary_users']);
 
 export function parseAudience(input: unknown): AudienceDefinition {
@@ -42,6 +44,11 @@ export function parseAudience(input: unknown): AudienceDefinition {
     3,
   ) as AudienceDefinition['platforms'];
   const locales = list('locales', ['ar', 'en'], 2) as AudienceDefinition['locales'];
+  if (
+    value.appUpdate !== undefined &&
+    (!validAndroidRelease(value.appUpdate) || platforms?.length !== 1 || platforms[0] !== 'android')
+  )
+    throw new Error('CAMPAIGN_AUDIENCE_INVALID');
   const segments = value.segmentKeys;
   if (
     segments !== undefined &&
@@ -61,6 +68,7 @@ export function parseAudience(input: unknown): AudienceDefinition {
     ...(locales ? { locales } : {}),
     ...(value.activity ? { activity: value.activity as AudienceDefinition['activity'] } : {}),
     ...(segments ? { segmentKeys: (segments as unknown[]).map(String).sort() } : {}),
+    ...(value.appUpdate !== undefined ? { appUpdate: { ...value.appUpdate } } : {}),
   };
 }
 

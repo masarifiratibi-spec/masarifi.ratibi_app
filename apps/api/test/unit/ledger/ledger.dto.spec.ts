@@ -26,6 +26,40 @@ const valid = {
 };
 
 describe('ledger DTO normalization', () => {
+  it.each([undefined, null, '', '  \r\n  '])(
+    'normalizes optional empty note %# to null',
+    (note) => {
+      expect(normalizeCreateTransaction({ ...valid, note }).note).toBeNull();
+    },
+  );
+  it('normalizes multiline notes across create, transfer and revision without relaxing titles/reasons', () => {
+    expect(normalizeCreateTransaction({ ...valid, note: ' first\r\nsecond\rthird ' }).note).toBe(
+      'first\nsecond\nthird',
+    );
+    expect(
+      normalizeTransfer({
+        sourceAccountId: accountId,
+        destinationAccountId: '10000000-0000-4000-8000-000000000004',
+        amountMinor: 50,
+        currency: 'SAR',
+        title: 'Move',
+        occurredAt: valid.occurredAt,
+        note: 'a\nb',
+      }).note,
+    ).toBe('a\nb');
+    expect(normalizeRevision({ expectedVersion: 1, reason: 'Edit', note: 'a\nb' }).patch.note).toBe(
+      'a\nb',
+    );
+    expect(() => normalizeCreateTransaction({ ...valid, title: 'a\nb' })).toThrow(
+      'VALIDATION_FAILED',
+    );
+    expect(() => normalizeRevision({ expectedVersion: 1, reason: 'a\nb', note: null })).toThrow(
+      'VALIDATION_FAILED',
+    );
+  });
+  it.each(['a\u0000b', 'a\tb', 'a\u202eb', 'x'.repeat(501)])('rejects invalid note %#', (note) => {
+    expect(() => normalizeCreateTransaction({ ...valid, note })).toThrow('VALIDATION_FAILED');
+  });
   it('returns one fixed-key normalized create command', () => {
     expect(normalizeCreateTransaction(valid, new Date('2026-08-30T08:01:00.000Z'))).toEqual({
       kind: 'expense',
@@ -78,6 +112,17 @@ describe('transfer DTO normalization', () => {
     title: '  Wallet move  ',
     note: null,
   };
+  it('retains tracking provenance and its stable financial identity without changing ordinary transfer commands', () => {
+    expect(
+      normalizeTransfer(
+        { ...transfer, source: 'tracking-import', externalRef: 'tracking:' + 'a'.repeat(64) },
+        new Date('2026-08-30T08:01:00Z'),
+      ),
+    ).toMatchObject({ source: 'tracking-import', externalRef: 'tracking:' + 'a'.repeat(64) });
+    expect(() =>
+      normalizeTransfer({ ...transfer, source: ' ' }, new Date('2026-08-30T08:01:00Z')),
+    ).toThrow();
+  });
   it('returns one fixed transfer command with the source as default fee account', () => {
     expect(normalizeTransfer(transfer, new Date('2026-08-30T08:01:00Z'))).toEqual({
       sourceAccountId: accountId,
@@ -107,6 +152,12 @@ describe('transfer DTO normalization', () => {
 });
 
 describe('revision DTO normalization', () => {
+  it.each(['income', 'expense'])('accepts a correction to %s', (kind) => {
+    expect(
+      normalizeRevision({ expectedVersion: 1, reason: 'Correct kind', kind, categoryId: null })
+        .patch,
+    ).toEqual({ kind, categoryId: null });
+  });
   it('separates concurrency/reason fields from an allowlisted patch', () => {
     expect(
       normalizeRevision(
@@ -129,7 +180,8 @@ describe('revision DTO normalization', () => {
     { expectedVersion: 1, reason: 'reason' },
     { expectedVersion: 0, reason: 'reason', title: 'x' },
     { expectedVersion: 1, reason: '', title: 'x' },
-    { expectedVersion: 1, reason: 'x', kind: 'income' },
+    { expectedVersion: 1, reason: 'x', kind: 'transfer' },
+    { expectedVersion: 1, reason: 'x', kind: ['income'] },
     { expectedVersion: 1, reason: 'x', occurredAt: 'bad' },
     { expectedVersion: 1, reason: 'x', merchant: '' },
   ])('rejects invalid revision %#', (value) => {

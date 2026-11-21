@@ -13,6 +13,7 @@ import type {
 import type { LocalDate } from '@/domain/financial-planning';
 import type { MutationResult } from './core-finance-service';
 import type { CapabilityContractMetadata } from './capability-contract';
+import type { ReadContext } from './read-context';
 
 export const reportsServiceCapability: CapabilityContractMetadata = {
   capability: 'reports.outputs',
@@ -27,6 +28,7 @@ export interface ReportQuery {
   anchorDate: LocalDate;
   currencyCode: string;
   timeZone: string;
+  monthStartDay?: number;
   accountIds?: string[];
 }
 
@@ -40,21 +42,16 @@ export interface ReportOutputPreviewInput extends ReportQuery {
   recipientEmail?: string | null;
 }
 
-export interface AttemptQuery {
-  scheduleId?: string;
-  status?: ReportOutputAttempt['status'];
-}
-
-export interface AttemptPage {
-  items: ReportOutputAttempt[];
-  nextCursor: string | null;
-  total: number;
-}
-
 export interface ReportsService {
-  getReport(input: ReportQuery): Promise<FinancialReport>;
-  getBreakdown(input: ReportBreakdownQuery): Promise<ReportBreakdown>;
-  getSchedule(): Promise<ReportSchedule | null>;
+  getReport(
+    input: ReportQuery,
+    context?: ReadContext
+  ): Promise<FinancialReport>;
+  getBreakdown(
+    input: ReportBreakdownQuery,
+    context?: ReadContext
+  ): Promise<ReportBreakdown>;
+  getSchedule(context?: ReadContext): Promise<ReportSchedule | null>;
   verifyRecipient(
     email: string,
     operationId: string
@@ -72,17 +69,30 @@ export interface ReportsService {
   saveScheduleDraft(input: ReportScheduleDraft): Promise<ReportScheduleDraft>;
   loadScheduleDraft(): Promise<ReportScheduleDraft | null>;
   discardScheduleDraft(): Promise<void>;
-  previewOutput(input: ReportOutputPreviewInput): Promise<ReportPreview>;
+  previewOutput(
+    input: ReportOutputPreviewInput,
+    context?: ReadContext
+  ): Promise<ReportPreview>;
   requestOutput(
     input:
       | {
-          kind: Exclude<ReportOutputKind, 'scheduled' | 'retry'>;
+          kind: Exclude<ReportOutputKind, 'scheduled' | 'retry' | 'send_now'>;
+          previewId: string;
+        }
+      | {
+          kind: 'send_now';
+          expectedAccountEmail?: string;
           previewId: string;
         }
       | { kind: 'scheduled'; scheduleId: string; scheduledFor: number }
       | { kind: 'retry'; previousAttemptId: string },
-    operationId: string
+    operationId: string,
+    isConfirmationCurrent?: () => boolean
   ): Promise<MutationResult<ReportOutputAttempt>>;
-  listAttempts(input?: AttemptQuery): Promise<AttemptPage>;
-  getAttempt(id: string): Promise<ReportOutputAttempt>;
+  getAttempt(id: string, context?: ReadContext): Promise<ReportOutputAttempt>;
+  findActivePdfFile?(
+    context: ReadContext,
+    isCurrent: () => boolean
+  ): Promise<Pick<ReportOutputAttempt, 'id' | 'status'> | null>;
+  deletePdfFile?(id: string, isCurrent: () => boolean): Promise<void>;
 }

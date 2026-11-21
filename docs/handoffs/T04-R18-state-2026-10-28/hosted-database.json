@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-28T14:34:08.688836+00:00",
+  "qa20": {
+    "version": 7,
+    "currency": "SAR",
+    "updatedAt": "2026-10-28T13:23:27.703604+00:00",
+    "noteIsNull": true,
+    "amountMinor": 2000
+  },
+  "migrations": 169,
+  "syncDomains": [
+    {
+      "domain": "accounts",
+      "devices": 5,
+      "staterows": 5,
+      "latestsyncat": "2026-10-28T13:23:29.4575+00:00"
+    },
+    {
+      "domain": "categories",
+      "devices": 5,
+      "staterows": 5,
+      "latestsyncat": "2026-10-28T13:23:30.002351+00:00"
+    },
+    {
+      "domain": "transactions",
+      "devices": 5,
+      "staterows": 5,
+      "latestsyncat": "2026-10-28T13:23:30.547446+00:00"
+    }
+  ],
+  "transactions": 81,
+  "balanceColumns": [
+    "account_id",
+    "confirmed_minor",
+    "pending_minor",
+    "ledger_version",
+    "reconciled_at",
+    "updated_at"
+  ],
+  "deviceVersions": [
+    {
+      "devices": 5,
+      "platform": "android",
+      "lastseenat": "2026-10-28T14:00:14.697846+00:00",
+      "app_version": "0.0.1"
+    }
+  ],
+  "mutationStatuses": {
+    "applied": 12
+  },
+  "trackingTableNames": [
+    "import_sessions",
+    "import_items"
+  ],
+  "unsettledMutations": 0
+}

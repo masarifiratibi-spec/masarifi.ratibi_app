@@ -4,21 +4,30 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { usePreferenceStore } from '@/state/preferences';
 import { spacing } from '@/design-system/tokens';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import { translateDynamic as t } from '@/localization/i18n';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { useAssistantFinancialVisibility } from '../useAssistantFinancialVisibility';
 
 export interface UserMessageBubbleProps {
   message: string;
   timestamp?: string;
   testID?: string;
+  status?: string;
 }
 
 export function UserMessageBubble({
   message,
   timestamp,
+  status,
   testID = 'user-message-bubble'
 }: UserMessageBubbleProps) {
+  const { colors } = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const { hidden, reveal } = useAssistantFinancialVisibility(
+    `${message}:${timestamp}`
+  );
 
   return (
     <View
@@ -33,6 +42,10 @@ export function UserMessageBubble({
       <View
         style={[
           styles.bubble,
+          {
+            backgroundColor: colors.surfaces.brandSubtle,
+            borderColor: colors.borders.default
+          },
           isRtl ? styles.bubbleRtl : styles.bubbleLtr
         ]}
       >
@@ -40,13 +53,21 @@ export function UserMessageBubble({
           style={[
             styles.messageText,
             {
+              color: colors.content.primary,
               textAlign: isRtl ? 'right' : 'left',
               writingDirection: direction
             }
           ]}
         >
-          {message}
+          {hidden ? '••••' : message}
         </StyledText>
+        {hidden ? (
+          <ActionButton
+            label="assistant.action.revealFinancial"
+            variant="secondary"
+            onPress={reveal}
+          />
+        ) : null}
 
         <View
           style={[
@@ -55,9 +76,26 @@ export function UserMessageBubble({
           ]}
         >
           {timestamp && (
-            <StyledText style={styles.timestamp}>{timestamp}</StyledText>
+            <StyledText
+              style={[styles.timestamp, { color: colors.content.secondary }]}
+            >
+              {timestamp}
+            </StyledText>
           )}
-          <Text style={styles.checkmarks}>✓✓</Text>
+          {status === undefined || status === 'completed' ? (
+            <Text style={[styles.checkmarks, { color: colors.content.link }]}>
+              ✓✓
+            </Text>
+          ) : status === 'queued' || status === 'processing' ? null : (
+            <StyledText
+              accessibilityLiveRegion="polite"
+              style={[styles.timestamp, { color: colors.content.secondary }]}
+            >
+              {t(
+                `assistant.messageStatus.${status === 'failed' || status === 'cancelled' ? 'failed' : 'unknown'}`
+              )}
+            </StyledText>
+          )}
         </View>
       </View>
     </View>
@@ -72,8 +110,6 @@ const styles = StyleSheet.create({
     width: '100%'
   },
   bubble: {
-    backgroundColor: colorTokens.raw["D7EFE6"],
-    borderColor: colorTokens.raw["C0E5D7"],
     borderRadius: 22,
     borderWidth: 1,
     gap: 4,
@@ -88,7 +124,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 4
   },
   messageText: {
-    color: colorTokens.raw["10231F"],
     fontSize: 14.5,
     fontWeight: '500',
     lineHeight: 20
@@ -101,11 +136,9 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   timestamp: {
-    color: colorTokens.raw["657872"],
     fontSize: 11
   },
   checkmarks: {
-    color: colorTokens.raw["10B981"],
     fontSize: 11,
     fontWeight: '700'
   }

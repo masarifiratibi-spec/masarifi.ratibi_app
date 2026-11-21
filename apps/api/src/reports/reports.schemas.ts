@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import type { ReportPeriod } from './reports.period';
 
 export const REPORT_TYPES = [
@@ -16,6 +18,26 @@ export type ReportType = (typeof REPORT_TYPES)[number];
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
 export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[number];
 
+export function isPlanningReport(type: ReportType): boolean {
+  return ['budget_performance', 'obligation_progress', 'savings_progress'].includes(type);
+}
+
+export const SELECTED_ACCOUNTS_PLANNING_REASON = 'planning_unavailable_for_selected_accounts';
+
+export function unavailablePlanningContent(currencyMinorUnits: unknown) {
+  return {
+    dataState: 'partial' as const,
+    summary: {
+      summaries: [],
+      planning: { budgets: [], obligations: [], savingsGoals: [] },
+      planningUnavailableReason: SELECTED_ACCOUNTS_PLANNING_REASON,
+      ...(currencyMinorUnits === undefined ? {} : { currencyMinorUnits }),
+    },
+    breakdowns: [],
+    detailedRows: [],
+  };
+}
+
 export interface ReportSnapshot {
   schemaVersion: 1;
   generatedAt: string;
@@ -29,6 +51,7 @@ export interface ReportSnapshot {
   };
   format: ReportFormat;
   delivery: DeliveryChannel;
+  confirmedMailbox?: { salt: string; digest: string };
   currencyCode: string;
   dataState: 'complete' | 'empty' | 'partial' | 'estimated';
   evidence: readonly Record<string, unknown>[];
@@ -41,6 +64,17 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FORBIDDEN_KEY =
   /^(?:userId|recipient|email|signedUrl|downloadUrl|storageRef|password|secret|token|providerPayload|smtpResponse)$/i;
+
+export function bindConfirmedMailbox(
+  owner: string,
+  email: string,
+  salt = randomBytes(16).toString('hex'),
+) {
+  const digest = createHash('sha256')
+    .update(JSON.stringify([salt, owner, email.toLowerCase()]))
+    .digest('hex');
+  return { salt, digest };
+}
 
 function invalid(code = 'REPORT_SNAPSHOT_INVALID'): never {
   throw new Error(code);
@@ -116,12 +150,26 @@ export function parseReportSnapshot(value: unknown, maximumBytes = 1_048_576): R
     'format',
     'delivery',
     'currencyCode',
+    'confirmedMailbox',
     'dataState',
     'evidence',
     'summary',
     'breakdowns',
     'detailedRows',
   ]);
+  if (input.confirmedMailbox !== undefined) {
+    const binding = record(input.confirmedMailbox);
+    exact(binding, ['salt', 'digest']);
+    if (
+      input.format !== 'pdf' ||
+      input.delivery !== 'email' ||
+      typeof binding.salt !== 'string' ||
+      !/^[0-9a-f]{32}$/u.test(binding.salt) ||
+      typeof binding.digest !== 'string' ||
+      !/^[0-9a-f]{64}$/u.test(binding.digest)
+    )
+      invalid();
+  }
   const period = record(input.period);
   exact(period, ['startDate', 'endDate', 'timezone', 'kind']);
   if (

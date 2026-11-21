@@ -73,3 +73,12 @@ describe('Phase 10 report periods', () => {
     ).toThrow('REPORT_SCHEDULE_NOT_DUE');
   });
 });
+
+it('uses salary-cycle boundaries for a monthly financial report without changing calendar defaults', () => {
+  const range = resolveReportPeriod('monthly', '2026-11-03', 'Asia/Riyadh', 25);
+  expect([range.startDate, range.endDate]).toEqual(['2026-10-25', '2026-11-24']);
+  expect(range.endExclusiveInstant.toISOString()).toBe('2026-11-24T21:00:00.000Z');
+  expect(() => resolveReportPeriod('monthly', '2026-11-03', 'Asia/Riyadh', 29)).toThrow(
+    'REPORT_PERIOD_INVALID',
+  );
+});

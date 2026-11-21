@@ -1,0 +1,40 @@
+# Prepared configuration only. Starting this profile requires a separately approved epoch.
+services:
+  voice-epoch:
+    image: ${MASARIFI_BACKEND_REPOSITORY:?}@sha256:${MASARIFI_BACKEND_DIGEST:?}
+    profiles: [voice-financial]
+    command: [dist/src/staging-voice-worker.js]
+    user: "65532:65532"
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks: [backend]
+    env_file: [/etc/masarifi/worker.env]
+    environment:
+      MASARIFI_PROCESS_KIND: worker
+      MASARIFI_RELEASE_VERSION: ${MASARIFI_RELEASE_VERSION:?}
+      MASARIFI_STAGING_VOICE_EPOCH_ID: ${MASARIFI_STAGING_VOICE_EPOCH_ID:?}
+      MASARIFI_VOICE_ANALYSIS_ONLY: "false"
+      MASARIFI_AI_PROVIDER_ENABLED: "true"
+      MASARIFI_AI_WORKER_POLL_MS: "500"
+      MASARIFI_AI_JOB_BATCH_SIZE: "1"
+      MASARIFI_AI_MAX_CONCURRENCY: "1"
+      MASARIFI_AI_LEASE_SECONDS: "120"
+    volumes:
+      - ${MASARIFI_DATABASE_CA_FILE:-/etc/masarifi/supabase-ca.crt}:/etc/ssl/certs/masarifi-database-ca.crt:ro
+    healthcheck:
+      test: [CMD, /nodejs/bin/node, dist/src/staging-voice-healthcheck.js]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 2
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "5" }

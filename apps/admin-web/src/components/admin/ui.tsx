@@ -150,7 +150,13 @@ export function EmptyState({ title, message }: { title?: string; message?: strin
 }
 
 function SearchStateIcon() { return <CircleAlert size={28} />; }
-export function ErrorState() { const t = useT(); return <div className="state-box error"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{t("states.errorMessage")}</p></div>; }
+export function ErrorState({ error }: { error?: unknown } = {}) {
+  const t = useT();
+  const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+  const messageKey = code === "rate_limited" ? "states.rateLimited"
+    : code === "recent_auth_required" ? "states.reauthenticate" : "states.errorMessage";
+  return <div className="state-box error" role="alert"><AlertTriangle size={28} /><strong>{t("states.errorTitle")}</strong><p>{t(messageKey)}</p></div>;
+}
 export function TableSkeleton() { const t = useT(); return <div className="skeleton-list" aria-label={t("common.loading")}>{[1,2,3,4].map((item) => <span key={item} />)}</div>; }
 export function LoadingState() { const t = useT(); return <div className="state-box" role="status"><LoaderCircle size={28} /><strong>{t("states.loading")}</strong></div>; }
 export function SuccessState({ message }: { message?: string }) { const t = useT(); return <div className="state-box state-warning" role="status"><CheckCircle2 size={28} /><strong>{message ?? t("states.success")}</strong></div>; }
@@ -167,6 +173,7 @@ export function RegionState({
   error,
   onRetry,
   emptyLabel,
+  unavailableMessage,
   permission = "attention.read",
   children,
 }: {
@@ -176,17 +183,21 @@ export function RegionState({
   error?: { code?: string };
   onRetry?: () => void;
   emptyLabel?: string;
+  unavailableMessage?: string;
   permission?: string;
   children: React.ReactNode;
 }) {
   const t = useT();
   if (isPending) return <LoadingState />;
   const availability = region?.availability;
+  if (!isError && availability === "unavailable" && unavailableMessage) {
+    return <div className="state-box" role="status"><strong>{t("common.unavailable")}</strong><p>{unavailableMessage}</p></div>;
+  }
   if (isError || availability === "unavailable") {
     const isForbidden = error?.code === "forbidden" || availability === "forbidden";
     return (
       <div className="region-failure" role="alert">
-        {isForbidden ? <AccessDeniedState permission={permission} /> : <ErrorState />}
+        {isForbidden ? <AccessDeniedState permission={permission} /> : <ErrorState error={error} />}
         {onRetry && (region?.retryable ?? true) && (
           <div className="region-retry">
             <button className="button" type="button" onClick={onRetry}><RefreshCw size={15} /><span>{t("common.retry")}</span></button>

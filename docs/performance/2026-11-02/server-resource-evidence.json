@@ -1,0 +1,394 @@
+{
+  "scope": "read-only resource measurement plus authorized ext4 configuration correction and one explicitly approved reboot; not application/business/API qualification",
+  "before": {
+    "observedAtUtc": "2026-11-01T21:52:17.951124+00:00",
+    "sampleCount": 6,
+    "sampleIntervalSeconds": 2,
+    "cpuCount": 2,
+    "cpuBusyMeanPercent": 22.47,
+    "cpuBusyRangePercent": [
+      16.26,
+      37.44
+    ],
+    "cpuIoWaitMeanPercent": 41.465,
+    "cpuStealMeanPercent": 4.3566666666666665,
+    "cpuSamples": [
+      {
+        "busyPercent": 18.58,
+        "ioWaitPercent": 39.61,
+        "stealPercent": 3.67,
+        "memAvailableBytes": 4017283072
+      },
+      {
+        "busyPercent": 17.96,
+        "ioWaitPercent": 42.48,
+        "stealPercent": 4.85,
+        "memAvailableBytes": 4015861760
+      },
+      {
+        "busyPercent": 17.2,
+        "ioWaitPercent": 43.73,
+        "stealPercent": 2.95,
+        "memAvailableBytes": 4003717120
+      },
+      {
+        "busyPercent": 37.44,
+        "ioWaitPercent": 41.38,
+        "stealPercent": 4.93,
+        "memAvailableBytes": 3968389120
+      },
+      {
+        "busyPercent": 27.38,
+        "ioWaitPercent": 38.63,
+        "stealPercent": 4.4,
+        "memAvailableBytes": 3930771456
+      },
+      {
+        "busyPercent": 16.26,
+        "ioWaitPercent": 42.96,
+        "stealPercent": 5.34,
+        "memAvailableBytes": 3919224832
+      }
+    ],
+    "loadAverage": [
+      2.125,
+      2.04296875,
+      1.95068359375
+    ],
+    "memoryBytes": {
+      "MemTotal": 8321167360,
+      "MemFree": 544980992,
+      "MemAvailable": 3908190208,
+      "AnonPages": 3687251968,
+      "Buffers": 1093070848,
+      "Cached": 1934217216,
+      "SReclaimable": 656371712,
+      "SUnreclaim": 183889920,
+      "SwapTotal": 0
+    },
+    "usedExcludingAvailablePercent": 53.03314981036507,
+    "containerWorkingSetBytesByRole": {
+      "admin-ui": 55402496,
+      "canonical-artifact-check": 0,
+      "isolated-recovery-fixture": 0,
+      "worker": 718098432,
+      "api": 1522692096,
+      "dependency-or-tool": 998232064
+    },
+    "activeOrRestartingContainersByRole": {
+      "admin-ui": 1,
+      "worker": 11,
+      "api": 14,
+      "dependency-or-tool": 1
+    },
+    "disk": {
+      "totalBytes": 102915489792,
+      "availableBytes": 75173351424,
+      "usedBytes": 27725361152
+    },
+    "pressure": {
+      "cpu": "some avg10=6.62 avg60=5.67 avg300=6.58 total=88841006035\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+      "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=316624718\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=232329208",
+      "io": "some avg10=68.17 avg60=65.91 avg300=67.22 total=7219499618\nfull avg10=55.04 avg60=55.10 avg300=55.55 total=5450414683"
+    },
+    "apiLiveness": {
+      "3000": {
+        "status": 200,
+        "ms": 15.49
+      },
+      "3001": {
+        "status": 200,
+        "ms": 3.48
+      },
+      "3004": {
+        "status": 200,
+        "ms": 2.65
+      },
+      "3016": {
+        "status": 200,
+        "ms": 2.77
+      },
+      "3017": {
+        "status": 200,
+        "ms": 3.38
+      },
+      "3018": {
+        "status": 200,
+        "ms": 3.26
+      },
+      "3019": {
+        "status": 200,
+        "ms": 2.79
+      },
+      "3020": {
+        "status": 200,
+        "ms": 2.69
+      },
+      "3021": {
+        "status": 200,
+        "ms": 3.96
+      },
+      "3023": {
+        "status": 200,
+        "ms": 4.54
+      },
+      "3024": {
+        "status": 200,
+        "ms": 3.06
+      },
+      "3026": {
+        "status": 200,
+        "ms": 4.8
+      },
+      "3027": {
+        "status": 200,
+        "ms": 13.03
+      },
+      "3033": {
+        "status": 200,
+        "ms": 4.84
+      }
+    }
+  },
+  "after": {
+    "observedAtUtc": "2026-11-01T22:03:57.227572+00:00",
+    "sampleCount": 12,
+    "sampleIntervalSeconds": 5,
+    "cpuCount": 2,
+    "cpuBusyMeanPercent": 25.3325,
+    "cpuBusyRangePercent": [
+      8.82,
+      63.96
+    ],
+    "cpuIoWaitMeanPercent": 0.33166666666666667,
+    "cpuStealMeanPercent": 3.3408333333333333,
+    "cpuSamples": [
+      {
+        "busyPercent": 32.78,
+        "ioWaitPercent": 0.0,
+        "stealPercent": 5.85,
+        "memAvailableBytes": 4624564224
+      },
+      {
+        "busyPercent": 8.82,
+        "ioWaitPercent": 0.5,
+        "stealPercent": 1.98,
+        "memAvailableBytes": 4623679488
+      },
+      {
+        "busyPercent": 22.24,
+        "ioWaitPercent": 0.2,
+        "stealPercent": 3.54,
+        "memAvailableBytes": 4628684800
+      },
+      {
+        "busyPercent": 10.19,
+        "ioWaitPercent": 0.0,
+        "stealPercent": 2.97,
+        "memAvailableBytes": 4630384640
+      },
+      {
+        "busyPercent": 19.41,
+        "ioWaitPercent": 0.0,
+        "stealPercent": 3.07,
+        "memAvailableBytes": 4637933568
+      },
+      {
+        "busyPercent": 9.93,
+        "ioWaitPercent": 0.1,
+        "stealPercent": 1.99,
+        "memAvailableBytes": 4625924096
+      },
+      {
+        "busyPercent": 63.96,
+        "ioWaitPercent": 1.3,
+        "stealPercent": 4.1,
+        "memAvailableBytes": 4644909056
+      },
+      {
+        "busyPercent": 31.71,
+        "ioWaitPercent": 0.3,
+        "stealPercent": 2.98,
+        "memAvailableBytes": 4619091968
+      },
+      {
+        "busyPercent": 38.04,
+        "ioWaitPercent": 1.08,
+        "stealPercent": 5.0,
+        "memAvailableBytes": 4665585664
+      },
+      {
+        "busyPercent": 27.01,
+        "ioWaitPercent": 0.4,
+        "stealPercent": 2.88,
+        "memAvailableBytes": 4697178112
+      },
+      {
+        "busyPercent": 23.96,
+        "ioWaitPercent": 0.1,
+        "stealPercent": 3.45,
+        "memAvailableBytes": 4687659008
+      },
+      {
+        "busyPercent": 15.94,
+        "ioWaitPercent": 0.0,
+        "stealPercent": 2.28,
+        "memAvailableBytes": 4639477760
+      }
+    ],
+    "loadAverage": [
+      4.10693359375,
+      3.69384765625,
+      1.54345703125
+    ],
+    "memoryBytes": {
+      "MemTotal": 8321167360,
+      "MemFree": 3629568000,
+      "MemAvailable": 4620136448,
+      "AnonPages": 3084431360,
+      "Buffers": 111489024,
+      "Cached": 994693120,
+      "SReclaimable": 200863744,
+      "SUnreclaim": 108728320,
+      "SwapTotal": 0
+    },
+    "usedExcludingAvailablePercent": 44.477304107485224,
+    "containerWorkingSetBytesByRole": {
+      "admin-ui": 91779072,
+      "canonical-artifact-check": 0,
+      "isolated-recovery-fixture": 0,
+      "worker": 724328448,
+      "api": 1296400384,
+      "dependency-or-tool": 1023275008
+    },
+    "activeOrRestartingContainersByRole": {
+      "admin-ui": 1,
+      "worker": 11,
+      "api": 14,
+      "dependency-or-tool": 1
+    },
+    "disk": {
+      "totalBytes": 102915489792,
+      "availableBytes": 75160100864,
+      "usedBytes": 27738611712
+    },
+    "pressure": {
+      "cpu": "some avg10=9.17 avg60=19.30 avg300=13.20 total=55624699\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+      "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=1\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=1",
+      "io": "some avg10=0.19 avg60=2.47 avg300=2.31 total=10632209\nfull avg10=0.11 avg60=0.26 avg300=0.20 total=1150916"
+    },
+    "apiLiveness": {
+      "3000": {
+        "status": 200,
+        "ms": 16.6
+      },
+      "3001": {
+        "status": 200,
+        "ms": 4.84
+      },
+      "3004": {
+        "status": 200,
+        "ms": 3.88
+      },
+      "3016": {
+        "status": 200,
+        "ms": 2.75
+      },
+      "3017": {
+        "status": 200,
+        "ms": 5.86
+      },
+      "3018": {
+        "status": 200,
+        "ms": 4.58
+      },
+      "3019": {
+        "status": 200,
+        "ms": 3.97
+      },
+      "3020": {
+        "status": 200,
+        "ms": 3.72
+      },
+      "3021": {
+        "status": 200,
+        "ms": 3.48
+      },
+      "3023": {
+        "status": 200,
+        "ms": 3.8
+      },
+      "3024": {
+        "status": 200,
+        "ms": 3.55
+      },
+      "3026": {
+        "status": 200,
+        "ms": 4.76
+      },
+      "3027": {
+        "status": 200,
+        "ms": 4.73
+      },
+      "3033": {
+        "status": 200,
+        "ms": 2.43
+      }
+    }
+  },
+  "diskBusyBeforePercent": 98.89,
+  "diskBusyAfterPercent": 0.52,
+  "discardCommandsBefore": 110,
+  "discardCommandsAfter": 0,
+  "diskSampleSeconds": 10,
+  "fstab": {
+    "completedAtUtc": "2026-11-01T21:54:25.483923+00:00",
+    "change": "ext4 continuous discard disabled; existing enabled periodic fstrim retained",
+    "mountBefore": "rw,relatime,discard,errors=remount-ro,commit=30",
+    "mountAfter": "rw,relatime,errors=remount-ro,commit=30",
+    "fstabBeforeSha256": "839b7820c3e3159b787c94cee40028ad7005f3eaec7f76e133a7053a57117a5f",
+    "fstabAfterSha256": "827290e9fb0b7f224de681adb69189f2e8c336f78f38460cf42fc3b03a4e7db1",
+    "rootBackup": "/etc/fstab.masarifi-before-nodiscard-20261102",
+    "fstabVerified": true,
+    "reboot": false,
+    "servicesRestarted": false,
+    "timer": "ActiveState=active\nUnitFileState=enabled\nNextElapseUSecRealtime=Mon 2026-11-02 00:33:32 UTC"
+  },
+  "postbootDiscardDevice": {
+    "kernel": "7.0.0-38-generic",
+    "queue": {
+      "discard_max_bytes": "1073741824",
+      "discard_max_hw_bytes": "1073741824",
+      "discard_granularity": "4096",
+      "max_discard_segments": "1",
+      "physical_block_size": "512",
+      "logical_block_size": "512"
+    },
+    "rootMount": "rw,relatime,errors=remount-ro,commit=30"
+  },
+  "same41ContainerIdentities": true,
+  "retired14RemainStopped": true,
+  "kernelFaultCountsSinceBoot": {
+    "outOfMemory": 0,
+    "oomKill": 0,
+    "killedProcess": 0,
+    "blockIoError": 0,
+    "ext4Error": 0
+  },
+  "canonicalAdminCssStatus": "200",
+  "nginxConfigurationUnchanged": true,
+  "failedSystemdUnits": 0,
+  "oneRebootApprovedAndExecuted": true,
+  "rebootRequestedAtUtc": "2026-11-01T22:01:10.125258+00:00",
+  "sshNewBootObservedAtUtc": "2026-11-01T22:01:40.544624+00:00",
+  "preRebootProtectedRecovery": {
+    "file": "pre-approved-reboot-1793570470090668300.dpapi",
+    "bytes": 373331,
+    "sha256": "dd83ba620b1729cfd23d6248e6e6582787c2b05357c714b0953eecb954f4caed",
+    "chunks": 1,
+    "dpapiReadbackVerified": true
+  },
+  "memoryLeakProven": false,
+  "applicationLatencyImprovementProven": false,
+  "databaseConnectivityResolved": false
+}

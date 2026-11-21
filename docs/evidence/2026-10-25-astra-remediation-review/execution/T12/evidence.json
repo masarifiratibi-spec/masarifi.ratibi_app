@@ -1,0 +1,32 @@
+{
+  "task": "T12",
+  "batch": "B6",
+  "at": "2026-10-29T09:32:54.143Z",
+  "model": "gpt-6.1-sol",
+  "effort": "xhigh",
+  "status": "LOCAL_QUALIFIED_ACCEPTANCE_PENDING",
+  "fullAcceptance": false,
+  "dependencyAcceptance": false,
+  "executionExceptionSha256": "c6ee887bae0db1702e202cab4c4ee28b50751cbff269ec82f0b89ea4b356487b",
+  "originalCriteria": "docs/superpowers/plans/2026-10-25-astra-readiness-remediation.md",
+  "report": "docs/evidence/2026-10-25-astra-remediation-review/execution/batches/B6-deletion-2026-10-29.md",
+  "batchResult": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/B6-deletion-2026-10-29/B6-REVIEWED-RESULT.json",
+    "sha256": "ac5bb32ec6d463bb6d061fc9c141094e3ab3f5410d5646dd847cd8011760fcb2"
+  },
+  "currentSupplements": [],
+  "originalTaskRecord": {
+    "path": ".superpowers/sdd/2026-10-29-t07-batched-remediation/checkpoint-preimages/docs/evidence/2026-10-25-astra-remediation-review/execution/T12/evidence.json",
+    "sha256": "74437c6fefb755263e667365db0a640f44beaddae41d2e0257c1742c50f0f3c7"
+  },
+  "sourceBindings": ".superpowers/sdd/2026-10-29-t07-batched-remediation/source-delta-manifest.json",
+  "automatedAggregate": ".superpowers/sdd/2026-10-29-t07-batched-remediation/completed-test-aggregate.json",
+  "remaining": [
+    "Actual approved disposable-identity lifecycle and erasure evidence",
+    "Release absence or separate approval of isolated Staging immediate-deletion exception",
+    "Actual external public-path publication/behavior verification",
+    "Original predecessor/task acceptance",
+    "Own acceptance criteria and original predecessor acceptance; T06 unaccepted, Eventshidden/deferred"
+  ],
+  "protectedActionsPerformed": []
+}

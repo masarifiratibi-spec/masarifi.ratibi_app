@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-28T14:36:54.990Z",
+  "queue": [
+    {
+      "status": "applied",
+      "count": 12
+    }
+  ],
+  "cursors": [
+    {
+      "domain": "accounts",
+      "sha256": "6a15cacedf778a8885b83f9705f5fa29a7636a8c611cf896d5419b974dce434d",
+      "updatedAt": 1793193808377
+    },
+    {
+      "domain": "categories",
+      "sha256": "e6d858e36ed55ded75f6323514e7676512300d08a15ed1cde521fcdebf9dc41d",
+      "updatedAt": 1793193808932
+    },
+    {
+      "domain": "transactions",
+      "sha256": "772c93fdad9220b0ac8d786c3595109cce7bf9d354675a7ab545121e5c58b7a4",
+      "updatedAt": 1793193809483
+    }
+  ],
+  "queriesCompleted": true,
+  "noWriteOrReset": true,
+  "inspector": "passive socket left open; no in-flight query"
+}

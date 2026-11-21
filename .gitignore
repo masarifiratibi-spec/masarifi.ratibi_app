@@ -22,6 +22,8 @@ npm-debug.log*
 *.p12
 *.p8
 *.pem
+/apps/mobile/credentials.json
+/apps/mobile/credentials/
 apps/api/test/performance/artifacts/*.json
 apps/api/test/performance/artifacts/*.txt
 !apps/api/test/performance/artifacts/.gitkeep

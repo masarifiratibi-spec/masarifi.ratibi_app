@@ -84,7 +84,13 @@ export function intake() {
   ]);
   const rows = measured(intakeDuration, () =>
     db.query(
-      "select private.create_import_session($1,'manual',null,1,$2,$3::jsonb)",
+      `with context as materialized (select set_config('request.jwt.claims',$1,true))
+       select private.create_import_session($2,'manual',null,1,$3,$4::jsonb) from context`,
+      JSON.stringify({
+        role: 'authenticated',
+        sub: 'tracking_performance_owner',
+        sid: 'tracking-performance',
+      }),
       'tracking_performance_owner',
       hash,
       events,

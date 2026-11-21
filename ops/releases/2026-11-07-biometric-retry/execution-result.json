@@ -1,0 +1,31 @@
+{
+  "status": "verified on Redmi for background return and cancellation recovery",
+  "installedVersionCode": 129,
+  "installedApkSha256": "3f72e5041f152f4ced70950410c615211e0bb38a5215fe5021ae1c105f43cee1",
+  "androidUser": 0,
+  "originalUidAndInstallTimePreserved": true,
+  "sameDisplayedCurrentSessionList": true,
+  "foregroundTrials": [
+    {
+      "scenario": "automatic foreground unlock",
+      "backgroundSamplesWithoutPrompt": 12,
+      "foregroundPromptUpperBoundMs": 531
+    },
+    {
+      "scenario": "intentional system cancellation and retry",
+      "backgroundSamplesWithoutPrompt": 12,
+      "foregroundPromptUpperBoundMs": 391
+    }
+  ],
+  "successfulSingleScanReturnedToSecuritySettings": true,
+  "intentionalCancellationExposedRetry": true,
+  "freshBiometricRetrySucceeded": true,
+  "initialLockAndHideBalancesRestoredToOff": true,
+  "finalRoute": "Home",
+  "clearOrUninstallOrSignOut": false,
+  "hardwareModel": "Redmi 12 5G",
+  "screenshotSha256": {
+    "2026-11-07-redmi129-unlock.png": "9452260beed2caf2c4d0ed5490959c2dbd9d0e4781ce8124c43c5392b785081a",
+    "2026-11-07-redmi129-biometric-prompt.png": "fe31816adf8ebd478cd7c1da87cbb044a00e47f36c529a8d0aa1ade0199e80fe"
+  }
+}

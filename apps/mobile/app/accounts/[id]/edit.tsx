@@ -1,7 +1,6 @@
 import React from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StateView } from '@/design-system/components/feedback/StateView';
-import { AccountForm } from '@/features/accounts/AccountForm';
 import { useAccount } from '@/features/core-finance/core-finance-queries';
 import { translate } from '@/localization/i18n';
 export default function EditAccountRoute() {
@@ -32,5 +31,8 @@ export default function EditAccountRoute() {
         onAction={() => router.back()}
       />
     );
+  const { AccountForm } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/accounts/AccountForm') as typeof import('@/features/accounts/AccountForm');
   return <AccountForm account={query.data} />;
 }

@@ -41,6 +41,7 @@ select ok(not exists(
 grant masarifi_migration to current_user with inherit true,set true;
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('planning_salary_pgtap','active');
+select set_config('request.jwt.claims','{"sub":"planning_salary_pgtap","role":"authenticated"}',true);
 insert into public.salary_profiles(
   id,user_id,name,amount_minor,currency_code,frequency,expected_day,custom_interval_days,created_at
 ) values
@@ -81,6 +82,7 @@ reset role;
 
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('planning_budget_pgtap','active');
+select set_config('request.jwt.claims','{"sub":"planning_budget_pgtap","role":"authenticated"}',true);
 insert into public.budgets(id,user_id,name,currency_code,period_start,period_end,total_minor,status) values
   ('07200000-0000-4000-8000-000000000001','planning_budget_pgtap','September','SAR','2026-09-01','2026-09-30',1000,'active'),
   ('07200000-0000-4000-8000-000000000002','planning_budget_pgtap','Overlap','SAR','2026-09-15','2026-10-15',500,'active'),
@@ -118,6 +120,7 @@ reset role;
 
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('planning_obligation_pgtap','active');
+select set_config('request.jwt.claims','{"sub":"planning_obligation_pgtap","role":"authenticated"}',true);
 insert into public.obligations(
   id,user_id,name,direction,type,schedule_kind,currency_code,principal_minor,opening_paid_minor,
   installment_amount_minor,installment_count,frequency,expected_day,custom_interval_days,start_date,status
@@ -169,6 +172,7 @@ reset role;
 
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('planning_payment_pgtap','active');
+select set_config('request.jwt.claims','{"sub":"planning_payment_pgtap","role":"authenticated"}',true);
 insert into public.obligations(id,user_id,name,direction,type,schedule_kind,currency_code,principal_minor,
   installment_amount_minor,installment_count,frequency,expected_day,start_date,status)
 values('07400000-0000-4000-8000-000000000001','planning_payment_pgtap','Loan','payable','installment','fixed_term','SAR',600,300,2,'monthly',1,current_date,'active');
@@ -202,6 +206,7 @@ reset role;
 
 set local role masarifi_migration;
 insert into public.profiles(id,status) values('planning_savings_pgtap','active');
+select set_config('request.jwt.claims','{"sub":"planning_savings_pgtap","role":"authenticated"}',true);
 insert into public.savings_goals(id,user_id,name,currency_code,target_minor,opening_tracked_minor,status)
 values('07500000-0000-4000-8000-000000000001','planning_savings_pgtap','Emergency','SAR',1000,100,'active');
 insert into public.transactions(id,user_id,kind,status,amount_minor,currency_code,title,occurred_at) values

@@ -8,6 +8,21 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
   const userId = `ai_assistant_${randomUUID()}`,
     adminId = `ai_admin_${randomUUID()}`;
   const principal = { userId, sessionId: 'assistant-session', factorAgeSeconds: 0 };
+  async function claimOwnerWork(owner: string, worker: string) {
+    return pool.withClient(async (holder) => {
+      await holder.query('begin');
+      try {
+        // Other suites can leave queued fixtures; never consume their jobs.
+        await holder.query(
+          'select id from public.assistant_messages where user_id<>$1 for update',
+          [owner],
+        );
+        return await repository.claimWork('assistant.respond', worker, 1, 120);
+      } finally {
+        await holder.query('rollback');
+      }
+    });
+  }
   beforeAll(async () => {
     await pool.query("insert into public.profiles(id,status) values($1,'active'),($2,'active')", [
       userId,
@@ -35,6 +50,53 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
       "update private.ai_prompt_versions set status='draft',evaluation_passed=false,approved_by=null,published_at=null where id='99030000-0000-4000-8000-000000000003'",
     );
     await pool.onModuleDestroy();
+  });
+
+  it('keeps worker aliases within the persisted context scope', async () => {
+    const scopedUserId = `ai_scope_${randomUUID()}`;
+    const scopedPrincipal = {
+      userId: scopedUserId,
+      sessionId: 'assistant-scope-session',
+      factorAgeSeconds: 0,
+    };
+    await pool.query("insert into public.profiles(id,status) values($1,'active')", [scopedUserId]);
+    await pool.query(
+      "insert into public.assistant_consents(user_id,policy_version) values($1,'assistant-privacy-v1')",
+      [scopedUserId],
+    );
+    await pool.query(
+      "insert into public.accounts(user_id,name,type,currency_code) values($1,'Scoped account','bank','SAR')",
+      [scopedUserId],
+    );
+    const created = await repository.createConversation(
+      scopedPrincipal,
+      'Scoped context',
+      'assistant-scope-conversation-key',
+    );
+    const conversation = Reflect.get(created, 'resource') as Record<string, unknown>;
+    await repository.enqueueMessage(
+      scopedPrincipal,
+      String(conversation.id),
+      {
+        content: 'Create an expense',
+        intent: 'create_transaction',
+        context: {},
+        contextScope: [],
+        evidence: [],
+        history: [],
+        responseMode: 'async',
+      },
+      'assistant-scope-message-key',
+    );
+    const [claim] = await claimOwnerWork(scopedUserId, 'assistant-scope-worker');
+    if (!claim) throw new Error('AI_ASSISTANT_SCOPE_CLAIM_MISSING');
+
+    await expect(
+      repository.workInput(claim.kind, claim.id, claim.claim_token),
+    ).resolves.toMatchObject({
+      contextScope: [],
+      aliases: [],
+    });
   });
 
   it('enforces consent, persists minimized evidence, and cancels queued work on revocation', async () => {
@@ -74,12 +136,7 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
       'assistant-message-key-0001',
     );
     const request = Reflect.get(queued, 'resource') as Record<string, unknown>;
-    const [claim] = await repository.claimWork(
-      'assistant.respond',
-      'assistant-test-worker',
-      1,
-      120,
-    );
+    const [claim] = await claimOwnerWork(userId, 'assistant-test-worker');
     if (!claim) throw new Error('AI_ASSISTANT_CLAIM_MISSING');
     expect(await repository.workInput(claim.kind, claim.id, claim.claim_token)).toMatchObject({
       content: 'How is my budget?',

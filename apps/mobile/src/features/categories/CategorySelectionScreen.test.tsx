@@ -10,6 +10,12 @@ import { CategorySelectionScreen } from './CategorySelectionScreen';
 
 beforeEach(() => changeLocale('en'));
 
+it('offers only compatible Income categories while unfiltered callers retain Food', () => {
+  renderScreen({ financialType: 'income' });
+  expect(screen.queryByTestId('category-selection-row-food')).toBeNull();
+  expect(screen.getByTestId('category-selection-row-salary')).toBeTruthy();
+});
+
 function renderScreen(
   props: Partial<React.ComponentProps<typeof CategorySelectionScreen>> = {},
   categories = fixtureCategories

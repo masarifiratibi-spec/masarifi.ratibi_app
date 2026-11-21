@@ -28,7 +28,7 @@ describe('assistant/notifications/subscriptions/support/settings provider compat
     expect(assertCompatibleProvider(settingsServiceCapability, settings.metadata)).toBe(settings.metadata);
     expect(assertCompatibleProvider(supportServiceCapability, support.metadata)).toBe(support.metadata);
 
-    await expect(assistant.createConversation({ question: 'safe?' }, 'op-assistant-1')).rejects.toMatchObject({ code: 'consent_required' });
+    await expect(assistant.createConversation({ question: 'safe?' }, 'op-assistant-1')).rejects.toMatchObject({ code: 'offline' });
     await expect(subscriptions.getCatalog()).resolves.toMatchObject({ version: expect.any(String) });
     await expect(settings.getProfile()).resolves.toMatchObject({ version: expect.any(Number) });
     await expect(support.searchArticles({ query: 'card' })).resolves.toEqual(expect.any(Array));

@@ -8,6 +8,7 @@ import { ReportsScreen } from './ReportsScreen';
 
 beforeEach(() => {
   useReportsViewState.setState({
+    followToday: false,
     anchorDate: '2026-08-08',
     selectedKind: 'monthly'
   });
@@ -20,10 +21,12 @@ test('report primary controls expose button roles', async () => {
 
   expect(await screen.findByText('Net worth')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'All Accounts' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: /August 2026/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'August 2026' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '1M' })).toBeTruthy();
   expect(
-    screen.getByRole('button', { name: 'Set monthly budget' })
+    await screen.findByRole('button', {
+      name: /Set monthly budget, August 2026.*SAR.*All accounts/
+    })
   ).toBeTruthy();
   expect(screen.queryByText(/416545/)).toBeNull();
   expect(screen.queryByLabelText(/416545/)).toBeNull();

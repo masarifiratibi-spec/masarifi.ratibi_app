@@ -100,7 +100,12 @@ describe('planning/reports provider compatibility', () => {
       confirmation.value.receipt.id,
       'salary-v1-undo'
     );
-    expect(undo.value.cycle.daysRemaining).toBe(31);
+    // Undo leaves only a future-dated seed receipt, so there is no current cycle.
+    expect(undo.value.cycle).toMatchObject({
+      daysRemaining: 0,
+      startReceiptId: null,
+      income: { status: 'unavailable' }
+    });
   });
 
   it('rejects incompatible reports providers before execution', () => {

@@ -380,5 +380,7 @@ it('uses the configured time zone for salary confirmation and undo outcomes', as
     'salary-boundary-undo',
     'America/Los_Angeles'
   );
-  expect(undo.value.cycle.daysRemaining).toBe(31);
+  expect(undo.value.cycle.daysRemaining).toBe(0);
+  expect(undo.value.cycle.startReceiptId).toBeNull();
+  expect(undo.value.cycle.income.status).toBe('unavailable');
 });

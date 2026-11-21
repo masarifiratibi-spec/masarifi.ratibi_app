@@ -10,6 +10,7 @@ import { SyncHandlers } from './sync.handlers';
 import { SyncRepository } from './sync.repository';
 import { SyncService } from './sync.service';
 import { SyncWorker } from './sync.worker';
+import { SyncCommandRuntime } from './sync-command.runtime';
 
 @Module({
   imports: [DatabaseModule, IdentityModule, ReferenceModule, LedgerModule, PlanningModule],
@@ -20,8 +21,13 @@ import { SyncWorker } from './sync.worker';
 export class SyncModule {}
 
 @Module({
-  imports: [DatabaseModule, ReferenceModule, LedgerModule, PlanningModule],
-  providers: [SyncRepository, SyncHandlers, SyncWorker],
+  imports: [DatabaseModule],
+  providers: [
+    SyncRepository,
+    SyncCommandRuntime,
+    { provide: SyncHandlers, useExisting: SyncCommandRuntime },
+    SyncWorker,
+  ],
   exports: [SyncWorker],
 })
 export class SyncWorkerModule {}

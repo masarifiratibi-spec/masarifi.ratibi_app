@@ -33,6 +33,7 @@ export default function CategoryPickerRoute() {
     <CategorySelectionScreen
       allowClear={session.allowClear}
       excludedIds={session.excludedIds}
+      financialType={session.financialType}
       onBack={back}
       onSelect={(categoryId) => {
         if (completeCategorySelection(requestId, categoryId)) router.back();

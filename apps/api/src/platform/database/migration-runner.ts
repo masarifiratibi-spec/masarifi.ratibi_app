@@ -64,7 +64,13 @@ export async function applyPendingMigrations(
       await client.query("select set_config('statement_timeout', $1, true)", [
         `${String(statementTimeoutMs)}ms`,
       ]);
+      const executor = await client.query("select current_setting('role') as executor_role");
+      const executorRole = executor.rows[0]?.executor_role;
+      if (typeof executorRole !== 'string') throw new Error('MIGRATION_EXECUTOR_ROLE_INVALID');
       await client.query(migration.sql);
+      // Historical DDL can leave SET LOCAL ROLE active. History belongs to the
+      // invoking executor; retain the migration's original SQL and memberships.
+      await client.query("select set_config('role', $1, true)", [executorRole]);
       await client.query(
         `insert into supabase_migrations.schema_migrations (version, statements, name)
          values ($1, $2, $3)`,

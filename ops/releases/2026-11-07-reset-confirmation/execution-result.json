@@ -1,0 +1,52 @@
+{
+  "package": "com.masarifi.mobile",
+  "versionCode": 134,
+  "versionName": "1.0.0",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "abi": "arm64-v8a",
+  "apkBytes": 50866250,
+  "sha256": "39e83bd7ca84a2138425f1300adf851de81d9870f201626890a349ae91c73bad",
+  "signerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "signatureVerifiedForApi": [
+    24,
+    28,
+    32,
+    33,
+    35,
+    36
+  ],
+  "zip16KiBAligned": true,
+  "unchangedNativeLibraries": 23,
+  "hermesSha256": "598acba68aa3e738a79344ef7cbd4017dddf67c74924b1b4e53739f75a432d3d",
+  "sourceCommit": "6c465f617b80e33cdc3760fe244a3e6573183481",
+  "lastObservedPrimaryVersion": 133,
+  "primaryDeviceTest": false,
+  "productionApiImage": "sha256:6b37edccc8ca2ae65364743f690b965af2c06f76ee657ddf8a7662cadebf42c0",
+  "productionServiceSha256": "96954438a689f33cf0e287f4b5affdbde91f0f80b08ff741086512fed47edfe4",
+  "productionReady": true,
+  "verificationUtc": "2026-11-07T12:57:21.338453+00:00",
+  "checks": {
+    "mobileTests": 39,
+    "moreEntryTest": 1,
+    "apiRouteTests": 3,
+    "localPostgresIntegrationTests": 1,
+    "typechecks": [
+      "mobile",
+      "api"
+    ],
+    "scopedLintErrors": 0
+  },
+  "financialReset": "Single in-place confirmation using the signed-in session. User-approved Saudi Arabic copy. No typed phrase or step-up flow.",
+  "smsRecovery": "Explicit retry of the Android permission request, visible settings instructions inside the card, activation only after grant.",
+  "deviceObservation": {
+    "installedVersion": 133,
+    "android": 15,
+    "readSmsGranted": false,
+    "permissionChangedDuringTask": false
+  },
+  "limitations": [
+    "No physical-device installation or permission grant was performed. SMS access still requires approval in the Android permission dialog or device settings."
+  ],
+  "noProductionResetSubmitted": true
+}

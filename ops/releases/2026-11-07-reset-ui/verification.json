@@ -1,0 +1,43 @@
+{
+  "package": "com.masarifi.mobile",
+  "versionCode": 135,
+  "versionName": "1.0.0",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "abi": "arm64-v8a",
+  "apkBytes": 50866554,
+  "sha256": "a1d1d93a6df8167782592001192e3c568b4344815b6313949b3559a3b1981879",
+  "signerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "signatureVerifiedForApi": [
+    24,
+    28,
+    32,
+    33,
+    35,
+    36
+  ],
+  "zip16KiBAligned": true,
+  "unchangedNativeLibraries": 23,
+  "hermesSha256": "441f08d03c8d2baf32bb4b315d0dedb83f6d1307b1599762f6bd83c4952679cf",
+  "sourceCommit": "b2763e7e5dfda3afb7ddf9e37c9f4d068f60b0d1",
+  "lastObservedPrimaryVersion": 133,
+  "primaryDeviceTest": false,
+  "verifiedUtc": "2026-11-07T13:22:04.849953+00:00",
+  "checks": {
+    "focusedTests": 22,
+    "moreEntryDelayedResponseTest": 1,
+    "mobileTypecheck": "passed",
+    "scopedLint": "passed"
+  },
+  "changes": [
+    "Financial reset entry renders synchronously for the signed-in live runtime, including while offline or while the background read is pending.",
+    "Background state is shared with the dialog through an owner-scoped query cache.",
+    "The existing AppSheet menu used in account selection and filters replaces the custom reset modal.",
+    "Confirmation content is visible immediately. Execution becomes available after owner state is validated. Fresh generation validation before submission remains in place."
+  ],
+  "verificationLimits": [
+    "UI behavior was exercised through component tests in Arabic and English, light and dark themes, slow and failed reads, and owner changes.",
+    "No physical-device installation or customer financial reset was performed."
+  ],
+  "backendChanged": false
+}

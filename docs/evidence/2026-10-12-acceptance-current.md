@@ -1,0 +1,137 @@
+# Current acceptance index — 12 October 2026
+
+This additive index supersedes status statements in earlier reports; their original evidence remains preserved. Completion below is limited to the named scope, not full client acceptance.
+
+| Gate | Current evidence and boundary |
+| --- | --- |
+| Posting-OFF Staging promotion | Completed once under scope `35963978771134468e8eb6d4f3814597ab21ea40b7668eba6e621e7515c0ea31`. API source `093b5d0c42f3d68eb2de619aff94b44fbf088a02`; image `sha256:8ee5100f2f9de7b5930867eb7cf901c94344452ba8a3ed62954223bbc8fb2bab`. Fresh read-only verification on 12 October confirms healthy candidate, restart count zero, posting OFF, retained original API and unchanged financial/history baseline. |
+| Redmi installation preservation | Completed once at 07:06 UTC under scope `1d73c0b2b4240ed921f60a4d5273fcb4c9b479deb263bcade05a9b5943227288`. Client `be33158e282efa4d8ae6b5f1ad9541e1a90ac9a3a42d0d830bbbf7d601346c9f` and diagnostic `8ce88d27714d3fc03c35261d41077e27da70553eb23580b45ddde3678502cf89` installed. Original DEFAULT/stopped package state and UID restored; captured journal fingerprint and summary preserved. No app launch. |
+| Legacy Voice | Still pending: eight completed batch rows and one processing singleton retaining audio ownership. Fingerprint `b1298fa6ddcd588ad44301292865fb4436868226442dd3f7f2a7ee965ce3bf4c`. No replay, cancellation, financial confirmation or deletion authorized. This is journal evidence, not a bytewise proof of all app/audio/auth data. |
+| Admission Collector implementation | Recovery commit `b234bc10ad836aee3b9ed4984dc28017c152a289`. Offline tests and independent code review passed. Exact-source CI runs [private journals](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38225993283), [bootstrap](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38225993311), and [posting boundary](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/actions/runs/38225993258) passed. Disposable Android 15 covers 57 scenarios and 38 admission observations per encrypted run. This is not physical Redmi qualification. |
+| Admission Collector on Redmi | Approved scope `fa500a03ac902b3169b0dda05b91100dbb08bb6e84f85f96b0f7ccd9a4f10ef6` executed once at 09:11:48–09:12:04 UTC. Diagnostic `99c10013eaa6dbeb3f949fb333676dd53327a001eab0277f7d7944ecfd12605d` installed; one observation passed, exact client/diagnostic package states restored, client APK and Voice fingerprint unchanged. Prunable batches, pending finance mutations and stored Tracking rows all zero; current schema and no detected legacy cleanup. No product launch. |
+| Startup preservation fixes installed | Source `b7d04219` prevents unconfirmed automatic Voice recovery/replay/migration, preserves same-owner native Tracking ciphertext during cold restoration, and fails closed without durable cleanup when authentication restoration is unavailable. Full clean CI passed 481 suites / 3,008 tests; native base `52b9bdc0` passed 17 tests. Independently reviewed client `23a5653f5d5c1351189b1bc7f3de4a71c47a391b69bdb9c29edd49267b9aad83` and diagnostic `49e1ac16354dec5546dc7a95af107a410ccffe0ab187794069558764c4dded7e` installed once under separately approved scope `f2cac49c86433b4e05a6e29613038da75101019881b823f0706ee5e305b41584` at 11:10:45–11:11:19 UTC. Exact UID and original enabled/stopped states restored; captured Voice fingerprint/summary unchanged. No app launch. |
+| Tracking admission v2 on Redmi | The successful installation's fresh observation reports local source preferences and native intake INACTIVE, zero finance/Tracking/prunable rows, current schema and no detected legacy cleanup. This closes those exact local observations, not all startup cleanup risks. Staging aggregate preferences do not identify the Redmi owner and do not override the local inactivity evidence. |
+| Existing-user first launch | A separate bounded scope remains required. Independent source review found three further app-owned cleanup paths: legacy SMS AsyncStorage removal, cross-owner Tracking context cleanup, and legacy/invalid privacy-PIN cleanup. Optional read-only v3 conservatively observes their absence using already captured files. Reviewed source `ed4b383e` passed exact-source private-journal, bootstrap and posting CI, including all nine disposable encrypted Android phases with 57 scenarios and 38 v3 observations each. Independently qualified signed diagnostic `46706c9875888c7ff1ed15a1cad0a8d68f1859d94b37d106991fb0f938bcd46a` was subsequently installed under the renewed scope below. Normal cache/cursor/profile/push effects are distinct from new financial actions. Whole-store fingerprints may legitimately change after normal cache reconciliation; no bytewise all-files or SDK credential-cache preservation claim is made. |
+| First-launch attempt and SSH blocker | Human-approved scope `66a65c1af9d891241e550ea0231b3aafcb88a472d4b2765d388cc0065f7ceb16` was consumed once and stopped at STAGING_PREFLIGHT. Independent result audit confirms zero device commands, installations, diagnostics, launches or screenshots; no new device/Voice/restoration or Staging-baseline facts were verified. Separate read-only investigation proved SSH timeout and current public IPv4 `109.82.95.144`. The provider console shows active UFW and kernel blocks for this source to Staging TCP22; the earlier authorized rule permits a different IP. Exact one-rule recovery and a renewed identical-controller launch binding are prepared under separate approval boundaries. No firewall change or device retry has run. |
+| Subsequent approved SSH recovery | Scope `b502ea29774ddad019868457921a4cda43ca732609e670e2ad2551f011c475c8` was separately approved and consumed once. Added only TCP 22 from `109.82.95.144/32`, preserved all 18 existing rules and active UFW, then verified existing-key SSH with pinned host identity. Fresh read-only Staging verification passed: healthy candidate, posting OFF and unchanged financial/historical baseline. Independent result audit passed for that narrow recovery. No deployment or financial activation. |
+| Subsequent conditional Redmi attempt | Separately approved scope `5f1b7278e0a6ccee9edcc020ebd4f8e1047404dd309bf8396c8f1b80e67661d3` was consumed once after fresh external Staging PASS. Result INDETERMINATE at PRE_ADMISSION: 55 device commands, one confirmed diagnostic installation, one private observation, zero client installations and zero launches/PNGs. JS/native owner contexts PRESENT failed the required absence gates; presence does not prove mismatch or corruption. SMS/privacy entries ABSENT, intake inactive, zero finance/Tracking/prunable rows, current schema/no legacy cleanup. The complete fresh pre-admission Voice receipt matches the f2 baseline after the approved diagnostic-hash substitution. Original client/diagnostic enabled/stopped states and exact identities were verified restored. Independent result audit passed for truthful failure handling. No final private snapshot or launch-triggered Staging postflight was collected, and no full client acceptance is claimed. |
+| Cold-owner preservation follow-up | Preventive combined JS/native fix `eea4bca2` blocks destructive cross-owner cold restoration. Exact-source CI passed 481 suites / 3,009 mobile tests and 17 native tests. Client `41100c38…9932` passed independent artifact qualification. Diagnostic binding `e8350c28` passed all private-journal/Android15 and posting-boundary CI; new signed diagnostic `0dd3203c…9ed3` passed independent qualification. New installation-only scope `9b922181…0330` has 45 pins and 25 passing offline tests; final independent packet review passed and new explicit approval is required. No new device operation or launch occurred. Fresh read-only Staging remains healthy, posting OFF and baseline unchanged. |
+| Full delivery | Open: real application/provider acceptance, security residuals, final client artifact acceptance and separately approved financial activation. No Production changes authorized. |
+
+Retained local evidence:
+
+- `E:/Masarifi-staging-acceptance-2026-10-12/promotion-off/RESULT.md`
+- `E:/Masarifi-staging-acceptance-2026-10-12/redmi-upgrade-after-ssh/result.json`
+- `E:/Masarifi-staging-acceptance-2026-10-12/redmi-launch-preparation/collector-staging-readonly-result.json`
+- `E:/Masarifi-staging-acceptance-2026-10-12/redmi-launch-preparation/collector-qualified-receipts/`
+- `E:/Masarifi-staging-acceptance-2026-10-12/redmi-launch-preparation/collector-signed-probe/build-receipt.json`
+- `E:/Masarifi-staging-acceptance-2026-10-12/admission-collector-preparation/result.json`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-client-upgrade-preparation/result.json`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-client-upgrade-preparation/RESULT-INDEPENDENT-REVIEW.md`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-first-launch-preparation/`
+- `E:/Masarifi-staging-acceptance-2026-10-12/launch-admission-probe-qualification/INDEPENDENT-QUALIFICATION.md`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-first-launch-preparation/RESULT-INDEPENDENT-REVIEW.md`
+- `E:/Masarifi-staging-acceptance-2026-10-12/ssh-current-ip-recovery/`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-first-launch-after-ip-recovery/`
+- `E:/Masarifi-staging-acceptance-2026-10-12/ssh-current-ip-recovery/RESULT-INDEPENDENT-REVIEW.md`
+- `E:/Masarifi-staging-acceptance-2026-10-12/preservation-first-launch-after-ip-recovery/RESULT-INDEPENDENT-REVIEW.md`
+
+Past device/deployment approvals are consumed. The next diagnostic device operation requires a new exact approved scope. No bounded launch approval should be requested until its admission requirements are actually established.
+
+
+## 12 October 2026, 14:07 UTC — approved installation scope consumed without device operations
+
+The user approved scope `9b922181` once. Its exclusive execution stopped at
+`STAGING_PREFLIGHT` (`NONZERO_EXIT`), verdict INDETERMINATE. All device command,
+installation and instrumentation counters are zero. No restoration was needed;
+no new physical preservation or authentication finding is claimed. The scope
+must never be rerun. Independent result review passed the failure accounting.
+
+Read-only SSH investigation returned timeout. The computer's current public IPv4
+is 188.48.81.79. The provider console showed exact host srv2006836, active UFW,
+19 existing rules and kernel UFW BLOCK records for this source to
+187.77.81.97 TCP/22. This confirms the changed-IP firewall obstacle. No security
+rule was changed. Previous Staging verification remains historical.
+
+Two fresh approval packets are prepared: firewall `a1bad713` under
+`E:/Masarifi-staging-acceptance-2026-10-12/ssh-current-ip-188-recovery/`, and
+installation-only `a6f5d1f6` under
+`E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-upgrade-after-ip-188-recovery/`.
+The latter retains byte-identical qualified host tools, APKs and test evidence.
+It may start only after separately approved SSH recovery AND fresh external
+read-only posting-OFF Staging verification PASS; its controller rechecks Staging.
+Both need independent final review and new explicit approval before operations.
+The legacy Voice session remains untouched by this attempt. No launch, deployment,
+financial action or Production change occurred. Full acceptance remains open.
+
+Independent final packet reviews now PASS: firewall report SHA256
+`f2a36c68c8fede4dd483e7d8f17bdc50c23417e26f6b61425c78a0b1e3984101`;
+installation report SHA256
+`64e6715d00c76a4e9039922334d14168e6c9b7178c3ff5b1a5eb0538799e4e44`.
+External pre-consumption Staging PASS is an operator gate; the unchanged controller
+performs its additional internal preflight after consuming approval. Both gates
+are required. All new protected operations still await direct user approval.
+
+
+## 12 October 2026, 14:22 UTC — approved preservation installation passed
+
+After explicit approvals, firewall scope a1bad713 added exactly one TCP/22 rule
+for 188.48.81.79/32. Strict pinned-key SSH succeeded; active UFW retained all 19
+prior rules (20 total). Fresh external Staging verification passed before device
+approval consumption, with posting OFF and historical/financial baseline unchanged.
+
+Installation scope a6f5d1f6 executed once, 14:21:43–14:22:11 UTC, verdict
+PASS_INSTALLATION_PRESERVATION_ONLY: 66 device commands, one diagnostic install,
+one client install, two read-only private observations, no MainActivity launch.
+Installed client SHA256 41100c383f0cd52ab2170d435fcb487d8f42b50d45a1bd1e5b3bc339953c9932;
+diagnostic 0dd3203caa92fb4f65b3e6badb4c2632a33a71d06425fe2f798ee9a6cec89ed3.
+Both captured Voice receipts match apart from the approved client identity:
+fingerprint b1298fa6ddcd588ad44301292865fb4436868226442dd3f7f2a7ee965ce3bf4c,
+116 frames, nine rows, eight terminal, one pending and one owned audio item.
+The legacy pending work remains BLOCKED. No replay, cancellation or submission.
+
+Original client and diagnostic enabled/stopped states were restored, exact
+identities checked and processes verified quiet. This proves captured Voice
+fingerprint/summary preservation and final package state, not whole-device,
+authentication-cache or audio-byte equality. No private snapshot follows cleanup.
+The new APKs remain installed; old archives and evidence remain preserved.
+
+Post-installation v2 admission observed zero finance/Tracking/prunable rows,
+current schema, no legacy cleanup and inactive sources/intake. It still reports
+BLOCKED_EXTERNAL_ASSURANCES_REQUIRED and does not grant launch authority.
+The next launch preparation must assess retained owner contexts under the new
+combined JS/native fix, preserve v3 observations and all other gates, and pass
+independent review before a new exact device approval. No launch/deployment or
+financial approval remains unused. Post-installation read-only Staging also passed.
+
+
+Independent result reviews passed: firewall report SHA256
+69e808425be6e9c6e2c7d88ddf72290963d74a694d88aef7bdaaece3229d8598;
+installation report SHA256
+99ed9a914b48e6829529565a1b1afb34e86508752622c53665efbf45df6b794e.
+Source review supports a narrowly bound first-launch host exception for known
+ABSENT/PRESENT owner contexts only on exact client 41100c38. Fresh v3 facts remain
+mandatory; raw BLOCKED classification, all other gates and explicit approval stay.
+
+New host-only preparation reuses the installed diagnostic and performs zero
+installations. Independent review found an inherited double cleanup-reserve bug;
+a RED regression reproduced it, and ordinary stop/disable now stays within the
+original primary deadline. Sixteen offline tests pass normally and optimized;
+a deliberately restored double reserve fails outside the controller catch.
+No Android/product/collector/parser code changed or device action followed the
+completed installation. Evidence: cold-owner-first-launch-preparation on E:.
+Final host and frozen packet qualification remain pending at this entry.
+
+
+First-launch preparation is now independently qualified and frozen as
+1ddb06a951d63d7b6fdc297c627ddca50a684543f3ec11b18b0f9a8fd52e1b27 (61 pins).
+Source review: ffe372b84ea1e72292f8e9405e815a20ed24b462104a163a5d8725af89b06cf9;
+host review: 6a785f5ad795a1a2592fffdf3b8754cf17938c91585fa4f794fc48fa12ef55c9;
+final packet review: a254990da554d98c2214b869108681fceadaeb53f338e69c19fc3920a05f3de9.
+Exact scope/limits: E:/Masarifi-staging-acceptance-2026-10-12/cold-owner-first-launch-preparation/REVIEW.md.
+This allows no installation, at most two private observations, one 45-second
+no-tap launch trial, one private PNG and original package-state restoration.
+Fresh external Staging PASS must precede consumption, and the controller repeats
+its own preflight. Start before 13 October 2026 12:00 Riyadh. Explicit new device
+approval is still required. No first launch, financial activation or full client
+acceptance is claimed; all completed installation and firewall approvals are consumed.

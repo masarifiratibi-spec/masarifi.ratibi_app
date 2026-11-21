@@ -1,45 +1,66 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   TextInput,
   Pressable,
   StyleSheet,
   Text,
-  KeyboardAvoidingView,
   Platform
 } from 'react-native';
 import { layoutDirectionStyle } from '@/design-system/direction';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { radius, spacing } from '@/design-system/tokens';
-import { colorTokens } from '@/design-system/tokens';
+import { useTheme } from '@/state/theme-context';
+import type { ThemeColors } from '@/design-system/tokens';
+import { useAssistantDraft } from '../useAssistantDraft';
+import { AssistantDraftStatus } from '../AssistantDraftStatus';
 
 export interface AssistantComposerProps {
-  onSendMessage: (message: string) => void;
+  /** True acknowledges a successful send; false preserves the question for recovery. */
+  onSendMessage: (message: string) => Promise<boolean>;
   loading?: boolean;
+  conversationId?: string;
 }
 
 export function AssistantComposer({
   onSendMessage,
+  conversationId,
   loading = false
 }: AssistantComposerProps) {
-  const [text, setText] = useState('');
+  const draft = useAssistantDraft(
+    conversationId ? `conversation:${conversationId}` : 'landing'
+  );
+  const text = draft.text;
+  const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false);
+  const draftRevision = useRef(0);
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const direction = usePreferenceStore((state) => state.direction);
   const isRtl = direction === 'rtl';
+  const disabled = !text.trim() || loading || submitting || draft.loading;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    onSendMessage(trimmed);
-    setText('');
+    if (!trimmed || loading || draft.loading || sending.current) return;
+    const sentRevision = draft.revision;
+    const sentEdit = draftRevision.current;
+    sending.current = true;
+    setSubmitting(true);
+    try {
+      const accepted = await onSendMessage(trimmed);
+      if (accepted && draftRevision.current === sentEdit)
+        await draft.discard(sentRevision).catch(() => undefined);
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-      style={styles.keyboardContainer}
-    >
+    <>
+      <AssistantDraftStatus draft={draft} />
       <View
         testID="assistant-composer"
         style={[
@@ -61,9 +82,13 @@ export function AssistantComposer({
           <TextInput
             testID="assistant-composer-input"
             value={text}
-            onChangeText={setText}
+            onChangeText={(value) => {
+              draftRevision.current += 1;
+              draft.change(value);
+            }}
+            maxLength={1000}
             placeholder={translate('assistant.chat.placeholder')}
-            placeholderTextColor={colorTokens.raw["7C8B85"]}
+            placeholderTextColor={colors.content.muted}
             multiline
             style={[
               styles.input,
@@ -72,7 +97,7 @@ export function AssistantComposer({
                 writingDirection: direction
               }
             ]}
-            editable={!loading}
+            editable={!draft.loading}
           />
         </View>
 
@@ -80,39 +105,34 @@ export function AssistantComposer({
         <Pressable
           testID="assistant-composer-send-button"
           onPress={handleSend}
-          disabled={!text.trim() || loading}
+          disabled={disabled}
           style={({ pressed }) => [
             styles.sendButton,
-            !text.trim() && styles.sendButtonDisabled,
+            disabled && styles.sendButtonDisabled,
             pressed && styles.sendButtonPressed
           ]}
           accessibilityLabel={translate('assistant.action.ask')}
           accessibilityRole="button"
         >
-          <Text style={[styles.sendIcon, isRtl && styles.sendIconRtl]}>
-            ➤
-          </Text>
+          <Text style={[styles.sendIcon, isRtl && styles.sendIconRtl]}>➤</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  keyboardContainer: {
-    backgroundColor: colorTokens.raw["FFFFFF"]
-  },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["FFFFFF"],
-    borderTopColor: colorTokens.raw["EEF3F0"],
+    backgroundColor: colors.surfaces.card,
+    borderTopColor: colors.borders.subtle,
     borderTopWidth: 1,
     ...layoutDirectionStyle('ltr'),
     gap: spacing.xs,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    shadowColor: colorTokens.raw["103F37"],
+    shadowColor: colors.effects.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -120,8 +140,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["F3F8F5"],
-    borderColor: colorTokens.raw["DCE7E2"],
+    backgroundColor: colors.surfaces.inset,
+    borderColor: colors.borders.default,
     borderRadius: radius.pill,
     borderWidth: 1,
     height: 40,
@@ -132,8 +152,8 @@ const styles = StyleSheet.create({
     fontSize: 16
   },
   inputWrapper: {
-    backgroundColor: colorTokens.raw["F8FAF9"],
-    borderColor: colorTokens.raw["DCE7E2"],
+    backgroundColor: colors.surfaces.inset,
+    borderColor: colors.borders.default,
     borderRadius: 20,
     borderWidth: 1,
     flex: 1,
@@ -143,27 +163,30 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   },
   input: {
-    color: colorTokens.raw["10231F"],
+    color: colors.content.primary,
     fontSize: 14.5,
-    maxHeight: 100
+    maxHeight: 100,
+    minHeight: 48,
+    paddingVertical: 0,
+    textAlignVertical: 'top'
   },
   sendButton: {
     alignItems: 'center',
-    backgroundColor: colorTokens.raw["103F37"],
+    backgroundColor: colors.interactions.primary,
     borderRadius: radius.pill,
     height: 40,
     justifyContent: 'center',
     width: 40
   },
   sendButtonDisabled: {
-    backgroundColor: colorTokens.raw["D1E0DA"],
+    backgroundColor: colors.borders.disabled,
     opacity: 0.6
   },
   sendButtonPressed: {
     opacity: 0.8
   },
   sendIcon: {
-    color: colorTokens.raw["FFFFFF"],
+    color: colors.content.inverse,
     fontSize: 14,
     fontWeight: '700'
   },

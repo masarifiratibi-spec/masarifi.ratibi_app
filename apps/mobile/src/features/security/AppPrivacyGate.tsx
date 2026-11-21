@@ -30,18 +30,21 @@ export function AppPrivacyGate({
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') {
+      if (state === 'inactive') {
+        setMasked(true);
+      }
+      if (state === 'background') {
         const firstBackgroundTransition = backgroundedAt.current === null;
         backgroundedAt.current ??= Date.now();
         setMasked(true);
         if (immediate && firstBackgroundTransition) onLock?.();
       }
       if (state === 'active') {
-        const elapsed = backgroundedAt.current
-          ? Date.now() - backgroundedAt.current
-          : 0;
+        const backgrounded = backgroundedAt.current;
+        const elapsed = backgrounded ? Date.now() - backgrounded : 0;
         backgroundedAt.current = null;
-        if (!immediate && lockAfterMs !== null && elapsed >= lockAfterMs) {
+        if (immediate && backgrounded !== null) return;
+        if (lockAfterMs !== null && elapsed >= lockAfterMs) {
           onLock?.();
           return;
         }

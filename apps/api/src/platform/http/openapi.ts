@@ -12,6 +12,9 @@ import {
 import { MetaResponseDto } from '../meta/meta.dto';
 
 const schemaNames = [
+  'FinancialResetCommand',
+  'FinancialResetState',
+  'FinancialResetReceipt',
   'LivenessResponse',
   'DependencyChecks',
   'ReadinessSuccess',
@@ -32,6 +35,8 @@ const schemaNames = [
   'DevicePage',
   'DeviceRegistration',
   'DeviceRegistrationResult',
+  'DevPushRegistration',
+  'DevInstallationSignOut',
 ];
 
 const operationMethods = new Set(['get', 'put', 'post', 'delete', 'patch', 'options', 'head']);

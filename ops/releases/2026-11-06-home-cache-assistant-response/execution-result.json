@@ -1,0 +1,41 @@
+{
+  "atUtc": "2026-11-06T15:28:11.806402+00:00",
+  "applicationSourceCommit": "5edca96223264bcf1063d09cf8b61e150833a7e5",
+  "installedVersionCode": 120,
+  "installedApkSha256": "05a22b466eb58fe1218a0b36ddb98e2294d102d8e4fdab969cb35b50837f8b6d",
+  "reviewedPinsStillMatch": true,
+  "sameExactOwnerAndSdkAndFullRetainedState": true,
+  "deviceLastSeenAfterReopen": "2026-11-06T15:23:30.660854+00:00",
+  "ordinaryOwnRecentsDismissalProducedRealNewProcess": true,
+  "cachedColdHomeAcceptance": false,
+  "coldHomeStillDisplaysDashesBeforeActualBalance": true,
+  "warmHomeRetainsActualBalance": true,
+  "assistantExactlyOneExistingConversationQuestionCompleted": true,
+  "assistantAttempts": 1,
+  "assistantServerResponseSeconds": 4.924447,
+  "assistantNativeNextDraftEditableWhilePendingAndRetained": true,
+  "originalEmptyDraftRestored": true,
+  "assistantEndToEndSpeedImprovementAccepted": false,
+  "videos": {
+    "home-assistant": {
+      "sha256": "2457ecc387ba73705be4a26fd56a11051e389d11f2864cd7ee5cd56611617e97",
+      "bytes": 3927629,
+      "exitCode": 0
+    },
+    "assistant-question": {
+      "sha256": "17e9386823e84272443063b287cf9ee0c768595b82f61d1b9731950a87b7c4f1",
+      "bytes": 5326557,
+      "exitCode": 0
+    },
+    "cached-reopen": {
+      "sha256": "98558cff08bcabc12b2f8291143e09ac33b483684c9c6ae8684ddfc79a0f351c",
+      "bytes": 5812669,
+      "exitCode": 0
+    }
+  },
+  "allObserversEndedNaturally": true,
+  "noObserverOrFinancialCleanupPending": true,
+  "canonicalDeliveryStill111": true,
+  "productionReady": false,
+  "nextScope": "Diagnose why cached cold Home still misses the persisted snapshot; null native-lock preference versus verified SDK read admission is an unconfirmed phone-state hypothesis. Do not repeat120 build/install/old questions/cold trials."
+}

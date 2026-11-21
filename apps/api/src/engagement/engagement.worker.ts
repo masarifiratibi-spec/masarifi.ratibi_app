@@ -6,6 +6,10 @@ import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ClerkClientService } from '../identity/clerk-client.service';
 import { PushTokenCrypto } from '../identity/push-token.crypto';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
+import {
+  configuredAndroidUpdate,
+  sameAndroidRelease,
+} from '../platform/meta/android-update-policy';
 import { createTlsMailTransport } from '../reports/reports.smtp';
 import { ENGAGEMENT_SOURCE_EVENTS } from './engagement.events';
 import { reminderSource } from './engagement.reminders';
@@ -14,6 +18,8 @@ import {
   EngagementRepository,
   type NotificationDeliveryClaim,
   type PreparedDelivery,
+  type PreparedSourceNotification,
+  type SourceTemplate,
   type SourceNotificationClaim,
 } from './engagement.repository';
 import { evaluateDelivery, type QuietHours } from './notification.policy';
@@ -31,6 +37,7 @@ import { ClamAvAttachmentScanner, DeterministicAttachmentScanner } from './suppo
 import { SupportStorage } from './support.storage';
 
 export type EngagementJob =
+  | 'tracking.confirmation.prepare'
   | 'source.consume'
   | 'notification.dispatch'
   | 'notification.expire'
@@ -84,6 +91,7 @@ export class EngagementWorker implements OnModuleDestroy {
   }
 
   runJob(job: string): Promise<number> {
+    if (job === 'tracking.confirmation.prepare') return this.prepareTrackingConfirmations();
     if (job === 'notification.reminders.evaluate') return this.evaluateReminders();
     if (!(ENGAGEMENT_JOBS as readonly string[]).includes(job))
       return Promise.reject(new Error('ENGAGEMENT_JOB_UNKNOWN'));
@@ -95,11 +103,26 @@ export class EngagementWorker implements OnModuleDestroy {
     return this.cleanupAttachments();
   }
 
+  async processVoiceConfirmations(epoch: string): Promise<number> {
+    // This is invoked by the dedicated operating Voice lifecycle, never its broad scheduler.
+    const sources = await this.repository.claimVoiceSourceEvents(epoch, 1);
+    this.observability?.voicePoll('source', sources[0]?.occurred_at);
+    await this.ingestBatch(sources);
+    const deliveries = await this.repository.claimVoiceNotificationDeliveries(
+      epoch,
+      this.workerId,
+      1,
+    );
+    this.observability?.voicePoll('delivery', deliveries[0]?.queued_at);
+    for (const delivery of deliveries) await this.deliver(delivery);
+    return sources.length + deliveries.length;
+  }
+
   private async evaluateReminders(): Promise<number> {
     const candidates = await this.repository.listReminderCandidates(
       this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
     );
-    for (const candidate of candidates) await this.ingest(reminderSource(candidate));
+    await this.ingestBatch(candidates.map(reminderSource));
     return candidates.length;
   }
 
@@ -119,14 +142,7 @@ export class EngagementWorker implements OnModuleDestroy {
       [...ENGAGEMENT_SOURCE_EVENTS].filter((type) => type !== 'balance.changed'),
       this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
     );
-    let succeeded = 0;
-    for (const source of sources)
-      try {
-        await this.ingest(source);
-        succeeded += 1;
-      } catch {
-        this.observability?.job('source.consume', 'failure');
-      }
+    const succeeded = await this.ingestBatch(sources, true);
     this.observability?.job(
       'source.consume',
       'success',
@@ -136,6 +152,14 @@ export class EngagementWorker implements OnModuleDestroy {
       performance.now() - startedAt,
     );
     this.observability?.backlog('source.consume', sources.length);
+    return sources.length;
+  }
+
+  private async prepareTrackingConfirmations(): Promise<number> {
+    const sources = await this.repository.claimTrackingSourceEvents(
+      this.config.getRequired('MASARIFI_NOTIFICATION_BATCH_SIZE'),
+    );
+    await this.ingestBatch(sources);
     return sources.length;
   }
 
@@ -255,8 +279,54 @@ export class EngagementWorker implements OnModuleDestroy {
     return orphans.length;
   }
 
-  private async ingest(source: SourceNotificationClaim): Promise<void> {
-    const templates = await this.repository.loadSourceTemplates(source);
+  private async ingestBatch(
+    sources: readonly SourceNotificationClaim[],
+    isolateFailures = false,
+  ): Promise<number> {
+    if (sources.length === 0) return 0;
+    const templates = await this.repository.loadSourceTemplatesBatch(sources);
+    const entries: PreparedSourceNotification[] = [];
+    for (const [index, source] of sources.entries()) {
+      try {
+        entries.push({
+          source,
+          deliveries: this.prepareDeliveries(source, templates[index] ?? []),
+        });
+      } catch (error) {
+        if (!isolateFailures) throw error;
+        this.observability?.job('source.consume', 'failure');
+      }
+    }
+    if (isolateFailures) return this.persistNotifications(entries);
+    await this.repository.createNotificationsFromSources(entries);
+    return entries.length;
+  }
+
+  private async persistNotifications(
+    entries: readonly PreparedSourceNotification[],
+  ): Promise<number> {
+    if (entries.length === 0) return 0;
+    try {
+      await this.repository.createNotificationsFromSources(entries);
+      return entries.length;
+    } catch (error) {
+      // Isolate malformed sources after rollback so a bad row cannot starve the whole batch.
+      const code = error && typeof error === 'object' ? String(Reflect.get(error, 'code')) : '';
+      if (!/^(22|23)/.test(code)) throw error;
+      if (entries.length === 1) {
+        this.observability?.job('source.consume', 'failure');
+        return 0;
+      }
+      const middle = Math.floor(entries.length / 2);
+      const first = await this.persistNotifications(entries.slice(0, middle));
+      return first + (await this.persistNotifications(entries.slice(middle)));
+    }
+  }
+
+  private prepareDeliveries(
+    source: SourceNotificationClaim,
+    templates: readonly SourceTemplate[],
+  ): PreparedDelivery[] {
     const parsedExpiry = source.expires_at ? new Date(source.expires_at) : undefined;
     const expiresAt =
       parsedExpiry && Number.isFinite(parsedExpiry.getTime()) ? parsedExpiry : undefined;
@@ -305,11 +375,55 @@ export class EngagementWorker implements OnModuleDestroy {
           : {}),
       });
     }
-    await this.repository.createNotificationFromSource(source, deliveries);
+    return deliveries;
   }
 
   private async deliver(claim: NotificationDeliveryClaim): Promise<void> {
     const startedAt = performance.now();
+    if (
+      claim.data.route === 'app_update' ||
+      claim.data.appUpdate !== undefined ||
+      claim.campaign_update != null
+    ) {
+      const policy = configuredAndroidUpdate(this.config);
+      if (
+        !policy.release ||
+        claim.channel !== 'push' ||
+        claim.data.route !== 'app_update' ||
+        !sameAndroidRelease(policy, claim.data.appUpdate)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      const release = policy.release;
+      const decision = await this.repository.prepareAndroidUpdateDelivery(claim, release);
+      if (decision.outcome === 'defer') {
+        await this.repository.deferNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          decision.until,
+        );
+        return;
+      }
+      if (
+        decision.outcome === 'suppress' ||
+        !sameAndroidRelease(configuredAndroidUpdate(this.config), release)
+      ) {
+        await this.repository.finishNotificationDelivery(
+          claim.id,
+          claim.claim_token,
+          'suppressed',
+          decision.outcome === 'suppress' ? decision.reason : 'APP_UPDATE_STALE',
+        );
+        return;
+      }
+      claim = { ...claim, ...decision.target };
+    }
     if (
       claim.channel === 'push' &&
       claim.event_id &&
@@ -433,6 +547,7 @@ export class EngagementWorker implements OnModuleDestroy {
       title: claim.title,
       body: claim.body_safe,
       route: typeof claim.data.route === 'string' ? claim.data.route : 'notification_detail',
+      automaticCapture: claim.data.automaticCapture === true,
     };
   }
 

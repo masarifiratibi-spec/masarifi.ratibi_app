@@ -19,7 +19,7 @@ describe('DesignSystemGallery', () => {
     });
   });
 
-  it('navigates sections, keeps the app light, switches locale, and stays gallery-scoped', () => {
+  it('navigates sections, switches theme, switches locale, and stays gallery-scoped', () => {
     const screen = renderWithProviders(<DesignSystemGallery />);
 
     expect(screen.getByTestId('design-system-scroll')).toBeTruthy();
@@ -33,14 +33,16 @@ describe('DesignSystemGallery', () => {
       'accessibility',
       'privacy'
     ]) {
-      expect(screen.getByTestId(`design-system-section-${section}`)).toBeTruthy();
+      expect(
+        screen.getByTestId(`design-system-section-${section}`)
+      ).toBeTruthy();
     }
 
     fireEvent.press(screen.getByTestId('design-system-section-charts'));
     expect(screen.getAllByText('Charts').length).toBeGreaterThan(0);
 
     fireEvent.press(screen.getByTestId('design-system-theme-dark'));
-    expect(usePreferenceStore.getState().theme).toBe('light');
+    expect(usePreferenceStore.getState().theme).toBe('dark');
 
     fireEvent.press(screen.getByTestId('design-system-locale-ar'));
     expect(usePreferenceStore.getState().locale).toBe('ar');

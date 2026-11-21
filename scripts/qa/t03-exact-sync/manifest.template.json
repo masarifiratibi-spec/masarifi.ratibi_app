@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "enabled": false,
+  "scope": "staging",
+  "workerId": "t03-REQUIRED-reviewed-unique-run",
+  "leaseSeconds": 60,
+  "target": {
+    "project": "qcffvfbpzvpwcwxwjyro",
+    "api": "https://api.staging.masarifiratibi.com",
+    "database": null,
+    "user": null,
+    "sessionUser": null,
+    "address": null,
+    "port": null,
+    "systemIdentifier": null
+  },
+  "binding": {
+    "row": {
+      "operation_id": "10de16e6-a966-41b4-a583-1716314b285b"
+    },
+    "payloadSha256": null,
+    "resourceSha256": null,
+    "original": null,
+    "effective": null
+  },
+  "provenance": {
+    "sources": {},
+    "catalogSha256": null,
+    "claimSha256": null,
+    "completeSha256": null,
+    "retrySha256": null,
+    "imageSha256": null,
+    "reviewedArtifactSha256": null
+  }
+}

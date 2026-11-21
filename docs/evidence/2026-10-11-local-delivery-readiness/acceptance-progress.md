@@ -1,0 +1,192 @@
+# Existing acceptance procedure: progress after recovery 15488cd7
+
+This records execution of the existing Redmi acceptance and deployment plans. It
+does not replace them or authorize protected operations.
+
+## Backup and local restore
+
+The read-only Staging backup at 14:03 UTC was stream-verified against all 139
+tables (547,004 rows). Its DPAPI archive SHA-256 remains
+`d177b5d4e8743b77b85b3177a23b3e8cba8947714c2ab5b35bc594c906a25359`.
+The isolated financial restore passed: five accounts, 31 transactions, 31 ledger
+postings, five balance checks and zero reconciliation mismatches. That local
+cluster was stopped after verification.
+
+The initial restore destination on E: was exFAT; a successful icacls command did
+not establish persistent confidentiality permissions. That incorrect storage
+claim is explicitly superseded by the retained correction and relocation receipt.
+The stopped restore was moved to D: NTFS under a protected owner/SYSTEM-only
+directory. All 991 files matched their pre-move SHA-256 hashes, every file's ACL
+was checked, and the original plaintext directory is absent. A subsequent check
+found 43,978,870 bytes, zero unsafe file ACL entries, protected parent inheritance,
+no postmaster.pid, and `pg_ctl status` reporting no server running. D: had over
+100 billion bytes free. The encrypted source archive was not changed.
+
+Evidence root: `E:/Masarifi-staging-acceptance-2026-10-11/backup/`.
+The relocated cluster is
+`D:/Masarifi-private-staging-rehearsals/acceptance-secured-20261011T141452Z/financial-20261011T141452Z`.
+
+## Redmi diagnostic and bootstrap correction
+
+The exact approved diagnostic-only scope installed the separate diagnostic after
+the user allowed the phone's installation confirmation. Its one instrumentation
+invocation failed bootstrap before journal qualification. The original client
+remains installed and stopped. The physical journal gate is **INDETERMINATE**;
+the invocation approval is consumed. There was no client APK update, journal
+replay, Staging deployment or financial action.
+
+Independent review identified that upstream API35 can return an empty split-name
+array for a base-only package. The diagnostic rejected any non-null array. It now
+accepts only null or length zero and continues to reject every nonempty array,
+including malformed entries. The exact APK, certificate, UID, process and store
+guards remain mandatory. This is a demonstrated metadata incompatibility and a
+plausible cause of the previous bootstrap failure; the physical failure's exact
+stage was not retained and is not claimed as proven.
+
+Bootstrap errors expose only a closed enum stage. Original exception messages,
+causes and suppressed exceptions are discarded. Runtime source inventories now
+bind the actual wrapper; disposable bootstrap exercises its synthetic wrapper,
+so inventory matching is not actual-target runtime acceptance.
+
+Local regression evidence includes fail-before-fix checks and the complete reader
+suite on NTFS temporary storage: 43 identity checks, 45 failure disclosure checks,
+215 schema checks, 98 whole-store checks and four packaging checks passed. Windows
+native-file/POSIX cases were explicitly unexecuted; fresh Linux CI must execute
+the existing fail-on-unexecuted checks. An earlier exFAT root-replacement test
+failure remains retained and is not treated as a passing run.
+
+The fixed real-target wrapper compiled into an unsigned offline APK. All 248
+emitted DEX platform references passed against the pinned official Android35 r02
+stub. Offline APK SHA-256:
+`815cca20c21afacf3acfe894fe6dc9ea9d703bef6ec94b4daac1100ff30dff7e`.
+It has not been signed, installed or executed. Fresh exact-source CI/runtime
+evidence is required before signing a replacement probe. A new exact approval is
+required before another physical diagnostic invocation.
+
+Evidence: `probe-splits-fixed-full-local.log`,
+`probe-fixed-unsigned-offline/build-receipt.json`,
+`review/bootstrap-guard-readonly-review.md`, and
+`redmi-diagnostic-install-retry-result.json` under the same acceptance evidence
+root. Upstream tagged Android15 sources are retained in
+`review/android15-package-metadata-primary-evidence.json`.
+
+## Remaining acceptance gates
+
+At 14:35:15 UTC the read-only Staging baseline remained Posting OFF, zero active
+epochs, five accounts, 31 transactions/31 postings, Test balance -60 SAR and zero
+ledger balance mismatches. Four historical uploaded/processing Voice jobs and
+497,071 unpublished outbox items were untouched.
+
+Fresh dependency audits retained zero API findings, mobile 53 high/27 moderate
+findings and admin eight high findings. These are unresolved and unwaived;
+previous dependency-security evidence and release blockers remain authoritative.
+
+The qualified application APK, backend image and completed application tests
+remain preserved. Next gates are fresh probe qualification and separately
+approved Redmi journal execution, then approved client installation and Staging
+deployment, real Posting-OFF monitor/worker rehearsal, security disposition, and
+separately approved activation and bounded fresh financial tests. No claim of
+full device, live auto-posting or client acceptance is made. Production,
+Integration and main remain untouched.
+
+## Second approved diagnostic and process-guard coverage
+
+Exact replacement scope SHA-256
+`0a8a914f431cc1872a2187af895cf6ad62720c4fe0a38876c943bd8355fc024d`
+received direct human approval. The separate signed diagnostic SHA-256
+`ab9358069e3d97b219069121a817e942f042e2e55f1b78b8c39de6bdef03d66e`
+installed successfully. Its sole invocation ran at 15:00:29-15:00:35 UTC and
+failed framework bootstrap. The original client APK was verified unchanged and
+both named packages were left stopped. The journal verdict remains
+**INDETERMINATE**; this approval and invocation latch are consumed.
+
+Bounded read-only crash metadata, correlated to that invocation's UTC interval
+and dedicated process, retained only the closed stage `PROCESS_SURVEY`. No raw
+crash log, process identities, key or journal values were retained. The failure
+occurred before the journal read. There was no new client installation, Staging
+deployment, historical replay or financial action.
+
+The disposable bootstrap rehearsal previously omitted the real process survey.
+Both wrappers now use the same adapter and portable rejection policy. All four
+real guard positions and rejection criteria are preserved. Closed enum stages
+distinguish unavailable service/list, invalid record, same-UID peer, unexpected
+name, missing/duplicate self and service exceptions. Host runtime qualification
+and the signing gate require successful observations before and after Application
+creation in every run; missing or rejected observations cannot qualify a probe.
+This is diagnostic coverage and refactoring, not a proven Redmi fix.
+
+Local verification passed the complete reader suite, including 43 identity,
+77 sanitized-failure, ten process-policy, 215 schema and 98 whole-store checks.
+Four packaging and sixteen observation tests passed; the signing gate regression
+first failed on twelve omitted/rejected observation cases and passed after the
+gate correction. Windows-only unexecuted cases remain explicit. The actual
+wrapper and disposable fixture compiled offline; fresh exact-source Linux and
+Android CI is still required before a replacement can be signed.
+
+Independent review found no remaining actionable findings in this diff. Tagged
+upstream Android15 startup sources do not establish an early publication race;
+the exact Redmi rejection branch remains unknown. No process guard was weakened
+or moved. A future physical packet needs new bytes, refreshed closed-stage host
+parsing, bounded failure metadata collection and a new exact human approval.
+
+Evidence: `redmi-diagnostic-replacement-aadff3ae-result.json`, its consumed scope
+and instrumentation-intent receipts, its failure-metadata receipt,
+`process-survey-full-local.log`, `process-survey-signing-gate-{red,green}.log`,
+and `review/process-survey-shared-guard-review.md` under
+`E:/Masarifi-staging-acceptance-2026-10-11/`.
+
+## Third diagnostic, approved current-state inventory and peer-role preparation
+
+All exact-source e3bbeca9 workflows completed successfully: Private Journal
+38150583824, Bootstrap 38150583816 and Posting Boundary 38150583829. The shared
+adapter passed before/after Application checks in all three disposable runs;
+42 encrypted cases passed three times with unchanged fingerprints. These are
+synthetic qualification results, not Redmi journal clearance.
+
+Directly approved scope `62673075e7f8e5e070c9164dfb34cc9c74c7c844cd4a6b0217ff8a3841f0d678`
+ran once at 15:35:15–15:35:20 UTC. Separate diagnostic b94639a9 installed and
+rejected **PROCESS_SAME_UID_PEER** before key/journal access. Original client
+unchanged/stopped verification passed. The scope is consumed; journal remains
+INDETERMINATE. Raw crash metadata was discarded; only a time-correlated closed
+stage/count/booleans remain.
+
+Separate exact read-only scope
+`5fd28163d4eef92197111d1d472f95c210d44d33c5af5bd39f8dea5245b5b1cb`
+was then approved and executed once at 16:01:28–16:01:30 UTC. It found exactly
+one package at the target UID, no kernel target-UID processes and no related
+framework entries. Both APK hashes remained unchanged; global kernel snapshots
+differed, so no global stability claim is made. No phone mutation, instrumentation,
+app launch or journal/key access occurred. This is current-state evidence only:
+it cannot explain the earlier invocation or clear the journal gate. Its latch is
+consumed. The 25 parser/mock-executor tests passed normally and optimized, and
+final independent review was clean after fixing malformed-output regressions.
+
+The same policy now adds a closed PEER_ROLE label to its first same-UID peer
+rejection. It distinguishes target main, the expected private-process name,
+another target process, other/unknown names and invalid PIDs. Original rejection
+criteria and all guard positions are preserved. Names, PID/UID values and causes
+are never exported. No file/kernel/key/journal access or passing-path behavior
+is added. This label describes the framework record, not actual kernel liveness.
+RED compile/behavior evidence and complete portable GREEN are preserved under
+`peer-role-preparation-red`, `peer-role-policy-red` and `peer-role-portable-green.log`.
+The portable suite passed 89 failure-sanitization and 19 process-policy checks,
+plus all prior reader/schema/binder gates. Windows unavailable protection cases
+remain explicitly unexecuted. Fresh exact-source Linux/Android CI and independent
+review are required before signing changed bytes or requesting a new device scope.
+
+Fresh read-only Staging observations at 15:55:41 and 15:56:17 UTC retain the
+ac7bc92a API/Analysis/Assistant cohort, healthy ready API, zero restarts and stopped
+financial/general workers. Posting is false with zero active epochs, five accounts,
+31 transactions/31 postings, five balances, zero pending balance and zero ledger
+mismatches. Four historical uploaded/processing Voice jobs remain untouched.
+Analysis/Assistant running status alone does not prove successful lifecycle tests.
+The original encrypted backup hash remains d177b5d4…a25359; D remains NTFS with
+100,195,930,112 bytes free at the latest storage check. No restore restart occurred.
+
+Full signed Staging client be33158e remains uninstalled; qualified backend image
+8ee5100f remains undeployed. Mobile/admin unwaived dependency findings remain
+release blockers. Real Posting-OFF monitor, lifecycle/epoch/watchdog/rollback,
+full device features and separately approved normal-user activation/fresh financial
+reconciliation remain outstanding. No Production, historical replay/drain or
+Integration/main merge occurred. Authoritative physical receipts and current
+acceptance report are under `E:/Masarifi-staging-acceptance-2026-10-11/`.

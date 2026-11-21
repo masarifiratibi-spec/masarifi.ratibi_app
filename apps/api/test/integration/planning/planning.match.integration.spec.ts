@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { PlanningRepository } from '../../../src/planning/planning.repository';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
+import { planningOwnerQuery } from './planning.integration-harness';
 
 describeLiveDatabase('payment match live invariants', () => {
   const pool = createLivePool();
@@ -78,7 +79,7 @@ describeLiveDatabase('payment match live invariants', () => {
     };
     const calls = await Promise.allSettled(
       Array.from({ length: 4 }, () =>
-        pool.query('select private.decide_payment_match($1,$2::jsonb)', [
+        planningOwnerQuery(pool, owner, 'select private.decide_payment_match($1,$2::jsonb)', [
           owner,
           JSON.stringify({ ...body, operationId: randomUUID() }),
         ]),

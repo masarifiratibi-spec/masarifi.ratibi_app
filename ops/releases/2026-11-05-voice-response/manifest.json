@@ -1,0 +1,72 @@
+{
+  "status": "prepared-not-installed-not-physically-qualified",
+  "baseApplicationCommit": "5e85d80a8524dd50a12a5b409794504efed08cd9",
+  "customerPackage": "com.masarifi.mobile",
+  "customerVersionCode": 109,
+  "versionName": "1.0.0",
+  "minimumAndroidApi": 24,
+  "architecture": "arm64-v8a",
+  "candidateApkSha256": "012372332cf7732b5c04b21588168d3d615515aaa1e06c5add44353f44d567d2",
+  "candidateApkBytes": 49506982,
+  "candidateHermesSha256": "beda3366b28b33e431bcedcf6776fae3abd01a9d25c2e2028c6e758bf984ade7",
+  "signerFingerprint": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "currentInstalledVersion": 108,
+  "currentInstalledAndDeliveredApkSha256": "e946d6071ba3a01b01117253e567b68cbb892c4f3323b934a736868b661220bb",
+  "automaticPostingEnabled": true,
+  "productionOrigin": "https://api.masarifiratibi.com",
+  "hostedMutationRequired": false,
+  "sameOwnerSessionDataAndExistingQaAccountRequired": true,
+  "changedSource": [
+    {
+      "path": "apps/mobile/src/features/voice/VoiceBatchStatus.tsx",
+      "sha256": "2c86b53b3135c0724da76fc24fb0efab2db3c7b22885e5dd20f3aeb53bc3dfe2"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/useVoiceBatches.test.tsx",
+      "sha256": "097aeb6d48084771c6e2ca1d83b1ac72bf0e6116c15a33284e4b5909f69cefb4"
+    },
+    {
+      "path": "apps/mobile/src/features/voice/useVoiceBatches.ts",
+      "sha256": "5c396ddf92f8f32c8f714dc1a6e6e83e044a5a442e0ae29bb9d51f94ddf40ddd"
+    },
+    {
+      "path": "apps/mobile/src/services/live/voice-batch-api-service.test.ts",
+      "sha256": "e43ee7177f55b6895b09d195da09bd69ec6af280d1d4949bd50480040e65a01b"
+    },
+    {
+      "path": "apps/mobile/src/services/live/voice-batch-api-service.ts",
+      "sha256": "3126f24b36a4854acb1426d222b02b0b8a32c350dbb0adbf69d83798b8b9ce4e"
+    }
+  ],
+  "packageFiles": {
+    "deployment-runbook.md": "41908d2736bc822daddc22648cc7143c9eeea943df7d1bfc9652f23b274465cd"
+  },
+  "focusedTestsPassed": 112,
+  "focusedSuites": 6,
+  "typecheckExitCode": 0,
+  "lintExitCode": 0,
+  "formatExitCode": 0,
+  "verifiedSignerApis": [
+    24,
+    28,
+    32,
+    33,
+    35,
+    36
+  ],
+  "nativeLibraryCount": 23,
+  "nativeLibrariesByteIdenticalTo108": 23,
+  "alignment16Kb": true,
+  "r8RecordRetained": true,
+  "actualDexNotificationConstructorQualified": true,
+  "native88ReusedUnchanged": true,
+  "initialResultSleepMs": 500,
+  "initialShortIntervals": 4,
+  "laterResultSleepMs": 1000,
+  "scheduledWaitBudgetMs": 125000,
+  "onlyNewForegroundValidatedReceiptAcknowledged": true,
+  "historicalRecoverySilent": true,
+  "physicalResponseTimingQualified": false,
+  "installed": false,
+  "productionReady": false
+}

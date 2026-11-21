@@ -1,0 +1,270 @@
+{
+  "app-update.body": [
+    "الإصدار {{version}} متاح. حدّث الآن أو لاحقًا.",
+    "Version {{version}} is ready. Update now or later."
+  ],
+  "tracking.isolated.message": [
+    "بيانات التتبع مرتبطة بحساب آخر ومحميّة. تواصل مع الدعم.",
+    "Tracking belongs to another account and is protected. Contact support."
+  ],
+  "tracking.unverified.message": [
+    "اتصل بالإنترنت للتحقق من الوصول إلى التتبع.",
+    "Connect to verify access to tracking."
+  ],
+  "reports.schedule.liveSettings": [
+    "يُرسل أول يوم من الفترة الساعة 08:00 بتوقيتك وبعملة ملفك.",
+    "Sent at 08:00 on the first day of each period, in your time zone and profile currency."
+  ],
+  "settings.deletion.retentionNotice": [
+    "يحذف هويتك وبيانات المساعد والتتبع والدعم؛ تبقى السجلات المالية.",
+    "Deletes identity, assistant, tracking and support data. Financial records remain."
+  ],
+  "assistant.scope.excluded": [
+    "بعض تحليلات الأقساط والتخطيط والبحث غير متاحة حاليًا.",
+    "Some installment, planning and search features are unavailable."
+  ],
+  "appShell.public.privacyBody": [
+    "تُحفظ سجلات النسخة التجريبية على جهازك. تحكّم بها من الإعدادات.",
+    "Demo records stay on this device. Manage them in Settings."
+  ],
+  "appShell.onboarding.permission.purpose": [
+    "يقرأ الرسائل المالية في الخلفية، حتى عند إغلاق التطبيق، بإذنك.",
+    "With permission, reads financial SMS in the background, even when closed."
+  ],
+  "appShell.onboarding.permission.dataUse": [
+    "يحلّلها على جهازك ويزامن تفاصيل المعاملات مع خوادم مصاريفي.",
+    "Analyzes on your device and syncs transaction details to Masarifi servers."
+  ],
+  "appShell.permission.settingsHelp": [
+    "فعّل إذن الرسائل من إعدادات الجهاز، ثم ارجع للتطبيق.",
+    "Allow SMS in device settings, then return to the app."
+  ],
+  "coreFinance.manual.offlineEdit": [
+    "دون اتصال: عدّل المبلغ والتفاصيل والتاريخ فقط.",
+    "Offline: edit the amount, details and date only."
+  ],
+  "tracking.source.smsTrackingDescription": [
+    "يقرأ الرسائل المالية في الخلفية ويزامن معاملاتها بإذنك.",
+    "With permission, reads financial SMS in the background and syncs transactions."
+  ],
+  "tracking.source.notificationTrackingDescription": [
+    "يقرأ الإشعارات المالية في الخلفية ويزامن معاملاتها بإذنك.",
+    "With permission, reads financial notifications in the background and syncs transactions."
+  ],
+  "tracking.howItWorks.privacy": [
+    "التحليل على جهازك، وتُزامَن تفاصيل المعاملات مع خوادم مصاريفي.",
+    "Analysis runs on your device; transaction details sync to Masarifi servers."
+  ],
+  "tracking.howItWorks.detection": [
+    "الواضح يُسجَّل تلقائيًا، وما يحتاج تأكيدًا يظهر للمراجعة.",
+    "Clear transactions save automatically; uncertain ones go to review."
+  ],
+  "voice.processingConsent.data": [
+    "بإذنك، يحلّل ذكاء اصطناعي خارجي تسجيلك وسياقه المالي.",
+    "Masarifi and external AI providers process your recording and financial context."
+  ],
+  "voice.processingConsent.purpose": [
+    "يحوّل كلامك إلى معاملات يمكنك مراجعتها وتصحيحها.",
+    "Turns speech into transactions you can review and correct."
+  ],
+  "voice.processingConsent.choice": [
+    "اختياري؛ يمكنك سحب الموافقة أو استخدام الإدخال اليدوي.",
+    "Optional. Withdraw consent or use manual entry anytime."
+  ],
+  "assistant.privacy.transactions": [
+    "بإذنك، يحلّل ذكاء اصطناعي خارجي أسئلتك وسياقك المالي.",
+    "Masarifi and external AI providers process your questions and financial context."
+  ],
+  "assistant.privacy.choice": [
+    "اختياري؛ يمكنك سحب الموافقة في أي وقت.",
+    "Optional. You can withdraw consent anytime."
+  ],
+  "assistant.privacy.note": [
+    "قد يخطئ المساعد. راجع التفاصيل قبل اعتمادها.",
+    "AI can make mistakes. Review details before accepting them."
+  ],
+  "assistant.actionPreview.scope.acceptReview": [
+    "يعتمد المراجعة ويسجّل المعاملة أو يستخدم الموجودة.",
+    "Accepts this review and saves the transaction or reuses the existing one."
+  ],
+  "settings.privacy.legalExplanation": [
+    "التصدير من الخادم، والحذف المحلي لهذا الجهاز، وحذف الحساب مستقل.",
+    "Export copies server data. Local deletion affects this device. Account deletion is separate."
+  ],
+  "logout.unsyncedBody": [
+    "تغييرات لم تتزامن. ابقَ لإعادة المحاولة؛ حذفها محليًا يفقدها.",
+    "Some changes are unsynced. Stay to retry; deleting local data loses them."
+  ],
+  "storageRecovery.body": [
+    "مفتاح التشفير مفقود. نستعيد المتزامن فقط ونحتفظ بالنسخة الأصلية.",
+    "Encryption key unavailable. Only synced data can be restored; the original copy is kept."
+  ],
+  "financialReset.confirmMessage": [
+    "يمسح السجل والخطط ويصفّر الأرصدة بكل أجهزتك. لا يمكن التراجع.",
+    "Erases financial history and plans, and resets balances on all devices. Cannot be undone."
+  ],
+  "reports.pdf.nativeUpdate": [
+    "حدّث التطبيق لفتح PDF أو مشاركته. الملف المحفوظ باقٍ.",
+    "Update to open or share PDFs. Your saved file remains."
+  ],
+  "reports.export.sharePrivacy": [
+    "أي شخص يملك الرابط يمكنه التنزيل حتى انتهاء صلاحيته.",
+    "Anyone with this link can download until it expires."
+  ],
+  "settings.privacy.exportExplanation": [
+    "اطلب نسخة من بيانات الخادم؛ رابط التنزيل مؤقت.",
+    "Request a copy of server data. The download link expires."
+  ],
+  "reports.preview.accountScopeUnavailable": [
+    "اختر «كل الحسابات» لتصدير الملف.",
+    "Select All accounts to export a file."
+  ],
+  "settings.deletion.dev.description": [
+    "يحذف حسابك وبياناته نهائيًا. لا يمكن التراجع.",
+    "Permanently deletes your account and its data. Cannot be undone."
+  ],
+  "settings.deletion.dev.localRetry": [
+    "حُذف الحساب. أعد المحاولة لإكمال تنظيف الجهاز.",
+    "Account deleted. Retry to finish cleaning this device."
+  ],
+  "settings.deletion.dev.notAllowed": [
+    "الحذف غير مفعّل لهذا الحساب التجريبي. لم يُحذف شيء.",
+    "Deletion is disabled for this test account. Nothing was deleted."
+  ],
+  "settings.deletion.processingRetry": [
+    "طلب الحذف محفوظ؛ سيعيد الخادم المحاولة تلقائيًا.",
+    "Deletion request saved. The server will retry automatically."
+  ],
+  "googleAuth.incomplete": [
+    "حساب Google يحتاج معلومات إضافية. جرّب حسابًا آخر أو الدعم.",
+    "This Google account needs more details. Try another account or contact support."
+  ],
+  "capture.sms.dataUse": [
+    "يحلّل الرسائل على جهازك ويزامن المعاملات مع خوادم مصاريفي.",
+    "Analyzes SMS on your device and syncs transactions to Masarifi servers."
+  ],
+  "appShell.public.termsBody": [
+    "التطبيق لإدارة المال الشخصي، ولا يقدم مشورة مهنية.",
+    "For personal money management; does not provide professional advice."
+  ],
+  "appShell.connectionUnavailable.message": [
+    "تعذّر الاتصال. تحقّق من الإنترنت وأعد المحاولة.",
+    "Cannot connect. Check your internet and retry."
+  ],
+  "coreFinance.home.balanceExplanation": [
+    "إجمالي الحسابات النشطة بأسعار الصرف المتاحة.",
+    "Total of active accounts using available exchange rates."
+  ],
+  "coreFinance.manual.editLocalSave": [
+    "تعذّر الحفظ. بيانات النموذج باقية؛ حاول مجددًا.",
+    "Could not save. Your form is preserved. Retry."
+  ],
+  "coreFinance.accounts.setup.educationBody": [
+    "آخر أربعة أرقام تساعد على مطابقة معاملات البنك بحسابك.",
+    "The last four digits help match bank transactions to this account."
+  ],
+  "voice.batch.rateLimited": [
+    "بلغت حد التحليل. تسجيلك محفوظ؛ سنعيد المحاولة تلقائيًا.",
+    "Analysis limit reached. Recording saved; retrying automatically."
+  ],
+  "planning.state.offlineRead": [
+    "دون اتصال: نعرض آخر بيانات محفوظة.",
+    "Offline: showing the last saved data."
+  ],
+  "planning.salary.automaticDetectionSubtitle": [
+    "يربط دخلًا مؤكدًا بموعد الراتب، دون إنشاء معاملة.",
+    "Matches confirmed income to payday without creating a transaction."
+  ],
+  "assistant.actionPreview.state.unknown": [
+    "النتيجة غير مؤكدة. تحقّق من الحالة قبل إعادة المحاولة.",
+    "Outcome unknown. Check the status before retrying."
+  ],
+  "recentAuth.unsupported": [
+    "سجّل الدخول مجددًا بالحساب نفسه لإكمال التحقق.",
+    "Sign in again with the same account to verify."
+  ],
+  "recentAuth.failed": [
+    "تعذّر التحقق. راجع الرمز أو كلمة المرور والاتصال.",
+    "Verification failed. Check your code or password and connection."
+  ],
+  "reports.pdf.periodUnsupported": [
+    "تعذّر تطبيق الفترة أو التوقيت. اختيارك محفوظ.",
+    "Could not apply the period or time zone. Selection saved."
+  ],
+  "reminders.control.description": [
+    "تذكيرات للإعداد والمراجعة؛ يمكنك إيقافها.",
+    "Setup and review reminders. You can turn them off."
+  ],
+  "settings.deletion.dev.confirmation": [
+    "حذف الحساب وكل بياناته نهائيًا؟ لا يمكن التراجع.",
+    "Permanently delete your account and all its data? Cannot be undone."
+  ],
+  "settings.deletion.verificationUnavailable": [
+    "التحقق غير متاح. سجّل الدخول مجددًا ثم أعد طلب الحذف.",
+    "Verification unavailable. Sign in again, then retry deletion."
+  ],
+  "assistant.operation.checkFailed": [
+    "تعذّر التحقق. سؤالك محفوظ؛ تحقّق قبل إرسال سؤال آخر.",
+    "Could not check. Your question is saved; check before sending another."
+  ],
+  "assistant.limitation.next_installment_only": [
+    "الإجابة تخص القسط التالي فقط.",
+    "This answer covers the next installment only."
+  ],
+  "appShell.onboarding.ios.body": [
+    "استخدم الإدخال اليدوي أو الصوتي؛ تتبع الرسائل غير متاح هنا.",
+    "Use manual or voice entry. SMS tracking is unavailable here."
+  ],
+  "appShell.security.nativeLockSubtitle": [
+    "بصمة أو رمز أو نمط يديره نظام جهازك.",
+    "Fingerprint, passcode or pattern managed by your device."
+  ],
+  "coreFinance.manual.offlineCreate": [
+    "دون اتصال: أضف مصروفًا أو إيرادًا فقط.",
+    "Offline: add expenses or income only."
+  ],
+  "coreFinance.manual.localCreateEdit": [
+    "اتصل بالإنترنت لتعديل المعاملة المحفوظة دون اتصال.",
+    "Connect to edit a transaction created offline."
+  ],
+  "tracking.keywords.permissionScope": [
+    "الكلمات ترشّح المعاملات، ولا تغيّر صلاحية النظام.",
+    "Keywords filter transactions; they do not change system permissions."
+  ],
+  "voice.batch.restricted": [
+    "الصوت غير مفعّل لهذا الحساب التجريبي. لم تُضف معاملات.",
+    "Voice is disabled for this test account. No transactions added."
+  ],
+  "assistant.actionPreview.scope.createGoal": [
+    "ينشئ هدف ادخار بالتقدّم المعروض، دون تحويل أموال.",
+    "Creates a savings goal with the shown progress. Does not transfer money."
+  ],
+  "assistant.actionPreview.scope.recordPayment": [
+    "يوزّع المعاملة الموجودة على الأقساط، دون دفع جديد.",
+    "Allocates an existing transaction to installments. Does not make a new payment."
+  ],
+  "recentAuth.signInAgain": [
+    "سجّل الدخول بالحساب نفسه مجددًا ثم ارجع لهذه الصفحة.",
+    "Sign in again with the same account, then return here."
+  ],
+  "logout.pendingBody": [
+    "جارٍ إكمال الخروج وحذف بيانات الجهاز بأمان.",
+    "Finishing sign-out and safely clearing device data."
+  ],
+  "logout.originalSessionUnavailable": [
+    "تعذّر التحقق من الجلسة. بياناتك محفوظة؛ حاول لاحقًا.",
+    "Cannot verify the session. Data saved; retry later."
+  ],
+  "tracking.keywords.explanation": [
+    "هالكلمات تساعد التطبيق يتعرّف على الرسائل المالية.",
+    "Phrases help detect transactions; safety checks still apply."
+  ],
+  "privacy.details": [
+    "تفاصيل الخصوصية",
+    "Privacy details"
+  ],
+  "appShell.networkNotice.message": [
+    "نعرض آخر بيانات محفوظة؛ اتصل لمزامنة تغييراتك.",
+    "Showing saved data. Reconnect to sync your changes."
+  ]
+}

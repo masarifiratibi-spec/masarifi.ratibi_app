@@ -1,0 +1,21 @@
+# First-use onboarding, sign-in and loading
+
+Final user-approved behavior: the original transaction-example onboarding appears before authentication on first use. It contains its language selector, three illustrative cards, Saudi copy and lighter Start button, with no Terms/Privacy/checkbox controls. Start saves the existing first-launch completion preference, then opens the existing Google sign-in route. The authenticated returning owner keeps Home; a returning signed-out user goes directly to sign-in. First-use is installation preference state, not identification of a new Google user before authentication.
+
+The user approved an isolated visual refinement of the current Google sign-in page, then requested deletion of its language selector and separate app-name text beneath its logo. Login retains its accessible logo, Saudi welcome/supporting text, existing Google selector and document links. Grouped spacing, existing editorial typefaces, semantic colors, safe-area insets and scrolling support small screens without changing authentication. No new sign-up route, identity/provisioning code, server or session behavior was introduced.
+
+StartupLoading now contains only its existing rotating circle and “جارٍ تجهيز بياناتك…” / “Preparing your data…” text. Its decorative image and visible brand name were removed. The single progress label names the preparation message. Existing readiness boundaries, animation cleanup, reduced-motion handling and provider independence remain intact.
+
+The light-theme Start uses `colorTokens.onboarding.start = #2D7264`; other actions and the dark theme retain existing colors. A pending-operation guard prevents duplicate first-launch completion and failed local preference persistence remains retryable. Example transactions never create data.
+
+The earlier uncommitted acknowledgement proposal was removed in full under the user's correction. Legal documents remain explicitly `1.0-draft`; no legally approved policy, global registration-consent enforcement, account-consent record or optional AI/source permission is claimed or created by this UI work.
+
+Verification includes meaningful RED tests before each behavior change. The two-page pass reached35 suites /213 tests plus TypeScript/lint/boundaries; expanded loading/shell verification follows the final user addition. A regression caught duplicate document links in the unused legacy Welcome auth mode; it was fixed by rendering the new footer links only in sign-in mode. Existing startup integration expectations were updated from the deleted brand label to the unchanged preparation message. Independent review found no blockers in both the entry-flow and loading changes.
+
+Final validation passed65 suites /363 tests, TypeScript, targeted ESLint (zero errors), app-shell boundaries (1254 files) and diff checks. No production source changed after this verification.
+
+Two fresh private read-only snapshots of all16 current projections matched exactly:13 transactions,2026-13, accounts, categories and planning records. The APK remains `bd3d7513105cb95244476e604ff11ffc90e05b66dc9d29d3d5f0058b56c366f4` and Metro12652 stays running. No install, restart, logout, login, AI/provider or financial write was used. An earlier installed `masarifi-dev` Welcome navigation probe correctly returned the already authenticated owner Home; first-launch preferences were not reset to force visual acceptance.
+
+The final login/loading components were inspected using isolated source renders, including a390×844 capture and a narrower login width check. Final login has no language buttons or separate name; final loading has zero images, one progress node and only the preparation text. These are source previews, not real native first-use visual acceptance. Private evidence: `.superpowers/sdd/2026-11-01-onboarding-preview/two-page-device/`, source captures and test logs. Raw phone/account data remains outside Git.
+
+CI baseline: a33137ea Staging41289937054 and Backend41289937061 succeeded. Voice41289937058 failed in both synthetic fixture jobs with `APPLICATION_SCHEMA_SOURCE_PIN_CHANGED` against the preceding database.ts change. This UI diff does not modify the database, fixture pins or Voice workflow, and does not bypass or rerun that window. Assess new-head CI separately after push.

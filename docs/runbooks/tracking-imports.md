@@ -20,7 +20,7 @@ documented normalized JSON or UTF-8 CSV format.
    worker and confirm the next claim has a new token and attempt number.
 4. A stale completion must fail with `IMPORT_LEASE_STALE`. Never clear a live
    claim token manually.
-5. For a terminal failed session, use the MFA- and reason-protected Admin retry
+5. For a terminal failed session, use the recent-login- and reason-protected Admin retry
    endpoint with its current version. Reuse the same idempotency key only for an
    identical retry request.
 
@@ -38,7 +38,7 @@ failures as a Storage incident, using only opaque object IDs.
 Disable the affected parser rule for new claims, add a fictional corpus case that
 reproduces the failure, and publish only after every enabled case passes. Roll
 back by activating a previously published immutable version through the Admin
-endpoint with recent MFA, reason, expected rule version, and idempotency key.
+endpoint with recent Clerk login, reason, expected rule version, and idempotency key.
 In-flight items retain their selected version.
 
 ## Review and duplicate backlogs

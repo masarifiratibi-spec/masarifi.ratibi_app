@@ -15,6 +15,7 @@ import { radius } from '@/design-system/tokens';
 type FormFieldVariant = 'text' | 'phone' | 'otp' | 'search' | 'amount';
 
 export interface FormFieldProps extends TextInputProps {
+  inputRef?: React.Ref<TextInput>;
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -25,6 +26,7 @@ export interface FormFieldProps extends TextInputProps {
 }
 
 export function FormField({
+  inputRef,
   label,
   variant = 'text',
   helperText,
@@ -75,6 +77,7 @@ export function FormField({
         </Text>
       ) : null}
       <TextInput
+        ref={inputRef}
         accessibilityLabel={localizedLabel}
         keyboardType={keyboardType}
         placeholderTextColor={theme.colors.textSecondary}

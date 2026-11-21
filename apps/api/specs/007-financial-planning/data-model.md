@@ -27,7 +27,8 @@ the API boundary, and database checks enforce bounded lengths.
 | `expected_day` | `smallint null` | monthly 1..31; weekly/biweekly 0..6; custom null |
 | `custom_interval_days` | `smallint null` | custom 1..366 only |
 | `account_id` | `uuid null` | owned active account, same currency |
-| `automatic_detection_enabled` | `boolean default false` | preference only; no auto authority |
+| `automatic_detection_enabled` | `boolean default false` | opts into linking eligible existing income; never authorizes ledger writes |
+| `automatic_detection_started_at` | `timestamptz null` | server-managed activation boundary; pause/off clears it; legacy preferences require a new save |
 | `status` | `text default 'active'` | `active`, `paused`, `archived` |
 | `deleted_at` | `timestamptz null` | set only when archived/deleted contract applies |
 
@@ -51,6 +52,7 @@ stored on the profile.
 | `status` | `text default 'expected'` | `expected`, `received`, `missed`, `ignored`, `corrected`, `undone` |
 | `operation_id` | `uuid null` | stable client operation reference |
 | `replaces_receipt_id` | `uuid null` | self FK; no cycles |
+| `automatically_detected` | `boolean default false` | identifies automatic links for receipt-only invalidation if the source income is reversed/deleted/changed |
 
 Unique/indexes: `(salary_profile_id,expected_at)` unique; partial
 `transaction_id` unique where status in (`received`,`corrected`);

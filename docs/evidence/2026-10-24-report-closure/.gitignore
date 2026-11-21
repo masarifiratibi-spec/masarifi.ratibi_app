@@ -1,0 +1,24 @@
+# Keep raw exploratory logs locally; version the authoritative bounded receipts.
+*.log
+*.json
+*.tap
+!closure-ledger.json
+!candidate-verification.json
+!native-diagnostic.json
+!merged-release-manifest.json
+!production-bundle-audit.json
+!migration-inventory-refresh.json
+!privacy-scan.json
+!public-material-inventory.json
+!admin_recovery_final_fresh-closure.json
+!admin_recovery_final_upgrade-closure.json
+!admin_recovery_rls_fresh-rls.json
+!admin_recovery_rls_upgrade-rls.json
+!admin_recovery_rls_fresh-baseline-rls.json
+!admin_recovery_rls_upgrade-baseline-rls.json
+!native-compatibility-inspection.json
+!admin_recovery_rls_fresh-restricted-rls.json
+!admin_recovery_rls_upgrade-restricted-rls.json
+!tracking-recovery-profile.json
+!tracking-performance-context.json
+!ci-qualification-42f56aaa.json

@@ -35,10 +35,10 @@ export function useDraftNavigationGuard({
           text: copy.discard,
           style: 'destructive',
           onPress: () =>
-            void Promise.resolve(discard()).then(() => {
+            void Promise.resolve().then(discard).then(() => {
               saved.current = true;
               leave();
-            })
+            }).catch(() => undefined)
         }
       ]);
     },

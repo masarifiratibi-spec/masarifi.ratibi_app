@@ -1,4 +1,5 @@
 import React from 'react';
+import { Redirect } from 'expo-router';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -22,15 +23,13 @@ const { ApplicationSettingsScreen } = require('./ApplicationSettingsScreen') as 
 const { PrivacySettingsScreen } = require('./PrivacySettingsScreen') as { PrivacySettingsScreen: React.ComponentType };
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { SessionListScreen } = require('./SessionListScreen') as { SessionListScreen: React.ComponentType };
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SecurityEventScreen } = require('./SecurityEventScreen') as { SecurityEventScreen: React.ComponentType };
 
 test('owns settings/security routes with thin render-only modules', () => {
   expect(ProfileRoute()).toEqual(<ProfileScreen />);
   expect(ApplicationRoute()).toEqual(<ApplicationSettingsScreen />);
   expect(PrivacyRoute()).toEqual(<PrivacySettingsScreen />);
   expect(SessionsRoute()).toEqual(<SessionListScreen />);
-  expect(EventsRoute()).toEqual(<SecurityEventScreen />);
+  expect(EventsRoute()).toEqual(<Redirect href="/security/settings" />);
   expect(SecuritySettingsRoute).toEqual(expect.any(Function));
 
   [

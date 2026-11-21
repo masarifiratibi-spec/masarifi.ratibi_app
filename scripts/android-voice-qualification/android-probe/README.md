@@ -1,0 +1,177 @@
+# Existing-only private diagnostic: offline review packet
+
+This is a separate real-target reader. Its sources contain no synthetic seeder,
+fixture writer, application getters, network code or device commands. Building an
+APK does not authorize installation or execution. No real target has been queried.
+
+The pinned **historical** target is `com.masarifi.mobile`, archived installed release
+91213b4, versionCode1/versionName0.0.1, API35, APK SHA256
+`0c0dd12035bd22eeb6f45b1597731462b967533cb394a23d3f9430a0d7a78685`.
+Both target and diagnostic must have certificate SHA256
+`fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`.
+The diagnostic package is `com.masarifi.voicequalification.diagnostic`; its only
+entry is `com.masarifi.voicequalification.PrivateJournalDiagnostic` targeting
+`com.masarifi.mobile:voicequalify`. The probe has plain `android.app.Application`,
+no permissions, Activity, provider, receiver or service. It is non-debuggable.
+
+Before returning a plain Application, the instrumentation verifies the exact
+archived target APK hash/certificate/version, the internal diagnostic certificate,
+target UID/process/API, main Application/CoreComponentFactory, four main-process
+providers and every declared component's main-process assignment. It rejects
+splits, shared UIDs, provider collisions, unknown identity and other visible
+same-UID processes. The archived manifest check does not establish current device
+identity. A fresh separately approved observation remains required.
+
+Android supplies instrumentation arguments after `newApplication`. Before any
+store capture, native-reader load or existing-key access, `observedTargetUid` must
+exactly match the fresh approved UID and `approvedProbeSha256` must match the final
+reviewed signed APK. Absent arguments fail closed. A main-loop barrier then checks
+the plain Application, identity and process isolation again. Native UID/inode/mode
+stamps and complete snapshot hashes are checked before and after qualification.
+Only `/data/user/0/com.masarifi.mobile` and `/data/data/com.masarifi.mobile`
+may resolve as the user0 system aliases. The package directory itself must pass
+no-follow native directory/UID checks; package symlinks and other resolutions
+are rejected. The snapshot's own canonical-root/symlink protections remain intact.
+The process survey is a runtime guard, not a guarantee against a future concurrent
+launch; the separately approved execution scope must independently quiesce the
+package and prevent concurrent application/recovery activity.
+
+Only allowlisted owner/legacy/RKStorage/preferences and their sidecars are copied
+into bounded RAM. Existing AndroidKeyStore aliases are read solely for AES-GCM
+decryption; no alias is generated, imported, removed or enumerated. Original
+database pages are never opened by SQLite; committed WAL pages are reconstructed
+in RAM and read by the independent SQLCipher VFS. Any rollback journal, missing
+key, unknown/corrupt/incomplete/unstable state gives `INDETERMINATE`. `BLOCKED`
+retains pending/audio/confirmation counts. A determinate result contains counts,
+public APK/certificate identity and an aggregate fingerprint; no raw owner/session
+IDs, payload, transcript, token, audio path, key or exception cause is exported.
+
+`build-probe.py` performs offline compilation and manifest/APK-entry validation by
+default and emits an **unsigned**, uninstalled artifact. `--sign` additionally
+requires arm64 native inputs, the exact historical target APK, the existing
+internal keystore/password environment name, and a retained successful disposable
+encrypted Android runtime directory. It verifies all42 encrypted cases across
+three unchanged runs, missing-alias/no-creation evidence, the six-effect positive
+control, three startup/network-negative controls, and matching current Java/native
+source hashes before signing. Both native receipts additionally bind the exact
+builder hash, NDK27.1.12297006/API35/ABI target, full compile/link flags, disabled
+test hooks, exact native source set and locked SQLCipher/OpenSSL pins. The entire
+current rehearsal source inventory must also match the successful runtime build.
+`--runtime-android-jar` must supply the official Android35 r02 stub, SHA256
+`4566663c3876e022b4fa4ced8c8697c4ab1688267f090114fd92d027b32e619b`.
+Both builders check Buffer descriptors before D8, then every emitted DEX method
+reference in the Java, javax, Android and XML platform namespaces against this
+actual API35 stub, including inherited interface methods and exact constructors.
+Compiler bootstrap references that D8 desugars are not treated as runtime calls;
+the complete emitted DEX has no method waiver. Signing also requires matching
+runtime-stub and descriptor-checker hashes in the qualified build receipt.
+It verifies the resulting certificate and emits
+source/native/APK hashes in `build-receipt.json`. Password values are never logged.
+
+The final review packet must contain the signed APK and its receipt/manifest,
+exact source commit/hashes, retained encrypted runtime receipt, historical target
+APK hash/certificate and a fresh separately approved identity/UID observation.
+The proposed later scope is narrowly bounded: install only the separate reviewed
+diagnostic package, explicitly quiesce/force-stop only the approved target, start
+only its dedicated instrumentation process, permit existing-key RAM access and
+allowlisted RAM-only classification, capture the sanitized receipt, and stop the
+dedicated process. Starting the target Activity, application main process, target
+providers/services, changing journals/keys, financial actions, deployment and
+Production are outside that scope. Approval must name the exact final APK hash,
+target/device/UID/process and these effects. No such approval is implied here.
+
+Open gates: successful exact-source disposable encrypted Android runtime;
+independent review of this actual-target wrapper; final signed arm64 artifact and
+identity packet; fresh approved installed-target observation; separate exact
+installation/execution approval. A local/CI success is never Redmi acceptance.
+
+The 11 October approved physical attempt installed the diagnostic successfully
+after the human accepted the phone's installation confirmation. Its sole
+instrumentation invocation rejected bootstrap in the dedicated process before
+journal qualification. The original client remains installed and stopped; the
+journal gate is INDETERMINATE. The authorization for that invocation is consumed.
+
+Bootstrap rejection now includes only a closed enum stage (public package
+metadata, APK/certificate, directory ownership, identity policy, process survey,
+or Application class). Original exception messages, causes and private values
+remain suppressed. Every previous identity/startup/store guard remains required.
+The runtime build inventory now binds the actual wrapper source as well as the
+portable reader; this binding does not claim the wrapper has passed on Redmi.
+A changed signed probe requires fresh qualification and a new exact approval.
+API35 can represent a base-only probe's split names as an empty array. The probe
+accepts null or zero-length metadata and still rejects every actual split,
+including malformed nonempty arrays. The exact APK/certificate/UID guards remain.
+
+
+Reader failures now return exactly `verdict=INDETERMINATE` and a closed
+`readerStage` enum. The last entered operation is identified without exporting
+exception text, causes, paths, journal rows, keys, or session values. Stages cover
+binding, main-loop/plain Application checks, identity/process surveys, directory
+stamps, native load, capture, qualification, unchanged verification and snapshot
+close. An operation stage identifies where execution failed, not its underlying
+cause. Existing rejection guards and the success receipt are unchanged.
+
+The versioned host parser at `../parse-private-probe-receipt.py` accepts a stage
+only in an exact two-field failure envelope with finish code 0 and successful
+command exit. Unknown stages, extra fields, conflicting success receipts and
+malformed envelopes fail closed. Legacy verdict-only failures remain supported.
+Disposable Android qualification tests all 24 labels plus a null-stage fallback
+through Bundle/Parcel transport with poisoned pre-existing success/private fields;
+all must be removed. The 42 encrypted store fixtures still run seven times across
+normal, disabled and restored states. Updated signing gates require the stage
+reporting evidence; historical receipts cannot qualify the modified probe.
+
+No changed probe is installed or run on a physical device by these tests. Fresh
+explicit approval remains required for replacement/installation/execution.
+
+
+Internal qualification rejection now carries an optional closed
+`qualificationStage` enum alongside `readerStage=QUALIFICATION`. Only a typed
+failure created by the qualifier can supply this label; arbitrary exception
+messages and causes are never inspected or exported. Labels separate inventory,
+key coverage/decryption, WAL reconstruction, native opening, schema/row validation,
+owner binding, resource cleanup and stability checks. Existing-key provider
+initialization has a separate outer `KEYSTORE_OPEN` stage. Unknown or conflicting
+host envelopes still fail closed; no stage grants permission to skip a guard.
+
+The 16 negative encrypted fixtures require exact internal stage matches on both
+native Linux JNI and disposable Android, while all 42 outcomes and original
+fingerprints remain checked. Android also verifies that the three-field failure
+receipt survives Bundle/Parcel transport without extra fields. No diagnostic
+reader, snapshot, key or database gains a mutation or recovery capability.
+
+
+## Conservative rollback-journal qualification
+
+A present rollback sidecar is no longer rejected solely for existing. The reader
+accepts only an absent journal, a zero-length TRUNCATE result, or a journal with
+at least 28 bytes whose complete 28-byte header is zero (PERSIST commit form).
+This is narrower than the pinned SQLite pager's first-byte hot-journal heuristic.
+Short nonempty headers, partial zeroing, hot headers and every unclassified form
+remain INDETERMINATE at the corresponding rollback stage. No journal contents are
+exported, modified, deleted or replayed; database recovery is never invoked.
+This policy requires the existing quiet-process guard and before/after complete
+snapshot verification. An inactive sidecar does not bypass schema, ownership,
+row classification, key, WAL or native-integrity checks.
+
+The source basis is the checksum-pinned expo-sqlite SQLCipher `sqlite3.c`:
+`zeroJournalHdr()` commits by truncating or zeroing 28 bytes; `hasHotJournal()`
+checks the first byte after its lock checks. See also
+https://www.sqlite.org/lockingv3.html, sections 4.1 and 5.0. This classifier does
+not attempt filesystem locking or recover a hot journal through SQLite.
+
+The complete integration corpus is now 57 cases (the original 42 plus 15).
+Twelve real committed SQLite/SQLCipher TRUNCATE/PERSIST cases cover encrypted
+owners, bound legacy stores and AsyncStorage, each with clear and pending work.
+A disposable writer exits without commit/close after cache spills to leave a real
+hot AsyncStorage journal; it must remain rejected. Short and partially zeroed
+headers are also rejected. Android itself regenerates four committed AsyncStorage
+journals through its SQLite engine inside the synthetic-only seeder. All cases
+run through the actual RAM-only JNI reader seven times across normal, disabled
+and restored package states with identical before/after fingerprints. Updated
+host/build gates require 57 cases, 19 negative internal stages, and four Android
+journal-production cases; earlier evidence cannot qualify this changed reader.
+
+The physical Redmi sidecar has not yet been classified. Its retained result
+proved only sidecar presence. A new physical operation still requires explicit
+approval after this implementation passes disposable Android qualification.

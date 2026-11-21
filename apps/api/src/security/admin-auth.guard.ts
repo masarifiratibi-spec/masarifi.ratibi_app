@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { ClerkAuthGuard, type ClerkPrincipalRequest } from '../identity/clerk-auth.guard';
+import {
+  ClerkAuthGuard,
+  isRecentClerkAuthentication,
+  type ClerkPrincipalRequest,
+} from '../identity/clerk-auth.guard';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { recordPlatformMetric, SECURITY_METRICS } from '../platform/observability/platform-metrics';
 import { PERMISSION_KEYS } from './permission-manifest';
@@ -18,7 +22,7 @@ const canonicalPermissions = new Set<string>(PERMISSION_KEYS);
 
 export interface AdminAccessRequirement {
   permission: string;
-  recentMfa: boolean;
+  recentAuth: boolean;
 }
 
 export interface AdminPrincipalRequest extends ClerkPrincipalRequest {
@@ -27,12 +31,12 @@ export interface AdminPrincipalRequest extends ClerkPrincipalRequest {
 
 export function adminPermission(
   permission: string,
-  options: { recentMfa?: boolean } = {},
+  options: { recentAuth?: boolean } = {},
 ): MethodDecorator & ClassDecorator {
   if (!canonicalPermissions.has(permission)) throw new Error('ADMIN_PERMISSION_INVALID');
   return SetMetadata(ADMIN_ACCESS, {
     permission,
-    recentMfa: options.recentMfa ?? false,
+    recentAuth: options.recentAuth ?? false,
   } satisfies AdminAccessRequirement);
 }
 
@@ -65,13 +69,9 @@ export class AdminAuthGuard implements CanActivate {
     }
     const principal = request.clerkPrincipal;
     if (!principal) throw forbidden('ADMIN_PERMISSION_DENIED');
-    if (requirement.recentMfa) {
+    if (requirement.recentAuth) {
       const maximumAge = this.config.get('MASARIFI_RECENT_AUTH_MAX_AGE_SECONDS');
-      if (
-        principal.mfaAgeSeconds === null ||
-        principal.mfaAgeSeconds === undefined ||
-        principal.mfaAgeSeconds > maximumAge
-      ) {
+      if (!isRecentClerkAuthentication(principal, maximumAge)) {
         throw forbidden('RECENT_AUTH_REQUIRED');
       }
     }

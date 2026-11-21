@@ -1,0 +1,147 @@
+{
+  "preparedAtUtc": "2026-11-06T22:35:31.489465+00:00",
+  "candidateSourceCommit": "00ff4487ed945dafdf7617706726c8a41ce5fce8",
+  "api": {
+    "atUtc": "2026-11-06T22:32:47.618726+00:00",
+    "sourceHead": "00ff4487ed945dafdf7617706726c8a41ce5fce8",
+    "baseImageId": "sha256:c84f05060e320872c600f5a9a5d1ebe43030a4434a3b63974d5e08e09c35a470",
+    "candidateImageId": "sha256:1de049b360a2618af5e019997d35bafafe4bb50d1c1bfbfb96fb2668d65fdd96",
+    "candidateTag": "masarifi-task37-api:00ff4487ed94",
+    "archiveSha256": "5ab0868e32876f896d2e1cdd3b1e66114f9f5ea831c11cf2685e5c058b2f7341",
+    "overlayFilePins": {
+      "Dockerfile": "c73b267b5ed287147672d36f62da0b8f52188725dd1be8819dffe9c5b496081f",
+      "ai/ai.service.js": "02a1338bbc0f8a241425a5d6867b98dafafd7a98516d8ba0d5121cc622bbd9dd",
+      "ai/ai-routing.js": "e658ba32e42a3ed4687560acf276d68a2a42f058331ab1c58933c77cb59253b1"
+    },
+    "changedExecutableFiles": [
+      "ai/ai-routing.js",
+      "ai/ai.service.js"
+    ],
+    "preservedExecutableFiles": 219,
+    "baseLayersPreserved": true,
+    "sameRuntimeImageConfig": true,
+    "isolatedSmoke": {
+      "authoritativeReportTotal": true,
+      "exactMinorCurrency": true,
+      "arabicAndEnglish": true,
+      "noProviderAdmissionForDirectTotal": true,
+      "narrowedContextDoesNotRead": true,
+      "filteredQuestionStillSemantic": true,
+      "foreignOwnerRefused": true,
+      "invalidIdempotencyRefused": true,
+      "noDatabaseOrProviderConnection": true
+    },
+    "allServingContainersUnchanged": true,
+    "servingContainerCount": 31,
+    "servingApiRuntime": {
+      "composeFiles": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml,/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml,/var/tmp/masarifi-task30-artifacts-20261106/approved-execution/compose.api.yml,/var/tmp/masarifi-task33-delete-session-20261106/candidate/approved-execution/compose.api.yml",
+      "composeWorkingDirectory": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal",
+      "composeProject": "masarifi-production-20261105",
+      "environmentSha256": "a2715e6bc1871adc5e25ad5a378ab323d62cea28659222650d76daba2a904aac",
+      "portBindings": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3080"
+          }
+        ]
+      },
+      "networks": [
+        "masarifi-production-20261105_production-core"
+      ],
+      "restartPolicy": {
+        "Name": "unless-stopped",
+        "MaximumRetryCount": 0
+      },
+      "readOnlyRootfs": true,
+      "memory": 805306368,
+      "nanoCpus": 500000000
+    },
+    "artifactRoot": "/var/tmp/masarifi-task37-assistant-direct-20261107/candidate",
+    "activated": false,
+    "prebuiltCandidateReusedAfterFixtureContractCorrection": true,
+    "hostedInputFilePins": [
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/proposal/compose.production.yml",
+        "sha256": "e7a340f43f38652838893ad14234127ba4145fbd5faf9b9472aeab7e86c0d1e5"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/voice-automatic-restore/compose.voice-automatic.yml",
+        "sha256": "2dce5e027413a3e8a0d3654e3baebf3e66c90e317340060d01d1454f17eeb42e"
+      },
+      {
+        "path": "/var/tmp/masarifi-production-artifacts-20261105-97e66588/config/api.env",
+        "sha256": "d107135be36fd10e90ab220347b7e548a0e4e88c2b0ecfca2752800ee0fe9389"
+      }
+    ],
+    "expectedCurrentContainerId": "0af822702cf12217821f1cfd4a1c14b0053b1f19200272b26f75ed42168cf1ce",
+    "expectedCurrentStartedAt": "2026-11-06T20:49:06.882316968Z",
+    "baseTag": "masarifi-task37-api-base:c84f05060e32"
+  },
+  "android": {
+    "apkPath": "C:\\mrc1105\\artifacts\\task37-customer-127-native.apk",
+    "apkSha256": "de174540b4be95b3b549e71c174e4d8d891bf165cdff41f5a22aa35c4e293b1f",
+    "apkBytes": 49518982,
+    "package": "com.masarifi.mobile",
+    "versionName": "1.0.0",
+    "versionCode": 127,
+    "minSdk": 24,
+    "hermesSha256": "2f557decf45daf8a57831f08cdc6412c4d81b7921ebdbb855e0afacc01237baf",
+    "alignment16Kb": true,
+    "nonDebuggable": true
+  },
+  "androidSignerSha256": "886a58e9f93168683e858355ff3bba4ad89ee19cbdfc3babe6e490eb7f421e57",
+  "unchangedNativeLibraries": 23,
+  "changedAndRetainedSource": {
+    "apps/api/src/ai/ai.service.ts": "89881316a2690e9c5401c49fce3adc000437d7a074164792f8822eae8b706ebc",
+    "apps/api/src/ai/ai-routing.ts": "dcf4c781e601bf91dba406651c1078a23439a0b9b84d899fc05955e62ea511be",
+    "apps/api/test/unit/ai/assistant-agent-admission.spec.ts": "debd17d2daaa58a2e180ca3e145fc465ef6f1918b8ade98d90bdf952833c7df7",
+    "apps/mobile/src/features/assistant/AssistantHomeScreen.tsx": "2d184bdf8cddf2e765af17f5ee5caa9d6a020d3cad8fe073062ebf8f1fbcd91d",
+    "apps/mobile/src/features/assistant/AssistantJourney.test.tsx": "e5a23b63a2bde8329ff26fe13f7aae8452987300151281e257b1f7d01e3479f0"
+  },
+  "packageFiles": [
+    {
+      "path": ".gitattributes",
+      "sha256": "722a33dd87465d7ee0eb4f44eb97d7e0c581159c15e18e7ceba701ffa5967dda"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "c73b267b5ed287147672d36f62da0b8f52188725dd1be8819dffe9c5b496081f"
+    },
+    {
+      "path": "compose.api.yml",
+      "sha256": "f03befca5d016301ca6ad1cb2c82668c9fd68ba355ed13dc103ebdb9c2d1d8ed"
+    },
+    {
+      "path": "rollback-api.yml",
+      "sha256": "dabfc1e779114b8f3efd785fb8d98ce14ec8f4aeed7ec59199b7fb3b1afee78d"
+    },
+    {
+      "path": "activate-api.py",
+      "sha256": "cf91a4ffc03650854457a54d73ef8f560db3b2195c591fa1c6194052a5455969"
+    },
+    {
+      "path": "deployment-runbook.md",
+      "sha256": "c07716ce92faf0ffe1c0c1c00271d5a0014bffc4d831d62c55a5129933bb7a35"
+    }
+  ],
+  "reviewReport": "docs/releases/2026-11-07-assistant-direct-totals.md",
+  "validation": {
+    "apiCases": 147,
+    "mobileCases": 47,
+    "uniqueCases": 194,
+    "suites": 7,
+    "genuineRedCases": 8,
+    "bothTypesScopedLintCompileExit0": true,
+    "isolatedSmokePassed": true
+  },
+  "approvalRequiredBeforeApiAndPrimaryAppExecution": true,
+  "apiActivated": false,
+  "primary127Installed": false,
+  "sameCurrentOwnerSessionDraftsPendingWorkRequired": true,
+  "deletedOriginalOwnerMustNotBeRecreated": true,
+  "noEnvironmentSchemaModelWorkerDnsTlsChange": true,
+  "apkCleanupNotStarted": true,
+  "actualPhoneSpeedAcceptancePending": true,
+  "productionReady": false
+}

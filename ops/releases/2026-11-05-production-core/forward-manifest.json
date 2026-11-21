@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "97e66588b2b516ae8c67e285f8439be591439dd6",
+  "databaseServerVersion": "17.6",
+  "qualifyingHistoryRows": 174,
+  "historicalMigrationHistoryMustRemainUnchanged": true,
+  "executionOrder": [
+    {
+      "file": "01_guarded_missing_helpers.sql",
+      "sha256": "8544f0d66e294ccaea96ef53739895ed2e594c6c1891804a5ea9a4db2db56e6a",
+      "origin": "task5-retained-helper-input.sql"
+    },
+    {
+      "file": "02_guarded_existing_domain_corrections.sql",
+      "sha256": "5f881bd55f0ca13bb432d4bd909983cad75882f89ddefe2cf8b4d4b60a89e23d",
+      "origin": "20261105073730_guarded_existing_domain_corrections.sql"
+    },
+    {
+      "file": "03_guarded_tracking_owner_context_chain.sql",
+      "sha256": "4384cf690d7cf990853e17c851333c3424b044bfc7339abfd67af936fbaed1f9",
+      "origin": "20261105074648_guarded_tracking_owner_context_chain.sql"
+    },
+    {
+      "file": "04_guarded_remaining_semantic_compatibility.sql",
+      "sha256": "32e5f07df9eed0854cc68181a2e810fcd8ec3a4343b2fbc8f18fbc68f2eb2f36",
+      "origin": "20261105080805_guarded_remaining_semantic_compatibility.sql"
+    },
+    {
+      "file": "05_guarded_production_installation_consent.sql",
+      "sha256": "e389c869d5d243b4e5663718362651ffe48fdd85bca22e567dcd01996c76cd13",
+      "origin": "task5-current-production-consent-guarded.sql"
+    }
+  ],
+  "dispatchApprovalRequired": true,
+  "hostedDispatched": false,
+  "canonicalMigrationFilesUnchanged": true
+}

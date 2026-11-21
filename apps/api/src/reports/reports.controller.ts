@@ -238,6 +238,13 @@ for (const route of REPORT_ROUTES) {
   );
   if (route.operation === 'getReportSummary') {
     ApiQuery({
+      name: 'accountIds',
+      required: false,
+      description:
+        'Comma-separated owned account UUIDs (1–100); omission includes all accounts. Transfer principal is excluded; fees and refunds follow their postings.',
+      schema: { type: 'string', minLength: 36, maxLength: 3699 },
+    })(ReportsController.prototype, route.operation, descriptor);
+    ApiQuery({
       name: 'anchorDate',
       required: false,
       schema: { type: 'string', format: 'date' },

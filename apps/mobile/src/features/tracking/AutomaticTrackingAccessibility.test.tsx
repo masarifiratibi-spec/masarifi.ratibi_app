@@ -27,11 +27,13 @@ describe('automatic tracking accessibility', () => {
       ]
     ]);
 
+    const switches = screen.getAllByRole('switch');
+    expect(switches.length).toBeGreaterThan(0);
+    switches.forEach((control) =>
+      expect(control.props.accessibilityLabel).toBeTruthy()
+    );
     expect(
-      await screen.findByLabelText(translate('tracking.status.mode'))
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText(translate('tracking.howItWorks.detection'))
+      screen.getByRole('button', { name: translate('tracking.setup.title') })
     ).toBeOnTheScreen();
     await waitFor(() => expect(screen.queryByText('999')).toBeNull());
   });

@@ -1,3 +1,4 @@
+import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
 import { z } from 'zod';
 
@@ -6,7 +7,7 @@ import {
   type Category,
   type CategoryInput
 } from '@/domain/core-finance';
-import { createDefaultCategories } from '@/domain/core-finance-seeds';
+import { createDefaultCategories } from '@/domain/default-categories';
 import { CoreFinanceRepository } from '@/storage/core-finance-repository';
 import {
   openDatabase,
@@ -21,7 +22,11 @@ import {
   HttpError,
   requestJson
 } from './http-client';
-import { captureLiveClerkIdentity } from './auth-service';
+import {
+  captureLiveClerkIdentity,
+  captureLiveClerkOwner,
+  captureLiveReadClerkIdentity
+} from './auth-service';
 
 const categorySchema = z
   .object({
@@ -117,9 +122,19 @@ export function createLiveCategoryLifecycleService({
   if (token) configureMobileApiTokenProvider(token);
   const serverToLocal = new Map<string, string>();
   const localToServer = new Map<string, string>();
+  let categoryIdsReady = false;
+  let mappingOwner: CategoryOwner['identity'] | undefined;
+  let preparation:
+    | {
+        owner: Awaited<ReturnType<typeof captureLiveClerkOwner>>;
+        promise: Promise<void>;
+      }
+    | undefined;
   const localCategories = new CoreFinanceRepository();
-  const captureOwner = async (): Promise<CategoryOwner> => {
-    const identity = await captureLiveClerkIdentity();
+  const captureOwner = async (readOnly = false): Promise<CategoryOwner> => {
+    const identity = await (readOnly
+      ? captureLiveReadClerkIdentity()
+      : captureLiveClerkIdentity());
     const database = await openDatabase(identity.userId);
     await identity.assertCurrent();
     return { database, identity };
@@ -168,9 +183,13 @@ export function createLiveCategoryLifecycleService({
       owner?: CategoryOwner;
     } = {}
   ) => {
+    assertBenchmarkRead(method);
     const operationId = options.operationId ?? randomUUID();
     const identity =
-      options.owner?.identity ?? (await captureLiveClerkIdentity());
+      options.owner?.identity ??
+      (await (method === 'GET'
+        ? captureLiveReadClerkIdentity()
+        : captureLiveClerkIdentity()));
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
@@ -195,11 +214,64 @@ export function createLiveCategoryLifecycleService({
   ];
 
   const service = {
+    async prepareCategoryIds(): Promise<void> {
+      if (categoryIdsReady) {
+        try {
+          await mappingOwner!.assertCurrent();
+          return;
+        } catch {
+          categoryIdsReady = false;
+          serverToLocal.clear();
+          localToServer.clear();
+        }
+      }
+      const owner = await captureLiveClerkOwner();
+      const previous = preparation;
+      if (previous) {
+        try {
+          await previous.owner.assertCurrent();
+        } catch {
+          if (preparation === previous) preparation = undefined;
+        }
+      }
+      if (!preparation) {
+        const pending = {
+          owner,
+          promise: service.listCategories(true).then(() => undefined)
+        };
+        preparation = pending;
+        void pending.promise
+          .finally(() => {
+            if (preparation === pending) preparation = undefined;
+          })
+          .catch(() => undefined);
+      }
+      await preparation.promise;
+      await owner.assertCurrent();
+    },
+    serverCategoryId(id: string): string {
+      const mapped = localToServer.get(id) ?? id;
+      if (!z.string().uuid().safeParse(mapped).success)
+        throw new HttpError('validation_error', 400, 'CATEGORY_INVALID');
+      return mapped;
+    },
+    localCategoryId(id: string): string {
+      return serverToLocal.get(id) ?? id;
+    },
     async listCategories(
       includeArchived = false,
       capturedOwner?: CategoryOwner
     ): Promise<VersionedCategory[]> {
-      const owner = capturedOwner ?? (await captureOwner());
+      const owner = capturedOwner ?? (await captureOwner(true));
+      if (mappingOwner) {
+        try {
+          await mappingOwner.assertCurrent();
+        } catch {
+          categoryIdsReady = false;
+          serverToLocal.clear();
+          localToServer.clear();
+        }
+      }
       const { database } = owner;
       const categories: unknown[] = [];
       const cursors = new Set<string>();
@@ -224,6 +296,7 @@ export function createLiveCategoryLifecycleService({
       await owner.identity.assertCurrent();
       await runExclusiveDatabaseTransaction(database, async () => {
         rememberSystemCategories(categories);
+        mappingOwner = owner.identity;
       });
       const favorites = new Map(defaultFavorites);
       for (const category of await localCategories.readPersistedCategories(
@@ -236,15 +309,19 @@ export function createLiveCategoryLifecycleService({
       );
       if (includeArchived)
         await localCategories.persistCategories(mapped, database);
+      await owner.identity.assertCurrent();
+      mappingOwner = owner.identity;
+      categoryIdsReady = true;
       return mapped;
     },
     async createCategory(
       input: CategoryInput,
       operationId = randomUUID()
     ): Promise<VersionedCategory> {
+      assertBenchmarkRead('POST');
       const value = categoryInputSchema.parse(input);
       const owner = await captureOwner();
-      if (value.parentId !== null) await service.listCategories(true, owner);
+      if (value.parentId !== null) await service.prepareCategoryIds();
       await owner.identity.assertCurrent();
       const category = mapCategory(
         await send('POST', '/api/v1/categories', categorySchema, {
@@ -271,11 +348,12 @@ export function createLiveCategoryLifecycleService({
       expectedVersion: number,
       operationId = randomUUID()
     ): Promise<VersionedCategory> {
+      assertBenchmarkRead('POST');
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
         throw new HttpError('validation_error', 400);
       const value = categoryInputSchema.parse(input);
       const owner = await captureOwner();
-      if (value.parentId !== null) await service.listCategories(true, owner);
+      if (value.parentId !== null) await service.prepareCategoryIds();
       await owner.identity.assertCurrent();
       const category = mapCategory(
         await send(
@@ -316,6 +394,7 @@ export function createLiveCategoryLifecycleService({
       preview: CategoryUsagePreview,
       operationId = randomUUID()
     ) {
+      assertBenchmarkRead('POST');
       const encoded = encodeURIComponent(serverId(id));
       if (status === 'archived')
         await send(
@@ -339,6 +418,7 @@ export function createLiveCategoryLifecycleService({
       preview: CategoryUsagePreview,
       operationId = randomUUID()
     ) {
+      assertBenchmarkRead('POST');
       const merged = await send(
         'POST',
         `/api/v1/categories/${encodeURIComponent(serverId(sourceId))}/merge`,
@@ -358,6 +438,9 @@ export function createLiveCategoryLifecycleService({
       };
     }
   } satisfies CategoryLifecycleService & {
+    prepareCategoryIds(): Promise<void>;
+    serverCategoryId(id: string): string;
+    localCategoryId(id: string): string;
     listCategories(includeArchived?: boolean): Promise<VersionedCategory[]>;
     createCategory(input: CategoryInput): Promise<VersionedCategory>;
     updateCategory(

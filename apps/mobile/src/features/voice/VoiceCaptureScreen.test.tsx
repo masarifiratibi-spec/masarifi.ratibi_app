@@ -15,8 +15,13 @@ jest.mock('@/features/core-finance/core-finance-queries', () => ({
 }));
 jest.mock('@/services/platform/voice-recorder-service', () => ({
   voiceRecorderService: {
-    getPermission: jest.fn(), requestPermission: jest.fn(),
-    openSettings: jest.fn(), start: jest.fn(), stop: jest.fn(), cancel: jest.fn(), remove: jest.fn()
+    getPermission: jest.fn(),
+    requestPermission: jest.fn(),
+    openSettings: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    cancel: jest.fn(),
+    remove: jest.fn()
   }
 }));
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
@@ -25,16 +30,18 @@ beforeEach(() => {
   jest.clearAllMocks();
   useVoiceCaptureStore.getState().reset();
   (voiceRecorderService.getPermission as jest.Mock).mockResolvedValue('denied');
+  (voiceRecorderService.cancel as jest.Mock).mockResolvedValue(undefined);
+  (voiceRecorderService.remove as jest.Mock).mockResolvedValue(undefined);
 });
 
 it('explains the mock and keeps manual capture available', async () => {
   renderWithProviders(<VoiceCaptureScreen />);
-  await waitFor(() => expect(screen.getByText(translate('voice.permission.title'))).toBeTruthy());
+  await waitFor(() =>
+    expect(screen.getByText(translate('voice.permission.title'))).toBeTruthy()
+  );
   expect(screen.getByText(translate('voice.demoNotice'))).toBeTruthy();
   expect(screen.getByText(translate('voice.action.manual'))).toBeTruthy();
-  expect(
-    screen.queryByText(translate('voice.scenario.clear_en'))
-  ).toBeNull();
+  expect(screen.queryByText(translate('voice.scenario.clear_en'))).toBeNull();
 });
 
 it('shows settings only for a permanently denied microphone', async () => {
@@ -64,7 +71,7 @@ it('keeps manual entry available when voice capture is unavailable', async () =>
 });
 
 it('starts recording once when automatic capture becomes ready', async () => {
-  (voiceRecorderService.getPermission as jest.Mock).mockResolvedValueOnce(
+  (voiceRecorderService.getPermission as jest.Mock).mockResolvedValue(
     'granted'
   );
   (voiceRecorderService.start as jest.Mock).mockResolvedValueOnce({

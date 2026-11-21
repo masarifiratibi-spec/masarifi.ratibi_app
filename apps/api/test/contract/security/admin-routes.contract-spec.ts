@@ -22,17 +22,32 @@ describe('Phase 03 route authorization contract', () => {
         >
       >;
     };
-    const expected = Object.entries(contract.paths).flatMap(([path, methods]) =>
-      Object.entries(methods)
-        .filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method))
-        .map(([method, operation]) => ({
-          method: method.toUpperCase(),
-          path: path.slice(1).replaceAll(/{([^}]+)}/g, ':$1'),
-          operation: operation.operationId,
-          status: Number(Object.keys(operation.responses).find((status) => status.startsWith('2'))),
-          permission: operation['x-permission'],
-        })),
-    );
+    // Customer lifecycle and financial reset have their own controllers; the
+    // generated OpenAPI composition gate covers their routes together.
+    const financialResetPaths = new Set([
+      '/api/v1/me/financial-reset',
+      '/api/v1/me/financial-reset/state',
+      '/api/v1/me/financial-reset/{id}',
+    ]);
+    const expected = Object.entries(contract.paths)
+      .filter(([path]) => !path.startsWith('/api/v1/admin/users') && !financialResetPaths.has(path))
+      .flatMap(([path, methods]) =>
+        Object.entries(methods)
+          .filter(
+            ([method, operation]) =>
+              ['get', 'post', 'patch', 'delete'].includes(method) &&
+              operation.operationId !== 'getDeletionCompletion',
+          )
+          .map(([method, operation]) => ({
+            method: method.toUpperCase(),
+            path: path.slice(1).replaceAll(/{([^}]+)}/g, ':$1'),
+            operation: operation.operationId,
+            status: Number(
+              Object.keys(operation.responses).find((status) => status.startsWith('2')),
+            ),
+            permission: operation['x-permission'],
+          })),
+      );
     expect(SECURITY_ROUTES).toHaveLength(46);
     expect(
       SECURITY_ROUTES.map(({ method, path, operation, status, permission }) => ({

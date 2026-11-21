@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "enabled": false,
+  "scope": "staging",
+  "sessionId": null,
+  "workerId": null,
+  "leaseSeconds": 60,
+  "maxClaims": 6,
+  "pollMs": 5000,
+  "deadlineAt": null,
+  "phases": [
+    "QA-T03-WARM-20261025",
+    null,
+    "QA-T03-WARM-FINAL-20261025",
+    null,
+    "QA-T03-COLD-20261025",
+    null
+  ],
+  "target": {
+    "project": "qcffvfbpzvpwcwxwjyro",
+    "database": "postgres",
+    "user": "postgres",
+    "sessionUser": "postgres",
+    "workerSessionUser": "masarifi_worker_login",
+    "address": null,
+    "port": 5432,
+    "systemIdentifier": "7678071634733212629",
+    "apiSessionUser": "masarifi_api_login"
+  },
+  "host": {
+    "image": "ghcr.io/masarifiratibi-spec/masarifi-backend@sha256:a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383",
+    "apiContainerId": null,
+    "generalWorkerContainerId": null
+  },
+  "configuration": {
+    "project": "qcffvfbpzvpwcwxwjyro",
+    "normal": {
+      "login": "masarifi_worker_login",
+      "host": null,
+      "envSha256": "968bd7f73bd3936cdd40aad8c099479df8bb40c668d27cc148d6f6bb244afb29",
+      "overlay": {
+        "MASARIFI_PROCESS_KIND": "worker"
+      }
+    },
+    "bootstrap": {
+      "login": "postgres",
+      "host": null,
+      "envSha256": "75b5d7fe85405c7b0d1bc257f1c5cc3b884c6f3ec3a8f736223a24ac0669acf1"
+    },
+    "tls": {
+      "extraCaCertsPath": "/etc/ssl/certs/masarifi-database-ca.crt",
+      "caSha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7"
+    },
+    "api": {
+      "login": "masarifi_api_login",
+      "host": null,
+      "envSha256": "06506707b7a28c3817fb6afb577a1c9ab84ba11e39962755bd9d612e1984a077",
+      "sourcePath": "/etc/masarifi/qa-t03-api.env",
+      "sourceProvenance": {
+        "kind": "unused-isolated-qa-api-configuration-created",
+        "originalPath": "/etc/masarifi/api.env",
+        "originalSha256": "abdb3bec68ec0489a06e3f5eaac682bf76679f6c1730210a7c7b49cde7085bef",
+        "binding": "isolated-qa-only"
+      },
+      "overlay": {
+        "MASARIFI_PROCESS_KIND": "api"
+      },
+      "normalizedPolicySha256": "7db9f7b77be52ce6265d835b52d655ddee6e6aff3bee7026c1f7a3b5d821ca44"
+    }
+  },
+  "initialAnchors": {
+    "mutationSqlJsonSha256": "643b212d83f975429241e5453a55f39316db6ce6b0653009a6db0d9327d32a89",
+    "resourceSqlJsonSha256": "c53473f4c8d7baa74686aaa9b15fa6feea88c03ac7da83a806427054ed14aa0e"
+  },
+  "binding": {
+    "userId": null,
+    "deviceId": null,
+    "resourceId": null,
+    "initialVersion": 1,
+    "initialRow": null,
+    "resource": null,
+    "originalEffective": null
+  },
+  "provenance": {
+    "sources": {},
+    "imageSha256": "a4f6c1ad71621b645d09880e943b5c15d27a8d8a4bd038ef4913fd3aebf3d383",
+    "reviewedArtifactSha256": null,
+    "catalogSha256": null,
+    "claimSha256": null,
+    "completeSha256": null,
+    "retrySha256": null
+  }
+}

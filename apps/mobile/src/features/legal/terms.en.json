@@ -1,0 +1,132 @@
+{
+  "title": "Terms & Conditions",
+  "sections": [
+    {
+      "id": "operator",
+      "title": "1. Operator and scope",
+      "paragraphs": [
+        "These terms describe use of مصاريفي وراتبي (Masarifi & Ratibi) to manage personal financial records. For privacy or support enquiries, contact masarifi.ratibi@gmail.com.",
+        "The application may provide accounts and card records, transactions, categories, balances, budgets, salary planning, obligations, recurring records, savings goals, reports, optional tracking, voice input, a financial assistant and support. Availability depends on the platform, application version, permissions and enabled services. This document does not enable hidden, deferred or unavailable features."
+      ]
+    },
+    {
+      "id": "eligibility",
+      "title": "2. Eligibility and registration",
+      "paragraphs": [
+        "Eligibility to use the service is subject to applicable law. Use by minors requires caregiver consent and safeguards where required. A Google account or birthday field alone does not establish age or caregiver consent.",
+        "The current public mobile sign-in uses Google through Clerk. Authentication, account creation, recovery and verification require the relevant online services. A returning authorized owner may have locally restored access to saved information subject to the application’s security checks. A local session is not proof of a newly verified remote session.",
+        "Viewing the terms or signing in does not by itself provide separate consent for tracking, microphone access or AI processing. Manage these choices through the controls for each feature."
+      ]
+    },
+    {
+      "id": "security",
+      "title": "3. Account security and authorized use",
+      "paragraphs": [
+        "Use only an account you are authorized to use and, where required for a minor, the approved guardian process. Keep your Google account and device secure; do not share authentication codes, session credentials or device unlock methods. Report suspected unauthorized access to masarifi.ratibi@gmail.com without sending passwords, authentication codes or unnecessary financial information.",
+        "App lock, hidden balances and operating-system security reduce particular risks but cannot guarantee protection on an unlocked, compromised or shared device. Logout, local-data removal and account deletion have different effects. Follow the application’s pending-work and confirmation messages before switching accounts or removing information."
+      ]
+    },
+    {
+      "id": "records",
+      "title": "4. Financial records and accuracy",
+      "paragraphs": [
+        "You are responsible for reviewing amounts, currencies, accounts, dates, categories, opening balances and imported or generated suggestions before relying on them. Balances and reports reflect the available records and selected periods and filters. An incomplete import, pending change, incorrect opening balance or missing transaction can change the result.",
+        "A card-payment, transfer or obligation-payment entry records activity within Masarifi. Recording an entry does not itself instruct a bank to move money or discharge a real debt. Check the actual bank, card issuer or creditor record separately. Do not submit banking passwords, PINs, card security codes or unnecessary full payment-card details in notes, prompts or support messages."
+      ]
+    },
+    {
+      "id": "offline",
+      "title": "5. Offline use and synchronization",
+      "paragraphs": [
+        "Supported screens can display the latest valid information saved for the authorized owner on that device. Saved information may be older than the server or another device. A last-updated, pending, failed, review or conflict state must be considered when interpreting it. No local data means that the application cannot supply a missing record merely because it is offline.",
+        "Only actions expressly supported by the existing offline workflow can be saved locally. Other actions require an online service, fresh authorization or a current server preview. Local saving or a queued operation does not mean server confirmation. Reconnection can refresh reads and reconcile admitted work under the existing synchronization rules. Follow recovery guidance instead of submitting the same financial instruction again when an outcome is uncertain."
+      ]
+    },
+    {
+      "id": "tracking",
+      "title": "6. Optional SMS and notification tracking",
+      "paragraphs": [
+        "On supported Android devices, separately enabled tracking can inspect SMS or notification content to identify financial activity. Permissions can expose message text, senders, source application and timestamps. Detection and duplicate matching can be wrong. Review uncertain items and the resulting financial records.",
+        "When you authorize an automatic tracking mode, qualifying activity may be recorded according to its rules without asking for confirmation on every item; other items may require review. This records information and does not authorize bank payments. You can change the source settings or revoke operating-system access. Revocation stops permitted future access but does not itself delete previously stored records. Availability and background timing depend on the device and system restrictions."
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "7. AI assistant and voice input",
+      "paragraphs": [
+        "Online AI features can process the questions, authorized financial context, conversation history or audio submitted for that feature using external AI services. Use the feature-specific consent and review controls. Do not provide information about other people unless you have the necessary authority and a lawful reason.",
+        "AI responses and voice transcription may be inaccurate, incomplete or unsuitable. Suggestions are not professional banking, investment, credit, tax, accounting or legal advice and do not promise a financial outcome. Review the relevant records and obtain qualified advice when needed. A generated proposal, preview or answer is not a completed financial action. Only a valid confirmed operation can change records under the applicable workflow. New remote AI processing cannot complete without connectivity."
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "8. Reports, exports and sharing",
+      "paragraphs": [
+        "Reports depend on their stated period, timezone, currency, account selection and data coverage. A local report and a server-generated export can differ if their synchronization state or scope differs. Preserve the associated status and filters when using or sharing a report.",
+        "Downloaded PDF reports, privacy exports, screenshots and files shared with another application can contain sensitive financial information. You control the recipient and destination you select. Files copied outside Masarifi and recipients' copies are not necessarily removed by logout, link expiry or account deletion. Use a secure destination and remove copies you no longer need."
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "9. Privacy and permissions",
+      "paragraphs": [
+        "Read the separate Privacy Policy for data categories, processing purposes, storage, service providers and retention and transfer limits. General consent is not blanket authorization for optional tracking, AI, microphone access, notifications or marketing.",
+        "Processing is subject to the lawful basis and permissions required for each purpose. The Privacy Policy does not waive your statutory data-protection rights."
+      ]
+    },
+    {
+      "id": "conduct",
+      "title": "10. Your content and acceptable use",
+      "paragraphs": [
+        "You retain your rights in the information and content you submit. You authorize processing necessary to deliver the features you request, subject to the Privacy Policy and applicable law. This does not permit unrelated publication or sale of your financial content.",
+        "Do not access another person's account, evade security controls, submit malicious files, misuse support, impersonate others or use the service unlawfully. Respect third-party privacy and intellectual-property rights. The operator retains rights in its application, branding and original materials, subject to third-party and open-source licenses. Any restriction remains subject to rights that applicable law does not allow to be excluded."
+      ]
+    },
+    {
+      "id": "thirdparties",
+      "title": "11. Third-party services and availability",
+      "paragraphs": [
+        "Authentication, cloud storage, hosting, notifications and AI rely on external services described in the Privacy Policy. Their availability and your separate relationship with them may affect Masarifi. An interruption may delay authentication, synchronization, reports, deliveries or AI processing.",
+        "Features and software may need maintenance or security updates. Uninterrupted operation, background capture, permanent storage and recovery are not guaranteed."
+      ]
+    },
+    {
+      "id": "charges",
+      "title": "12. Charges and future paid features",
+      "paragraphs": [
+        "These terms alone do not create a subscription, payment obligation or automatic renewal. Any paid offer must disclose its price, currency, taxes, renewal, cancellation and refund conditions before purchase. Connectivity and third-party service charges imposed by your providers may apply."
+      ]
+    },
+    {
+      "id": "ending",
+      "title": "13. Ending use, suspension and deletion",
+      "paragraphs": [
+        "You may stop using the application. Where available, use its verified account-deletion process for server-side deletion and the appropriate local-data controls for device copies. Uninstalling the application, logging out or revoking Google access alone does not establish that every server record, backup or exported file has been deleted. Keep records you lawfully need before confirming irreversible removal.",
+        "Access may be restricted where reasonably necessary for security, abuse prevention or legal obligations, with explanation and a way to seek review where legally permitted. Any data-retention exception must have a lawful purpose."
+      ]
+    },
+    {
+      "id": "liability",
+      "title": "14. Service limitations and responsibility",
+      "paragraphs": [
+        "Use Masarifi as an organizational aid and verify material financial decisions independently. Software defects, unavailable services, incorrect source information and AI errors can affect results. The application is not a substitute for bank statements, statutory accounts or professional advice.",
+        "These terms do not establish a monetary liability cap or broad indemnity. They do not exclude rights, remedies or liability that applicable law does not permit to be excluded, including mandatory responsibility for fraud."
+      ]
+    },
+    {
+      "id": "law",
+      "title": "15. Applicable law, complaints and language",
+      "paragraphs": [
+        "Applicable mandatory rights and privacy, child-safety and consumer requirements remain preserved. These terms do not impose a foreign jurisdiction, mandatory arbitration or waiver of legally protected rights.",
+        "The terms are available in Arabic and English. For enquiries or complaints, contact masarifi.ratibi@gmail.com. This contact channel does not restrict your right to approach a competent authority or court."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "16. Changes to the terms",
+      "paragraphs": [
+        "Material changes should be communicated before they take effect where required, and renewed consent obtained where applicable law requires it. Changes do not establish acceptance retroactively."
+      ]
+    }
+  ]
+}

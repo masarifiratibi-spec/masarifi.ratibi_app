@@ -1,3 +1,5 @@
+import nodeCrypto from 'node:crypto';
+
 import { HttpException } from '@nestjs/common';
 
 import { IdentityService } from '../../../src/identity/identity.service';
@@ -59,6 +61,8 @@ describe('device and push exposure boundaries', () => {
   });
 
   it('fails closed when ciphertext or AAD is changed', () => {
+    // This IV makes the ciphertext end in A, reproducing the old no-op tampering fixture.
+    jest.spyOn(nodeCrypto, 'randomBytes').mockImplementation((size) => Buffer.alloc(size, 13));
     const crypto = new PushTokenCrypto(Buffer.alloc(32, 1), [
       { id: 'active', key: Buffer.alloc(32, 2) },
     ]);
@@ -68,7 +72,11 @@ describe('device and push exposure boundaries', () => {
       deviceId: '4e971c69-210a-4c21-b535-5ad290d057df',
     };
     const envelope = crypto.encrypt('push-token-fixture-value', aad);
-    expect(() => crypto.decrypt(`${envelope.slice(0, -1)}A`, aad)).toThrow('PUSH_CRYPTO_INVALID');
+    const parts = envelope.split('.');
+    const ciphertext = Buffer.from(parts[4] ?? '', 'base64url');
+    ciphertext.writeUInt8(ciphertext.readUInt8(0) ^ 1, 0);
+    parts[4] = ciphertext.toString('base64url');
+    expect(() => crypto.decrypt(parts.join('.'), aad)).toThrow('PUSH_CRYPTO_INVALID');
     expect(() => crypto.decrypt(envelope, { ...aad, provider: 'expo' })).toThrow(
       'PUSH_CRYPTO_INVALID',
     );

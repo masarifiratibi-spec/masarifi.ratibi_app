@@ -1,0 +1,16 @@
+[Unit]
+Description=Approved Redmi Voice scoped closure watchdog
+After=docker.service
+StartLimitIntervalSec=300s
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=%SCOPE_ROOT%
+ExecStart=/usr/bin/python3 %SCOPE_ROOT%/redmi-voice-rollback-watchdog.py monitor
+ExecStopPost=/usr/bin/python3 %SCOPE_ROOT%/redmi-voice-rollback-watchdog.py rollback
+Restart=on-failure
+RestartSec=1s
+TimeoutStartSec=30s
+TimeoutStopSec=180s

@@ -1,0 +1,143 @@
+"""Critical adapter failure paths with all host effects replaced by fixtures."""
+from copy import deepcopy
+import json
+import unittest
+from unittest.mock import patch
+
+import host_release as host
+from runtime_plan import NAMES
+
+
+class HostControls(unittest.TestCase):
+    def test_blocking_command_timeout_cannot_exceed_remaining_trial_window(self):
+        with patch.object(host.time, "monotonic", return_value=10), \
+             patch.object(host.subprocess, "run") as command:
+            command.return_value.returncode = 0
+            command.return_value.stdout = b"fixture"
+            self.assertEqual(host.run(["fixture"], timeout=30, deadline=11), b"fixture")
+            self.assertEqual(command.call_args.kwargs["timeout"], 1)
+            command.reset_mock()
+            with self.assertRaisesRegex(ValueError, "ACCEPTANCE_WINDOW_CLOSED"):
+                host.run(["fixture"], deadline=9)
+            command.assert_not_called()
+
+    def test_baseline_reads_the_complete_collected_receipt_and_requires_stability(self):
+        receipt = dict(collectorStatus="passed", stableBeforeAfter=True,
+                       counts=dict(targetRunning=30, frozenSourceAllStoppedRestartNo=True),
+                       collected={"inventorySha256": "fixture"})
+        manifest = {"admission": {"receiptPath": "/fixture", "canonicalSha256": "a" * 64}}
+        with patch.object(host, "private_json", return_value=receipt):
+            self.assertEqual(host.baseline(manifest), receipt["collected"])
+            receipt["stableBeforeAfter"] = False
+            with self.assertRaisesRegex(ValueError, "LIVE_COLLECTION_NOT_ADMITTED"):
+                host.baseline(manifest)
+
+    def test_current_inventory_drift_stops_staging_before_any_host_change(self):
+        captured = {k: "same" for k in ("originals", "plannedPayloadSha256", "inventorySha256", "mountFiles", "nginx", "master")}
+        fresh = dict(captured, inventorySha256="changed")
+        with patch.object(host, "baseline", return_value=captured), \
+             patch.object(host.admission, "collect", return_value=fresh), \
+             patch.object(host, "production_ready") as readiness, patch.object(host, "run") as command:
+            with self.assertRaisesRegex(ValueError, "FRESH_HOST_ADMISSION_DRIFT"):
+                host.stage({"routing": {"protectedPrimarySha256": "a" * 64}}, "b" * 64)
+            readiness.assert_not_called()
+            command.assert_not_called()
+
+    def test_blocked_packet_cannot_dispatch_even_with_correct_manifest_hash(self):
+        raw = json.dumps({"status": "blocked", "blockers": ["fixture"]}).encode()
+        digest = host.files.sha(raw)
+        with patch.object(host.os, "name", "posix"), patch.object(host.os, "geteuid", return_value=0, create=True), \
+             patch.object(host.files, "exact_file", return_value=raw), \
+             patch.object(host, "run") as command:
+            with self.assertRaisesRegex(ValueError, "PACKET_BLOCKED"):
+                host.admitted(digest)
+            command.assert_not_called()
+
+    def fixture(self, running=True):
+        return {"Id": "candidate", "Name": "/" + NAMES["api"], "Image": "sha256:" + "2" * 64,
+                "State": {"Running": running}, "HostConfig": {"RestartPolicy": {"Name": "unless-stopped", "MaximumRetryCount": 0}},
+                "Config": {"Labels": {"masarifi.dashboard.base-container": "original"}}}
+
+    def test_stopped_trial_still_has_automatic_restart_disabled(self):
+        row = self.fixture(running=False)
+        calls = []
+        def command(argv, **_):
+            calls.append(argv)
+            row["HostConfig"]["RestartPolicy"]["Name"] = "no"
+        with patch.object(host, "inspect", return_value=row), patch.object(host, "run", side_effect=command), \
+             patch.object(host, "baseline", return_value={"originals": {"api": {"imageId": row["Image"], "containerId": "original"}}}):
+            host.quiesce({}, {"candidates": {"api": "candidate"}})
+        self.assertEqual(calls, [["docker", "update", "--restart", "no", "candidate"]])
+
+    def test_foreign_candidate_is_not_stopped_or_reconfigured(self):
+        row = self.fixture()
+        row["Config"]["Labels"]["masarifi.dashboard.base-container"] = "foreign"
+        with patch.object(host, "inspect", return_value=row), patch.object(host, "run") as command, \
+             patch.object(host, "baseline", return_value={"originals": {"api": {"imageId": row["Image"], "containerId": "original"}}}):
+            with self.assertRaisesRegex(ValueError, "REFUSE_FOREIGN_CANDIDATE"):
+                host.quiesce({}, {"candidates": {"api": "candidate"}})
+            command.assert_not_called()
+
+    def test_unknown_stop_result_has_no_success_acknowledgment(self):
+        row = self.fixture()
+        row["HostConfig"]["RestartPolicy"]["Name"] = "no"
+        with patch.object(host, "inspect", return_value=row), patch.object(host, "run"), \
+             patch.object(host, "baseline", return_value={"originals": {"api": {"imageId": row["Image"], "containerId": "original"}}}):
+            with self.assertRaisesRegex(ValueError, "CANDIDATE_NOT_QUIESCED"):
+                host.quiesce({}, {"candidates": {"api": "candidate"}})
+
+    def test_durable_acceptance_is_written_before_persistent_routing(self):
+        events = []
+        t = dict(ticket="t", packetSha256="a" * 64, deadline=100, candidates={"api": "candidate"})
+        before = self.fixture()
+        before["State"]["StartedAt"] = "same-start"
+        before["RestartCount"] = 0
+        before["Mounts"] = []
+        before["HostConfig"]["RestartPolicy"]["Name"] = "no"
+        after = deepcopy(before)
+        after["HostConfig"]["RestartPolicy"]["Name"] = "unless-stopped"
+        with patch.object(host, "private_json", return_value={"switchedUnix": 1}), \
+             patch.object(host.acceptance_receipt, "verify"), patch.object(host.Adapter, "healthy"), \
+             patch.object(host.time, "monotonic", return_value=0), \
+             patch.object(host, "inspect", side_effect=[before, after]), \
+             patch.object(host, "run", side_effect=lambda *a, **kw: events.append("policy")), \
+             patch.object(host.files, "emit", side_effect=lambda path, value: events.append(path.name)), \
+             patch.object(host.files, "finalize_trial", side_effect=OSError("interrupted")):
+            with self.assertRaises(OSError):
+                host.Adapter({}, t).finalize("e" * 64)
+        self.assertEqual(events, ["commit.json", "policy", "accepted-configs.json"])
+
+    def test_slow_update_or_abort_during_update_prevents_routing_persistence(self):
+        for failure in ("deadline", "abort"):
+            with self.subTest(failure=failure):
+                events, clock, aborted = [], [78], [False]
+                t = dict(ticket="t", packetSha256="a" * 64, deadline=100, candidates={"api": "candidate"})
+                before = self.fixture()
+                before.update(Mounts=[], RestartCount=0)
+                before["State"]["StartedAt"] = "start"
+                before["HostConfig"]["RestartPolicy"]["Name"] = "no"
+                after = deepcopy(before)
+                after["HostConfig"]["RestartPolicy"]["Name"] = "unless-stopped"
+                def command(*args, **kwargs):
+                    events.append("policy")
+                    clock[0] += 25 if failure == "deadline" else 1
+                    aborted[0] = failure == "abort"
+                def check(_):
+                    if clock[0] >= t["deadline"] or aborted[0]:
+                        raise ValueError("ACCEPTANCE_WINDOW_CLOSED")
+                with patch.object(host, "private_json", return_value={"switchedUnix": 1}), \
+                     patch.object(host.acceptance_receipt, "verify"), patch.object(host.Adapter, "healthy"), \
+                     patch.object(host.time, "monotonic", side_effect=lambda: clock[0]), \
+                     patch.object(host.files, "require_acceptance_open", side_effect=check, create=True), \
+                     patch.object(host, "inspect", side_effect=[before, after]), \
+                     patch.object(host, "run", side_effect=command), \
+                     patch.object(host.files, "emit", side_effect=lambda path, value: events.append(path.name)), \
+                     patch.object(host.files, "finalize_trial") as persist:
+                    with self.assertRaisesRegex(ValueError, "ACCEPTANCE_WINDOW_CLOSED"):
+                        host.Adapter({}, t).finalize("e" * 64)
+                    persist.assert_not_called()
+                self.assertNotIn("accepted-configs.json", events)
+
+
+if __name__ == "__main__":
+    unittest.main()

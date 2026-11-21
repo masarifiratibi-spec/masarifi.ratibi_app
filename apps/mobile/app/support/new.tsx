@@ -1,18 +1,21 @@
 import React from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
-import { SupportFormScreen, type SupportFormMode } from '@/features/support/SupportFormScreen';
+import type { SupportFormMode } from '@/features/support/SupportFormScreen';
 import type { SupportDraftInput } from '@/domain/support';
 import { supportContextSchema } from '@/domain/support';
-import { isFixtureModeEnabled } from '@/config/demo-mode';
+import { supportService } from '@/services/engagement-service';
 import { BackendUnavailableState } from '@/features/shell/BackendUnavailableState';
 import { translate } from '@/localization/i18n';
 
 export default function NewSupportRoute() {
   const params = useLocalSearchParams();
-  if (!isFixtureModeEnabled())
+  if (supportService.metadata.availability !== 'available')
     return <BackendUnavailableState title={translate('support.backendUnavailable')} />;
   const mode = modeFrom(params.mode);
+  const { SupportFormScreen } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    require('@/features/support/SupportFormScreen') as typeof import('@/features/support/SupportFormScreen');
   return <SupportFormScreen mode={mode} context={contextFrom(params.context, mode)} />;
 }
 

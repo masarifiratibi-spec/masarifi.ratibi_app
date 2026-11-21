@@ -1,0 +1,21 @@
+{
+  "taskId": "T01",
+  "reviewerModel": "gpt-6-astra",
+  "reasoningEffort": "high",
+  "specCompliance": "APPROVE",
+  "taskQuality": "APPROVE",
+  "reviewScope": "admission only; no mobile-functionality/hosted/release acceptance",
+  "independentChecks": {
+    "originalDirtyHashes": "12/12",
+    "otherStartHashes": "23/23",
+    "artifactHashes": "9/9",
+    "reportReferences": 69,
+    "acceptanceUnits": 88,
+    "clientIds": 62,
+    "taskGates": 29,
+    "unmappedOwners": 0,
+    "adbIdentity": "confirmed read-only"
+  },
+  "blockingFindings": [],
+  "reviewedAtUtc": "2026-10-25T10:27:10.941314+00:00"
+}

@@ -43,9 +43,6 @@ export function Toggle({
     outputRange: [0, 20]
   });
 
-  const activeTrackBg = theme.colors.interactions?.primary ?? colorTokens.raw["103F37"];
-  const inactiveTrackBg =
-    theme.colors.surfaceMuted === colorTokens.raw["202B27"] ? colorTokens.raw["2C3934"] : colorTokens.raw["DDE5E1"];
 
   const isInteractive = Boolean(onValueChange && !disabled);
 
@@ -70,7 +67,7 @@ export function Toggle({
           styles.toggleTrack,
           styles.physicalLtr,
           {
-            backgroundColor: value ? activeTrackBg : inactiveTrackBg
+            backgroundColor: value ? theme.colors.interactions.primary : theme.colors.borders.default
           }
         ]}
       >
@@ -79,6 +76,7 @@ export function Toggle({
             styles.toggleThumb,
             styles.physicalLtr,
             {
+              backgroundColor: value ? theme.colors.content.inverse : theme.colors.content.secondary,
               transform: [{ translateX }]
             }
           ]}
@@ -303,7 +301,7 @@ const styles = StyleSheet.create({
   toggleThumb: {
     position: 'absolute',
     top: 3,
-    left: 3,
+    start: 3,
     width: 24,
     height: 24,
     borderRadius: 12,
