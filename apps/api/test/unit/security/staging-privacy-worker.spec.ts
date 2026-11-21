@@ -1,4 +1,28 @@
-import { stagingPrivacyScope } from '../../../src/staging-privacy-worker';
+import { runScopedPrivacyPass, stagingPrivacyScope } from '../../../src/staging-privacy-worker';
+
+test('scoped privacy probes every tick and passes work to the original handlers in order', async () => {
+  const calls: string[] = [];
+  const query = jest
+    .fn()
+    .mockResolvedValueOnce({ rows: [{ ready: false }] })
+    .mockResolvedValueOnce({ rows: [{ ready: true }] })
+    .mockRejectedValueOnce(new Error('probe unavailable'));
+  const worker = {
+    runDeletionForOwner: async (owner: string) => {
+      calls.push('delete ' + owner);
+    },
+  };
+  const reset = { run: async (owner?: string | null) => calls.push('reset ' + owner) };
+  const owner = 'user_Disposable123';
+  const tick = () => runScopedPrivacyPass({ query }, worker, reset, owner);
+  await tick();
+  expect(calls).toEqual([]);
+  await tick();
+  expect(calls).toEqual(['delete ' + owner, 'reset ' + owner]);
+  await expect(tick()).rejects.toThrow('probe unavailable');
+  expect(query).toHaveBeenCalledTimes(3);
+  expect(query).toHaveBeenCalledWith(expect.any(String), [owner]);
+});
 
 const valid = {
   MASARIFI_PROCESS_KIND: 'worker' as const,

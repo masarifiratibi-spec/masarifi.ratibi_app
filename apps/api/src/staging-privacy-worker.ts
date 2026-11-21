@@ -11,6 +11,7 @@ import { PlatformConfigService } from './platform/config/platform-config.service
 import type { PlatformEnvironment } from './platform/config/environment.types';
 import { validateEnvironment } from './platform/config/environment.schema';
 import { GracefulShutdown } from './platform/observability/graceful-shutdown';
+import { PoolService } from './platform/database/pool.service';
 import { PlatformLogger } from './platform/observability/platform-logger';
 import { workerErrorFields } from './platform/observability/worker-error';
 import { FinancialResetWorker } from './security/financial-reset.worker';
@@ -48,6 +49,21 @@ export function stagingPrivacyScope(
   };
 }
 
+export async function runScopedPrivacyPass(
+  database: Pick<PoolService, 'query'>,
+  worker: Pick<SecurityWorkerService, 'runDeletionForOwner'>,
+  resetWorker: Pick<FinancialResetWorker, 'run'>,
+  owner: string,
+): Promise<void> {
+  const { rows } = await database.query<{ ready: boolean }>(
+    'select private.scoped_privacy_work_pending($1) as ready',
+    [owner],
+  );
+  if (rows[0]?.ready === false) return;
+  await worker.runDeletionForOwner(owner);
+  await resetWorker.run(owner);
+}
+
 export async function bootstrapStagingPrivacyWorker(): Promise<INestApplicationContext> {
   // Reject an unscoped or non-Staging process before constructing database clients.
   const scope = stagingPrivacyScope(validateEnvironment(process.env));
@@ -62,6 +78,7 @@ export async function bootstrapStagingPrivacyWorker(): Promise<INestApplicationC
   const config = app.get(PlatformConfigService);
   const worker = app.get(SecurityWorkerService);
   const resetWorker = app.get(FinancialResetWorker);
+  const database = app.get(PoolService);
   const logger = new PlatformLogger(undefined, config.get('MASARIFI_LOG_LEVEL'));
   app.useLogger(logger);
   const pulsePath = join(tmpdir(), 'staging-privacy-health.json');
@@ -82,9 +99,7 @@ export async function bootstrapStagingPrivacyWorker(): Promise<INestApplicationC
   };
   const tick = () => {
     if (stopping || inFlight) return;
-    inFlight = worker
-      .runDeletionForOwner(scope.owner)
-      .then(() => resetWorker.run(scope.owner))
+    inFlight = runScopedPrivacyPass(database, worker, resetWorker, scope.owner)
       .then(() => {
         pulse('checked');
       })
