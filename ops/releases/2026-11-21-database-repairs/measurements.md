@@ -113,3 +113,11 @@ On 21 November 2026 the primary container's Docker healthcheck switched from TCP
 Fast shutdown began at 20:43:13.350 UTC. During replacement a dependent worker restarted and received the database's private address, delaying startup. The address was released, the primary reclaimed it, and the dependent worker was restarted and verified healthy. The first verified SQL response was at 20:44:03.129 UTC, 49.8 seconds after initiating shutdown. Two of the five scheduler workers restarted once; all five re-established their notification sessions.
 
 In the 120 seconds before shutdown, the database logged 118 local HBA rejections (59 TLS and 59 non-TLS). From 20:44:20.562 to 20:46:20.562 UTC, 59 distinct Docker probes completed, all with exit code zero; all 25 health-state observations reported healthy. The database logged zero HBA rejections in that window. The qualified provisioning command on both existing branches now explicitly selects the same socket healthcheck for future primary containers.
+
+### Primary private-network IP allocation
+
+On 2026-11-21 (UTC), the internal data bridge retained subnet `172.16.3.0/24` and gateway `172.16.3.1`. Docker now allocates dynamic endpoints from `172.16.3.128/25`. PostgreSQL and storage reattached at explicit addresses `172.16.3.4` and `172.16.3.3`, respectively, with the same process start times. The 32 dynamic endpoints received unique addresses from `.128` through `.159`. All 34 active endpoints returned and all 30 previously stopped containers remained stopped.
+
+The primary API readiness probe sampled about twice per second. It first failed at 20:56:54.806 UTC and first succeeded again at 20:57:15.777 UTC, a measured interruption of 20.97 seconds. From the start of maintenance through the topology and Docker health checks, 67.23 seconds elapsed. All 24 affected containers with Docker health checks were healthy and all five scheduling workers re-established database notification listeners.
+
+A burst of readiness probes returned seven HTTP 503s when API pools reached the separate API role's 20-connection limit. Follow-up probes spaced five seconds apart returned HTTP 200 for all 18 endpoints including storage (20:58:51–21:00:17 UTC). At 21:00:26 UTC, no client mutations or sync retry runs had occurred since the observation baseline of 16:32:55 UTC.
