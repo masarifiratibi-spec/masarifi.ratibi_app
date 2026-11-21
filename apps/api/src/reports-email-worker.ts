@@ -7,6 +7,7 @@ import { GracefulShutdown } from './platform/observability/graceful-shutdown';
 import { PlatformLogger } from './platform/observability/platform-logger';
 import { workerErrorFields } from './platform/observability/worker-error';
 import { ReportsWorkerModule } from './reports/reports.module';
+import { RequestedEmailPoll } from './reports/requested-email-poll';
 import { ReportsWorker, validateRequestedPdfEmailScope } from './reports/reports.worker';
 
 @Module({ imports: [PlatformConfigModule, ReportsWorkerModule] })
@@ -30,11 +31,19 @@ export async function bootstrapReportsEmailWorker(acceptedAfter: string) {
   app.useLogger(logger);
   const config = app.get(PlatformConfigService);
   const worker = app.get(ReportsWorker);
-  const lifecycle: { timer?: NodeJS.Timeout; closing?: Promise<void> } = {};
+  const lifecycle: { closing?: Promise<void> } = {};
+  const poller = new RequestedEmailPoll(
+    config.getRequired('DATABASE_URL'),
+    config.getRequired('MASARIFI_REPORT_POLL_MS'),
+    () => worker.runRequestedPdfEmailsOnce(acceptedAfter),
+    (event, error) => {
+      logger.error(event, workerErrorFields(error));
+    },
+  );
   const stopping = new AbortController();
   const close = () => {
     stopping.abort();
-    if (lifecycle.timer) clearInterval(lifecycle.timer);
+    poller.stop();
     lifecycle.closing ??= (async () => {
       const shutdown = new GracefulShutdown(config.getRequired('MASARIFI_SHUTDOWN_TIMEOUT_MS'));
       const { timedOut } = await shutdown.shutdown(() => worker.stop());
@@ -52,7 +61,7 @@ export async function bootstrapReportsEmailWorker(acceptedAfter: string) {
   process.once('SIGTERM', onStop);
   app.get(RequestedPdfEmailWorkerModule).registerCleanup(() => {
     stopping.abort();
-    if (lifecycle.timer) clearInterval(lifecycle.timer);
+    poller.stop();
     process.removeListener('SIGTERM', onStop);
   });
   try {
@@ -67,11 +76,7 @@ export async function bootstrapReportsEmailWorker(acceptedAfter: string) {
     await lifecycle.closing;
     return app;
   }
-  lifecycle.timer = setInterval(() => {
-    void worker.runRequestedPdfEmailsOnce(acceptedAfter).catch((error: unknown) => {
-      logger.error('REPORT_EMAIL_POLL_FAILED', workerErrorFields(error));
-    });
-  }, config.getRequired('MASARIFI_REPORT_POLL_MS'));
+  poller.start();
   logger.info('REPORT_EMAIL_WORKER_READY', {
     context: 'RequestedPdfEmailWorker',
     processKind: 'worker',
