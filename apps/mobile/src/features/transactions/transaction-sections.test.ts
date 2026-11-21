@@ -7,6 +7,24 @@ import {
 const at = (day: number) => new Date(2026, 7, day, 12).getTime();
 const now = at(19);
 
+it('groups a bank entry from just before local midnight under yesterday in the selected timezone', () => {
+  const current = Date.parse('2026-11-21T08:30:00Z');
+  const entry = makeTransaction(1, {
+    occurredAt: Date.parse('2026-11-21T07:55:00Z')
+  });
+  expect(
+    buildTransactionSections(
+      [entry],
+      current,
+      'sunday',
+      'America/Los_Angeles'
+    )[0].key
+  ).toBe('yesterday');
+  expect(
+    buildTransactionSections([entry], current, 'sunday', 'Asia/Riyadh')[0].key
+  ).toBe('today');
+});
+
 it.each([
   ['saturday', 19, 'today'],
   ['saturday', 18, 'yesterday'],

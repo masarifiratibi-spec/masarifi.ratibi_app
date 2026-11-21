@@ -1,4 +1,9 @@
 import type { Transaction } from '@/domain/core-finance';
+import {
+  addLocalDays,
+  localDateInTimeZone,
+  localDateTimeInstant
+} from '@/domain/financial-period';
 
 export type TransactionPeriodKey =
   'today' | 'yesterday' | 'lastWeek' | 'earlier';
@@ -16,17 +21,21 @@ const periodOrder: TransactionPeriodKey[] = [
 export function transactionPeriodKey(
   timestamp: number,
   now: number,
-  _firstDayOfWeek: FirstDayOfWeek
+  _firstDayOfWeek: FirstDayOfWeek,
+  timeZone?: string
 ): TransactionPeriodKey {
-  return relativePeriod(timestamp, dayBoundaries(now));
+  return relativePeriod(timestamp, dayBoundaries(now, timeZone));
 }
 
-function dayBoundaries(now: number) {
-  const today = startOfDay(now);
+function dayBoundaries(
+  now: number,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+) {
+  const today = localDateInTimeZone(now, timeZone);
   return {
-    today: today.getTime(),
-    yesterday: shiftDays(today, -1).getTime(),
-    lastWeek: shiftDays(today, -7).getTime()
+    today: localDateTimeInstant(today, timeZone),
+    yesterday: localDateTimeInstant(addLocalDays(today, -1), timeZone),
+    lastWeek: localDateTimeInstant(addLocalDays(today, -7), timeZone)
   };
 }
 
@@ -43,9 +52,10 @@ function relativePeriod(
 export function buildTransactionSections(
   transactions: Transaction[],
   now: number,
-  _firstDayOfWeek: FirstDayOfWeek
+  _firstDayOfWeek: FirstDayOfWeek,
+  timeZone?: string
 ) {
-  const boundaries = dayBoundaries(now);
+  const boundaries = dayBoundaries(now, timeZone);
   const groups: Record<TransactionPeriodKey, Transaction[]> = {
     today: [],
     yesterday: [],
@@ -75,13 +85,4 @@ function withGroupedPositions(items: Transaction[]) {
           ? 'last'
           : 'middle') as TransactionGroupedPosition
   }));
-}
-
-function startOfDay(timestamp: number) {
-  const date = new Date(timestamp);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function shiftDays(date: Date, days: number) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
