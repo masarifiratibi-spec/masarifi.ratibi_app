@@ -31,6 +31,13 @@ def main():
     assert not subprocess.run(['docker', 'container', 'inspect', NAME], capture_output=True).returncode == 0, 'Container already exists'
     before = {c['Id']: (c['Image'], c['State']['StartedAt']) for c in json.loads(run('docker', 'inspect', *run('docker', 'ps', '-q').decode().split()))}
     RECEIPTS.mkdir(mode=0o700, exist_ok=True)
+    if subprocess.run(['docker', 'network', 'inspect', NETWORK], capture_output=True).returncode:
+        run('docker', 'network', 'create', '--internal', '--label', 'masarifi.scope=selfhost',
+            '--subnet', '172.16.3.0/24', '--gateway', '172.16.3.1', '--ip-range', '172.16.3.128/25', NETWORK)
+    network = json.loads(run('docker', 'network', 'inspect', NETWORK))[0]
+    assert network['Internal'] and network.get('Labels', {}).get('masarifi.scope') == 'selfhost'
+    assert any(pool.get('Subnet') == '172.16.3.0/24' and pool.get('IPRange') == '172.16.3.128/25'
+               and pool.get('Gateway') == '172.16.3.1' for pool in network['IPAM']['Config']), 'Unexpected private network address pool'
     DATA.mkdir(mode=0o700, parents=True)
     assert DATA.resolve() == DATA and not DATA.is_symlink()
     os.chown(DATA, 100, 101)
@@ -39,12 +46,8 @@ def main():
         '--entrypoint=initdb', IMAGE, '-D', '/var/lib/postgresql/data',
         '--username=supabase_admin', '--auth-local=trust', '--auth-host=reject',
         '--encoding=UTF8', '--locale-provider=icu', '--icu-locale=en-US', '--locale=en_US.UTF-8')
-    if subprocess.run(['docker', 'network', 'inspect', NETWORK], capture_output=True).returncode:
-        run('docker', 'network', 'create', '--internal', '--label', 'masarifi.scope=selfhost', NETWORK)
-    network = json.loads(run('docker', 'network', 'inspect', NETWORK))[0]
-    assert network['Internal'] and network.get('Labels', {}).get('masarifi.scope') == 'selfhost'
-    health_args = ['--health-cmd', 'pg_isready -U postgres -h /tmp'] if QUALIFIED else []
-    run('docker', 'run', '--detach', '--name', NAME, '--network', NETWORK, *health_args,
+    primary_args = ['--ip', '172.16.3.4', '--health-cmd', 'pg_isready -U postgres -h /tmp'] if QUALIFIED else []
+    run('docker', 'run', '--detach', '--name', NAME, '--network', NETWORK, *primary_args,
         '--user=100:101', '--read-only', '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m',
         '--cap-drop=ALL', '--security-opt=no-new-privileges:true', '--pids-limit=128',
         '--memory=768m', '--cpus=1', '--shm-size=128m', '--mount', mount,
