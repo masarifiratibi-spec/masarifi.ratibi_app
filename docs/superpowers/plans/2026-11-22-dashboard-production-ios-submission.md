@@ -1,0 +1,39 @@
+# Masarifi Dashboard Production and iOS Submission
+
+Approved by the owner on 22 November 2026 (Riyadh), followed by an explicit request to implement.
+
+## Goal and authority
+
+Deploy https://admin.masarifiratibi.com, qualify com.masarifi.mobile on iPhone/TestFlight, and submit the exact tested build to Apple Review with manual release. Existing users and financial data must survive. No new features, subscriptions, Android distribution or marketing redesign.
+
+Backups are explicitly deferred until after deployment and submission. The one-hour recovery target is unverified and is NOT a gate for code, deployment, TestFlight or submission. Do not configure or buy backup services in this release.
+
+Orchestrator/reviewer: GPT-6 Astra. Dedicated implementation chat: GPT-6.2 Astra, High. Use the existing E:/Masarifi-iOS branch iOS and D:/Masarifi-integration-2026-10-10 branch codex/voice-promoted-operating-2026-10-13. No new branch/worktree, broad staging/reset, or overwriting unrelated dirty changes. One writer per checkout and one deployment owner. Main chat: 01a2000f-fc99-7cf2-a000-4c020717c863.
+
+Use Superpowers writing-plans/executing-plans, systematic-debugging, test-driven-development, requesting-code-review and verification-before-completion. Owner's persistent-chat and existing-branch instructions override defaults. Every task records base/head, scoped files, commands/results, artifacts/deployment status and remaining limitations. Review major milestones, not every small edit. Free build capacity first; no automatic purchases.
+
+## Tasks
+
+- [ ] T01 Orchestrator: reconcile latest iOS/dashboard/database handoffs; capture source and dirty-state baseline and live patches; create the implementation chat; check signing, free-build and device feasibility. Done: unambiguous ownership and baseline.
+- [ ] T02 Implementer: reconcile reviewed shared dashboard, monitoring, report-isolation, readiness, Apple-revocation and Shortcuts changes between existing branches. Preserve iOS behavior, Android compatibility and deployed overlays. Diagnose relevant CI failures. Done: candidate manifest with separate app/API/admin commits, lockfiles, migrations, host overrides and dirty exclusions. Gate A: Astra baseline/contracts review.
+- [ ] T03 Implementer: remove automatic iOS text-AI consent acceptance and retry; connect existing consent UI for first/follow-up/suggested questions. Require versioned owner-scoped iOS acknowledgement; historic server consent alone is insufficient. Preserve refusal/withdrawal on retries, restart and owner changes; retain separate voice gate. Reuse public consent endpoints. No global policy change breaking installed Android clients. Done: no question transmission without explicit current consent, covered by regressions.
+- [ ] T04 Implementer with orchestrator runtime checks: qualify Apple grant capture/owner match/legacy reauthorization/revoke retry/deletion. Preserve deployed keys. Correct AR/EN Shortcuts privacy, local queue, fields and disablement; reconcile public/in-app policy with live providers. Fresh dependency audit and actual bundle reachability, targeted repairs only. Done: automated qualification and assigned physical/provider gates. Gate B: Astra iOS correctness/privacy review.
+- [ ] T05 Implementer: production dashboard build with production API, existing live Clerk, live mode and mocks off; route-to-endpoint/permission/worker/data matrix. Include necessary backend routes, preserve disabled billing. Production-only metric roster and honest stale/partial/unavailable states. Verify reports/storage/queue isolation; diagnose unhealthy QA before accepting its evidence. Done: build, routes, hashes, authenticated acceptance checklist and application rollback packet.
+- [ ] T06 Orchestrator with implementer scripts: DNS/TLS/Nginx/Clerk origins and redirects/API CORS for admin.masarifiratibi.com. Preserve live Clerk even if hostname contains staging. Budget actual DB logins across processes and rollout overlap. Qualify readiness patch on current runtime, stagger fleet checks. Isolate QA databases/queues/storage/outbound deliveries. Prepare prior-artifact/routing rollback without reverting current data. Gate C: Astra production packet review; backup explicitly excluded.
+- [ ] T07 Orchestrator after Gate C: activate reviewed dashboard/API and domain. Verify TLS/login/roles/real data/core actions/401/403 and mobile continuity; queues, retries, storage and delayed jobs. Observe >=30 minutes and relevant worker cycle. Roll back application/routing if acceptance fails. Done: accepted production dashboard, no critical regression.
+- [ ] T08 Orchestrator in parallel: confirm App Store Connect app/team/version/access. AR/EN metadata, URLs, rating, countries and required declarations. App Privacy accurately covers identity/finance/audio/AI/diagnostics/Shortcuts. Resolve SQLCipher encryption/export declaration from final binary. Dedicated independent reviewer login with synthetic data; separate deletion account. Preserve free download/deferred subscriptions. Reviewer access gates submission, not building.
+- [ ] T09 Implementer builds, orchestrator uploads/tests: freeze source/config, build ios-app-store using free capacity. Inspect signatures, entitlements, build number, URLs, privacy manifests and current SDK requirement. Upload exact candidate, complete processing/TestFlight acceptance, capture real screenshots with synthetic data. Historical Ad Hoc/unsigned evidence is insufficient.
+- [ ] T10 Orchestrator after T07-T09 and release blockers: final manifest/CI/device/legal/reviewer review, resolve critical/important findings, submit exact tested build with manual release, verify submission status (normally Waiting for Review). Approval/public release are separate outcomes. Backups do not block submission.
+- [ ] T11 DEFERRED until T10: discuss recovery simply, inspect existing Hostinger protection, evaluate one-hour target, propose one costed alternative if needed. Separate owner-agreed plan; no retroactive release gate.
+
+## Tests and interfaces
+
+No new public API is planned for consent. Preserve existing mobile/API and financial contracts. Release manifest binds each source commit, artifact hash, dependency lock, migrations, resolved nonsecret runtime inputs, host overlay hashes and scoped exclusions. Material post-acceptance changes require affected requalification.
+
+Dashboard: production without mocks, AR/EN desktop/mobile, auth/401/403/server roles, all route/API coverage, metrics and retry/pending states. Identity: Google/Apple, cancel/cold-session/account-switch, reviewer login, legacy grant refresh. Privacy: accept/refuse/withdraw/stale/owner-switch text and voice; real Apple revocation and deletion only on disposable accounts. Finance: balances/income/expense/transfers/budgets/reports/offline idempotency. Shortcuts: AR/EN/multi-account/ambiguous/duplicates/offline/authoritative balances/private notifications. Native: install/upgrade/Face ID success-cancel-failure/cold launch/resume/white-screen/denied permissions. Operations: concurrent readiness/dependency503/fleet connection budget/isolation/delayed jobs/application rollback.
+
+Sequence T01 -> T02 -> Gate A -> T03/T04/T05 (T08 parallel) -> Gates B/C -> T07/T09 -> T10. Shared-file work is sequential. Each task has focused regression checks; final candidate receives complete release-relevant checks. Skipped/blocked tests are not passes.
+
+## Review focus
+
+Consent must not revive after withdrawal or owner change. Host patch reconciliation must not erase newer production fixes. Report cleanup must use the correct store and cannot treat wrong-store404 as deletion proof. DB health checks must not starve real requests. Final signed artifact/metadata must match tested source and actual providers; neither old device evidence nor green mocks establishes readiness.
