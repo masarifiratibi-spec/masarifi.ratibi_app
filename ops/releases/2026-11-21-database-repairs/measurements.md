@@ -87,3 +87,21 @@ The local verifier is verify-scheduler-wake.cjs. From apps/api, preload ts-node/
 On 21 November 2026, from 20:09:23.874016 to 20:10:40.612768 UTC (76.739 seconds), the existing worker-scoped claim statement gained 383 calls and 316.608 ms of SQL execution time. The PostgreSQL statistics reset timestamp was identical at both endpoints. The outbox publisher completed eight scheduled runs and no other scheduled job started in that interval. The deadline migration was absent.
 
 For the hour ending at the same timestamp, all 360 scheduled outbox runs succeeded. Each interval's pickup lateness was measured as the actual gap between consecutive scheduled claims minus the configured ten seconds. Across 359 intervals, median lateness was 11.8 ms, P95 was 16.3 ms and the maximum was 24.3 ms. For the seven intervals wholly within the shorter sample, P95 was 17.2 ms. Use the same interval definition and include the sample size when reporting post-release latency. These figures measure the scheduler and do not measure end-user delivery time.
+
+### Operating rollout of scoped scheduler deadlines
+
+On 21 November 2026 the primary database recorded migration 20261121200500 once. During the first runtime rollout, three LISTEN sessions consumed the remaining slots on the shared worker login, and the fourth worker could not connect. The original workers were restored. At 20:25:51 UTC, the operator-approved limit for masarifi_worker_login changed from 20 to 25. Existing staged containers were activated one at a time using SSH, preserving scopes, mounts and the forward-publisher cutoff. Each worker passed its own LISTEN and deadline-claim check. The final check found all five replacements running with zero restarts, all five prior containers stopped, five listeners and 21 worker-login sessions.
+
+| Production metric | Before | After |
+| --- | ---: | ---: |
+| Matched SQL observation window (seconds) | 76.739 | 76.708 |
+| Scoped claim calls | 383 | 34 |
+| Aggregate SQL execution time (ms) | 316.608 | 125.662 |
+| Mean SQL execution time per call (ms) | 0.827 | 3.696 |
+| Outbox pickup lateness P95 (ms), separate five-minute windows | 15.92 | 7.64 |
+| Successful scheduled outbox runs / total | 29 / 29 | 30 / 30 |
+| Consecutive intervals contributing to P95 | 28 | 29 |
+
+The matched SQL windows began at 20:09:23.874 and 20:26:42.789 UTC. pg_stat_statements had the same reset timestamp at every snapshot. The new call calculates the next deadline as well as claiming work. Total claim execution time fell 60.3% and call count fell 91.1%. The five-minute post-release window recorded 127 deadline calls, zero calls using the previous scoped query and 338.947 ms total deadline-call execution time.
+
+The five-minute outbox windows ended at 20:20:47.366 and 20:31:42.784 UTC. Lateness is the gap between consecutive scheduled claims minus the ten-second schedule. Across equal 6-minute-14-second windows around the login-limit change, the database logged 26 worker capacity refusals before and zero after. Each window also contained 362 HBA access-rule rejections for other logins and outside the five workers' observed addresses. At 20:32:04 UTC the sync watch had observed zero real mutations since the sync-retry rollout and remained connected.
