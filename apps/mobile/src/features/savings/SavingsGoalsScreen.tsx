@@ -89,13 +89,13 @@ export function SavingsGoalsScreen() {
       >
         <View style={styles.detailsRow}>
           <StyledText
-            style={{ color: theme.colors.textInverse }}
+            style={styles.headerCopy}
             accessibilityLabel={`${translate('planning.savings.activeGoals')}, ${query.data ? active.length : '—'}`}
           >
             {translate('planning.savings.activeGoals')} ·{' '}
             {query.data ? active.length : '—'}
           </StyledText>
-          <StyledText style={{ color: theme.colors.textInverse }}>
+          <StyledText style={styles.headerCopy}>
             {translate('planning.savings.remainingAll')} ·{' '}
             {totals('remainingMinor')}
           </StyledText>

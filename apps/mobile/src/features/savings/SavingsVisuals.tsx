@@ -72,12 +72,12 @@ export function SavingsHeader({
         )}
       </View>
       {description ? (
-        <StyledText variant="subtitle" style={styles.headerCopy}>
+        <StyledText variant="subtitle" style={savingsStyles.headerCopy}>
           {description}
         </StyledText>
       ) : null}
       {label ? (
-        <StyledText style={styles.headerCopy}>{label}</StyledText>
+        <StyledText style={savingsStyles.headerCopy}>{label}</StyledText>
       ) : null}
       {amount !== undefined ? (
         <StyledText variant="amount" style={styles.heroAmount}>
@@ -256,6 +256,7 @@ export function savingsDate(value: string) {
 }
 
 export const savingsStyles = StyleSheet.create({
+  headerCopy: { color: colorTokens.surface.white, textAlign: 'auto' },
   card: { borderRadius: 22, gap: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   grow: { flex: 1, flexShrink: 1 },
@@ -309,7 +310,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colorTokens.surface.white
   },
-  headerCopy: { color: colorTokens.surface.white, textAlign: 'auto' },
   heroAmount: {
     color: colorTokens.surface.white,
     fontSize: 36,

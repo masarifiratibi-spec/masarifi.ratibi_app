@@ -5,6 +5,7 @@ import { financialPlanningKeys } from '@/features/financial-planning/financial-p
 import { localDateInTimeZone } from '@/domain/financial-period';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { changeLocale, translate } from '@/localization/i18n';
+import { colorTokens } from '@/design-system/tokens';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
@@ -37,6 +38,23 @@ beforeEach(async () => {
   await financialPlanningService.discardDraft(
     'planning-form-goal-movement:goal-emergency'
   );
+});
+
+it('keeps the savings totals readable on the dark green header', async () => {
+  const previousTheme = usePreferenceStore.getState().theme;
+  usePreferenceStore.setState({ theme: 'dark' });
+  const screen = renderWithProviders(<SavingsGoalsScreen />);
+  try {
+    expect(await screen.findByText(/^Active goals ·/)).toHaveStyle({
+      color: colorTokens.surface.white
+    });
+    expect(screen.getByText(/^Remaining for goals ·/)).toHaveStyle({
+      color: colorTokens.surface.white
+    });
+  } finally {
+    screen.unmount();
+    usePreferenceStore.setState({ theme: previousTheme });
+  }
 });
 
 it('shows real progress and keeps completed goals reachable through filters', async () => {

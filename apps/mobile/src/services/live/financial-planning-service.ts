@@ -423,6 +423,8 @@ const goalSchema = z
     requestId
   })
   .strict();
+// The write receipt carries amounts. The read model also computes progressBps.
+const goalMutationSchema = goalSchema.partial({ progressBps: true });
 const movementSchema = z
   .object({
     id: uuid,
@@ -2585,7 +2587,7 @@ export function createLiveFinancialPlanningService({
       const response = await send(
         'POST',
         '/api/v1/savings-goals',
-        mutation(goalSchema),
+        mutation(goalMutationSchema),
         { operationId, body: goalInput(input) }
       );
       const goal = mapSavingsGoalFromApi(response.resource);
@@ -2608,7 +2610,7 @@ export function createLiveFinancialPlanningService({
       const response = await send(
         'PATCH',
         `/api/v1/savings-goals/${id}`,
-        mutation(goalSchema),
+        mutation(goalMutationSchema),
         { operationId, body: { expectedVersion, patch } }
       );
       return scopes(mapSavingsGoalFromApi(response.resource), [
@@ -2626,13 +2628,13 @@ export function createLiveFinancialPlanningService({
           ? await send(
               'DELETE',
               `/api/v1/savings-goals/${id}`,
-              mutation(goalSchema),
+              mutation(goalMutationSchema),
               { operationId, body: { expectedVersion } }
             )
           : await send(
               'PATCH',
               `/api/v1/savings-goals/${id}`,
-              mutation(goalSchema),
+              mutation(goalMutationSchema),
               { operationId, body: { expectedVersion, patch: { status } } }
             );
       return scopes(mapSavingsGoalFromApi(response.resource), [

@@ -94,11 +94,11 @@ export function SavingsGoalDetailScreen({ goalId = '' }: { goalId?: string }) {
               inverse
             />
             <View style={styles.detailsRow}>
-              <StyledText style={{ color: theme.colors.textInverse }}>
+              <StyledText style={styles.headerCopy}>
                 {translate('planning.field.target')} ·{' '}
                 {amount(item.targetMinor)}
               </StyledText>
-              <StyledText style={{ color: theme.colors.textInverse }}>
+              <StyledText style={styles.headerCopy}>
                 {translate('planning.field.remaining')} ·{' '}
                 {calculated(query.data.progress.remainingMinor)}
               </StyledText>
