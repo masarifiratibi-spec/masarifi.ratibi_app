@@ -35,3 +35,22 @@ test('validates the storage status as well as its HTTP response', async () => {
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('a slow expiry poll cannot renew the last successful generation poll', async () => {
+  let now = 0;
+  const health = workerReadiness(() => now);
+  await health.poll(async kind => {
+    if (kind === 'report.output.expire') now = 31_000;
+  });
+  assert.equal(health.ready(), false);
+});
+
+test('shutdown during a poll immediately withdraws readiness even if that poll succeeds later', async () => {
+  const health = workerReadiness(() => 0);
+  await health.poll(async () => 0);
+  await health.poll(async kind => {
+    if (kind === 'report.generate') health.stop();
+    assert.equal(health.ready(), false);
+  });
+  assert.equal(health.ready(), false);
+});

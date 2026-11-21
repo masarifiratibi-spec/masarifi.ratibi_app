@@ -6,18 +6,29 @@ const { performance } = require('node:perf_hooks');
 const workerPort = 8081;
 
 function workerReadiness(now = () => performance.now()) {
-  let lastComplete = null;
+  const kinds = ['report.generate', 'report.output.expire'];
+  const completedAt = new Map();
+  let stopped = false;
+  const stop = () => {
+    stopped = true;
+    completedAt.clear();
+  };
   return {
-    ready: () => lastComplete !== null && now() - lastComplete <= 30_000,
+    stop,
+    ready: () => {
+      const at = now();
+      return !stopped && kinds.every(kind => completedAt.has(kind) && at - completedAt.get(kind) <= 30_000);
+    },
     async poll(runJob, stopping = () => false) {
       try {
-        for (const kind of ['report.generate', 'report.output.expire']) {
-          if (stopping()) return;
+        for (const kind of kinds) {
+          if (stopped || stopping()) return stop();
           await runJob(kind);
+          if (stopped || stopping()) return stop();
+          completedAt.set(kind, now());
         }
-        lastComplete = now();
       } catch (error) {
-        lastComplete = null;
+        completedAt.clear();
         throw error;
       }
     },
