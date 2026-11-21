@@ -66,3 +66,22 @@ it.each([
   });
   expect(getLegalDocument(locale, 'terms')).toEqual(original);
 });
+
+it.each(['ar', 'en'] as const)('explains the iPhone Shortcuts queue and how to turn recording off in %s', locale => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  const section = getLegalDocument(locale, 'privacy').sections.find(row => row.id === 'iphone-shortcuts');
+  expect(section?.paragraphs.join(' ')).toContain(locale === 'ar' ? 'الاختصارات' : 'Shortcuts');
+  expect(section?.paragraphs.join(' ')).toContain(locale === 'ar' ? 'دون اتصال' : 'offline');
+  expect(section?.paragraphs.join(' ')).toContain(locale === 'ar' ? 'إيقاف' : 'turn off');
+});
+
+it.each(['ar', 'en'] as const)('names the enabled AI routes and explains support access logs in %s', locale => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  const { sections } = getLegalDocument(locale, 'privacy');
+  const routes = sections.find(section => section.id === 'iphone-ai-providers')?.paragraphs.join(' ');
+  for (const provider of ['OpenRouter', 'OpenAI', 'Microsoft Azure', 'Google Vertex AI']) {
+    expect(routes).toContain(provider);
+  }
+  const logs = sections.find(section => section.id === 'service-diagnostics')?.paragraphs.join(' ');
+  expect(logs).toContain(locale === 'en' ? 'support search' : 'البحث في الدعم');
+});

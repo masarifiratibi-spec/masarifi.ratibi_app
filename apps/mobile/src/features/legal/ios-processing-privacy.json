@@ -1,0 +1,36 @@
+{
+  "en": {
+    "ai": {
+      "id": "iphone-ai-providers",
+      "title": "AI processing on iPhone",
+      "paragraphs": [
+        "If you enable the financial assistant, Masarifi sends your question, relevant conversation history and authorized financial context through OpenRouter. The primary route uses an OpenAI model on Microsoft Azure. The fallback uses a Google Gemini model on Google Vertex AI. You can withdraw assistant consent in the assistant.",
+        "Voice entry has a separate consent choice. Its configured transcription route sends your recording and relevant context through OpenRouter to a Google Gemini model on Google Vertex AI to extract transaction details. These routes request zero retention and deny provider data collection. Masarifi’s own records and logs have separate retention rules."
+      ]
+    },
+    "storage": {
+      "id": "service-diagnostics",
+      "title": "Service diagnostics and support searches",
+      "paragraphs": [
+        "Our infrastructure records API access and operational diagnostics. Records can include an IP address, request URL and time, response status, duration and error identifiers. A support search sent in a request URL can appear in an access log. We use these records to investigate errors, monitor performance and protect access."
+      ]
+    }
+  },
+  "ar": {
+    "ai": {
+      "id": "iphone-ai-providers",
+      "title": "معالجة الذكاء الاصطناعي على الآيفون",
+      "paragraphs": [
+        "إذا فعّلت المساعد المالي، يرسل مصاريفي وراتبي سؤالك وما يلزم من سجل المحادثة والسياق المالي المصرّح به عبر OpenRouter. يستخدم المسار الأساسي نموذجًا من OpenAI مستضافًا على Microsoft Azure. ويستخدم المسار الاحتياطي نموذج Google Gemini على Google Vertex AI. يمكنك سحب الموافقة من داخل المساعد.",
+        "للإدخال الصوتي موافقة مستقلة. يرسل مسار التفريغ الصوتي المُعدّ تسجيلك والسياق اللازم عبر OpenRouter إلى نموذج Google Gemini على Google Vertex AI لاستخراج تفاصيل العملية. تطلب هذه المسارات من المزوّدين عدم الاحتفاظ بالبيانات أو جمعها. وتخضع سجلات مصاريفي وراتبي لسياسة احتفاظ منفصلة."
+      ]
+    },
+    "storage": {
+      "id": "service-diagnostics",
+      "title": "سجلات تشغيل الخدمة والبحث في الدعم",
+      "paragraphs": [
+        "تسجّل أنظمتنا طلبات الوصول إلى واجهة الخدمة ومعلومات تشخيص الأعطال. وقد تتضمن السجلات عنوان IP وعنوان الطلب ووقته وحالة الاستجابة ومدتها ومعرّفات الأخطاء. إذا أُرسلت كلمات البحث في الدعم ضمن عنوان الطلب، فقد تظهر في سجل الوصول. نستخدم هذه المعلومات لتشخيص الأعطال ومراقبة الأداء وحماية الوصول."
+      ]
+    }
+  }
+}

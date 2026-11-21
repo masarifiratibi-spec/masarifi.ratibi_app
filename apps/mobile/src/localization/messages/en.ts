@@ -1552,7 +1552,7 @@ const en = {
   'voice.permission.settings': 'Open settings',
   'voice.processingConsent.title': 'AI voice processing',
   'voice.processingConsent.data':
-    'Masarifi and external AI providers process your recording and financial context.',
+    'If you agree, Masarifi sends your recording and relevant financial context through OpenRouter to Google Gemini on Google Vertex AI.',
   'voice.processingConsent.purpose':
     'Turns speech into transactions you can review and correct.',
   'voice.processingConsent.choice':
@@ -2382,7 +2382,7 @@ const en = {
   'notifications.preferences.day.saturday': 'Saturday',
   'assistant.consent.title': 'Personalized financial assistant',
   'assistant.privacy.transactions':
-    'Masarifi and external AI providers process your questions and financial context.',
+    'If you agree, Masarifi sends your questions, relevant conversation history and financial context via OpenRouter to an OpenAI model on Microsoft Azure or a Google Gemini model on Google Vertex AI. You can withdraw consent in the assistant.',
   'assistant.privacy.choice': 'Optional. You can withdraw consent anytime.',
   'assistant.consent.withdraw': 'Withdraw assistant consent',
   'assistant.state.disabled': 'Personalization is disabled.',
@@ -3137,7 +3137,7 @@ const en = {
   'tracking.bankSms.notificationsTitle': 'Transaction notifications',
   'tracking.bankSms.notificationsBody': 'Get a confirmation after a transaction is saved. The amount and account appear inside Masarifi when financial values are visible. Notifications are optional.',
   'tracking.bankSms.recordingPermission': 'Allow transaction recording',
-  'tracking.bankSms.recordingScope': 'Records transactions from the messages you choose in Shortcuts.',
+  'tracking.bankSms.recordingScope': 'Your iPhone reads only the text passed by Shortcuts. Parsed transaction details sync to Masarifi, including after an offline retry. Turn recording off here and disable the automation in Shortcuts to stop.',
   'tracking.bankSms.finishTitle': 'Turn it on and try it',
   'tracking.bankSms.finishBody': 'Save the setup and try a new transaction message.',
   'tracking.bankSms.testMessage': 'Try a new purchase message that matches your setup. Once saved, the transaction appears in Masarifi.',

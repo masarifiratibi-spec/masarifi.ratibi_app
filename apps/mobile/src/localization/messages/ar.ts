@@ -1494,7 +1494,7 @@ const ar: MessageCatalog = {
   'voice.permission.settings': 'فتح الإعدادات',
   'voice.processingConsent.title': 'معالجة الصوت بالـ AI',
   'voice.processingConsent.data':
-    'بإذنك، يحلّل ذكاء اصطناعي خارجي تسجيلك وسياقه المالي.',
+    'بموافقتك، يرسل مصاريفي وراتبي تسجيلك والسياق المالي اللازم عبر OpenRouter إلى Google Gemini على Google Vertex AI.',
   'voice.processingConsent.purpose':
     'يحوّل كلامك إلى معاملات يمكنك مراجعتها وتصحيحها.',
   'voice.processingConsent.choice':
@@ -2277,7 +2277,7 @@ const ar: MessageCatalog = {
   'notifications.preferences.day.saturday': 'السبت',
   'assistant.consent.title': 'المساعد المالي المخصص',
   'assistant.privacy.transactions':
-    'بإذنك، يحلّل ذكاء اصطناعي خارجي أسئلتك وسياقك المالي.',
+    'بموافقتك، يرسل مصاريفي وراتبي أسئلتك وما يلزم من سجل المحادثة والسياق المالي عبر OpenRouter إلى نموذج من OpenAI على Microsoft Azure أو إلى Google Gemini على Google Vertex AI. يمكنك سحب الموافقة من داخل المساعد.',
   'assistant.privacy.choice': 'اختياري؛ يمكنك سحب الموافقة في أي وقت.',
   'assistant.consent.withdraw': 'سحب موافقة المساعد',
   'assistant.state.disabled': 'التخصيص متوقف.',
@@ -3015,7 +3015,7 @@ const ar: MessageCatalog = {
   'tracking.bankSms.notificationsTitle': 'إشعارات العمليات',
   'tracking.bankSms.notificationsBody': 'فعّل الإشعارات عشان يوصلك تأكيد بعد حفظ العملية. يظهر المبلغ والحساب داخل مصاريفي عند إظهار القيم المالية. تفعيل الإشعارات اختياري.',
   'tracking.bankSms.recordingPermission': 'السماح بتسجيل العمليات',
-  'tracking.bankSms.recordingScope': 'يسجّل العمليات من الرسائل اللي تختارها في الاختصارات.',
+  'tracking.bankSms.recordingScope': 'يحلّل الآيفون نص الرسالة التي يمرّرها الاختصار فقط. تُزامَن تفاصيل العملية مع مصاريفي وراتبي عند توفر الاتصال. لإيقاف التسجيل، عطّل الميزة هنا والأتمتة في تطبيق الاختصارات.',
   'tracking.bankSms.finishTitle': 'شغّلها وجرّب',
   'tracking.bankSms.finishBody': 'احفظ الإعداد وجرّب برسالة عملية جديدة.',
   'tracking.bankSms.testMessage': 'جرّب برسالة شراء جديدة تطابق إعدادك. بعد حفظ العملية، تلقاها في مصاريفي.',
