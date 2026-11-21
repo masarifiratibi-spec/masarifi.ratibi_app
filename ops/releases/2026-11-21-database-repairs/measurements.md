@@ -24,4 +24,12 @@ The history replay archived 27,320 runs plus their attempts in 110 calls, keepin
 
 The production ledger had already recorded the Nov 20 routine-success migration. Both branches now include its exact checksum-verified historical SQL so that the release inventory matches that ledger. Runtime and ownership decisions for the 45 overdue registry entries use the release inventory, verified job scopes and feature-owner policy. The prior 272,138 outbox events remain protected. Production cron dispatch, API p95 at peak and actual queue lag are still measured at rollout.
 
-The full API unit and contract run passed 2,642 tests on Android. On iOS it passed 2,629 of 2,631. Both failures come from the existing bank SMS endpoint in the iOS ledger controller (commit 4f126753) missing from the approved OpenAPI surface. The repair changes no ledger route or API contract. Resolve this separate contract discrepancy before declaring all iOS release checks green.
+The initial iOS run exposed the missing OpenAPI contract for the bank SMS endpoint. After documenting the existing route and checking its runtime operation ID, the API unit and contract suites passed 2,642 of 2,642 tests on Android and 2,631 of 2,631 on iOS. The PostgreSQL 17.6 integration run passed 109 of 109 on each branch.
+
+## Primary production verification
+
+At 14:05 Riyadh time, the primary server matched all six migration checksums. The API and five release workers were running with zero restarts. Both public health endpoints returned 200. An unauthenticated JSON POST to the bank SMS receipt endpoint returned 401. The rollout readiness check initially rolled back the application containers because the database connection string supplied the production-specific listener name. After the check accepted that name and verified the actual listener query, the same bundle completed. The migrations ran once.
+
+The receipt consumer committed at 14:00 and 14:05. The import reconciliation execution counter advanced from one to two, and its pending marker count was zero after each cycle. Receipt health reported zero issues and no lag alert. History retention, import parsing, account deletion, financial reset cleanup, outbox dispatch and sync retry each recorded a successful run after activation. The operating voice heartbeat was under 12 seconds old.
+
+The production email selector ran twice in a 43.2-second idle window, down from 170 calls in the earlier 43-second sample. Both samples returned zero rows. A longer post-release sample recorded 14 calls in 199.3 seconds. Delivery latency above comes from the local SMTP acceptance tests.
