@@ -64,7 +64,9 @@ export async function prepareAppleDeletion(
   };
   let remaining = await send();
   while (remaining > 0) {
-    const apple = await import('expo-apple-authentication');
+    // Resolve the native module only when an iPhone needs a fresh Apple grant.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const apple = require('expo-apple-authentication') as typeof import('expo-apple-authentication');
     await actor.assertCurrent();
     const { authorizationCode } = await apple
       .signInAsync()

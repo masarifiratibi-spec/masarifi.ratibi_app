@@ -9,7 +9,8 @@ export function useAppleSignIn() {
   const { signUp } = useSignUp();
   return async () => {
     if (!signIn || !signUp || !setActive) return null;
-    const apple = await import('expo-apple-authentication');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const apple = require('expo-apple-authentication') as typeof import('expo-apple-authentication');
     let credential;
     try {
       credential = await apple.signInAsync({

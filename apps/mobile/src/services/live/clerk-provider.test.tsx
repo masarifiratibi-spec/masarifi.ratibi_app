@@ -19,6 +19,7 @@ import {
   useLiveIdentityStatus
 } from './clerk-provider';
 import { getClerkInstance } from '@clerk/expo';
+import { rememberAppleDeletionGrant } from '../apple-deletion-authorization';
 import type { LiveClerkBridge } from './auth-service';
 import { assertTrackingAvailable } from '@/state/tracking-admission';
 
@@ -80,8 +81,11 @@ jest.mock('@clerk/expo', () => ({
 jest.mock('@clerk/expo/experimental', () => ({
   useSSO: () => ({ startSSOFlow: mockStartSSOFlow })
 }));
-jest.mock('@clerk/expo/apple', () => ({
-  useSignInWithApple: () => ({ startAppleAuthenticationFlow: mockStartAppleAuthenticationFlow })
+jest.mock('./apple-sign-in', () => ({
+  useAppleSignIn: () => mockStartAppleAuthenticationFlow
+}));
+jest.mock('../apple-deletion-authorization', () => ({
+  rememberAppleDeletionGrant: jest.fn().mockResolvedValue(0)
 }));
 jest.mock('@/config/client-runtime', () => ({
   isBenchmarkReadOnly: () => mockIsBenchmarkReadOnly?.() ?? false,
@@ -133,6 +137,7 @@ describe('native Apple sign-in', () => {
 
   it('activates the Apple session before admission and restores its method after remount', async () => {
     mockStartAppleAuthenticationFlow.mockResolvedValue({
+      authorizationCode: 'one-time-fixture',
       createdSessionId: 'apple-session',
       setActive: async ({ session }: { session: string }) => {
         if (session !== 'apple-session') throw new Error('wrong activated session');
@@ -146,6 +151,7 @@ describe('native Apple sign-in', () => {
       });
     });
     expect(screen.getByText('ready')).toBeOnTheScreen();
+    expect(rememberAppleDeletionGrant).toHaveBeenCalledWith('apple-session', 'apple-owner', 'one-time-fixture');
     first.view.unmount();
     const second = appleBridge();
     await act(async () => {
