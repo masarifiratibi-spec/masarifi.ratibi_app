@@ -192,7 +192,7 @@ function QueriedHomeScreen({
           }
           selectedAccount={selectedAccount}
           summary={homeSummary}
-          todayActivity={activity.data ?? []}
+          todayActivity={activity.data}
           activityPending={activity.data === undefined && !activity.isError}
           activityStatus={
             activity.data !== undefined && activity.isError ? (

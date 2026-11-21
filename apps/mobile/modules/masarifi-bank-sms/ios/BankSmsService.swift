@@ -2,6 +2,7 @@ import ClerkKit
 import CryptoKit
 import Foundation
 import JavaScriptCore
+import Network
 import UserNotifications
 import UIKit
 
@@ -66,6 +67,8 @@ public struct BankSmsChoice: Sendable {
   private let replayWindow: TimeInterval = 24 * 60 * 60
   private var drainTask: (epoch: UUID, task: Task<Void, Never>)?
   private var wakeRequested = false
+  private var reconnectMonitor: NWPathMonitor?
+  private var pathWasUnavailable = false
   var verificationChanged: (() -> Void)?
   private(set) var revision = 0
   private var revokedOwners = Set<String>()
@@ -197,6 +200,7 @@ public struct BankSmsChoice: Sendable {
     revokedOwners.insert(owner)
     var state = try store.load()
     guard state.owner == owner else { return }
+    stopWatchingForReconnect()
     if erase { state = BankSmsState() }
     else {
       state.enrollment = nil
@@ -302,10 +306,42 @@ public struct BankSmsChoice: Sendable {
     SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
   }
 
+  private func watchForReconnect() {
+    guard reconnectMonitor == nil else { return }
+    let monitor = NWPathMonitor()
+    reconnectMonitor = monitor
+    monitor.pathUpdateHandler = { [weak self, weak monitor] path in
+      // The monitor delivers callbacks on the main queue in path-change order.
+      MainActor.assumeIsolated {
+        guard let self, let monitor, self.reconnectMonitor === monitor else { return }
+        let available = path.status == .satisfied
+        let reconnected = available && self.pathWasUnavailable
+        self.pathWasUnavailable = !available
+        if reconnected {
+          Task { @MainActor in
+            guard self.reconnectMonitor === monitor else { return }
+            await self.retry()
+          }
+        }
+      }
+    }
+    monitor.start(queue: .main)
+  }
+
+  private func stopWatchingForReconnect() {
+    reconnectMonitor?.cancel()
+    reconnectMonitor = nil
+    pathWasUnavailable = false
+  }
+
   func retry() async {
-    guard let state = try? store.load(), let enrollment = state.enrollment,
+    guard let state = try? store.load() else { return }
+    guard let enrollment = state.enrollment,
           !revokedOwners.contains(enrollment.owner),
-          state.deliveries.contains(where: { $0.pending != nil || $0.pendingNotice != nil }) else { return }
+          state.deliveries.contains(where: { $0.pending != nil || $0.pendingNotice != nil }) else {
+      stopWatchingForReconnect()
+      return
+    }
     if let running = drainTask {
       if running.epoch == enrollment.epoch { wakeRequested = true }
       await running.task.value
@@ -346,7 +382,11 @@ public struct BankSmsChoice: Sendable {
       if current.expirePending(before: cutoff) {
         try store.write(current)
       }
-      try await BankSmsDrain.run(state: { try admitted(enrollment) }) { batch in
+      try await BankSmsDrain.run(state: {
+        current = try admitted(enrollment)
+        return current
+      }) { batch in
+        watchForReconnect()
         let token = try await token(for: enrollment)
         let generation = try await ledger.generation(token: token)
         _ = try admitted(enrollment)
@@ -438,6 +478,11 @@ public struct BankSmsChoice: Sendable {
             }
           }
         }
+      }
+      if !current.deliveries.contains(where: {
+        ($0.pending != nil && $0.needsVerification != true) || $0.pendingNotice != nil
+      }) {
+        stopWatchingForReconnect()
       }
     } catch {
       guard var current = try? admitted(enrollment) else { return }

@@ -171,17 +171,18 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
     ? accountById.get(selectedAccountId)?.currencyCode
     : baseCurrencyCode;
   const locale = currentLocale();
-  const appliedPeriod = periodFromRange(
-    filters.periodStart,
-    filters.periodEnd,
-    now,
-    { timeZone, monthStartDay }
+  const appliedPeriod = useMemo(
+    () => periodFromRange(filters.periodStart, filters.periodEnd, now, { timeZone, monthStartDay }),
+    [filters.periodStart, filters.periodEnd, now, timeZone, monthStartDay]
   );
-  const draftPeriod = periodFromRange(draft.periodStart, draft.periodEnd, now, {
-    timeZone,
-    monthStartDay
-  });
-  const periodLabel = formatPeriodLabel(appliedPeriod, locale, timeZone);
+  const draftPeriod = useMemo(
+    () => periodFromRange(draft.periodStart, draft.periodEnd, now, { timeZone, monthStartDay }),
+    [draft.periodStart, draft.periodEnd, now, timeZone, monthStartDay]
+  );
+  const periodLabel = useMemo(
+    () => formatPeriodLabel(appliedPeriod, locale, timeZone),
+    [appliedPeriod, locale, timeZone]
+  );
   const transactions = useMemo(() => {
     const byId = new Map<string, Transaction>();
     query.data?.pages.forEach((page) =>
