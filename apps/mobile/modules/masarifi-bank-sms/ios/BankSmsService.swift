@@ -144,13 +144,14 @@ public struct BankSmsChoice: Sendable {
   }
 
   func status(owner: String, session: String) throws -> [String: Any] {
-    let state = try store.load()
+    var state = try store.load()
     guard state.owner == owner, let enrollment = state.enrollment, enrollment.session == session, !revokedOwners.contains(owner) else {
       return ["enabled": false, "pending": 0]
     }
+    // Project expiry for the screen without changing a delivery already in flight.
+    _ = state.expirePending(before: Date().addingTimeInterval(-replayWindow))
     var result: [String: Any] = ["enabled": true, "pending": state.deliveries.filter { $0.pending != nil }.count]
-    let cutoff = Date().addingTimeInterval(-replayWindow)
-    if state.deliveries.contains(where: { $0.pending != nil && $0.needsVerification == true && $0.created > cutoff }) {
+    if state.deliveries.contains(where: { $0.pending != nil && $0.needsVerification == true }) {
       result["verificationEpoch"] = enrollment.epoch.uuidString
     }
     if let outcome = state.outcome { result["outcome"] = outcome }
@@ -167,7 +168,8 @@ public struct BankSmsChoice: Sendable {
   func updateNotificationLocale(owner: String, session: String, locale: String) throws {
     guard ["ar", "en"].contains(locale), !revokedOwners.contains(owner) else { return }
     var state = try store.load()
-    guard state.owner == owner, state.enrollment?.session == session else { return }
+    guard state.owner == owner, state.enrollment?.session == session,
+          state.enrollment?.notificationLocale != locale else { return }
     state.enrollment?.notificationLocale = locale
     try store.write(state)
   }
@@ -374,6 +376,13 @@ public struct BankSmsChoice: Sendable {
                     let index = latest.deliveries.firstIndex(where: { $0.key == delivery.key && $0.pending != nil }),
                     clerk?.session?.id == enrollment.session, clerk?.session?.user?.id == enrollment.owner
               else { throw BankSmsFailure.auth }
+              // Remote account and generation reads may cross the retry deadline.
+              let cutoff = Date().addingTimeInterval(-self.replayWindow)
+              if latest.deliveries[index].created <= cutoff {
+                _ = latest.expirePending(before: cutoff)
+                try store.write(latest)
+                throw BankSmsFailure.rejected
+              }
               func accepts(_ id: String) -> Bool {
                 setup.accounts.contains { target in
                   target.id == id && target.currency == command.currency &&
