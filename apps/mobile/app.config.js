@@ -97,7 +97,10 @@ module.exports = ({ config }) => {
         ...(iosAdHoc ||
         iosAppStore ||
         ['ios-ad-hoc', 'ios-app-store'].includes(process.env.EAS_BUILD_PROFILE)
-          ? { ios: { ...config.ios, usesAppleSignIn: true } }
+          ? {
+              ios: { ...config.ios, usesAppleSignIn: true },
+              locales: { ...config.locales, ar: './locales/ios-ar.json' }
+            }
           : {})
       };
     }

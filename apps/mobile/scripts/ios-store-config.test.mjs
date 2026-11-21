@@ -25,6 +25,16 @@ const storeEnvironment = {
 };
 
 for (const profile of ['ios-ad-hoc', 'ios-app-store']) {
+  test(`${profile} supplies Arabic purpose strings for the existing iPhone permissions`, () => {
+    const config = resolvedConfig({ ...builds.production.env, ...builds[profile].env });
+    const path = config.locales?.ar;
+    assert.equal(typeof path, 'string');
+    const { ios } = JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url)));
+    for (const key of ['NSMicrophoneUsageDescription', 'NSFaceIDUsageDescription']) {
+      assert.match(ios[key], /\p{Script=Arabic}/u);
+      assert.match(config.ios.infoPlist[key], /[a-z]/i);
+    }
+  });
   const early = { ...builds.production.env, ...builds[profile].env };
   test(`${profile} marker alone selects and validates production before EAS context exists`, () => {
     assert.equal(isLiveProduction(early), true);
