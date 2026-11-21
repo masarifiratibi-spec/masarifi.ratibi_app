@@ -88,7 +88,7 @@ select ok(private.raw_ingestion_payload_registered(
 
 update public.import_items set normalized_payload=normalized_payload||'{"sender":"EXAMPLE-CRESCENT"}'::jsonb
 where user_id='tracking-pgtap-owner';
-update public.import_sessions set source_type='manual',claim_token='85000000-0000-4000-8000-000000000099',
+update public.import_sessions set source_type='manual',status='processing',claim_token='85000000-0000-4000-8000-000000000099',
   claimed_by='pgtap',lease_until=clock_timestamp()+interval '1 minute' where user_id='tracking-pgtap-owner';
 select lives_ok(
   $$select private.prepare_import_session((select id from public.import_sessions where user_id='tracking-pgtap-owner'),'85000000-0000-4000-8000-000000000099')$$,
