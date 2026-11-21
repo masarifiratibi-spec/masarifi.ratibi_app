@@ -6,9 +6,17 @@ const {runTrackingPass,assertTrackingRuntime,startTrackingHealth}=require('./tra
 test('Staging tracking runtime runs only intake, corpus and scoped confirmation preparation',async()=>{
   const observed=[];
   const result=await runTrackingPass({runJob:async job=>{observed.push(job);return 1;}},
-    {runJob:async job=>{observed.push(job);return 2;}});
+    {runJob:async job=>{observed.push(job);return 2;}},
+    {query:async()=>({rows:[{ready:true}]})});
   assert.deepEqual(observed,['import.parse','parser.corpus','tracking.confirmation.prepare']);
   assert.deepEqual(result,{imports:1,corpus:1,confirmations:2});
+});
+test('an empty import poll still runs corpus and confirmation on this pass',async()=>{
+  const observed=[];
+  const runJob=async job=>{observed.push(job);return 0;};
+  const pass=await runTrackingPass({runJob},{runJob},{query:async()=>({rows:[{ready:false}]})});
+  assert.deepEqual(observed,['parser.corpus','tracking.confirmation.prepare']);
+  assert.deepEqual(pass,{imports:0,corpus:0,confirmations:0});
 });
 test('runtime rejects non-Staging environment or a non-worker identity',()=>{
   const env={SUPABASE_URL:'https://qcffvfbpzvpwcwxwjyro.supabase.co',MASARIFI_PROCESS_KIND:'worker',MASARIFI_RELEASE_VERSION:'a'.repeat(40)};
