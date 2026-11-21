@@ -47,6 +47,7 @@ interface CursorRow extends ValueRow {
 }
 
 export interface NotificationDeliveryClaim extends QueryResultRow {
+  queued_at?: string;
   id: string;
   claim_token: string;
   user_id: string;
@@ -490,6 +491,7 @@ export class EngagementRepository {
   ): Promise<NotificationDeliveryClaim[]> {
     const claims = await client.query<NotificationDeliveryClaim>(
       `select d.id,d.claim_token,d.user_id,d.channel,d.provider,d.attempt_count,d.event_id,e.type event_type,
+          d.created_at::text queued_at,
           coalesce(d.rendered_title,e.title,t.subject,'Masarifi') title,coalesce(d.rendered_body,e.body_safe,t.body) body_safe,
            coalesce(e.data,'{}'::jsonb)||coalesce(d.rendered_data,jsonb_build_object('route','notification_detail')) data,
           p.token_ciphertext,p.device_id token_device_id,p.provider token_provider,c.audience_definition->'appUpdate' campaign_update

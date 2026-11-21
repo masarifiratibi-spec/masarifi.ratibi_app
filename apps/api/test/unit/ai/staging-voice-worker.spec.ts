@@ -85,11 +85,16 @@ const claim = {
   claim_token: '33333333-3333-4333-8333-333333333333',
   attempt_count: 1,
 };
-function fixture(mode = 'canary', continuous = false) {
+function fixture(
+  mode = 'canary',
+  continuous = false,
+  confirm?: (epoch: string) => Promise<number>,
+) {
   const effects: string[] = [];
   const observations: Record<string, unknown>[] = [];
   let enabled = true;
   const repository = {
+    voiceWorkDue: () => Promise.resolve(false),
     voiceEpochHeartbeat: (id: string) => {
       if (id !== epoch) throw new Error('wrong epoch');
       return Promise.resolve({ enabled, mode });
@@ -143,7 +148,7 @@ function fixture(mode = 'canary', continuous = false) {
     'scoped-worker',
     'a'.repeat(40),
     (state: Record<string, unknown>) => observations.push(state),
-    undefined,
+    confirm,
     continuous,
   );
   return {
@@ -565,4 +570,61 @@ it('never resumes financial claims or finalization after runtime failure when cl
   f.repository.claimVoiceEpochWork = claimWork;
   await f.worker.tick();
   expect(f.effects).toEqual([]);
+});
+
+it('backs off empty operating sweeps while pulsing and wakes on the first financial poll', async () => {
+  jest.useFakeTimers();
+  const confirm = jest.fn().mockResolvedValue(0);
+  const f = fixture('operating', true, confirm);
+  let queued = false;
+  const probe = jest.fn(() => Promise.resolve(queued));
+  const heartbeat = jest.fn(f.repository.voiceEpochHeartbeat);
+  f.repository.voiceWorkDue = probe;
+  f.repository.voiceEpochHeartbeat = heartbeat;
+  f.repository.claimVoiceEpochWork = () => Promise.resolve(queued ? [claim] : []);
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(43000);
+    expect(probe.mock.calls.length).toBeGreaterThan(60);
+    expect(confirm.mock.calls.length).toBeLessThanOrEqual(17);
+    expect(heartbeat.mock.calls.length).toBeLessThanOrEqual(35);
+    expect(f.observations.at(-1)?.observedAt).toBeGreaterThanOrEqual(Date.now() - 5000);
+    queued = true;
+    await jest.advanceTimersByTimeAsync(500);
+    expect(f.effects).toContain('existing-extraction');
+    const processed = confirm.mock.calls.length;
+    queued = false;
+    await jest.advanceTimersByTimeAsync(500);
+    expect(confirm).toHaveBeenCalledTimes(processed + 1);
+  } finally {
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
+});
+
+it('discovers a delayed delivery during an idle sweep and drains the next at the fast cadence', async () => {
+  jest.useFakeTimers();
+  let ready = 0;
+  const seen: number[] = [];
+  const f = fixture('operating', true, () => {
+    if (!ready) return Promise.resolve(0);
+    ready--;
+    seen.push(Date.now());
+    return Promise.resolve(1);
+  });
+  f.repository.claimVoiceEpochWork = () => Promise.resolve([]);
+  try {
+    f.worker.start();
+    await jest.advanceTimersByTimeAsync(35000);
+    const arrival = Date.now();
+    ready = 2;
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(seen).toHaveLength(2);
+    const [first = NaN, second = NaN] = seen;
+    expect(first - arrival).toBeLessThanOrEqual(4500);
+    expect(second - first).toBe(500);
+  } finally {
+    await f.worker.stop();
+    jest.useRealTimers();
+  }
 });

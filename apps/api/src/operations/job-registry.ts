@@ -109,8 +109,7 @@ export class OperationsJobRegistry {
     else if (jobKey === 'privacy.financial-reset-cleanup')
       result = await this.required(this.financialReset).run();
     else if (/^(security\.|privacy\.|retention\.)/u.test(jobKey)) {
-      await this.required(this.security).runJob(jobKey);
-      result = 1;
+      result = await this.required(this.security).runJob(jobKey);
     } else if (jobKey === 'ledger.reconcile') result = await this.required(this.ledger).runOnce();
     else if (/^(sync-mutations\.|idempotency\.|sync-state\.|conflicts\.)/u.test(jobKey))
       result = await this.required(this.sync).runJob(jobKey as Parameters<SyncWorker['runJob']>[0]);

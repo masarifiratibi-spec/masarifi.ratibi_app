@@ -392,6 +392,16 @@ export class AiRepository {
     return !failed;
   }
 
+  async voiceWorkDue(epoch: string): Promise<boolean> {
+    // The operating pool already runs as masarifi_worker. This single read needs
+    // no transaction-local identity, and only that role can execute the function.
+    const { rows } = await this.pool.query<{ due: boolean }>(
+      'select private.operating_voice_work_due($1::uuid) due',
+      [epoch],
+    );
+    return rows[0]?.due === true;
+  }
+
   voiceEpochHeartbeat(epoch: string, workerId: string, sourceSha: string) {
     return this.workerJson('select private.staging_voice_heartbeat($1::uuid,$2,$3) result', [
       epoch,

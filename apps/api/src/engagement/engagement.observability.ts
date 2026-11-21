@@ -8,6 +8,8 @@ import {
 
 const jobs = new Set([
   'source.consume',
+  'voice.confirmation.source.wait',
+  'voice.confirmation.delivery.wait',
   'notification.dispatch',
   'notification.delivery.retry',
   'notification.campaign.expand',
@@ -15,7 +17,7 @@ const jobs = new Set([
   'support-attachment.scan',
   'support-attachment.cleanup',
 ]);
-const outcomes = new Set(['success', 'retry', 'suppressed', 'failure']);
+const outcomes = new Set(['empty', 'claimed', 'success', 'retry', 'suppressed', 'failure']);
 const channels = new Set(['none', 'in_app', 'push', 'email']);
 const providers = new Set(['none', 'database', 'push', 'expo', 'apns', 'fcm', 'smtp']);
 
@@ -52,6 +54,19 @@ export class EngagementObservability {
         { job, outcome, channel, provider },
         this.sink,
       );
+  }
+
+  // The wait histogram includes time spent in retry or quiet hours.
+  voicePoll(kind: 'source' | 'delivery', queuedAt?: string): void {
+    const queued = queuedAt === undefined ? NaN : Date.parse(queuedAt);
+    this.job(
+      `voice.confirmation.${kind}.wait`,
+      queuedAt === undefined ? 'empty' : 'claimed',
+      'none',
+      'database',
+      1,
+      Number.isFinite(queued) ? Math.max(0, Date.now() - queued) : undefined,
+    );
   }
 
   backlog(job: string, value: number): void {

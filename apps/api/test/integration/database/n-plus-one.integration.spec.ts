@@ -380,6 +380,10 @@ describeLiveDatabase('N+1 regression: direct assistant reads and batched databas
       });
     } finally {
       await pool.query('delete from public.import_sessions where id=any($1::uuid[])', [ids]);
+      await pool.query(
+        'delete from private.import_reconcile_changes where session_id=any($1::uuid[])',
+        [ids],
+      );
     }
   });
 

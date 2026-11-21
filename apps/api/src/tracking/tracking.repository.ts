@@ -1069,7 +1069,8 @@ export class TrackingRepository {
   maintenance(): Promise<void> {
     return this.worker(async (client) => {
       await client.query('select private.compact_tracking_history(1000)');
-      await client.query('select private.reconcile_import_sessions(1000)');
+      // Eight full sessions can require reading 80,000 items within the worker's 2s deadline.
+      await client.query('select private.reconcile_import_sessions(8)');
     });
   }
 
