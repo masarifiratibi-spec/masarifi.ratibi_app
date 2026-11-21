@@ -1,13 +1,13 @@
-import { QueueHealthIndicator } from '../../../src/platform/health/queue-health.indicator';
+import { ReadinessDependencies } from '../../../src/platform/health/readiness-dependencies';
 
-describe('QueueHealthIndicator', () => {
+describe('ReadinessDependencies', () => {
   it('reports up only when the internal logged queue exists', async () => {
     const database = {
-      query: jest.fn().mockResolvedValue({ rows: [{ healthy: true }] }),
+      query: jest.fn().mockResolvedValue({ rows: [{ compatible: true, healthy: true }] }),
     };
-    const indicator = new QueueHealthIndicator(database as never);
+    const indicator = new ReadinessDependencies(database as never);
 
-    await expect(indicator.check(1_000)).resolves.toBe('up');
+    await expect(indicator.check(1_000)).resolves.toEqual({ database: 'up', queue: 'up' });
     expect(database.query).toHaveBeenCalledWith(
       expect.stringContaining('q_platform-events'),
       [],
@@ -34,18 +34,18 @@ describe('QueueHealthIndicator', () => {
     const database = {
       query: jest.fn().mockRejectedValue(new Error('postgresql://secret-host')),
     };
-    const indicator = new QueueHealthIndicator(database as never);
+    const indicator = new ReadinessDependencies(database as never);
 
-    await expect(indicator.check(1_000)).resolves.toBe('down');
+    await expect(indicator.check(1_000)).resolves.toEqual({ database: 'down', queue: 'down' });
   });
 
   it('maps a bounded database timeout to down', async () => {
     const database = {
       query: jest.fn().mockRejectedValue(new Error('DATABASE_QUERY_TIMEOUT')),
     };
-    const indicator = new QueueHealthIndicator(database as never);
+    const indicator = new ReadinessDependencies(database as never);
 
-    await expect(indicator.check(1_000)).resolves.toBe('down');
+    await expect(indicator.check(1_000)).resolves.toEqual({ database: 'down', queue: 'down' });
     expect(database.query).toHaveBeenCalledWith(expect.any(String), [], 1_000);
   });
 });

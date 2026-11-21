@@ -94,9 +94,45 @@ describe('health contracts', () => {
     expect(JSON.stringify(response.body)).not.toContain('secret');
   });
 
+  it('shares an unfinished probe even when the completed-result cache is disabled', async () => {
+    let finish!: (checks: { database: 'up'; queue: 'down' }) => void;
+    const pending = new Promise<{ database: 'up'; queue: 'down' }>((resolve) => {
+      finish = resolve;
+    });
+    const check = jest
+      .fn()
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue({ database: 'up', queue: 'up' });
+    const config = {
+      get: (key: string) => (key === 'MASARIFI_READINESS_CACHE_TTL_MS' ? 0 : 1_000),
+    };
+    const service = new HealthService(config as never, { check } as never);
+    const burst = Array.from({ length: 12 }, () => service.ready());
+    expect(check).toHaveBeenCalledTimes(1);
+    finish({ database: 'up', queue: 'down' });
+    for (const result of await Promise.all(burst)) {
+      expect(result).toEqual({ status: 'not_ready', checks: { database: 'up', queue: 'down' } });
+    }
+    expect((await service.ready()).status).toBe('ready');
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an outstanding probe from announcing readiness after shutdown', async () => {
+    const check = jest.fn().mockResolvedValue({ database: 'up', queue: 'up' });
+    const config = { get: () => 1_000 };
+    const service = new HealthService(config as never, { check } as never);
+    const pending = service.ready();
+    service.beginShutdown();
+    await expect(pending).resolves.toEqual({
+      status: 'not_ready',
+      checks: { database: 'down', queue: 'down' },
+    });
+    expect((await service.ready()).status).toBe('not_ready');
+    expect(check).toHaveBeenCalledTimes(1);
+  });
+
   it('reports not ready immediately when shutdown begins', async () => {
-    const ping = jest.fn().mockResolvedValue(undefined);
-    const check = jest.fn().mockResolvedValue('up');
+    const check = jest.fn().mockResolvedValue({ database: 'up', queue: 'up' });
     const config = {
       get: jest.fn((key: string) =>
         key === 'MASARIFI_READINESS_CACHE_TTL_MS'
@@ -106,20 +142,18 @@ describe('health contracts', () => {
             : 'test',
       ),
     };
-    const service = new HealthService(config as never, { ping } as never, { check } as never);
+    const service = new HealthService(config as never, { check } as never);
 
     await expect(service.ready()).resolves.toEqual({
       status: 'ready',
       checks: { database: 'up', queue: 'up' },
     });
     service.beginShutdown();
-    ping.mockClear();
     check.mockClear();
     await expect(service.ready()).resolves.toEqual({
       status: 'not_ready',
       checks: { database: 'down', queue: 'down' },
     });
-    expect(ping).not.toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
   });
 });
