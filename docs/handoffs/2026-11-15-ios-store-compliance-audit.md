@@ -1,5 +1,11 @@
 # iOS store compliance evidence — 15 November 2026
 
+## Sign in with Apple deletion follow-up, 21 November 2026
+
+Clerk documents deleting the Clerk user and withdrawing the app's Apple authorization as separate actions. The iOS sign-in wrapper calls `startAppleAuthenticationFlow`. The installed Expo Clerk hook takes Apple's identity token and sends it to Clerk. The account-deletion worker calls `deleteIdentityUser`, which calls Clerk's `users.deleteUser`. This path has no Apple token revocation step. [Clerk iOS sign-in guidance](https://clerk.com/docs/ios/guides/configure/auth-strategies/sign-in-with-apple)
+
+Automatic revocation needs a server change subject to owner approval. A proposed implementation would obtain an Apple access or refresh token while credentials are available, revoke it on deletion and retain enough protected state to retry a temporary failure after Clerk identity removal. Existing Apple-linked users need a recovery path as well. Apple's documented fallback when credentials are unavailable includes fulfilling the deletion request, directing the user to revoke access and handling the revocation notification. The privacy draft alone does not establish that flow. Device verification with a disposable Apple-linked account is pending. [Apple technical note TN3194](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple)
+
 This is a preparation record. It does not authorize Apple uploads, privacy publication, submission, agreements, or changes to the VPS. Build and physical-device results belong in the final artifact/acceptance handoff. Private evidence is under `E:/Masarifi-ios-artifacts/ios-store-20261115`, outside Git.
 
 ## Retained signed candidate — 16 November
