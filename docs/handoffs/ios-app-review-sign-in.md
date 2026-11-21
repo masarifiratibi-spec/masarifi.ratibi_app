@@ -1,11 +1,14 @@
 # App Review sign-in instructions
 
-## Notes for the reviewer
+## Notes for App Review
 
-1. Open Masarifi & Ratibi and tap **Continue with Google** (**المتابعة باستخدام Google**). If Google shows accounts already on the device, choose **Use another account**.
-2. Enter the email address and password supplied in the **Sign-In Information** fields in App Store Connect. Complete the Google sign-in prompt and return to Masarifi & Ratibi.
-3. On **Home**, select the review account to see its sample balance. Open **Transactions** to see the entries behind that balance. You can review these screens with microphone access and notifications turned off.
+1. Open Masarifi & Ratibi. On the sign-in screen, tap **Continue with Google** (**المتابعة باستخدام Google**). If a different Google account appears, tap **Use another account**.
+2. On the Google screen, enter the email address and password in the **Sign-In Information** fields. Follow the prompts to return to the app.
+3. Open **Home** (**الرئيسية**) for balances and **Transactions** (**المعاملات**) for the transaction list. Both screens work with microphone and notification permissions turned off.
+4. To find the account deletion control, open **More** (**المزيد**) and scroll down to **Delete account** (**حذف الحساب**).
 
-## ملاحظة داخلية قبل الإرسال
+## تجهيز الحساب قبل تسليم التعليمات
 
-المسودة تفترض حساب Google مخصصًا للمراجعة به بيانات مالية وهمية. عند قبول نسخة الآيفون، تحقّق من الدخول من تثبيت نظيف حتى ظهور الرصيد والعمليات، ومن أن المراجع يستطيع الدخول مستقلًا من جهاز جديد دون رمز يصل إلى هاتف الفريق أو موافقة من صاحبه. إذا طلب المزوّد تدخّل الفريق، يظل بند دخول المراجع مفتوحًا. بعد نجاح الدخول، أدخل بيانات الحساب في حقول App Store Connect الخاصة وانسخ فقرة المراجع أعلاه. احتفظ بحساب منفصل لتجربة الحذف حتى يظل حساب المراجع متاحًا.
+استخدم حساب Google مخصّصًا للمراجع، بصلاحيات مستخدم عادي وبيانات مالية وهمية. احفظ بيانات الدخول في مدير كلمات مرور المشروع. عند تجهيز الإصدار للإرسال، أدخل البريد وكلمة المرور في الحقلين الخاصين داخل App Store Connect، وانسخ الخطوات الإنجليزية إلى Notes.
+
+على نسخة الآيفون المرشحة، سجّل الدخول من تثبيت نظيف وتأكد من ظهور الرصيد والمعاملات التجريبية، ومن أن الدخول من جهاز جديد يكتمل من دون رمز أو موافقة على جهاز الفريق. أبقِ حساب المراجع متاحًا طوال المراجعة. استخدم حسابًا آخر مرتبطًا بـApple لتجربة الحذف وإلغاء التفويض.

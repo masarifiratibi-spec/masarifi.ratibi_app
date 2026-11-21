@@ -1,0 +1,20 @@
+{
+  "ar": {
+    "id": "apple-identity",
+    "title": "الدخول باستخدام Apple",
+    "paragraphs": [
+      "إذا اخترت «تسجيل الدخول باستخدام Apple» على الآيفون، نستخدم Clerk للتحقق من هويتك وفتح جلسة لك. نتلقى معرّفًا من Apple يخص استخدامك للتطبيق، وقد نتلقى اسمك وعنوان البريد الذي تختار مشاركته. إذا اخترت «إخفاء بريدي الإلكتروني»، تشارك Apple عنوانًا وسيطًا يحوّل الرسائل إلى بريدك.",
+      "نحتفظ برمز مشفّر مرتبط بتفويض Apple. عند تنفيذ طلب حذف حسابك، يستخدم الخادم هذا الرمز لإلغاء تفويض التطبيق لدى Apple قبل حذف حساب تسجيل الدخول لدى Clerk. إذا احتجنا إلى رمز جديد، سيطلب منك الآيفون تأكيد حساب Apple المرتبط بالتطبيق.",
+      "لطلب حذف حسابك وبياناتك في مصاريفي وراتبي، افتح «المزيد» واختر «حذف الحساب». يمكنك أيضًا إيقاف تسجيل الدخول إلى التطبيق من إعدادات حساب Apple. لحذف بياناتك من مصاريفي وراتبي، قدّم طلب الحذف داخل التطبيق."
+    ]
+  },
+  "en": {
+    "id": "apple-identity",
+    "title": "Sign in with Apple",
+    "paragraphs": [
+      "If you choose Sign in with Apple on iPhone, we use Clerk to verify your identity and start your session. We receive an identifier from Apple for your use of the app. We may also receive your name and the email address you choose to share. If you choose Hide My Email, Apple provides a relay address that forwards messages to your inbox.",
+      "We keep an encrypted token linked to your Apple authorization. When we process your account deletion request, our server uses this token to revoke the app’s authorization with Apple before deleting your sign-in account with Clerk. If we need a fresh token, your iPhone will ask you to confirm the Apple Account linked to the app.",
+      "To request deletion of your Masarifi & Ratibi account and data, open More and tap Delete account. You can also stop using Sign in with Apple for the app in your Apple Account settings. To delete your Masarifi & Ratibi data, submit the deletion request in the app."
+    ]
+  }
+}
