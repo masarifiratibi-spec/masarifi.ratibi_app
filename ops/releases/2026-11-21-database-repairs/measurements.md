@@ -33,3 +33,9 @@ At 14:05 Riyadh time, the primary server matched all six migration checksums. Th
 The receipt consumer committed at 14:00 and 14:05. The import reconciliation execution counter advanced from one to two, and its pending marker count was zero after each cycle. Receipt health reported zero issues and no lag alert. History retention, import parsing, account deletion, financial reset cleanup, outbox dispatch and sync retry each recorded a successful run after activation. The operating voice heartbeat was under 12 seconds old.
 
 The production email selector ran twice in a 43.2-second idle window, down from 170 calls in the earlier 43-second sample. Both samples returned zero rows. A longer post-release sample recorded 14 calls in 199.3 seconds. Delivery latency above comes from the local SMTP acceptance tests.
+
+## Sync retry scheduler
+
+Production applied migration `20261121143500` once at 19:32:55 Riyadh on 21 November. Before deployment, a 61.3-second sample had six mutation claim calls, six empty runs and zero claimed rows. After deployment, a 100.4-second sample had zero mutation claims and zero runs. Mutation table insert, update and delete counters stayed flat in both windows. The scoped scheduler, shared by several workers, still averaged five calls per second across those workers. These samples contained no real arrivals.
+
+The subsequent worker change uses one SQL command for a scoped poll on an initialized worker connection. In a local PostgreSQL 17 replay on each branch, 600 idle polls required 3,000 driver commands before the worker change and 600 afterward. Both versions recorded zero empty runs. A new mutation and an expired lease were picked up on the first due poll on both branches. A separate two-worker test under a restricted login produced one claim and verified that worker claims were visible during the insert and the previous session context was restored afterward. These worker measurements are local.
