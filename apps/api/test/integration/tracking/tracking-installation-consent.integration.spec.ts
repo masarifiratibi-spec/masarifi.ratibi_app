@@ -109,6 +109,21 @@ describeLiveDatabase('production installation explicit source consent', () => {
     );
     expect(count.rows[0]?.n).toBe(0);
   });
+  it('revises both device and owner snapshots when an unbound account changes', async () => {
+    await consent();
+    const readRevisions = async () => {
+      const ownerSnapshot = await repository.ruleSnapshot(principal());
+      const deviceSnapshot = await repository.ruleSnapshot(principal(), deviceId);
+      expect(ownerSnapshot.configurationRevision).toMatch(/^[a-f0-9]{64}$/);
+      expect(deviceSnapshot.configurationRevision).toBe(ownerSnapshot.configurationRevision);
+      return ownerSnapshot.configurationRevision;
+    };
+    const original = await readRevisions();
+    await pool.query("update public.accounts set last_four='1234' where user_id=$1", [owner]);
+    const updated = await readRevisions();
+    expect(updated).not.toBe(original);
+    expect(await readRevisions()).toBe(updated);
+  });
   it('returns only numeric enabled-source optional boundary fields in the public configuration', async () => {
     const config = await consent({
       ...disabled(),
