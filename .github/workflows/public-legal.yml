@@ -5,6 +5,7 @@ name: Public Legal Resources
     branches: [codex/voice-promoted-operating-2026-10-13]
     paths:
       - apps/public-legal/**
+      - apps/mobile/src/features/legal/*-privacy.json
       - apps/mobile/src/features/legal/privacy.ar.json
       - apps/mobile/src/features/legal/privacy.en.json
       - apps/mobile/src/features/legal/terms.ar.json
@@ -16,6 +17,7 @@ name: Public Legal Resources
     branches: [main]
     paths:
       - apps/public-legal/**
+      - apps/mobile/src/features/legal/*-privacy.json
       - apps/mobile/src/features/legal/privacy.ar.json
       - apps/mobile/src/features/legal/privacy.en.json
       - apps/mobile/src/features/legal/terms.ar.json

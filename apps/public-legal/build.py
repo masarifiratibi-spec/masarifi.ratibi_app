@@ -12,13 +12,15 @@ import tarfile
 import io
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SOURCE = "56ced9a30a902cad3e41635dc25bfe24fa8da663"
+CANONICAL_SOURCE = "f70dbbb62780a6ac0ddd3c928d2edadcdf9067dd"
 ORIGIN = "https://masarifiratibi.com"
 EMAIL = "masarifi.ratibi@gmail.com"
 MAILTO = "mailto:" + EMAIL + "?subject=Account%20deletion%20request"
 ROUTES = ("privacy", "terms", "delete-account")
 LEGAL = "apps/mobile/src/features/legal"
 APPLE_PRIVACY = f"{LEGAL}/apple-privacy.json"
+SHORTCUTS_PRIVACY = f"{LEGAL}/ios-shortcuts-privacy.json"
+PROCESSING_PRIVACY = f"{LEGAL}/ios-processing-privacy.json"
 CSS_ROOT = "apps/admin-web/src/features"
 STYLE_SOURCES = {
     "legal": f"{CSS_ROOT}/public-legal/legal.module.css",
@@ -66,9 +68,24 @@ def source_provenance(preview: bool = False) -> dict:
 def legal_document(kind: str, language: str) -> dict:
     document = json.loads(canonical_bytes(f"{LEGAL}/{kind}.{language}.json"))
     if kind == "privacy":
-        sections = document["sections"]
-        identity_index = [section["id"] for section in sections].index("identity")
-        sections.insert(identity_index + 1, json.loads(canonical_bytes(APPLE_PRIVACY))[language])
+        processing = json.loads(canonical_bytes(PROCESSING_PRIVACY))[language]
+        additions = {
+            "identity": json.loads(canonical_bytes(APPLE_PRIVACY))[language],
+            "tracking": json.loads(canonical_bytes(SHORTCUTS_PRIVACY))[language],
+            "ai": processing["ai"],
+            "storage": processing["storage"],
+        }
+        originals = document["sections"]
+        if not additions.keys() <= {section["id"] for section in originals}:
+            raise ValueError("Missing canonical privacy anchor")
+        document["sections"] = [
+            row for section in originals
+            for row in ([section, additions[section["id"]]] if section["id"] in additions else [section])
+        ]
+    elif kind == "terms":
+        providers = "Google أو Apple" if language == "ar" else "Google or Apple"
+        for section in document["sections"]:
+            section["paragraphs"] = [paragraph.replace("Google", providers) for paragraph in section["paragraphs"]]
     identifiers = [section["id"] for section in document["sections"]]
     if len(identifiers) != len(set(identifiers)) or any(not re.fullmatch(r"[a-z][a-z0-9-]*", value) for value in identifiers):
         raise ValueError("Invalid or duplicate document anchor")
@@ -139,7 +156,7 @@ def build(output: Path, preview: bool = False) -> dict:
         raise FileExistsError("Use a new output directory; preserve earlier candidates")
     provenance = source_provenance(preview)
     input_paths = list(STYLE_SOURCES.values()) + [f"{LEGAL}/{kind}.{language}.json" for kind in ("privacy", "terms") for language in ("ar", "en")]
-    input_paths.append(APPLE_PRIVACY)
+    input_paths.extend([APPLE_PRIVACY, SHORTCUTS_PRIVACY, PROCESSING_PRIVACY])
     input_bytes = {relative: canonical_bytes(relative) for relative in input_paths}
     site = output / "site"
     (site / "assets/public-legal").mkdir(parents=True)
