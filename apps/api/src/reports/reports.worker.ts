@@ -74,20 +74,23 @@ export class ReportsWorker implements OnModuleDestroy {
     }
   }
 
-  async runRequestedPdfEmailsOnce(acceptedAfter: string): Promise<void> {
+  async runRequestedPdfEmailsOnce(acceptedAfter: string): Promise<boolean> {
     validateRequestedPdfEmailScope(acceptedAfter);
-    if (this.running) return;
+    if (this.running) return true;
     this.running = true;
+    let found = false;
     try {
       const limit = this.config.getRequired('MASARIFI_REPORT_BATCH_SIZE');
       for (const kind of ['report.generate', 'report.email.deliver'] as const) {
         const ids = await this.repository.listRequestedPdfEmailWork(kind, limit, acceptedAfter);
+        if (ids.length) found = true;
         recordReportBacklog(kind, ids.length);
         for (const id of ids)
           await this.repository.withWorkLock(kind, id, (claim) =>
             kind === 'report.generate' ? this.generate(claim) : this.deliver(claim),
           );
       }
+      return found;
     } finally {
       this.running = false;
     }

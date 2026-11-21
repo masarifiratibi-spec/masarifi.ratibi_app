@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { Client } from 'pg';
 import { bootstrapReportsEmailWorker } from '../../../src/reports-email-worker';
 import { ReportsWorker } from '../../../src/reports/reports.worker';
 import { PlatformLogger } from '../../../src/platform/observability/platform-logger';
@@ -8,7 +9,14 @@ const cutoff = '2026-10-30T00:00:00.000Z';
 
 function setup(run = jest.fn().mockResolvedValue(undefined)) {
   const worker = { runRequestedPdfEmailsOnce: run, stop: jest.fn().mockResolvedValue(undefined) };
-  const config = { getRequired: () => 1000 };
+  const config = {
+    getRequired: (key: string) => (key === 'DATABASE_URL' ? 'postgresql://localhost/test' : 1000),
+  };
+  jest.spyOn(Client.prototype, 'connect').mockImplementation(() => {
+    throw Error('listener offline');
+  });
+  jest.spyOn(PlatformLogger.prototype, 'error').mockImplementation(() => undefined);
+  jest.spyOn(Client.prototype, 'end').mockResolvedValue(undefined as never);
   let destroy: (() => void) | undefined;
   const lifecycle = {
     registerCleanup: (cleanup: () => void) => {
