@@ -191,7 +191,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
             classification: { status: string };
           };
         }>(
-          'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+          'select r.id, r.reason, r.proposed_values, r.version::integer as version from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
           [id],
         )
       ).rows[0];
@@ -300,7 +300,7 @@ describeLiveDatabase('nominal default-account tracking', () => {
             classification: { status: string };
           };
         }>(
-          'select r.* from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
+          'select r.id, r.reason, r.proposed_values, r.version::integer as version from public.review_items r join public.import_items i on i.id=r.import_item_id where i.session_id=$1',
           [id],
         )
       ).rows[0];

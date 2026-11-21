@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { prioritizeImportFixtureMarks } from './import-reconcile-fixture';
 import { createLivePool, describeLiveDatabase } from '../../live-database';
 
 describeLiveDatabase('bounded import reconciliation', () => {
@@ -124,6 +125,7 @@ describeLiveDatabase('bounded import reconciliation', () => {
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     try {
       for (const id of ids) await pool.query(sessionSql, [id, owner, 'received', 7]);
+      await prioritizeImportFixtureMarks(pool, ids);
       await pool.withClient(async (locker) => {
         await locker.query('begin');
         try {
