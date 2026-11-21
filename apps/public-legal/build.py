@@ -12,12 +12,13 @@ import tarfile
 import io
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SOURCE = "a95f37a91dcbdf174dfc4e58a7ad511ee6f3f718"
+CANONICAL_SOURCE = "56ced9a30a902cad3e41635dc25bfe24fa8da663"
 ORIGIN = "https://masarifiratibi.com"
 EMAIL = "masarifi.ratibi@gmail.com"
 MAILTO = "mailto:" + EMAIL + "?subject=Account%20deletion%20request"
 ROUTES = ("privacy", "terms", "delete-account")
 LEGAL = "apps/mobile/src/features/legal"
+APPLE_PRIVACY = f"{LEGAL}/apple-privacy.json"
 CSS_ROOT = "apps/admin-web/src/features"
 STYLE_SOURCES = {
     "legal": f"{CSS_ROOT}/public-legal/legal.module.css",
@@ -64,6 +65,10 @@ def source_provenance(preview: bool = False) -> dict:
 
 def legal_document(kind: str, language: str) -> dict:
     document = json.loads(canonical_bytes(f"{LEGAL}/{kind}.{language}.json"))
+    if kind == "privacy":
+        sections = document["sections"]
+        identity_index = [section["id"] for section in sections].index("identity")
+        sections.insert(identity_index + 1, json.loads(canonical_bytes(APPLE_PRIVACY))[language])
     identifiers = [section["id"] for section in document["sections"]]
     if len(identifiers) != len(set(identifiers)) or any(not re.fullmatch(r"[a-z][a-z0-9-]*", value) for value in identifiers):
         raise ValueError("Invalid or duplicate document anchor")
@@ -134,10 +139,12 @@ def build(output: Path, preview: bool = False) -> dict:
         raise FileExistsError("Use a new output directory; preserve earlier candidates")
     provenance = source_provenance(preview)
     input_paths = list(STYLE_SOURCES.values()) + [f"{LEGAL}/{kind}.{language}.json" for kind in ("privacy", "terms") for language in ("ar", "en")]
+    input_paths.append(APPLE_PRIVACY)
     input_bytes = {relative: canonical_bytes(relative) for relative in input_paths}
     site = output / "site"
     (site / "assets/public-legal").mkdir(parents=True)
-    stylesheets, source_pins = {}, {}
+    stylesheets = {}
+    source_pins = {relative: hashlib.sha256(raw).hexdigest() for relative, raw in input_bytes.items()}
     for name, relative in STYLE_SOURCES.items():
         raw = input_bytes[relative]
         if re.search(rb"(?:url\s*\(|@import)", raw, re.I):
@@ -146,11 +153,6 @@ def build(output: Path, preview: bool = False) -> dict:
         asset = f"assets/public-legal/{name}.{hashlib.sha256(data).hexdigest()[:16]}.css"
         (site / asset).write_bytes(data)
         stylesheets[name] = asset
-        source_pins[relative] = hashlib.sha256(raw).hexdigest()
-    for kind in ("privacy", "terms"):
-        for language in ("ar", "en"):
-            relative = f"{LEGAL}/{kind}.{language}.json"
-            source_pins[relative] = hashlib.sha256(input_bytes[relative]).hexdigest()
     for route in ROUTES:
         for language in ("ar", "en"):
             (site / f"{route}.{language}.html").write_bytes(page(route, language, stylesheets["deletion" if route == "delete-account" else "legal"]))
