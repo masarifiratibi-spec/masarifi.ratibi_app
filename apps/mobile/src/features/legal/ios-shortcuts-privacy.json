@@ -1,0 +1,20 @@
+{
+  "en": {
+    "id": "iphone-shortcuts",
+    "title": "Bank messages selected in iPhone Shortcuts",
+    "paragraphs": [
+      "If you enable bank-message recording, you choose a message or configure an automation in Apple Shortcuts. The shortcut passes the selected text to Masarifi on your iPhone. Masarifi parses it on the device. This shortcut does not give Masarifi access to your message inbox or send the original message text to our server.",
+      "To record a supported transaction, Masarifi sends the parsed amount, currency, time, transaction type, title or source, category and selected account identifiers to its backend as applicable. A transfer can identify two accounts. A refund or reversal can refer to an earlier transaction and include a fee. The iPhone keeps matching information, including hashed message or reference identifiers, to recognize duplicates.",
+      "When offline, the iPhone keeps pending transaction commands in a protected local file and retries when connectivity allows. Lock-screen notices hide financial details. To turn off recording, disable it in Masarifi, then disable or delete the automation in Shortcuts. Disabling recording clears pending commands and notices. Previously saved transactions and local duplicate-matching records can remain."
+    ]
+  },
+  "ar": {
+    "id": "iphone-shortcuts",
+    "title": "الرسائل البنكية التي تختارها في اختصارات الآيفون",
+    "paragraphs": [
+      "عند تفعيل تسجيل الرسائل البنكية، تختار رسالة أو تُعدّ أتمتة في تطبيق «الاختصارات» من Apple. يمرّر الاختصار نص الرسالة المحددة إلى مصاريفي وراتبي ليحلّله على الآيفون. لا يمنح الاختصار التطبيق وصولًا إلى صندوق رسائلك، ولا يرسل نص الرسالة الأصلي إلى خادمنا.",
+      "لتسجيل عملية مدعومة، يرسل التطبيق إلى خادمه الحقول المستخرجة بحسب العملية، ومنها المبلغ والعملة والوقت ونوع العملية والعنوان أو المصدر والفئة ومعرّفات الحسابات المحددة. قد يشمل التحويل حسابين، وقد تشير عملية الاسترداد أو العكس إلى عملية سابقة وتتضمن رسومًا. يحتفظ الآيفون ببيانات للمطابقة، منها بصمات رقمية للرسالة أو مرجعها، للتعرّف على التكرار.",
+      "عند استخدام الميزة دون اتصال، يحفظ الآيفون أوامر التسجيل المعلّقة في ملف محلي محمي ويعيد المحاولة عندما يتاح الاتصال. تُخفى التفاصيل المالية في إشعارات شاشة القفل. لإيقاف التسجيل، عطّل الميزة في مصاريفي وراتبي، ثم عطّل الأتمتة أو احذفها من تطبيق «الاختصارات». تُمسح الأوامر والإشعارات المعلّقة عند إيقاف الميزة، وقد تبقى العمليات المسجلة سابقًا وبيانات مطابقة التكرار على الجهاز."
+    ]
+  }
+}
