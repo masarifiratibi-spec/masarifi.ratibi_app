@@ -76,6 +76,10 @@ export class IdentityPrivacyHandler implements PrivacyDomainHandler {
     };
   }
 
+  assertDeletionPrepared(evidence: PrivacyEvidence) {
+    return this.clerk.assertAppleDeletionPrepared(evidence.userId, true);
+  }
+
   async deleteAccount(evidence: PrivacyEvidence): Promise<DeletionOutcome> {
     const alreadyDeleted = await this.workerTransaction(async (client) => {
       const profile = await client.query<{ status: string }>(

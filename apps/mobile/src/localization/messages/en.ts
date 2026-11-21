@@ -201,6 +201,8 @@ const en = {
     'Deletes identity, assistant, tracking and support data. Financial records remain.',
   'settings.deletion.verificationUnavailable':
     'Verification unavailable. Sign in again, then retry deletion.',
+  'settings.deletion.appleAuthorization':
+    'Confirm the Apple Account linked to this profile on your iPhone, then try deleting your account again.',
   'settings.deletion.verificationError':
     'Verification could not be completed. Check the code or send a new code and retry.',
   'settings.deletion.pending': 'Contacting the account service…',

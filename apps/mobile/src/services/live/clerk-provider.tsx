@@ -8,7 +8,8 @@ import {
   type TokenCache
 } from '@clerk/expo';
 import { useSSO } from '@clerk/expo/experimental';
-import { useSignInWithApple } from '@clerk/expo/apple';
+import { useAppleSignIn } from './apple-sign-in';
+import { rememberAppleDeletionGrant } from '../apple-deletion-authorization';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -212,7 +213,7 @@ function ClerkBridgeInstaller({
   const signInState = useSignIn();
   const signUpState = useSignUp();
   const { startSSOFlow } = useSSO();
-  const { startAppleAuthenticationFlow } = useSignInWithApple();
+  const startAppleAuthenticationFlow = useAppleSignIn();
   const latest = useRef({
     auth,
     signInState,
@@ -500,9 +501,8 @@ function ClerkBridgeInstaller({
       try {
         const result = await latest.current.startAppleAuthenticationFlow();
         if (!isCurrentAttempt()) return null;
-        if (!result.createdSessionId) {
-          // Clerk returns the same mutable resources for cancellation, unloaded
-          // hooks and incomplete flows. A null ID proves only non-completion.
+        if (!result?.createdSessionId) {
+          // A cancelled or incomplete Apple flow never supplies an active session.
           onStatus('cancelled');
           return null;
         }
@@ -517,6 +517,11 @@ function ClerkBridgeInstaller({
         if (!session || session.id !== result.createdSessionId)
           throw new Error('Clerk session missing');
         const appleSession: ClerkSession = { ...session, method: 'apple' };
+        if (result.authorizationCode) {
+          // A failed exchange is recovered at deletion with a fresh Apple code.
+          void rememberAppleDeletionGrant(session.id, session.userId, result.authorizationCode)
+            .catch(() => undefined);
+        }
         rememberedSession.current = appleSession;
         admitted = true;
         onStatus('ready');

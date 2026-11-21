@@ -1,5 +1,6 @@
 import { createClerkClient, type ClerkClient } from '@clerk/backend';
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
+import { AppleAuthorizationRequired, AppleDeletionGrants } from './apple-deletion-grants';
 import type { Request as ExpressRequest } from 'express';
 
 import { PlatformConfigService } from '../platform/config/platform-config.service';
@@ -63,6 +64,7 @@ function isSignedInState(value: unknown): value is Record<string, unknown> & {
 @Injectable()
 export class ClerkClientService {
   private readonly client: ClerkClient;
+  private readonly appleGrants: AppleDeletionGrants;
   private readonly timeoutMs: number;
   private readonly instanceDomain: string | undefined;
   private readonly adminInvitationRedirectUrl: string | undefined;
@@ -76,6 +78,7 @@ export class ClerkClientService {
       telemetry: { disabled: true, debug: false, samplingRate: 0 },
     });
     this.timeoutMs = config.get('MASARIFI_CLERK_API_TIMEOUT_MS');
+    this.appleGrants = new AppleDeletionGrants(this.client, config);
     this.instanceDomain = config.get('CLERK_INSTANCE_DOMAIN');
     this.adminInvitationRedirectUrl = config.get('MASARIFI_ADMIN_INVITATION_REDIRECT_URL');
   }
@@ -133,14 +136,39 @@ export class ClerkClientService {
     }
   }
 
+  async prepareAppleDeletion(userId: string, code?: string) {
+    try {
+      const user = await this.withTimeout(this.client.users.getUser(userId));
+      return await this.appleGrants.prepare(user, code);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+    }
+  }
+
+  async assertAppleDeletionPrepared(userId: string, allowDeleted = false) {
+    try {
+      const user = await this.withTimeout(this.client.users.getUser(userId));
+      this.appleGrants.assertPrepared(user);
+    } catch (error) {
+      if (allowDeleted && statusCode(error) === 404) return;
+      if (error instanceof AppleAuthorizationRequired) throw error;
+      if (allowDeleted) throw new ClerkProviderUnavailableError();
+      throw new HttpException({ code: 'PROVIDER_UNAVAILABLE' }, 503);
+    }
+  }
+
   async deleteIdentityUser(userId: string): Promise<'deleted' | 'not_found'> {
     if (!/^user_[A-Za-z0-9_]+$/.test(userId) || userId.length > 128)
       throw new ClerkProviderUnavailableError();
     try {
+      const user = await this.withTimeout(this.client.users.getUser(userId));
+      await this.appleGrants.revoke(user);
       await this.withTimeout(this.client.users.deleteUser(userId));
       return 'deleted';
     } catch (error) {
       if (statusCode(error) === 404) return 'not_found';
+      if (error instanceof AppleAuthorizationRequired) throw error;
       throw new ClerkProviderUnavailableError();
     }
   }

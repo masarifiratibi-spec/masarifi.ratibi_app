@@ -4,6 +4,7 @@ import { DatabaseModule } from '../platform/database/database.module';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { META_TOKEN_VERIFIER, type MetaTokenVerifier } from '../platform/meta/meta-auth.guard';
 import { ClerkAuthGuard } from './clerk-auth.guard';
+import { AppleDeletionController } from './apple-deletion.controller';
 import { ClerkClientService } from './clerk-client.service';
 import { ClerkWebhookController } from './clerk-webhook.controller';
 import { ClerkWebhookWorker } from './clerk-webhook.worker';
@@ -18,7 +19,7 @@ import { CustomerSessionRevoker } from './customer-session-revoker';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [IdentityController, ClerkWebhookController, DevDeviceController],
+  controllers: [IdentityController, ClerkWebhookController, DevDeviceController, AppleDeletionController],
   providers: [
     ClerkClientService,
     ClerkAuthGuard,

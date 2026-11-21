@@ -15,6 +15,7 @@ import { spacing } from '@/design-system/tokens';
 import { useTheme } from '@/state/theme-context';
 import { usePreferenceStore } from '@/state/preferences';
 import { translateDynamic as t } from '@/localization/i18n';
+import { HttpError } from '@/services/live/http-client';
 import {
   getAccountDeletionSnapshots,
   reconcileAccountDeletions,
@@ -66,8 +67,9 @@ export function DevAccountDeletionPanel({
     setError(null);
     try {
       await action();
-    } catch {
-      setError('settings.deletion.error');
+    } catch (failure) {
+      setError(failure instanceof HttpError && failure.domainCode === 'APPLE_AUTHORIZATION_REQUIRED'
+        ? 'settings.deletion.appleAuthorization' : 'settings.deletion.error');
     } finally {
       setBusy(false);
     }
@@ -156,7 +158,8 @@ export function DevAccountDeletionPanel({
           settings.deletion.popup.title
         </StyledText>
         <StyledText style={styles.centered}>
-          {t(error ?? message ?? 'settings.deletion.popup.body')}
+          {t(error ?? (snapshot?.error === 'settings.deletion.appleAuthorization'
+            ? snapshot.error : message) ?? 'settings.deletion.popup.body')}
         </StyledText>
         <ActionButton label={retryLabel} onPress={retry} />
         <ActionButton

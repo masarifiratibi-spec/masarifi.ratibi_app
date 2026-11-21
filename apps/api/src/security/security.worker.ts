@@ -4,6 +4,7 @@ import { PassThrough } from 'node:stream';
 import { Injectable } from '@nestjs/common';
 
 import { ClerkProviderUnavailableError } from '../identity/clerk-client.service';
+import { AppleAuthorizationRequired } from '../identity/apple-deletion-grants';
 import { IdentityPrivacyHandler } from '../identity/identity-privacy.handler';
 import { PlatformConfigService } from '../platform/config/platform-config.service';
 import { recordPlatformMetric, SECURITY_METRICS } from '../platform/observability/platform-metrics';
@@ -36,7 +37,7 @@ export class SecurityWorkerService {
   constructor(
     private readonly repository: SecurityRepository,
     private readonly storage: ExportStorage,
-    identity: IdentityPrivacyHandler,
+    private readonly identity: IdentityPrivacyHandler,
     tracking: TrackingPrivacyHandler,
     ai: AiPrivacyHandler,
     engagement: EngagementPrivacyHandler,
@@ -348,6 +349,9 @@ export class SecurityWorkerService {
     };
     try {
       const outcomes: Array<Record<string, unknown>> = [];
+      // Requests accepted on older releases can still need a native Apple grant.
+      // Preserve the owner's sessions and records until that grant is available.
+      await this.identity.assertDeletionPrepared(evidence);
       await this.erasure.prepare(evidence);
       // Keep the identity usable until every data-domain cleanup has succeeded.
       const handlers = [...this.registry.entries()].sort(
@@ -404,11 +408,13 @@ export class SecurityWorkerService {
           [
             claim.id,
             'processing',
-            error instanceof ClerkProviderUnavailableError
-              ? 'DELETION_PROVIDER_UNAVAILABLE'
-              : dependencyBusy
-                ? 'DELETION_DEPENDENCY_BUSY'
-                : 'DELETION_HANDLER_FAILED',
+            error instanceof AppleAuthorizationRequired
+              ? 'APPLE_AUTHORIZATION_REQUIRED'
+              : error instanceof ClerkProviderUnavailableError
+                ? 'DELETION_PROVIDER_UNAVAILABLE'
+                : dependencyBusy
+                  ? 'DELETION_DEPENDENCY_BUSY'
+                  : 'DELETION_HANDLER_FAILED',
           ],
         );
       });

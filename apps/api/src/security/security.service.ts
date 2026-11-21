@@ -374,6 +374,8 @@ export class SecurityService {
       }
     }
     if (input.operation === 'createMyDeletionRequest') {
+      if (body.confirmation !== 'DELETE_MY_ACCOUNT')
+        throw new HttpException({ code: 'VALIDATION_FAILED' }, 400);
       body.coolingOffHours = this.config.getRequired('MASARIFI_DELETION_COOLING_OFF_HOURS');
       if (body.coolingOffHours === 0 || body.completionToken !== undefined) {
         if (
@@ -385,6 +387,9 @@ export class SecurityService {
         body.completionTokenHash = createHash('sha256').update(body.completionToken).digest('hex');
         delete body.completionToken;
       }
+      // Obtain any missing grant while the owner can still authenticate.
+      // Credentials never enter the deletion journal, command hash or audit payload.
+      await this.clerk.assertAppleDeletionPrepared(input.principal.userId);
     }
     if (input.operation === 'acceptAdminInvitation') {
       const token = body.token;

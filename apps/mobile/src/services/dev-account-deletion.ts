@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { prepareAppleDeletion } from './apple-deletion-authorization';
 
 import {
   isAccountDeletionCompletionEnabled,
@@ -62,6 +63,7 @@ export interface DevDeletionSnapshot {
   phase: DevDeletionPhase;
   error:
     | 'settings.deletion.error'
+    | 'settings.deletion.appleAuthorization'
     | 'settings.deletion.rateLimited'
     | 'settings.deletion.processingRetry'
     | 'settings.deletion.dev.localRetry'
@@ -342,6 +344,10 @@ async function acceptReceipt(
     )
   };
   await saveDeletionCompletion(next);
+  if (receipt.status === 'processing' && receipt.errorCode === 'APPLE_AUTHORIZATION_REQUIRED') {
+    publish(journal.ownerId, 'verification_required', { error: 'settings.deletion.appleAuthorization' });
+    return;
+  }
   const failed = receipt.status === 'failed' || receipt.status === 'cancelled';
   publish(
     journal.ownerId,
@@ -508,10 +514,19 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
       existing.phase !== 'prepared' &&
       existing.phase !== 'rejected' &&
       existing.phase !== 'verification_required'
-    )
+    ) {
+      if (snapshots.get(ownerId)?.error === 'settings.deletion.appleAuthorization') {
+        const actor = await captureLiveClerkIdentity();
+        if (actor.userId !== ownerId) throw new HttpError('session_expired', 401);
+        await prepareAppleDeletion(actor, requireRuntime());
+      }
       return recoverJournal(existing, true);
+    }
     const actor = await captureLiveClerkIdentity();
     if (actor.userId !== ownerId) throw new HttpError('session_expired', 401);
+    assertShellOwner(ownerId);
+    await prepareAppleDeletion(actor, requireRuntime());
+    await actor.assertCurrent();
     assertShellOwner(ownerId);
     const journal = existing ?? (await prepareDeletionCompletion(ownerId));
     const submitted: DeletionCompletionJournal = {
@@ -523,6 +538,8 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
     try {
       await saveDeletionCompletion(submitted);
       await actor.assertCurrent();
+      const submittingActor = await captureLiveClerkIdentity();
+      await actor.assertCurrent();
       assertShellOwner(ownerId);
       publish(ownerId, 'deleting');
       dispatched = true;
@@ -531,7 +548,7 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
         deletionRequestSchema,
         {
           method: 'POST',
-          token: actor.token,
+          token: submittingActor.token,
           headers: { 'Idempotency-Key': journal.operationId },
           body: {
             confirmation: 'DELETE_MY_ACCOUNT',

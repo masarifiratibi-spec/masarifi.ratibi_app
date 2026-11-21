@@ -182,6 +182,8 @@ const ar: MessageCatalog = {
     'الحذف غير مفعّل لهذا الحساب التجريبي. لم يُحذف شيء.',
   'settings.deletion.retentionNotice':
     'يحذف هويتك وبيانات المساعد والتتبع والدعم؛ تبقى السجلات المالية.',
+  'settings.deletion.appleAuthorization':
+    'أكّد حساب Apple المرتبط بهذا الملف على الآيفون، ثم أعد محاولة حذف الحساب.',
   'settings.deletion.verificationUnavailable':
     'التحقق غير متاح. سجّل الدخول مجددًا ثم أعد طلب الحذف.',
   'settings.deletion.verificationError':

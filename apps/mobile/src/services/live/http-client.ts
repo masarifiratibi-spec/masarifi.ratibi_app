@@ -96,6 +96,7 @@ const SERVER_CODES: Readonly<Record<string, HttpErrorCode>> = {
   UNDO_EXPIRED: 'conflict',
   FINANCIAL_ACCESS_DENIED: 'forbidden',
   RECENT_AUTH_REQUIRED: 'recent_auth_required',
+  APPLE_AUTHORIZATION_REQUIRED: 'conflict',
   LEDGER_BUSY: 'conflict',
   LEDGER_UNAVAILABLE: 'provider_unavailable',
   DUPLICATE_RESOURCE: 'conflict',

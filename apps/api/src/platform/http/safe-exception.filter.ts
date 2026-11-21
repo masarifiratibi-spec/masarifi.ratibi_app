@@ -75,6 +75,7 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   VERSION_CONFLICT: { status: 409, message: 'Resource version conflict' },
   INVALID_CURSOR: { status: 400, message: 'Cursor is invalid' },
   RECENT_AUTH_REQUIRED: { status: 403, message: 'Recent authentication is required' },
+  APPLE_AUTHORIZATION_REQUIRED: { status: 409, message: 'Confirm the linked Apple account on iPhone' },
   DEVICE_NOT_FOUND: { status: 404, message: 'Device not found' },
   PUSH_TOKEN_CONFLICT: { status: 409, message: 'Push token is already registered' },
   PROVIDER_UNAVAILABLE: { status: 503, message: 'Provider is unavailable' },
