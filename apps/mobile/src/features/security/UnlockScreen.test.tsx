@@ -125,3 +125,30 @@ test('does not use local device authentication to admit an expired remote sessio
   expect(authenticate).not.toHaveBeenCalled();
   expect(unlock).not.toHaveBeenCalled();
 });
+
+test('starts the device prompt when the mounted session finishes refreshing in the foreground', async () => {
+  const authenticate = jest.fn().mockResolvedValue({ status: 'authenticated' });
+  const service = serviceWith(authenticate);
+  const unlock = jest.fn();
+  const view = render(<UnlockScreen sessionExpired biometricService={service} onUnlock={unlock} />);
+  expect(authenticate).not.toHaveBeenCalled();
+  view.rerender(<UnlockScreen biometricService={service} onUnlock={unlock} />);
+  await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
+  expect(authenticate).toHaveBeenCalledTimes(1);
+});
+
+test('offers a fresh attempt when the session expires and recovers during an OS prompt', async () => {
+  let finish!: (result: BiometricResult) => void;
+  const authenticate = jest.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+    .mockResolvedValue({ status: 'authenticated' });
+  const service = serviceWith(authenticate);
+  const unlock = jest.fn();
+  const view = render(<UnlockScreen biometricService={service} onUnlock={unlock} />);
+  view.rerender(<UnlockScreen sessionExpired biometricService={service} onUnlock={unlock} />);
+  view.rerender(<UnlockScreen biometricService={service} onUnlock={unlock} />);
+  expect(authenticate).toHaveBeenCalledTimes(1);
+  await act(async () => finish({ status: 'authenticated' }));
+  expect(unlock).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByRole('button', { name: translate('appShell.security.biometricUnlock') }));
+  await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
+});
