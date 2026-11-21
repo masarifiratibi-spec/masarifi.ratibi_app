@@ -23,6 +23,8 @@ const evidenceRequired = {
 const words = value => normalizeFinancialText(value).toLowerCase().match(/[\p{L}\p{N}]+/gu)?.join(' ') || '';
 const issuer = account => words(account.issuer || account.institution || '');
 const merchantKey = value => normalizeFinancialText(value).toLowerCase();
+// Match a statement about the payment itself. A bank can waive a fee on a completed purchase.
+const noDebit = /\b(?:(?:card|account)\s+(?:was\s+not|has\s+not\s+been)\s+charged|no\s+amount\s+was\s+(?:deducted|debited|charged)|(?:payment|purchase|transaction)\s+could\s+not\s+be\s+processed)\s*(?=$|[.!;,،])/iu;
 
 function merchantCategory(merchant, categories) {
   if (!merchant || !categories) return undefined;
@@ -183,6 +185,7 @@ function route(text, c, routing) {
 
 module.exports = function classifyBankSms(text, receivedAt, timeZone, routing) {
   if (typeof text !== 'string' || text.length > 2000 || !text.trim()) return null;
+  if (noDebit.test(text)) return null;
   if (/\b(?:not|never)(?:\s+(?:yet|been|successfully))*\s+(?:approved|authori[sz]ed|processed|completed|executed|debited|credited|successful)\b/i.test(text)) return null;
   const parserText = routing
     ? text.replace(/(?<![\p{L}\p{N}])مرجع(?=\s*[:#])/gu, 'الرقم المرجعي')

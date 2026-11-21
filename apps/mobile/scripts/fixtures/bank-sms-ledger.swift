@@ -67,6 +67,45 @@ private final class LedgerProtocol: URLProtocol {
     return ["transaction": row, "postings": postings]
   }
 
+  @MainActor static func verifyLostResponse(_ ledger: BankSmsLedger, admission: BankSmsAccountAdmission) async throws {
+    let command = BankSmsCommand(kind: "expense", amountMinor: 1234, currency: "SAR", accountId: account,
+      categoryId: category, destinationAccountId: nil, original: nil, automatic: true, accountAdmission: [admission],
+      title: "QA", occurredAt: date)
+    var delivery = BankSmsDelivery(key: UUID(), textDigest: "qa", referenceDigest: nil,
+      expires: .distantFuture, created: Date(), pending: command)
+    var postingsByKey: [String: NSDictionary] = [:]
+    var requests = 0
+    LedgerProtocol.respond = { request in
+      precondition(request.url?.path == "/api/v1/bank-sms/automatic/expense")
+      let id = request.value(forHTTPHeaderField: "Idempotency-Key")!
+      let body = try requestBody(request) as NSDictionary
+      requests += 1
+      if let original = postingsByKey[id] {
+        precondition(original.isEqual(body))
+      } else {
+        postingsByKey[id] = body
+        // The test server has committed this key before URLSession receives the failure.
+        throw URLError(.networkConnectionLost)
+      }
+      return (201, try json(["transaction": detail("expense", ids: [account],
+        postings: [posting(account, -1234, "source")], categoryId: category)]))
+    }
+    do {
+      _ = try await ledger.post(command, key: delivery.key, generation: 3, token: "qa-token") {
+        delivery.writeAttempted = true
+      }
+      preconditionFailure("The first response was dropped")
+    } catch let error as URLError {
+      precondition(error.code == .networkConnectionLost && delivery.writeAttempted == true)
+    }
+    var restored = try JSONDecoder().decode(BankSmsDelivery.self, from: JSONEncoder().encode(delivery))
+    let receipt = try await ledger.post(restored.pending!, key: restored.key, generation: 3, token: "qa-token") {}
+    let notice = BankSmsPendingNotice(transactionId: receipt.id, command: command)
+    precondition(restored.settle(notice: notice, receipt: receipt))
+    precondition(receipt.id == transaction && restored.pending == nil && restored.pendingNotice?.transactionId == transaction)
+    precondition(requests == 2 && postingsByKey.count == 1)
+  }
+
   @MainActor static func main() async throws {
     let config = URLSessionConfiguration.ephemeral
     config.protocolClasses = [LedgerProtocol.self]
@@ -75,6 +114,7 @@ private final class LedgerProtocol: URLProtocol {
       automaticRouting: true, lastFour: "4242", institution: "QA", type: "bank", accountEnding: "7373",
       issuer: "QA", cashAccountId: cash, minorUnitScale: 2, nameAr: nil, nameEn: nil)
     let admission = BankSmsAccountAdmission(target)
+    try await verifyLostResponse(ledger, admission: admission)
     for enabled in [true, false] {
       LedgerProtocol.respond = { request in
         precondition(request.httpMethod == "GET" && request.url?.path == "/api/v1/accounts/\(account)")
@@ -227,6 +267,13 @@ private final class LedgerProtocol: URLProtocol {
     let recovered = try JSONDecoder().decode(BankSmsDelivery.self, from: saved)
     precondition(recovered.pending == nil && recovered.pendingNotice?.transactionId == transaction)
     precondition(recovered.original?.id == purchase.id && recovered.bankReferenceDigest == "account-scoped-ref")
+    var expiry = BankSmsState()
+    expiry.deliveries = [unresolved, recovered]
+    precondition(!expiry.expirePending(before: .distantPast))
+    precondition(expiry.expirePending(before: .distantFuture))
+    precondition(expiry.outcome == "expired" && expiry.deliveries.allSatisfy { $0.pending == nil && $0.pendingNotice == nil })
+    precondition(expiry.deliveries[1].original?.id == purchase.id)
+    precondition(!expiry.expirePending(before: .distantFuture))
     // Exercise the production wake loop with a backlog, including permanently blocked work.
     func pending(_ index: Int) -> BankSmsDelivery {
       BankSmsDelivery(key: UUID(), textDigest: String(index), referenceDigest: nil,

@@ -321,14 +321,9 @@ public struct BankSmsChoice: Sendable {
     do {
       var current = try admitted(enrollment)
       let cutoff = Date().addingTimeInterval(-replayWindow)
-      for index in current.deliveries.indices where current.deliveries[index].pending != nil && current.deliveries[index].created <= cutoff {
-        current.deliveries[index].pending = nil
-        current.outcome = "expired"
+      if current.expirePending(before: cutoff) {
+        try store.write(current)
       }
-      for index in current.deliveries.indices where current.deliveries[index].created <= cutoff {
-        current.deliveries[index].pendingNotice = nil
-      }
-      try store.write(current)
       try await BankSmsDrain.run(state: { try admitted(enrollment) }) { batch in
         let token = try await token(for: enrollment)
         let generation = try await ledger.generation(token: token)

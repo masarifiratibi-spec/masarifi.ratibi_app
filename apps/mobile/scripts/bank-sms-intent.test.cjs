@@ -56,6 +56,24 @@ test('the parser exposes separate stable identities for two purchases with diffe
   assert.notEqual(parse(text.replace('QA0001', 'QA0002')).referenceIdentity, first.referenceIdentity);
 });
 
+test('an explicit non-debit prevents a purchase posting and a fee waiver keeps the purchase', () => {
+  const context = vm.createContext({});
+  vm.runInContext(bundleBankSmsParser(root), context);
+  const routing = {
+    accounts: [{ id: 'bank', type: 'bank', currency: 'SAR', lastFour: '4242', automaticRouting: true }],
+    categories: [{ id: 'shopping', kind: 'expense' }], preferences: { expenseId: 'shopping' }
+  };
+  const parse = ending => context.masarifiClassifyBankSms(
+    'Purchase SAR 2.31 at QA SHOP card XX4242 Ref: QAT0001. ' + ending, captureAt, 'Asia/Riyadh', routing
+  );
+  for (const ending of ['Your card was not charged.', 'No amount was deducted.', 'Your payment could not be processed.']) {
+    assert.equal(parse(ending), null, ending);
+  }
+  for (const ending of ['', 'Your card was not charged a fee.', 'No fee was deducted.']) {
+    assert.equal(parse(ending)?.amountMinor, 231, ending);
+  }
+});
+
 test('the native capture pod reuses ClerkExpo’s single ClerkKit linkage', () => {
   const spec = readFileSync(
     join(root, 'modules/masarifi-bank-sms/ios/MasarifiBankSms.podspec'),

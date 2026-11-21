@@ -1,3 +1,4 @@
+import { getDateFormatter } from '@/utils/intl-formatters';
 import type { TransactionFilterSet } from '@/domain/core-finance';
 import { emptyTransactionFilters } from '@/domain/core-finance';
 import type { LocalDate } from '@/domain/financial-planning';
@@ -90,13 +91,13 @@ export function formatPeriodLabel(
   timeZone = 'UTC'
 ): string {
   if (period.kind === 'month') {
-    return new Intl.DateTimeFormat(locale, {
+    return getDateFormatter(locale, {
       month: 'long',
       year: 'numeric',
       timeZone
     }).format(period.periodStart);
   }
-  const formatter = new Intl.DateTimeFormat(locale, {
+  const formatter = getDateFormatter(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -255,7 +256,7 @@ function monthName(
   locale: string,
   timeZone: string
 ): string {
-  return new Intl.DateTimeFormat(locale, { month: 'long', timeZone }).format(
+  return getDateFormatter(locale, { month: 'long', timeZone }).format(
     timestamp
   );
 }

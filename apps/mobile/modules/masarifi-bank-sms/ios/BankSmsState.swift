@@ -142,6 +142,22 @@ struct BankSmsState: Codable {
   var lastSaved: Date?
   var lastTransactionId: UUID?
 
+  mutating func expirePending(before cutoff: Date) -> Bool {
+    var changed = false
+    for index in deliveries.indices where deliveries[index].created <= cutoff {
+      if deliveries[index].pending != nil {
+        deliveries[index].pending = nil
+        outcome = "expired"
+        changed = true
+      }
+      if deliveries[index].pendingNotice != nil {
+        deliveries[index].pendingNotice = nil
+        changed = true
+      }
+    }
+    return changed
+  }
+
   mutating func moveToBack(_ key: UUID) {
     guard let index = deliveries.firstIndex(where: { $0.key == key }), index != deliveries.count - 1 else { return }
     let delivery = deliveries.remove(at: index)

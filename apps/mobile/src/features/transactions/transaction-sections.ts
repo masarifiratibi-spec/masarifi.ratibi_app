@@ -1,10 +1,7 @@
 import type { Transaction } from '@/domain/core-finance';
 
 export type TransactionPeriodKey =
-  | 'today'
-  | 'yesterday'
-  | 'lastWeek'
-  | 'earlier';
+  'today' | 'yesterday' | 'lastWeek' | 'earlier';
 
 export type TransactionGroupedPosition = 'first' | 'middle' | 'last' | 'only';
 export type FirstDayOfWeek = 'saturday' | 'sunday' | 'monday';
@@ -21,31 +18,47 @@ export function transactionPeriodKey(
   now: number,
   _firstDayOfWeek: FirstDayOfWeek
 ): TransactionPeriodKey {
+  return relativePeriod(timestamp, dayBoundaries(now));
+}
+
+function dayBoundaries(now: number) {
   const today = startOfDay(now);
-  const transactionDay = startOfDay(timestamp);
-  if (transactionDay >= today) return 'today';
-  const yesterday = shiftDays(today, -1);
-  if (transactionDay >= yesterday) return 'yesterday';
-  if (transactionDay >= shiftDays(today, -7)) return 'lastWeek';
+  return {
+    today: today.getTime(),
+    yesterday: shiftDays(today, -1).getTime(),
+    lastWeek: shiftDays(today, -7).getTime()
+  };
+}
+
+function relativePeriod(
+  timestamp: number,
+  boundaries: ReturnType<typeof dayBoundaries>
+): TransactionPeriodKey {
+  if (timestamp >= boundaries.today) return 'today';
+  if (timestamp >= boundaries.yesterday) return 'yesterday';
+  if (timestamp >= boundaries.lastWeek) return 'lastWeek';
   return 'earlier';
 }
 
 export function buildTransactionSections(
   transactions: Transaction[],
   now: number,
-  firstDayOfWeek: FirstDayOfWeek
+  _firstDayOfWeek: FirstDayOfWeek
 ) {
-  const groups = new Map<TransactionPeriodKey, Transaction[]>();
-  transactions.forEach((transaction) => {
-    const key = transactionPeriodKey(
-      transaction.occurredAt,
-      now,
-      firstDayOfWeek
+  const boundaries = dayBoundaries(now);
+  const groups: Record<TransactionPeriodKey, Transaction[]> = {
+    today: [],
+    yesterday: [],
+    lastWeek: [],
+    earlier: []
+  };
+  for (const transaction of transactions) {
+    groups[relativePeriod(transaction.occurredAt, boundaries)].push(
+      transaction
     );
-    groups.set(key, [...(groups.get(key) ?? []), transaction]);
-  });
+  }
   return periodOrder.flatMap((key) => {
-    const items = groups.get(key) ?? [];
+    const items = groups[key];
     if (!items.length) return [];
     return [{ key, items: withGroupedPositions(items) }];
   });
@@ -54,15 +67,13 @@ export function buildTransactionSections(
 function withGroupedPositions(items: Transaction[]) {
   return items.map((item, index) => ({
     item,
-    groupedPosition: (
-      items.length === 1
-        ? 'only'
-        : index === 0
-          ? 'first'
-          : index === items.length - 1
-            ? 'last'
-            : 'middle'
-    ) as TransactionGroupedPosition
+    groupedPosition: (items.length === 1
+      ? 'only'
+      : index === 0
+        ? 'first'
+        : index === items.length - 1
+          ? 'last'
+          : 'middle') as TransactionGroupedPosition
   }));
 }
 

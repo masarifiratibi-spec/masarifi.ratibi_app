@@ -12,10 +12,30 @@ import {
   last3MonthsPeriod,
   last6MonthsPeriod,
   lastYearPeriod,
-  formatDaySpan
+  formatDaySpan,
+  formatPeriodLabel
 } from './date-period';
 
 const riyadh = { timeZone: 'Asia/Riyadh', monthStartDay: 28 } as const;
+
+it('reuses the month formatter as the home and operations headers refresh', () => {
+  const dates = jest.spyOn(Intl, 'DateTimeFormat');
+  try {
+    for (let i = 0; i < 100; i++) {
+      const periodStart = Date.UTC(2026, i % 2, 1);
+      expect(
+        formatPeriodLabel(
+          { kind: 'month', periodStart, periodEnd: periodStart },
+          'en-GB',
+          'Europe/Dublin'
+        )
+      ).toBe(i % 2 === 0 ? 'January 2026' : 'February 2026');
+    }
+    expect(dates).toHaveBeenCalledTimes(1);
+  } finally {
+    dates.mockRestore();
+  }
+});
 
 it('builds an inclusive UTC calendar month without hardcoding a year', () => {
   const period = monthPeriod(Date.UTC(2026, 7, 17, 12));
