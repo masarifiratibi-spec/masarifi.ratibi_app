@@ -43,7 +43,8 @@ def main():
         run('docker', 'network', 'create', '--internal', '--label', 'masarifi.scope=selfhost', NETWORK)
     network = json.loads(run('docker', 'network', 'inspect', NETWORK))[0]
     assert network['Internal'] and network.get('Labels', {}).get('masarifi.scope') == 'selfhost'
-    run('docker', 'run', '--detach', '--name', NAME, '--network', NETWORK,
+    health_args = ['--health-cmd', 'pg_isready -U postgres -h /tmp'] if QUALIFIED else []
+    run('docker', 'run', '--detach', '--name', NAME, '--network', NETWORK, *health_args,
         '--user=100:101', '--read-only', '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m',
         '--cap-drop=ALL', '--security-opt=no-new-privileges:true', '--pids-limit=128',
         '--memory=768m', '--cpus=1', '--shm-size=128m', '--mount', mount,
