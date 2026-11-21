@@ -147,8 +147,21 @@ export const statusCodeCountSchema = z.object({
   count: z.number().int().nonnegative(),
 }).strict();
 
+export const httpObservationSchema = z.object({
+  range: operationalRangeSchema,
+  reason: z.enum(['platform_unavailable', 'no_observation']).nullable(),
+  sample: z.object({
+    observedAt: offsetDateTimeSchema,
+    from: offsetDateTimeSchema,
+    complete: z.boolean(),
+    counts: z.tuple([z.int().nonnegative(), z.int().nonnegative(), z.int().nonnegative(), z.int().nonnegative()]),
+    p95Ms: z.int().nonnegative().nullable(),
+  }).strict().nullable(),
+}).strict();
+
 export const apiMonitoringSchema = z.object({
   range: operationalRangeSchema,
+  observedFrom: offsetDateTimeSchema.optional(),
   requestVolume: metricValueSchema,
   errorRate: metricValueSchema,
   latency: metricValueSchema,

@@ -296,7 +296,8 @@ export function HealthOverviewView() {
 }
 
 export function ApiMonitoringView() {
-  const api = useApiMonitoring();
+  const [range, setRange] = useState<OperationalRange>(initialRange);
+  const api = useApiMonitoring({range});
   if (api.isPending) return <LoadingView label="API Monitoring" />;
   if (api.isError) return <ErrorView label="API Monitoring" />;
   const data: ApiMonitoring = api.data;
@@ -306,11 +307,20 @@ export function ApiMonitoringView() {
       <PageHeader
         eyebrow="Platform / System health"
         title="API Monitoring"
-        description="Safe API volume, latency, endpoint groups, and status-code denominators."
+        description="Completed requests, server errors and response times in the selected period."
       />
+      <div aria-label="Operational range" className="segmented-control">
+        {ranges.map(option => (
+          <button key={option} type="button" aria-pressed={option === range}
+            className={option === range ? "active" : ""} onClick={() => setRange(option)}>{option}</button>
+        ))}
+      </div>
       <section className="section-grid">
         <article className="card">
           <h2>API summary</h2>
+          {data.observedFrom && data.freshness.observedAt && (
+            <p>{data.range} · <time dateTime={data.observedFrom}>{data.observedFrom}</time> – <time dateTime={data.freshness.observedAt}>{data.freshness.observedAt}</time></p>
+          )}
           <MetricList metrics={[data.requestVolume, data.errorRate, data.latency]} />
         </article>
         <FreshnessCard state={data.freshness.state} partialReason={data.partialReason} />

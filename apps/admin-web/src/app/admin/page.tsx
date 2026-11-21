@@ -3,12 +3,8 @@
 import { Activity, ArrowLeft, Clock3, Download, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ChartCard,
-  DonutChart,
-  TrendChart,
-  VolumeChart,
-} from "@/components/admin/Charts";
+import dynamic from "next/dynamic";
+import { ChartCard } from "@/components/admin/ChartCard";
 import {
   MetricCard,
   PageHeader,
@@ -58,6 +54,19 @@ import {
   planLabel,
   paidCustomerNote,
 } from "@/features/overview/presentation";
+
+const TrendChart = dynamic(
+  () => import("@/components/admin/Charts").then((charts) => charts.TrendChart),
+  { loading: () => <div aria-hidden="true" style={{ height: 250 }} /> },
+);
+const VolumeChart = dynamic(
+  () => import("@/components/admin/Charts").then((charts) => charts.VolumeChart),
+  { loading: () => <div aria-hidden="true" style={{ height: 250 }} /> },
+);
+const DonutChart = dynamic(
+  () => import("@/components/admin/Charts").then((charts) => charts.DonutChart),
+  { loading: () => <div aria-hidden="true" style={{ height: 220 }} /> },
+);
 
 const PERIOD_PRESETS = ["7d", "30d", "90d"] as const;
 const METRIC_KIND_LABELS: Record<string, Record<Locale, string>> = {

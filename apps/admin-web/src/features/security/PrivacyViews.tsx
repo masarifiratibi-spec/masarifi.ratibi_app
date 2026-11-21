@@ -350,7 +350,7 @@ function RetentionCard({ policy }: { policy: RetentionPolicyDetail }) {
   );
 }
 
-export function RetentionDetailRoute({ policyId = "RET-1001" }: { policyId?: string }) {
+export function RetentionDetailRoute({ policyId }: { policyId: string }) {
   const { locale } = useLocale();
   const copy = privacyCopy[locale];
   const policy = useRetentionPolicy(policyId);

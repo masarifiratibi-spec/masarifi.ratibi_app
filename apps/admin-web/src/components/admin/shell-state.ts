@@ -283,6 +283,8 @@ const PHASE9_EXACT_ROUTE_PERMISSIONS: Partial<Record<string, PermissionKey>> = {
   "/admin/settings/maintenance": "settings.maintenance.read",
 };
 
+const liveDetailId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function resolveRoutePermission(pathname: string): RoutePermission | "forbidden" | undefined {
   const phase9ExactPermission = PHASE9_EXACT_ROUTE_PERMISSIONS[pathname];
   if (phase9ExactPermission) return phase9ExactPermission;
@@ -302,8 +304,9 @@ export function resolveRoutePermission(pathname: string): RoutePermission | "for
   ) {
     return "forbidden";
   }
-  if (/^\/admin\/security\/incidents\/INC-[A-Za-z0-9-]+$/.test(pathname)) {
-    return "security.incidents.manage";
+  if (pathname.startsWith("/admin/security/incidents/")) {
+    const id = pathname.slice("/admin/security/incidents/".length);
+    return /^INC-[A-Za-z0-9-]+$/.test(id) || liveDetailId.test(id) ? "security.incidents.manage" : "forbidden";
   }
   if (/^\/admin\/audit\/AUD-[A-Za-z0-9-]+$/.test(pathname)) {
     return "audit.logs.read";
@@ -314,10 +317,11 @@ export function resolveRoutePermission(pathname: string): RoutePermission | "for
   if (/^\/admin\/data-requests\/deletions\/DEL-[A-Za-z0-9-]+$/.test(pathname)) {
     return "data_requests.deletions.read";
   }
-  if (/^\/admin\/jobs\/runs\/JOB-[A-Za-z0-9-]+$/.test(pathname)) {
-    return "jobs.runs.read";
+  if (pathname.startsWith("/admin/jobs/runs/")) {
+    const id = pathname.slice("/admin/jobs/runs/".length);
+    return /^JOB-[A-Za-z0-9-]+$/.test(id) || liveDetailId.test(id) ? "jobs.runs.read" : "forbidden";
   }
-  if (pathname === "/admin/jobs" || pathname.startsWith("/admin/jobs/runs/")) {
+  if (pathname === "/admin/jobs") {
     return "forbidden";
   }
   if (/^\/admin\/imports\/sessions\/[^/]+$/.test(pathname)) {

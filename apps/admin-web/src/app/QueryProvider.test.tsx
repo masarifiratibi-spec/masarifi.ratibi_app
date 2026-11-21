@@ -3,6 +3,7 @@ import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { setSimulatedRole } from "@/core/auth/use-simulated-role";
+import { ApiError } from "@/core/api/errors";
 import { QueryProvider } from "./QueryProvider";
 
 const protectedKey = ["phase7-security", "super-admin", "audit", "AUD-1001"] as const;
@@ -20,6 +21,29 @@ function Probe({ onClient }: { onClient: (client: QueryClient) => void }) {
 
 describe("QueryProvider role-change cache boundary", () => {
   afterEach(() => window.sessionStorage.clear());
+
+  test("waits for the operator before retrying rate limits or recent login requirements", async () => {
+    const root = createRoot(document.createElement("div"));
+    let client!: QueryClient;
+    await act(async () => {
+      root.render(<QueryProvider><Probe onClient={(value) => { client = value; }} /></QueryProvider>);
+    });
+    for (const [code, status, expectedCalls] of [
+      ["rate_limited", 429, 1],
+      ["recent_auth_required", 403, 1],
+      ["provider_unavailable", 503, 2],
+    ] as const) {
+      let calls = 0;
+      const failure = new ApiError(code, "test", status);
+      await expect(client.fetchQuery({
+        queryKey: ["read-error", code],
+        retryDelay: 0,
+        queryFn: async () => { calls++; throw failure; },
+      })).rejects.toBe(failure);
+      expect(calls).toBe(expectedCalls);
+    }
+    await act(async () => { root.unmount(); });
+  });
 
   test("keeps active query data when the simulated role is selected again", async () => {
     const element = document.createElement("div");

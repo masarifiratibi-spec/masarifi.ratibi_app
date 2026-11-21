@@ -183,6 +183,7 @@ describe("BE003 live deletion workflow mapping", () => {
             id: deletionId,
             status: "verified",
             requestedAt: "2026-09-12T10:00:00.000Z",
+            retainedCategories: [],
             coolingOffEndsAt: "2026-09-13T10:00:00.000Z",
             completedAt: null,
             version: 2,
