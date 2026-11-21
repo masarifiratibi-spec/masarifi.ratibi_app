@@ -70,6 +70,7 @@ public struct BankSmsChoice: Sendable {
   private var reconnectMonitor: NWPathMonitor?
   private var pathWasUnavailable = false
   var verificationChanged: (() -> Void)?
+  var receiptSaved: (() -> Void)?
   private(set) var revision = 0
   private var revokedOwners = Set<String>()
   private var clerk: Clerk?
@@ -531,6 +532,7 @@ public struct BankSmsChoice: Sendable {
       state.lastTransactionId = notice.transactionId
     }
     try store.write(state)
+    if notice != nil { receiptSaved?() }
   }
 
   private func deliverNotice(_ key: UUID, enrollment: BankSmsEnrollment) async {

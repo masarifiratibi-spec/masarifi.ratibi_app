@@ -78,6 +78,14 @@ export function subscribeBankSmsVerification(listener: () => void) {
   return bankSmsNative()?.addListener('onVerificationChanged', listener);
 }
 
+export async function readLastBankSmsReceipt() {
+  const current = await scope();
+  const state = await readStatus(current, 'summary');
+  await current.assertCurrent();
+  if (state.enabled && state.lastTransactionId)
+    return { ownerId: current.owner, transactionId: state.lastTransactionId };
+}
+
 export async function verifyPendingBankSms(epoch: string) {
   const current = await scope();
   const state = await readStatus(current, 'summary');

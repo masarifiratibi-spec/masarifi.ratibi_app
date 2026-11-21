@@ -19,7 +19,7 @@ private struct Setup: Decodable {
 public final class MasarifiBankSmsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("MasarifiBankSms")
-    Events("onVerificationChanged")
+    Events("onVerificationChanged", "onReceiptSaved")
 
     AsyncFunction("takeForegroundNotice") { (owner: String, session: String, identifier: String, promise: Promise) in
       Task { @MainActor in
@@ -90,6 +90,7 @@ public final class MasarifiBankSmsModule: Module {
       Task { @MainActor in await BankSmsService.shared.removeOldDetailedNotifications() }
       Task { @MainActor [weak self] in
         BankSmsService.shared.verificationChanged = { [weak self] in self?.sendEvent("onVerificationChanged") }
+        BankSmsService.shared.receiptSaved = { [weak self] in self?.sendEvent("onReceiptSaved") }
         await BankSmsService.shared.retry()
       }
     }
