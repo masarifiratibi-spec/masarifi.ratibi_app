@@ -412,11 +412,6 @@ export function createLiveAssistantApiService(
     options.sleep ??
     ((milliseconds: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
-  const conversationReferences = new Map<string, string>();
-  const referenceKey = (owner: string, kind: string, id: string) =>
-    JSON.stringify([owner, kind, id]);
-  const responseCache = new Map<string, AssistantResponse>();
-  const previewCache = new Map<string, AssistantActionPreview>();
   const reviewedDisclosures = new Map<string, string>();
   const journal = options.journal ?? createMemoryAssistantJournal();
   const now = options.now ?? Date.now;
@@ -596,58 +591,20 @@ export function createLiveAssistantApiService(
 
   const listMessages = async (id: string, cursor?: string, owner?: string) =>
     parse(
-      page(messageSchema),
+      page(messageSchema).extend({
+        questions: z.array(messageSchema).optional()
+      }),
       await send(
         'GET',
-        `/api/v1/assistant/conversations/${encodeURIComponent(id)}/messages?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+        `/api/v1/assistant/conversations/${encodeURIComponent(id)}/messages?limit=99&includeQuestions=true${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
         undefined,
         undefined,
         owner
       )
     );
-  const listAllConversations = async (owner: string) => {
-    const items: AssistantConversation[] = [];
-    let cursor: string | undefined;
-    const seen = new Set<string>();
-    do {
-      const result = parse(
-        page(conversationSchema),
-        await send(
-          'GET',
-          `/api/v1/assistant/conversations?limit=99${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
-          undefined,
-          undefined,
-          owner
-        )
-      );
-      items.push(...result.items.map(mapConversation));
-      if (result.nextCursor === null) break;
-      if (seen.has(result.nextCursor))
-        throw new AssistantApiError('representative_failure');
-      seen.add(result.nextCursor);
-      cursor = result.nextCursor;
-    } while (true);
-    return items;
-  };
-  const listAllMessages = async (conversationId: string, owner: string) => {
-    const items: z.infer<typeof messageSchema>[] = [];
-    let cursor: string | undefined;
-    const seen = new Set<string>();
-    do {
-      const result = await listMessages(conversationId, cursor, owner);
-      items.push(...result.items);
-      if (result.nextCursor === null) break;
-      if (seen.has(result.nextCursor))
-        throw new AssistantApiError('representative_failure');
-      seen.add(result.nextCursor);
-      cursor = result.nextCursor;
-    } while (true);
-    return items;
-  };
   const mapResponse = (
     row: z.infer<typeof messageSchema>,
-    rows: readonly z.infer<typeof messageSchema>[],
-    owner: string
+    rows: readonly z.infer<typeof messageSchema>[]
   ): AssistantResponse => {
     if (
       row.role !== 'assistant' ||
@@ -658,7 +615,10 @@ export function createLiveAssistantApiService(
     )
       throw new AssistantApiError('representative_failure');
     const question = rows.find(
-      (item) => item.id === row.replyToMessageId && item.role === 'user'
+      (item) =>
+        item.id === row.replyToMessageId &&
+        item.role === 'user' &&
+        item.conversationId === row.conversationId
     );
     if (!question?.content)
       throw new AssistantApiError('representative_failure');
@@ -752,83 +712,56 @@ export function createLiveAssistantApiService(
       feedback: null,
       createdAt: epoch(row.createdAt)
     };
-    conversationReferences.set(
-      referenceKey(owner, 'response', mapped.id),
-      mapped.conversationId
-    );
-    if (row.preview)
-      conversationReferences.set(
-        referenceKey(owner, 'preview', row.preview.id),
-        mapped.conversationId
-      );
-    responseCache.set(mapped.id, mapped);
-    if (row.preview)
-      previewCache.set(row.preview.id, {
-        ...mapPreview(row.preview, row.id, row.snapshot.evidenceRefs),
-        ...(question.actionTimezone
-          ? { effectTimezone: question.actionTimezone }
-          : {})
-      });
     return mapped;
   };
-  const mappedResponses = async (
-    rows: readonly z.infer<typeof messageSchema>[],
-    owner: string
+  const loadAnswer = async (
+    kind: 'response' | 'preview',
+    id: string,
+    actor: Awaited<ReturnType<typeof identity>>
   ) => {
-    const complete = [...rows];
-    for (const row of rows) {
-      if (
-        row.role === 'assistant' &&
-        row.replyToMessageId &&
-        !complete.some((item) => item.id === row.replyToMessageId)
-      ) {
-        const parent = parse(
-          messageSchema,
-          await send(
-            'GET',
-            `/api/v1/assistant/conversations/${encodeURIComponent(row.conversationId)}/messages/${encodeURIComponent(row.replyToMessageId)}`,
-            undefined,
-            undefined,
-            owner
-          )
-        );
-        if (
-          parent.id !== row.replyToMessageId ||
-          parent.conversationId !== row.conversationId ||
-          parent.role !== 'user'
-        )
-          throw new AssistantApiError('representative_failure');
-        complete.push(parent);
-      }
-    }
-    return rows
-      .filter((row) => row.role === 'assistant' && row.status === 'completed')
-      .map((row) => mapResponse(row, complete, owner))
-      .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
-  };
-  const findCold = async (kind: 'response' | 'preview', id: string) => {
-    const actor = await identity();
-    responseCache.clear();
-    previewCache.clear();
-    const knownConversation = conversationReferences.get(
-      referenceKey(actor.userId, kind, id)
-    );
-    const conversations = knownConversation
-      ? [{ id: knownConversation }]
-      : await listAllConversations(actor.userId);
-    for (const item of conversations) {
-      await mappedResponses(
-        await listAllMessages(item.id, actor.userId),
+    const path = kind === 'response' ? 'messages' : 'previews';
+    const { items } = parse(
+      page(messageSchema),
+      await send(
+        'GET',
+        `/api/v1/assistant/${path}/${encodeURIComponent(id)}`,
+        undefined,
+        undefined,
         actor.userId
-      );
-      const found =
-        kind === 'response' ? responseCache.get(id) : previewCache.get(id);
-      if (found) {
-        await actor.assertCurrent();
-        return found;
-      }
-    }
-    throw new AssistantApiError('not_found');
+      )
+    );
+    await actor.assertCurrent();
+    const answer = items.find(
+      (row) =>
+        row.role === 'assistant' &&
+        row.status === 'completed' &&
+        (kind === 'response' ? row.id === id : row.preview?.id === id)
+    );
+    if (!answer) throw new AssistantApiError('not_found');
+    const response = mapResponse(answer, items);
+    const question = items.find((row) => row.id === response.requestMessageId);
+    const preview =
+      answer.preview && answer.snapshot
+        ? {
+            ...mapPreview(
+              answer.preview,
+              answer.id,
+              answer.snapshot.evidenceRefs
+            ),
+            ...(question?.actionTimezone
+              ? { effectTimezone: question.actionTimezone }
+              : {})
+          }
+        : null;
+    return { response, preview };
+  };
+  const loadPreview = async (
+    id: string,
+    actor: Awaited<ReturnType<typeof identity>>
+  ) => {
+    const { preview } = await loadAnswer('preview', id, actor);
+    if (!preview) throw new AssistantApiError('not_found');
+    return preview;
   };
   const ask = async (
     conversationId: string,
@@ -1042,7 +975,7 @@ export function createLiveAssistantApiService(
           result.response.replyToMessageId !== messageId
         )
           throw new AssistantApiError('representative_failure');
-        return mapResponse(result.response, [result.request], owner);
+        return mapResponse(result.response, [result.request]);
       }
       if (result.status === 'completed')
         throw new AssistantApiError('representative_failure');
@@ -1369,7 +1302,11 @@ export function createLiveAssistantApiService(
         listMessages(id, cursor, actor.userId)
       ]);
       const item = mapConversation(detail);
-      const responses = await mappedResponses(result.items, actor.userId);
+      const context = [...result.items, ...(result.questions ?? [])];
+      const responses = result.items
+        .filter((row) => row.role === 'assistant' && row.status === 'completed')
+        .map((row) => mapResponse(row, context))
+        .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
       const saved = await journal.read(actor.userId, 'question');
       let savedRequest: z.infer<typeof messageSchema> | undefined;
       if (
@@ -1457,7 +1394,7 @@ export function createLiveAssistantApiService(
       };
     },
     async getResponse(id) {
-      return (await findCold('response', id)) as AssistantResponse;
+      return (await loadAnswer('response', id, await identity())).response;
     },
     async ask(conversationId, question, operationId, intent) {
       assertBenchmarkRead('POST');
@@ -1517,14 +1454,13 @@ export function createLiveAssistantApiService(
           `${operationId}-report`
         );
       const next = { ...current, feedback };
-      responseCache.set(responseId, next);
       return mutation(next, [
         `assistant.conversation.${current.conversationId}`
       ]);
     },
     async getActionPreview(id) {
       const actor = await identity();
-      const value = (await findCold('preview', id)) as AssistantActionPreview;
+      const value = await loadPreview(id, actor);
       if (value.status !== 'ready' || !value.effect) return value;
       const context: AssistantActionDisclosureContext = {};
       const read = (path: string) =>
@@ -1690,10 +1626,9 @@ export function createLiveAssistantApiService(
       );
       if (executed.sourceId !== id)
         throw new AssistantApiError('representative_failure');
-      previewCache.delete(id);
       let next: AssistantActionPreview;
       try {
-        next = (await findCold('preview', id)) as AssistantActionPreview;
+        next = await loadPreview(id, actor);
       } catch {
         await actor.assertCurrent();
         throw new AssistantApiError('confirmation_result_pending', scopes);
@@ -1733,10 +1668,9 @@ export function createLiveAssistantApiService(
         operation.operationId,
         actor.userId
       );
-      const next = (await findCold('preview', id)) as AssistantActionPreview;
+      const next = await loadPreview(id, actor);
       if (next.status !== 'cancelled')
         throw new AssistantApiError('outcome_unknown');
-      previewCache.set(id, next);
       await actor.assertCurrent();
       await journal.update(actor.userId, slot, operation.operationId, {
         phase: 'completed'

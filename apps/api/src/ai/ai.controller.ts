@@ -369,6 +369,18 @@ export class AiController {
     return this.ai.getMessage(aiRequestPrincipal(request), conversationId, messageId);
   }
 
+  @Get('assistant/messages/:messageId')
+  @ApiOperation({ operationId: 'getAssistantResponse' })
+  getResponse(@Req() request: AiRequest, @Param('messageId') id: string) {
+    return this.ai.getResponseContext(aiRequestPrincipal(request), 'response', id);
+  }
+
+  @Get('assistant/previews/:previewId')
+  @ApiOperation({ operationId: 'getAssistantPreview' })
+  getPreview(@Req() request: AiRequest, @Param('previewId') id: string) {
+    return this.ai.getResponseContext(aiRequestPrincipal(request), 'preview', id);
+  }
+
   @Post('assistant/previews/:previewId/confirm')
   @HttpCode(200)
   @ApiOperation({ operationId: 'confirmAssistantPreview' })

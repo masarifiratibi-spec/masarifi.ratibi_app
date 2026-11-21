@@ -23,9 +23,11 @@ describe('Phase 09 assistant contract', () => {
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
         .map(([, value]) => value.operationId),
     );
-    expect(operations).toHaveLength(57);
-    expect(new Set(operations).size).toBe(57);
+    expect(operations).toHaveLength(59);
+    expect(new Set(operations).size).toBe(59);
     for (const [path, operationId] of [
+      ['/api/v1/assistant/messages/{messageId}', 'getAssistantResponse'],
+      ['/api/v1/assistant/previews/{previewId}', 'getAssistantPreview'],
       [
         '/api/v1/assistant/conversations/{conversationId}/messages/acceptance',
         'getAssistantMessageAcceptance',

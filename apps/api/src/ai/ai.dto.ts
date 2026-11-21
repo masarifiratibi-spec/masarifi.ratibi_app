@@ -356,6 +356,13 @@ export function responseReport(input: unknown) {
   return { reportType: value.reportType, reason: assertSafeAiInput(text(value.reason, ''), 4_000) };
 }
 
+export function messagePage(input: unknown) {
+  const { includeQuestions, ...rest } = record(input);
+  if (includeQuestions !== undefined && includeQuestions !== 'true' && includeQuestions !== 'false')
+    bad();
+  return { ...page(rest), includeQuestions: includeQuestions === 'true' };
+}
+
 export function page(input: unknown) {
   const value = record(input);
   exact(value, ['cursor', 'limit']);
