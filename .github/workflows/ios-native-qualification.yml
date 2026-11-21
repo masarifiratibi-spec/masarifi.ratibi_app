@@ -5,6 +5,10 @@ on:
     branches: [iOS]
     paths:
       - .github/workflows/ios-native-qualification.yml
+      - apps/mobile/scripts/prepare-ios-distribution-profile.py
+      - apps/mobile/scripts/test-ios-distribution-profile.py
+      - apps/mobile/scripts/export-ios-ad-hoc-on-mac.sh
+      - apps/mobile/scripts/load-ios-ad-hoc-build-env.cjs
       - apps/mobile/modules/masarifi-bank-sms/ios/BankSmsSavedNotice.swift
       - apps/mobile/scripts/fixtures/bank-sms-saved-notice.swift
       - apps/mobile/scripts/fixtures/bank-sms-ledger.swift
@@ -21,8 +25,16 @@ on:
         description: Export one signed Ad Hoc build from the protected signing environment
         type: boolean
         default: false
+      export_app_store:
+        description: Export an encrypted App Store IPA from the reviewed source
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: Full reviewed iOS commit required for App Store export
+        type: string
+        required: false
       ios_build_number:
-        description: Build number for a signed Ad Hoc export
+        description: Build number for the signed export
         type: string
         required: false
       recipient_certificate:
@@ -44,6 +56,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.16.0
+      - name: Verify distribution profile compatibility without signing
+        run: python3 apps/mobile/scripts/test-ios-distribution-profile.py
       - name: Check native notice formatting and text direction
         env:
           EAS_BUILD_PLATFORM: ios
@@ -56,7 +70,7 @@ jobs:
           "$RUNNER_TEMP/bank-sms-ledger-tests"
 
   device-compile:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app && !inputs.export_ad_hoc
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.compile_app && !inputs.export_ad_hoc && !inputs.export_app_store
     runs-on: macos-15
     timeout-minutes: 35
     defaults:
@@ -116,7 +130,8 @@ jobs:
           printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"
 
   ad-hoc-export:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && inputs.export_ad_hoc
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/iOS' && (inputs.export_ad_hoc || inputs.export_app_store)
+    name: Signed iPhone distribution export
     needs: notice
     environment: ios-ad-hoc-signing
     concurrency:
@@ -131,7 +146,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
       EAS_BUILD_PLATFORM: ios
-      EAS_BUILD_PROFILE: ios-ad-hoc
+      EAS_BUILD_PROFILE: ${{ inputs.export_app_store && 'ios-app-store' || 'ios-ad-hoc' }}
       EXPO_NO_TELEMETRY: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -140,7 +155,17 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.16.0
-      - name: Load the existing Ad Hoc build configuration
+      - name: Verify the reviewed App Store source
+        if: inputs.export_app_store
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          ALSO_AD_HOC: ${{ inputs.export_ad_hoc }}
+        run: |
+          [[ "$ALSO_AD_HOC" == false ]]
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_SOURCE_SHA" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]]
+      - name: Load the selected distribution configuration
         run: |
           xcodebuild -version
           node scripts/load-ios-ad-hoc-build-env.cjs
@@ -154,14 +179,14 @@ jobs:
         env:
           IOS_CERT_P12_B64: ${{ secrets.IOS_CERT_P12_B64 }}
           IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
-          IOS_PROFILE_B64: ${{ secrets.IOS_PROFILE_B64 }}
+          IOS_PROFILE_B64: ${{ secrets[inputs.export_app_store && 'IOS_APP_STORE_PROFILE_B64' || 'IOS_PROFILE_B64'] }}
           IOS_BUILD_NUMBER: ${{ inputs.ios_build_number }}
           RECIPIENT_CERT_B64: ${{ inputs.recipient_certificate }}
         run: bash scripts/export-ios-ad-hoc-on-mac.sh
       - name: Save the encrypted IPA
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: encrypted-masarifi-ios-ad-hoc
+          name: encrypted-masarifi-${{ env.EAS_BUILD_PROFILE }}
           path: ${{ runner.temp }}/Masarifi.ipa.p7m
           if-no-files-found: error
           retention-days: 1

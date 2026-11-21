@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+export EAS_BUILD_PROFILE="${EAS_BUILD_PROFILE:-ios-ad-hoc}"
 
 # Run in apps/mobile on a temporary GitHub-hosted Mac after Expo prebuild.
 [[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_OS:-}" == macOS ]]
 : "${IOS_CERT_P12_B64:?Missing distribution certificate}"
 : "${IOS_CERT_PASSWORD:?Missing certificate password}"
-: "${IOS_PROFILE_B64:?Missing Ad Hoc profile}"
+: "${IOS_PROFILE_B64:?Missing selected distribution profile}"
 : "${RECIPIENT_CERT_B64:?Missing artifact recipient certificate}"
 : "${IOS_BUILD_NUMBER:?Missing build number}"
 : "${RUNNER_TEMP:?Missing runner temporary directory}"
@@ -32,41 +33,7 @@ unset IOS_CERT_P12_B64 IOS_PROFILE_B64 RECIPIENT_CERT_B64
 security cms -D -i "$signing/profile.mobileprovision" > "$signing/profile.plist"
 
 # Verify the profile and write only the settings used by the existing app target.
-python3 - "$signing" <<'PY'
-import datetime
-import hashlib
-import pathlib
-import plistlib
-import sys
-
-directory = pathlib.Path(sys.argv[1])
-with (directory / 'profile.plist').open('rb') as handle:
-    profile = plistlib.load(handle)
-entitlements = profile['Entitlements']
-bundle_id = 'com.masarifi.mobile'
-team_id, = profile['TeamIdentifier']
-assert entitlements['application-identifier'] == f'{team_id}.{bundle_id}'
-assert entitlements['aps-environment'] == 'production'
-assert entitlements['com.apple.developer.applesignin'] == ['Default']
-assert not entitlements.get('get-task-allow', False)
-assert profile['ProvisionedDevices'] and not profile.get('ProvisionsAllDevices')
-assert profile['ExpirationDate'] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-certificate, = profile['DeveloperCertificates']
-certificate_hash = hashlib.sha1(certificate).hexdigest().upper()
-(directory / 'certificate-sha1').write_text(certificate_hash)
-(directory / 'profile-uuid').write_text(profile['UUID'])
-(directory / 'profile-name').write_text(profile['Name'], encoding='utf-8')
-(directory / 'team-id').write_text(team_id)
-with (directory / 'export.plist').open('wb') as handle:
-    plistlib.dump({
-        'method': 'release-testing',
-        'signingStyle': 'manual',
-        'teamID': team_id,
-        'signingCertificate': certificate_hash,
-        'provisioningProfiles': {bundle_id: profile['UUID']},
-        'manageAppVersionAndBuildNumber': False,
-    }, handle)
-PY
+python3 scripts/prepare-ios-distribution-profile.py "$signing" "$EAS_BUILD_PROFILE"
 
 keychain_password="$("$openssl_bin" rand -hex 32)"
 security create-keychain -p "$keychain_password" "$keychain"
@@ -131,7 +98,7 @@ if ! xcodebuild -workspace "${workspaces[0]}" -scheme "$scheme" \
 fi
 if ! xcodebuild -exportArchive -archivePath "$signing/Masarifi.xcarchive" \
   -exportOptionsPlist "$signing/export.plist" -exportPath "$signing/export" > "$signing/export.log" 2>&1; then
-  printf 'Xcode Ad Hoc export failed. The signing log stays in the runner.\n' >&2
+  printf 'Xcode distribution export failed. The signing log stays in the runner.\n' >&2
   exit 1
 fi
 
@@ -149,9 +116,36 @@ test -s "$app/main.jsbundle"
 test -d "$app/Metadata.appintents"
 cmp -s "$app/embedded.mobileprovision" "$signing/profile.mobileprovision"
 
+if [[ "$EAS_BUILD_PROFILE" == ios-app-store ]]; then
+  codesign -d --entitlements :- "$app" > "$signing/signed-entitlements.plist" 2> "$signing/entitlements.log"
+  python3 - "$app" "$signing/signed-entitlements.plist" "$(xcrun --sdk iphoneos --show-sdk-version)" <<'PY'
+import os
+import pathlib
+import plistlib
+import sys
+
+if not __debug__:
+    raise RuntimeError("Signed archive validation requires Python assertions")
+app = pathlib.Path(sys.argv[1])
+signed = plistlib.loads(pathlib.Path(sys.argv[2]).read_bytes())
+assert signed['application-identifier'] == '38MAL5945T.com.masarifi.mobile'
+assert signed.get('get-task-allow', False) is False
+assert signed['aps-environment'] == 'production'
+assert signed['com.apple.developer.applesignin'] == ['Default']
+info = plistlib.loads((app / 'Info.plist').read_bytes())
+assert info['DTPlatformName'] == 'iphoneos' and info['DTSDKName'] == 'iphoneos' + sys.argv[3]
+assert info['CFBundleShortVersionString'] == os.environ['MASARIFI_RELEASE_VERSION_NAME']
+bundle = (app / 'main.jsbundle').read_bytes()
+for key in ['EXPO_PUBLIC_API_URL', 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY']:
+    assert os.environ[key].encode() in bundle
+manifests = list(app.rglob('PrivacyInfo.xcprivacy'))
+assert manifests and all(isinstance(plistlib.loads(path.read_bytes()), dict) for path in manifests)
+PY
+fi
+
 # Only the authenticated encrypted file may leave this public runner.
 "$openssl_bin" cms -encrypt -aes-256-gcm -binary -outform DER \
   -in "${ipas[0]}" -out "$RUNNER_TEMP/Masarifi.ipa.p7m" \
   -recip "$signing/recipient.pem" -keyopt rsa_padding_mode:oaep \
   -keyopt rsa_oaep_md:sha256 -keyopt rsa_mgf1_md:sha256
-printf 'Verified and encrypted Ad Hoc build %s from %s.\n' "$IOS_BUILD_NUMBER" "$GITHUB_SHA"
+printf 'Verified and encrypted %s build %s from %s.\n' "$EAS_BUILD_PROFILE" "$IOS_BUILD_NUMBER" "$GITHUB_SHA"
