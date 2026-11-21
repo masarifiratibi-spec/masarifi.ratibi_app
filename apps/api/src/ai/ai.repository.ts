@@ -1112,6 +1112,7 @@ export class AiRepository {
     return this.workerClaims<AiWorkClaim>(
       "select coalesce(jsonb_agg(to_jsonb(work) || jsonb_build_object('generation',case when work.kind='ai.evaluate_route' then null else private.bind_financial_worker_generation(case when work.kind='assistant.respond' then 'assistant' else 'voice' end,work.id,work.claim_token)::text end)),'[]'::jsonb) claims from private.claim_ai_work($1,$2,$3,$4) work",
       [kind, workerId, limit, leaseSeconds],
+      kind === 'assistant.respond' && this.pool.runtimeRole === 'masarifi_worker',
     );
   }
 
@@ -1460,12 +1461,21 @@ export class AiRepository {
       repeatableRead,
     );
   }
-  private workerClaims<T extends QueryResultRow>(sql: string, values: readonly unknown[]) {
+  private workerClaims<T extends QueryResultRow>(
+    sql: string,
+    values: readonly unknown[],
+    singleStatement = false,
+  ) {
     // One JSON column avoids repeating every claim column's metadata on empty polls.
-    return this.worker(async (client) => {
+    const readClaims = async (client: PoolClient) => {
       const row = (await client.query<{ claims: T[] }>(sql, [...values])).rows[0];
       if (!row || !Array.isArray(row.claims)) throw new Error('AI_RESULT_MISSING');
       return row.claims;
+    };
+    if (!singleStatement) return this.worker(readClaims);
+    // Claiming the batch and binding its generation share one implicit transaction.
+    return this.pool.withClient(readClaims).catch((error: unknown) => {
+      throw mapped(error);
     });
   }
   private workerJson(sql: string, values: readonly unknown[]) {

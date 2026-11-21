@@ -13,8 +13,15 @@ export class AssistantAgentRepository {
     return this.call('select private.claim_assistant_agent_job($1,180) result', [owner]);
   }
 
-  claimNext(): Promise<AssistantAgentClaim | null> {
-    return this.call('select private.claim_next_assistant_agent_job(180) result', []);
+  async claimNext(): Promise<AssistantAgentClaim | null> {
+    const sql = 'select private.claim_next_assistant_agent_job(180) result';
+    if (this.pool.runtimeRole !== 'masarifi_worker') return this.call(sql, []);
+    // Set the empty worker claims before the claim runs, for this statement only.
+    const { rows } = await this.pool.query<{ result: AssistantAgentClaim | null }>(
+      `${sql} from pg_catalog.set_config('request.jwt.claims','{}',true)`,
+    );
+    if (!rows[0]) throw new Error('AI_DATABASE_RESULT_MISSING');
+    return rows[0].result;
   }
 
   authorizeDispatch(claim: AssistantAgentClaim, route: EffectiveAiRoute): Promise<boolean> {
