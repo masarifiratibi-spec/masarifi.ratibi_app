@@ -112,6 +112,8 @@ No event contains configuration, result payload, provider output, setting value,
 
 ## Event Types
 
+A first-attempt `operations.job-history-retain` success with no retry parent records its run and attempt and omits the outbox notification only for the exact empty retention summary. All five archive and delete counts must be numeric zero, `providerChecksSwept` must be `false`, and the job key and successful outcome must match. A sweep, any work, a retry, or a different summary keeps the usual completion event.
+
 | Type | Required safe data |
 |---|---|
 | `operations.job-succeeded` | jobKey, ownerSpec, version, durationBucket |

@@ -5,7 +5,7 @@ import { describeLiveDatabase } from '../../live-database';
 
 // Regression: recurring sync polls amplified durable success events even at zero claims.
 // Zero returned executable mutations does not mean no dependency rejection occurred.
-describeLiveDatabase('empty sync success event policy', () => {
+describeLiveDatabase('scheduled job success event policy', () => {
   let client: Client;
 
   beforeAll(async () => {
@@ -22,14 +22,18 @@ describeLiveDatabase('empty sync success event policy', () => {
   beforeEach(async () => client.query('begin'));
   afterEach(async () => client.query('rollback'));
 
-  async function fixture(jobKey = 'sync-mutations.retry', attemptNo = 1) {
+  async function fixture(
+    jobKey = 'sync-mutations.retry',
+    attemptNo = 1,
+    retryParent: string | null = null,
+  ) {
     const runId = randomUUID();
     const attemptId = randomUUID();
     await client.query(
-      `insert into private.job_runs(id,scheduled_job_id,job_key,job_type,owner_spec,status,queued_at,started_at,correlation_id)
-       select $1::uuid,id,job_key,job_type,owner_spec,'running',now(),now(),$1::uuid::text
+      `insert into private.job_runs(id,scheduled_job_id,job_key,job_type,owner_spec,status,queued_at,started_at,correlation_id,retry_of_run_id)
+       select $1::uuid,id,job_key,job_type,owner_spec,'running',now(),now(),$1::uuid::text,$3::uuid
        from private.scheduled_jobs where job_key=$2`,
-      [runId, jobKey],
+      [runId, jobKey, retryParent],
     );
     await client.query(
       `insert into private.job_attempts(id,run_id,attempt_no,worker_id,status,started_at,heartbeat_at)
@@ -65,6 +69,109 @@ describeLiveDatabase('empty sync success event policy', () => {
       )
     ).rows.map((row) => row.event_type);
   }
+
+  describe('history retention', () => {
+    const jobKey = 'operations.job-history-retain';
+    const idle = {
+      jobKey,
+      outcome: 'succeeded',
+      runsArchived: 0,
+      attemptsArchived: 0,
+      runsDeleted: 0,
+      attemptsDeleted: 0,
+      checksDeleted: 0,
+      providerChecksSwept: false,
+    };
+
+    it('records both terminal histories and skips only the new empty success', async () => {
+      const previous = await fixture(jobKey);
+      await complete(previous.attemptId, { ...idle, providerChecksSwept: true });
+      const previousEvent = () =>
+        client.query(
+          'select to_jsonb(e) as event from private.outbox_events e where aggregate_id=$1',
+          [previous.runId],
+        );
+      const oldRows = (await previousEvent()).rows;
+      expect(oldRows).toHaveLength(1);
+
+      const { runId, attemptId } = await fixture(jobKey);
+      const result = await complete(attemptId, idle);
+      expect(result.rows[0]?.value.status).toBe('succeeded');
+      expect(await events(runId)).toEqual([]);
+      const history = await client.query(
+        `select r.status as run_status, a.status as attempt_status, r.result_summary,
+                r.completed_at is not null as run_completed, a.completed_at is not null as attempt_completed,
+                r.version > 1 as version_advanced
+         from private.job_runs r join private.job_attempts a on a.run_id = r.id
+         where r.id = $1 and a.id = $2`,
+        [runId, attemptId],
+      );
+      expect(history.rows).toEqual([
+        {
+          run_status: 'succeeded',
+          attempt_status: 'succeeded',
+          result_summary: idle,
+          run_completed: true,
+          attempt_completed: true,
+          version_advanced: true,
+        },
+      ]);
+      expect((await previousEvent()).rows).toEqual(oldRows);
+    });
+
+    it.each([
+      'runsArchived',
+      'attemptsArchived',
+      'runsDeleted',
+      'attemptsDeleted',
+      'checksDeleted',
+    ])('publishes when %s is positive', async (counter) => {
+      const run = await fixture(jobKey);
+      await complete(run.attemptId, { ...idle, [counter]: 1 });
+      expect(await events(run.runId)).toEqual(['operations.job-succeeded']);
+    });
+
+    it.each([
+      ['provider sweep', { ...idle, providerChecksSwept: true }],
+      ['missing counter', { ...idle, attemptsDeleted: undefined }],
+      ['string zero', { ...idle, checksDeleted: '0' }],
+      ['unknown counter', { ...idle, extraWork: 1 }],
+      ['missing sweep flag', { ...idle, providerChecksSwept: undefined }],
+      ['wrong summary key', { ...idle, jobKey: 'other' }],
+    ])('publishes a success for %s', async (_label, summary) => {
+      const run = await fixture(jobKey);
+      await complete(run.attemptId, summary);
+      expect(await events(run.runId)).toEqual(['operations.job-succeeded']);
+    });
+
+    it('publishes a failed attempt that can retry', async () => {
+      const run = await fixture(jobKey);
+      await complete(run.attemptId, idle, 'failed');
+      expect(await events(run.runId)).toEqual(['operations.job-failed']);
+    });
+
+    it('publishes a dead letter and the success of its manual retry', async () => {
+      const failed = await fixture(jobKey, 8);
+      await complete(failed.attemptId, idle, 'failed');
+      expect(await events(failed.runId)).toEqual(['operations.job-dead-lettered']);
+
+      const retried = await fixture(jobKey, 1, failed.runId);
+      await complete(retried.attemptId, idle);
+      expect(await events(retried.runId)).toEqual(['operations.job-succeeded']);
+    });
+
+    it('publishes the success of a later attempt', async () => {
+      const run = await fixture(jobKey, 2);
+      await complete(run.attemptId, idle);
+      expect(await events(run.runId)).toEqual(['operations.job-succeeded']);
+    });
+
+    it('publishes the success of another job with the same summary', async () => {
+      const run = await fixture('idempotency.cleanup');
+      await complete(run.attemptId, idle);
+      expect(await events(run.runId)).toEqual(['operations.job-succeeded']);
+    });
+  });
 
   it('retains successful terminal history and unrelated events while suppressing only the zero-claim success event', async () => {
     const unrelatedId = randomUUID();
