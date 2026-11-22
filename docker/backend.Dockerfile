@@ -16,7 +16,7 @@ COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-ce
 RUN printf 'deb https://security.debian.org/debian-security trixie-security main\ndeb https://deb.debian.org/debian trixie main\n' > /tmp/security.list \
   && apt-get -o Dir::Etc::sourcelist=/tmp/security.list -o Dir::Etc::sourceparts=- update \
   && cd /tmp \
-  && apt-get -o Dir::Etc::sourcelist=/tmp/security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 openssl-provider-legacy=3.5.7-1~deb13u3 libc6=2.41-12+deb13u4 zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
+  && apt-get -o Dir::Etc::sourcelist=/tmp/security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 openssl-provider-legacy=3.5.7-1~deb13u3 libc6=2.41-12+deb13u5 zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
   && mkdir -p /patched/var/lib/dpkg/status.d \
   && for package in ./*.deb; do \
        dpkg-deb --extract "$package" /patched; \
