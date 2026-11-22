@@ -106,6 +106,20 @@ for (const profile of ['ios-ad-hoc', 'ios-app-store']) {
   });
 }
 
+test('the Store iPhone icon has an English default and an Arabic localization', () => {
+  const config = resolvedConfig(storeEnvironment);
+  assert.equal(config.ios.infoPlist.CFBundleDisplayName ?? config.name, 'Masrifi Ratibi');
+  const { ios } = JSON.parse(readFileSync(new URL(`../${config.locales.ar}`, import.meta.url)));
+  assert.equal(ios.CFBundleDisplayName, 'مصاريفي وراتبي');
+  const production = resolvedConfig({
+    ...builds.production.env,
+    MASARIFI_RELEASE_VERSION_NAME: '1.0.0',
+    EAS_BUILD_PROFILE: 'production'
+  });
+  assert.equal(production.name, app.name);
+  assert.deepEqual(production.android, app.android);
+});
+
 test('App Store config resolves its release version and native Clerk binding before NODE_ENV exists', () => {
   const config = resolvedConfig(storeEnvironment);
   assert.equal(config.version, '1.0.0');

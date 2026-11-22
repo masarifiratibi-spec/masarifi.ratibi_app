@@ -98,7 +98,16 @@ module.exports = ({ config }) => {
         iosAppStore ||
         ['ios-ad-hoc', 'ios-app-store'].includes(process.env.EAS_BUILD_PROFILE)
           ? {
-              ios: { ...config.ios, usesAppleSignIn: true },
+              ios: {
+                ...config.ios,
+                usesAppleSignIn: true,
+                ...(iosAppStore && {
+                  infoPlist: {
+                    ...config.ios.infoPlist,
+                    CFBundleDisplayName: 'Masrifi Ratibi'
+                  }
+                })
+              },
               locales: { ...config.locales, ar: './locales/ios-ar.json' }
             }
           : {})

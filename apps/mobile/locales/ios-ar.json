@@ -1,5 +1,6 @@
 {
   "ios": {
+    "CFBundleDisplayName": "مصاريفي وراتبي",
     "NSFaceIDUsageDescription": "يستخدم تطبيق مصاريفي وراتبي بصمة الوجه لفتح قفل التطبيق.",
     "NSMicrophoneUsageDescription": "يستخدم تطبيق مصاريفي وراتبي الميكروفون لتسجيل العملية المالية بصوتك."
   }
