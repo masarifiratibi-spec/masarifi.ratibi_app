@@ -124,9 +124,9 @@ describe('iOS physical text layout', () => {
   });
 
   it.each([
-    ['ar', 'rtl', 'right'],
-    ['en', 'ltr', 'left']
-  ] as const)('keeps %s voice disclosure paragraphs on a shared reading edge', (locale, writingDirection, textAlign) => {
+    ['ar', 'rtl'],
+    ['en', 'ltr']
+  ] as const)('centers the %s voice disclosure while preserving its reading direction', (locale, writingDirection) => {
     changeLocale(locale);
     renderWithProviders(
       <VoiceProcessingConsentDialog
@@ -134,15 +134,9 @@ describe('iOS physical text layout', () => {
         onDismiss={jest.fn()} onConfirm={jest.fn()} onManual={jest.fn()}
       />
     );
-    for (const key of [
-      'voice.processingConsent.data',
-      'voice.processingConsent.purpose',
-      'voice.processingConsent.choice'
-    ] as const) {
-      expect(screen.getByText(translate(key))).toHaveStyle({
-        direction: 'ltr', writingDirection, textAlign, alignSelf: 'stretch'
-      });
-    }
+    expect(screen.getByText(translate('voice.processingConsent.summary'))).toHaveStyle({
+      direction: 'ltr', writingDirection, textAlign: 'center', alignSelf: 'stretch'
+    });
     expect(screen.getByText(translate('voice.processingConsent.title'))).toHaveStyle({
       textAlign: 'center'
     });

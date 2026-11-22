@@ -1551,6 +1551,8 @@ const en = {
   'voice.permission.request': 'Allow microphone',
   'voice.permission.settings': 'Open settings',
   'voice.processingConsent.title': 'AI voice processing',
+  'voice.processingConsent.summary':
+    'With your permission, external AI analyzes your recording and its financial context.',
   'voice.processingConsent.data':
     'If you agree, Masarifi sends your recording and relevant financial context through OpenRouter to Google Gemini on Google Vertex AI.',
   'voice.processingConsent.purpose':

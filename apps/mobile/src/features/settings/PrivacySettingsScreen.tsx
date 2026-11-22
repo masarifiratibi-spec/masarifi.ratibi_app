@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Platform, ScrollView, StyleSheet } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
@@ -34,8 +34,22 @@ export function PrivacySettingsScreen() {
       <StyledText variant="title">settings.privacy.title</StyledText>
       <StyledText>settings.privacy.legalExplanation</StyledText>
       <LegalDocumentLinks />
-      {voice.live ? <ActionButton label="voice.processingConsent.manage" variant="secondary"
-        onPress={voice.reviewProcessingConsent} /> : null}
+      {voice.live ? (
+        <>
+          {Platform.OS === 'ios' ? (
+            <>
+              <StyledText>voice.processingConsent.data</StyledText>
+              <StyledText>voice.processingConsent.purpose</StyledText>
+              <StyledText>voice.processingConsent.choice</StyledText>
+            </>
+          ) : null}
+          <ActionButton
+            label="voice.processingConsent.manage"
+            variant="secondary"
+            onPress={voice.reviewProcessingConsent}
+          />
+        </>
+      ) : null}
       <SurfaceCard style={styles.section}>
         <SwitchRow
           label="settings.privacy.tracking"

@@ -23,7 +23,7 @@ type Request = {
 };
 
 export function useVoiceProcessingConsent() {
-  const disclosureVersion = Platform.OS === 'ios' ? 'ios-voice-processing-v3' : 'voice-processing-v1';
+  const disclosureVersion = Platform.OS === 'ios' ? 'ios-voice-processing-v4' : 'voice-processing-v1';
   const [view, setView] = useState<{
     granted: boolean;
     busy: boolean;

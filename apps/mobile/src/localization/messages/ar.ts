@@ -1493,6 +1493,8 @@ const ar: MessageCatalog = {
   'voice.permission.request': 'السماح بالميكروفون',
   'voice.permission.settings': 'فتح الإعدادات',
   'voice.processingConsent.title': 'معالجة الصوت بالـ AI',
+  'voice.processingConsent.summary':
+    'بإذنك، يحلّل ذكاء اصطناعي خارجي تسجيلك وسياقه المالي.',
   'voice.processingConsent.data':
     'بموافقتك، يرسل مصاريفي وراتبي تسجيلك والسياق المالي اللازم عبر OpenRouter إلى Google Gemini على Google Vertex AI.',
   'voice.processingConsent.purpose':

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   View
 } from 'react-native';
-import { router } from 'expo-router';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { DesignIcon } from '@/design-system/icons';
@@ -119,34 +118,9 @@ export function VoiceProcessingConsentDialog({
               {translate('voice.processingConsent.title')}
             </StyledText>
             {Platform.OS === 'ios' ? (
-              <>
-                {(
-                  [
-                    'voice.processingConsent.data',
-                    'voice.processingConsent.purpose',
-                    'voice.processingConsent.choice'
-                  ] as const
-                ).map((key) => (
-                  <StyledText
-                    key={key}
-                    style={[styles.disclosure, { color: colors.content.primary }]}
-                  >
-                    {translate(key)}
-                  </StyledText>
-                ))}
-                <ActionButton
-                  label="privacy.details"
-                  variant="quiet"
-                  disabled={busy}
-                  onPress={() => {
-                    onDismiss();
-                    router.push({
-                      pathname: '/(public)/legal',
-                      params: { document: 'privacy' }
-                    });
-                  }}
-                />
-              </>
+              <StyledText style={[styles.disclosure, { color: colors.content.primary }]}>
+                {translate('voice.processingConsent.summary')}
+              </StyledText>
             ) : null}
             {failed ? (
               <StyledText
@@ -216,7 +190,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   title: { textAlign: 'center', fontSize: 20, lineHeight: 30 },
-  disclosure: { alignSelf: 'stretch' },
+  disclosure: { alignSelf: 'stretch', textAlign: 'center' },
   actions: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   action: { borderRadius: 16 }
 });

@@ -14,6 +14,7 @@ import { useVoiceUpdateInteraction } from '@/state/voice-update-interaction';
 import { authenticatedSession, lockedPrivacy, unlockedPrivacy } from '@/test-utils/app-shell-fixtures';
 import { renderWithProviders } from '@/test-utils/render';
 import { useVoiceCapture } from './useVoiceCapture';
+import { PrivacySettingsScreen } from '@/features/settings/PrivacySettingsScreen';
 
 function CaptureActions() {
   const voice = useVoiceCapture({ permissionSync: 'on-demand' });
@@ -55,15 +56,18 @@ it.each([['android', 'ar'], ['android', 'en'], ['ios', 'ar'], ['ios', 'en']] as 
   expect(transcribe).not.toHaveBeenCalled();
   expect(analyze).not.toHaveBeenCalled();
   expect(screen.getByTestId('voice-processing-consent-modal')).toBeOnTheScreen();
+  const summary = locale === 'ar'
+    ? 'بإذنك، يحلّل ذكاء اصطناعي خارجي تسجيلك وسياقه المالي.'
+    : 'With your permission, external AI analyzes your recording and its financial context.';
   if (platform === 'ios') {
-    expect(screen.getByText(translate('voice.processingConsent.data'))).toBeOnTheScreen();
-    expect(screen.getByText(translate('voice.processingConsent.purpose'))).toBeOnTheScreen();
-    expect(screen.getByText(translate('voice.processingConsent.choice'))).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: translate('privacy.details') })).toBeOnTheScreen();
+    expect(screen.getByText(summary)).toBeOnTheScreen();
+    expect(screen.queryByText(translate('voice.processingConsent.purpose'))).toBeNull();
+    expect(screen.queryByText(translate('voice.processingConsent.choice'))).toBeNull();
   } else {
-    expect(screen.queryByText(translate('voice.processingConsent.data'))).toBeNull();
-    expect(screen.queryByRole('button', { name: translate('privacy.details') })).toBeNull();
+    expect(screen.queryByText(summary)).toBeNull();
   }
+  expect(screen.queryByText(translate('voice.processingConsent.data'))).toBeNull();
+  expect(screen.queryByRole('button', { name: translate('privacy.details') })).toBeNull();
   fireEvent.press(screen.getByRole('button', { name: translate('voice.processingConsent.decline') }));
   await waitFor(() => expect(screen.queryByText(translate('voice.processingConsent.title'))).toBeNull());
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
@@ -91,12 +95,11 @@ it.each(['ios', 'android'] as const)('handles a saved v1 voice acknowledgement o
   }
 });
 
-it.each(['en', 'ar'] as const)('requires the named processor disclosure after an iOS v2 upgrade in %s', async locale => {
+it.each(['ios-voice-processing-v2', 'ios-voice-processing-v3'])('requires fresh iOS consent before microphone access after %s', async previous => {
   Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
-  changeLocale(locale);
   const ownerHash = createHash('sha256').update(authenticatedSession.userId!).digest('hex');
   const key = `masarifi.voice.processing-consent.${ownerHash}`;
-  await AsyncStorage.setItem(key, 'ios-voice-processing-v2');
+  await AsyncStorage.setItem(key, previous);
   renderWithProviders(<CaptureActions />);
   fireEvent.press(screen.getByRole('button', { name: 'Start' }));
   const agree = await screen.findByRole('button', { name: translate('voice.processingConsent.accept') });
@@ -104,7 +107,16 @@ it.each(['en', 'ar'] as const)('requires the named processor disclosure after an
   expect(voiceRecorderService.start).not.toHaveBeenCalled();
   fireEvent.press(agree);
   await waitFor(() => expect(voiceRecorderService.start).toHaveBeenCalledTimes(1));
-  expect(await AsyncStorage.getItem(key)).toBe('ios-voice-processing-v3');
+  expect(await AsyncStorage.getItem(key)).toBe('ios-voice-processing-v4');
+});
+
+it.each(['ar', 'en'] as const)('keeps the named voice recipients beside the iOS settings control in %s', locale => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+  changeLocale(locale);
+  renderWithProviders(<PrivacySettingsScreen />);
+  expect(screen.getByText(translate('voice.processingConsent.data'))).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: translate('voice.processingConsent.manage') })).toBeOnTheScreen();
+  expect(voiceRecorderService.getPermission).not.toHaveBeenCalled();
 });
 
 it('dismisses the popup without consenting or accessing the microphone', async () => {
