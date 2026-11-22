@@ -69,6 +69,7 @@ import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 import { TrackingSetupGuide } from './components/TrackingSetupGuide';
 import { openTrackingAlertSettings } from '@/services/platform/tracking-alert-settings';
+import { openTrackingAutostartSettings } from '@/services/platform/tracking-autostart-settings';
 import {
   setTrackingSourceFailure,
   setTrackingSourceIntent,
@@ -174,6 +175,7 @@ function TrackingStatusPending({ onRetry }: { onRetry?: () => void }) {
           onEnableSmsTracking={trackingPendingAction}
           onEnableNotificationTracking={trackingPendingAction}
           onOpenAlertSettings={trackingPendingAction}
+          onOpenAutostartSettings={trackingPendingAction}
         />
         <SurfaceCard
           testID="tracking-keywords-card"
@@ -801,6 +803,7 @@ function TrackingStatusContent() {
             enableSourceFromGuide('notification')
           }
           onOpenAlertSettings={openTrackingAlertSettings}
+          onOpenAutostartSettings={openTrackingAutostartSettings}
         />
 
         {/* 4. Keyword Management Card */}

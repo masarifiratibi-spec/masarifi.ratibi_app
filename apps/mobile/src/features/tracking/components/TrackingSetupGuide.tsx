@@ -16,9 +16,15 @@ import { radius, spacing } from '@/design-system/tokens';
 import { translate, type MessageKey } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
+import type { TrackingAutostartDestination } from '@/services/platform/tracking-autostart-settings';
 
-type GuideTopic = 'sms' | 'notification' | 'alerts';
-const topics: readonly GuideTopic[] = ['sms', 'notification', 'alerts'];
+type GuideTopic = 'sms' | 'notification' | 'alerts' | 'autostart';
+const topics: readonly GuideTopic[] = [
+  'sms',
+  'notification',
+  'alerts',
+  'autostart'
+];
 
 export function TrackingSetupGuide({
   actionsDisabled = false,
@@ -28,7 +34,8 @@ export function TrackingSetupGuide({
   notificationEnabled,
   onEnableSmsTracking,
   onEnableNotificationTracking,
-  onOpenAlertSettings
+  onOpenAlertSettings,
+  onOpenAutostartSettings
 }: {
   actionsDisabled?: boolean;
   smsAvailable: boolean;
@@ -38,6 +45,7 @@ export function TrackingSetupGuide({
   onEnableSmsTracking: () => Promise<void>;
   onEnableNotificationTracking: () => Promise<void>;
   onOpenAlertSettings: () => Promise<boolean>;
+  onOpenAutostartSettings: () => Promise<TrackingAutostartDestination>;
 }) {
   const { colors } = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
@@ -47,6 +55,7 @@ export function TrackingSetupGuide({
   const [restrictedHelp, setRestrictedHelp] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  const [autostartFallback, setAutostartFallback] = useState(false);
   const actionVersion = useRef(0);
   useEffect(
     () => () => {
@@ -72,20 +81,23 @@ export function TrackingSetupGuide({
         ? notificationEnabled
         : false;
   const unavailableMessage: MessageKey | null =
-    Platform.OS === 'web'
-      ? 'tracking.setup.webUnavailable'
-      : selected !== 'alerts' && Platform.OS !== 'android'
-        ? 'tracking.setup.androidOnly'
-        : (selected === 'sms' && !smsAvailable) ||
-            (selected === 'notification' && !notificationAvailable)
-          ? 'tracking.setup.sourceUnavailable'
-          : null;
+    selected === 'autostart' && Platform.OS !== 'android'
+      ? 'tracking.setup.autostart.androidOnly'
+      : Platform.OS === 'web'
+        ? 'tracking.setup.webUnavailable'
+        : selected !== 'alerts' && Platform.OS !== 'android'
+          ? 'tracking.setup.androidOnly'
+          : (selected === 'sms' && !smsAvailable) ||
+              (selected === 'notification' && !notificationAvailable)
+            ? 'tracking.setup.sourceUnavailable'
+            : null;
 
   function dismiss() {
     actionVersion.current += 1;
     setSelected(null);
     setRestrictedHelp(false);
     setError(null);
+    setAutostartFallback(false);
     setOpening(false);
   }
 
@@ -99,20 +111,28 @@ export function TrackingSetupGuide({
     const version = ++actionVersion.current;
     setOpening(true);
     setError(null);
+    setAutostartFallback(false);
     try {
       const opened =
         topic === 'sms'
           ? await onEnableSmsTracking()
           : topic === 'notification'
             ? await onEnableNotificationTracking()
-            : await onOpenAlertSettings();
+            : topic === 'autostart'
+              ? await onOpenAutostartSettings()
+              : await onOpenAlertSettings();
+      if (version !== actionVersion.current) return;
+      if (topic === 'autostart') {
+        setAutostartFallback(opened === 'app_settings');
+        if (opened === 'unavailable') setError('tracking.setup.openFailed');
+      }
       if (version === actionVersion.current && opened === false) {
         setError('tracking.setup.webUnavailable');
       }
     } catch {
       if (version === actionVersion.current)
         setError(
-          topic === 'alerts'
+          topic === 'alerts' || topic === 'autostart'
             ? 'tracking.setup.openFailed'
             : 'tracking.setup.enableFailed'
         );
@@ -240,6 +260,7 @@ export function TrackingSetupGuide({
                   setOpening(false);
                   setError(null);
                   setRestrictedHelp(false);
+                  setAutostartFallback(false);
                   setSelected(topic);
                 }}
                 style={({ pressed }) => [
@@ -272,16 +293,17 @@ export function TrackingSetupGuide({
                   <StyledText style={bodyStyle}>
                     {translate(`tracking.setup.${topic}.description`)}
                   </StyledText>
-                  <StyledText
-                    style={[
-                      styles.stepsLink,
-                      text,
-                      { color: colors.content.link }
-                    ]}
-                  >
-                    {translate('tracking.setup.viewSteps')}
-                  </StyledText>
                 </View>
+                <StyledText
+                  style={[
+                    styles.stepsLink,
+                    styles.guideLink,
+                    text,
+                    { color: colors.content.link }
+                  ]}
+                >
+                  {translate('tracking.setup.viewSteps')}
+                </StyledText>
               </Pressable>
             ))}
             <StyledText style={bodyStyle}>
@@ -307,6 +329,11 @@ export function TrackingSetupGuide({
               </StyledText>
             ) : (
               <>
+                {selected === 'autostart' ? (
+                  <StyledText style={bodyStyle}>
+                    {translate('tracking.setup.autostart.intro')}
+                  </StyledText>
+                ) : null}
                 {[1, 2, 3].map((step) => {
                   const key =
                     selected === 'alerts' && Platform.OS === 'ios' && step > 1
@@ -343,9 +370,43 @@ export function TrackingSetupGuide({
                     </View>
                   );
                 })}
-                <StyledText style={bodyStyle}>
-                  {translate(`tracking.setup.${selected}.note`)}
-                </StyledText>
+                {selected !== 'autostart' ? (
+                  <StyledText style={bodyStyle}>
+                    {translate(`tracking.setup.${selected}.note`)}
+                  </StyledText>
+                ) : null}
+                {selected === 'autostart' ? (
+                  <View
+                    style={[
+                      styles.restricted,
+                      styles.restartNote,
+                      { backgroundColor: colors.surfaces.brandSubtle }
+                    ]}
+                  >
+                    <StyledText
+                      style={[
+                        styles.body,
+                        text,
+                        { color: colors.content.primary }
+                      ]}
+                    >
+                      {translate('tracking.setup.autostart.restartNote')}
+                    </StyledText>
+                  </View>
+                ) : null}
+                {selected === 'autostart' ? (
+                  <StyledText style={bodyStyle}>
+                    {translate('tracking.setup.autostart.note')}
+                  </StyledText>
+                ) : null}
+                {selected === 'autostart' && autostartFallback ? (
+                  <StyledText
+                    accessibilityLiveRegion="polite"
+                    style={bodyStyle}
+                  >
+                    {translate('tracking.setup.autostart.fallback')}
+                  </StyledText>
+                ) : null}
                 {selected === 'sms' ? (
                   <View
                     style={[
@@ -381,13 +442,17 @@ export function TrackingSetupGuide({
                 <ActionButton
                   testID="tracking-guide-open-settings"
                   label={
-                    opening && selected !== 'alerts'
-                      ? 'tracking.setup.activating'
-                      : selectedEnabled
-                        ? 'tracking.setup.enabled'
-                        : selected === 'alerts'
-                          ? 'tracking.setup.alerts.open'
-                          : `tracking.setup.${selected}.enable`
+                    opening && selected === 'autostart'
+                      ? 'tracking.setup.opening'
+                      : opening && selected !== 'alerts'
+                        ? 'tracking.setup.activating'
+                        : selectedEnabled
+                          ? 'tracking.setup.enabled'
+                          : selected === 'alerts'
+                            ? 'tracking.setup.alerts.open'
+                            : selected === 'autostart'
+                              ? 'tracking.setup.autostart.open'
+                              : `tracking.setup.${selected}.enable`
                   }
                   disabled={selectedEnabled || actionsDisabled}
                   style={selectedEnabled ? styles.completedAction : undefined}
@@ -456,6 +521,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline'
   },
+  guideLink: { alignSelf: 'center', flexShrink: 0 },
   sheetScroll: { flexShrink: 1 },
   sheetContent: { gap: spacing.md, paddingBottom: spacing.sm },
   sheetStep: { gap: spacing.sm, alignItems: 'flex-start' },
@@ -465,6 +531,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     borderRadius: radius.control
   },
+  restartNote: { paddingTop: spacing.sm },
   helpToggle: { minHeight: 48, justifyContent: 'center' },
   flipped: { transform: [{ rotate: '180deg' }] },
   pressed: { opacity: 0.7 }

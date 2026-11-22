@@ -17,6 +17,10 @@ const originalOS = Platform.OS;
 const enableSms = jest.fn(async () => undefined);
 const enableNotifications = jest.fn(async () => undefined);
 const openAlerts = jest.fn(async () => true);
+const openAutostart = jest.fn<
+  Promise<'autostart' | 'app_settings' | 'unavailable'>,
+  []
+>(async () => 'autostart');
 const renderGuide = (
   enabled: { smsEnabled?: boolean; notificationEnabled?: boolean } = {}
 ) =>
@@ -29,6 +33,7 @@ const renderGuide = (
       onEnableSmsTracking={enableSms}
       onEnableNotificationTracking={enableNotifications}
       onOpenAlertSettings={openAlerts}
+      onOpenAutostartSettings={openAutostart}
     />
   );
 beforeEach(() => {
@@ -37,6 +42,7 @@ beforeEach(() => {
   enableSms.mockReset().mockResolvedValue(undefined);
   enableNotifications.mockReset().mockResolvedValue(undefined);
   openAlerts.mockReset().mockResolvedValue(true);
+  openAutostart.mockReset().mockResolvedValue('autostart');
 });
 afterEach(() => {
   Platform.OS = originalOS;
@@ -212,6 +218,7 @@ it.each(['sms', 'notification'] as const)(
         onEnableSmsTracking={enableSms}
         onEnableNotificationTracking={enableNotifications}
         onOpenAlertSettings={openAlerts}
+        onOpenAutostartSettings={openAutostart}
       />
     );
     fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
@@ -224,5 +231,99 @@ it.each(['sms', 'notification'] as const)(
     expect(screen.queryByTestId('tracking-guide-open-settings')).toBeNull();
     expect(enableSms).not.toHaveBeenCalled();
     expect(enableNotifications).not.toHaveBeenCalled();
+  }
+);
+
+it('offers autostart as the fourth help topic without making it a tracking prerequisite', async () => {
+  renderGuide({ smsEnabled: true, notificationEnabled: true });
+  expect(screen.queryByTestId('tracking-guide-autostart')).toBeNull();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  const topics = screen.getAllByTestId(
+    /^tracking-guide-(sms|notification|alerts|autostart)$/
+  );
+  expect(topics.map((topic) => topic.props.testID)).toEqual([
+    'tracking-guide-sms',
+    'tracking-guide-notification',
+    'tracking-guide-alerts',
+    'tracking-guide-autostart'
+  ]);
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  expect(
+    screen.getByText(
+      'After restarting your phone, unlock the screen once so tracking can start.'
+    )
+  ).toBeOnTheScreen();
+  expect(openAutostart).not.toHaveBeenCalled();
+  fireEvent.press(
+    screen.getByRole('button', { name: 'Open autostart settings' })
+  );
+  await waitFor(() => expect(openAutostart).toHaveBeenCalledTimes(1));
+  expect(enableSms).not.toHaveBeenCalled();
+  expect(enableNotifications).not.toHaveBeenCalled();
+});
+
+it('keeps autostart help browseable while pending admission disables its action', () => {
+  renderWithProviders(
+    <TrackingSetupGuide
+      actionsDisabled
+      smsAvailable
+      notificationAvailable
+      smsEnabled={false}
+      notificationEnabled={false}
+      onEnableSmsTracking={enableSms}
+      onEnableNotificationTracking={enableNotifications}
+      onOpenAlertSettings={openAlerts}
+      onOpenAutostartSettings={openAutostart}
+    />
+  );
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  const action = screen.getByTestId('tracking-guide-open-settings');
+  expect(action).toBeDisabled();
+  fireEvent.press(action);
+  expect(openAutostart).not.toHaveBeenCalled();
+});
+
+it('reports an autostart settings failure as an opening error and permits retry', async () => {
+  openAutostart.mockRejectedValueOnce(new Error('Settings unavailable'));
+  renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  expect(
+    await screen.findByText('Could not open settings. Try again.')
+  ).toBeOnTheScreen();
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  await waitFor(() =>
+    expect(screen.queryByText('Could not open settings. Try again.')).toBeNull()
+  );
+  expect(openAutostart).toHaveBeenCalledTimes(2);
+});
+
+it('explains the manual route when only app settings can open', async () => {
+  openAutostart.mockResolvedValueOnce('app_settings');
+  renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  expect(
+    await screen.findByText(
+      'App settings opened. Look for Autostart or Background activity; your phone may not have a separate autostart switch.'
+    )
+  ).toBeOnTheScreen();
+});
+
+it.each(['ios', 'web'] as const)(
+  'does not offer an Android autostart action on %s',
+  (os) => {
+    Platform.OS = os;
+    renderGuide();
+    fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+    fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+    expect(
+      screen.getByText('Autostart settings are available on Android only.')
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('tracking-guide-open-settings')).toBeNull();
+    expect(openAutostart).not.toHaveBeenCalled();
   }
 );
