@@ -4,6 +4,7 @@ import { synchronizeBankSmsNotificationLocale } from './bank-sms-notice-locale.i
 
 import { requestRecentAuthentication } from '../live/http-client';
 
+const mockExtraCategories: {id:string; status:string; financialType:string; labelAr:string; labelEn:string}[] = [];
 const mockAssertActor = jest.fn(async () => undefined);
 jest.mock('../live/http-client', () => ({
   requestRecentAuthentication: jest.fn()
@@ -89,13 +90,14 @@ jest.mock('../live/category-lifecycle-service', () => ({
         financialType: 'expense',
         labelAr: 'التسوق',
         labelEn: 'Shopping'
-      }
+      }, ...mockExtraCategories
     ],
-    serverCategoryId: () => 'server-category'
+    serverCategoryId: (id:string) => 'server-' + id
   })
 }));
 
 beforeEach(() => {
+  mockExtraCategories.length = 0;
   mockCompleted = false;
   jest.mocked(requestRecentAuthentication).mockReset();
   mockNative.retryVerified.mockClear();
@@ -241,4 +243,15 @@ it('retries a verified command only within its captured Clerk session and enroll
   await verifyPendingBankSms('epoch');
   expect(mockNative.retryVerified).toHaveBeenCalledTimes(1);
   expect(mockNative.retryVerified).toHaveBeenCalledWith('owner', 'session', 'epoch');
+});
+
+
+it('keeps the latest stored category preferences when the setup form saves only a link', async () => {
+  for (const [id, financialType] of [['custom-expense', 'expense'], ['fee', 'expense'], ['ordinary', 'income'], ['custom-income', 'income'], ['salary-choice', 'income']]) {
+    mockExtraCategories.push({id, financialType, status:'active', labelAr:id, labelEn:id});
+  }
+  const preferences = { expenseId:'server-custom-expense', feeId:'server-fee', incomeId:'server-custom-income', salaryId:'server-salary-choice' };
+  mockNative.status.mockResolvedValue({enabled:true,pending:0,preferences} as Awaited<ReturnType<typeof mockNative.status>>);
+  await enableBankSms({ links: {account: {issuer:'NEW'}} });
+  expect(setup).toMatchObject({ preferences:{...preferences, merchants:{'qa shop':'server-category'}}, accounts:[{issuer:'NEW'}] });
 });

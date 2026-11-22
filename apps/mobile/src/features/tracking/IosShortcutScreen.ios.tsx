@@ -11,6 +11,9 @@ import {
 import { router } from 'expo-router';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { DesignIcon } from '@/design-system/icons';
 import { SwitchRow } from '@/design-system/components/forms/SelectionControls';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import { layoutDirectionStyle } from '@/design-system/direction';
@@ -80,15 +83,21 @@ export default function IosShortcutScreen() {
 function ShortcutSetup() {
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { colors } = useTheme();
   const scroll = useRef<ScrollView>(null);
-  const requests = useRef({ revision: 0 }).current;
+  const requests = useRef({
+    revision: 0,
+    noticeRevision: 0,
+    asking: false
+  }).current;
   const [step, setStep] = useState(0);
   const [configuration, setConfiguration] = useState<BankSmsConfiguration>();
   const [status, setStatus] = useState<SetupState>('loading');
   const [busy, setBusy] = useState(false);
   const [noticePermission, setNoticePermission] =
-    useState<NotificationPermissionState>('unavailable');
+    useState<NotificationPermissionState>();
   const [requestingNotice, setRequestingNotice] = useState(false);
   const [error, setError] = useState<MessageKey>();
   const enabled = typeof status === 'object' && status.enabled;
@@ -124,32 +133,40 @@ function ShortcutSetup() {
     'granted',
     'permanently_denied',
     'unavailable'
-  ].includes(noticePermission);
+  ].includes(noticePermission ?? '');
 
   const refresh = useCallback(async () => {
     const request = ++requests.revision;
-    const [setup, permission] = await Promise.all([
-      readBankSmsSetup().catch(() => null),
-      phoneNotificationService
-        .getPermission()
-        .catch(() => 'unavailable' as const)
-    ]);
+    const setup = await readBankSmsSetup().catch(() => null);
     if (request !== requests.revision) return null;
     setStatus(setup ?? 'unavailable');
-    setNoticePermission(permission);
     return setup;
   }, [requests]);
 
+  const refreshNotice = useCallback(async () => {
+    if (requests.asking) return;
+    const revision = ++requests.noticeRevision;
+    const permission = await phoneNotificationService
+      .getPermission()
+      .catch(() => 'unavailable' as const);
+    if (revision === requests.noticeRevision) setNoticePermission(permission);
+  }, [requests]);
+
   useEffect(() => {
-    void refresh();
+    const reload = () => {
+      void refresh();
+      void refreshNotice();
+    };
+    reload();
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refresh();
+      if (state === 'active') reload();
     });
     return () => {
       requests.revision++;
+      requests.noticeRevision++;
       subscription.remove();
     };
-  }, [refresh, requests]);
+  }, [refresh, refreshNotice, requests]);
 
   function goTo(next: number) {
     setStep(next);
@@ -193,7 +210,7 @@ function ShortcutSetup() {
     setBusy(true);
     setError(undefined);
     try {
-      // Publish current account/category choices as part of the explicit setup step.
+      // Publish account links together with the existing classification preferences.
       await enableBankSms(configuration);
       setConfiguration(undefined);
       const setup = await refresh();
@@ -225,20 +242,27 @@ function ShortcutSetup() {
   }
 
   async function enableSaveNotices() {
+    if (requests.asking || !noticePermission) return;
+    requests.asking = true;
+    const revision = ++requests.noticeRevision;
     setRequestingNotice(true);
     setError(undefined);
     try {
       if (noticeSettings) await Linking.openSettings();
-      else {
-        const permission = await phoneNotificationService.requestPermission();
+      const permission = noticeSettings
+        ? await phoneNotificationService.getPermission()
+        : await phoneNotificationService.requestPermission();
+      if (revision === requests.noticeRevision) {
         setNoticePermission(permission);
         if (permission === 'unavailable')
           setError('tracking.bankSms.savedAlertSettingsFailed');
       }
     } catch {
-      setError('tracking.bankSms.savedAlertSettingsFailed');
+      if (revision === requests.noticeRevision)
+        setError('tracking.bankSms.savedAlertSettingsFailed');
     } finally {
-      setRequestingNotice(false);
+      requests.asking = false;
+      if (revision === requests.noticeRevision) setRequestingNotice(false);
     }
   }
 
@@ -258,109 +282,156 @@ function ShortcutSetup() {
           }}
         />
       </View>
-      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scroll}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
         <View style={[styles.layout, layoutDirectionStyle(direction)]}>
-          <View style={styles.heading}>
-            <View
-              accessible
-              accessibilityRole="progressbar"
-              accessibilityLabel={stepLabel}
-              accessibilityValue={{ min: 1, max: steps.length, now: step + 1 }}
-              style={styles.heading}
-            >
-              <StyledText variant="caption" style={muted} accessible={false}>
-                {stepLabel}
-              </StyledText>
-              <View style={styles.progress} accessible={false}>
-                {steps.map(({ title }, index) => (
-                  <View
-                    key={title}
-                    style={[
-                      styles.segment,
-                      {
-                        backgroundColor:
-                          index <= step
-                            ? colors.interactions.primary
-                            : colors.borders.strong
-                      }
-                    ]}
-                  />
-                ))}
+          {step > 0 && (
+            <View style={styles.heading}>
+              <View
+                accessible
+                accessibilityRole="progressbar"
+                accessibilityLabel={stepLabel}
+                accessibilityValue={{
+                  min: 1,
+                  max: steps.length,
+                  now: step + 1
+                }}
+                style={styles.heading}
+              >
+                <StyledText variant="caption" style={muted} accessible={false}>
+                  {stepLabel}
+                </StyledText>
+                <View style={styles.progress} accessible={false}>
+                  {steps.map(({ title }, index) => (
+                    <View
+                      key={title}
+                      style={[
+                        styles.segment,
+                        {
+                          backgroundColor:
+                            index <= step
+                              ? colors.interactions.primary
+                              : colors.borders.strong
+                        }
+                      ]}
+                    />
+                  ))}
+                </View>
               </View>
+              <StyledText variant="title" accessibilityRole="header">
+                {translate(current.title)}
+              </StyledText>
+              <StyledText style={muted}>
+                {translate(current.description)}
+              </StyledText>
             </View>
-            <StyledText variant="title" accessibilityRole="header">
-              {translate(current.title)}
-            </StyledText>
-            <StyledText style={muted}>
-              {translate(current.description)}
-            </StyledText>
-          </View>
+          )}
 
           {step === 0 ? (
             <View style={styles.preparation}>
-              <View style={styles.notifications}>
-                <StyledText variant="subtitle">
-                  {translate('tracking.bankSms.notificationsTitle')}
-                </StyledText>
+              <SurfaceCard style={styles.recordingCard}>
+                <SwitchRow
+                  label="tracking.bankSms.recordingPermission"
+                  value={enabled}
+                  disabled={busy || typeof status !== 'object'}
+                  onValueChange={(value) => void setConsent(value)}
+                />
                 <StyledText style={muted}>
-                  {translate('tracking.bankSms.notificationsBody')}
+                  tracking.bankSms.recordingScope
                 </StyledText>
-                {noticePermission === 'granted' ? (
+                <ActionButton
+                  variant="secondary"
+                  label={
+                    !noticePermission
+                      ? 'tracking.bankSms.checkingNotices'
+                      : noticePermission === 'granted'
+                        ? 'tracking.bankSms.savedAlertEnabled'
+                        : noticeSettings
+                          ? 'tracking.bankSms.savedAlertSettings'
+                          : 'tracking.bankSms.allowSavedAlerts'
+                  }
+                  accessibilityHint={
+                    noticeSettings
+                      ? translate('tracking.bankSms.openSettingsHint')
+                      : undefined
+                  }
+                  icon={
+                    <DesignIcon
+                      name="notifications"
+                      size="sm"
+                      decorative
+                      color={colors.content.link}
+                    />
+                  }
+                  disabled={!noticePermission}
+                  loading={requestingNotice}
+                  onPress={() => void enableSaveNotices()}
+                />
+                {noticePermission === 'denied' ||
+                noticePermission === 'permanently_denied' ||
+                noticePermission === 'unavailable' ? (
                   <StyledText
                     variant="caption"
                     accessibilityLiveRegion="polite"
                     style={muted}
                   >
-                    {translate('tracking.bankSms.savedAlertEnabled')}
-                  </StyledText>
-                ) : null}
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={translate(
-                    noticeSettings
-                      ? 'tracking.bankSms.savedAlertSettings'
-                      : 'tracking.bankSms.allowSavedAlerts'
-                  )}
-                  accessibilityState={{
-                    disabled: requestingNotice || busy,
-                    busy: requestingNotice
-                  }}
-                  disabled={requestingNotice || busy}
-                  onPress={() => void enableSaveNotices()}
-                  style={styles.link}
-                >
-                  <StyledText
-                    style={{
-                      color: colors.interactions.primary,
-                      textDecorationLine: 'underline'
-                    }}
-                  >
                     {translate(
-                      noticeSettings
-                        ? 'tracking.bankSms.savedAlertSettings'
-                        : 'tracking.bankSms.allowSavedAlerts'
+                      noticePermission === 'unavailable'
+                        ? 'tracking.bankSms.noticesUnavailable'
+                        : 'tracking.bankSms.noticesOff'
                     )}
                   </StyledText>
-                </Pressable>
-              </View>
-              <View
-                style={[
-                  styles.consent,
-                  { borderTopColor: colors.borders.default }
-                ]}
-              >
-                <SwitchRow
-                  label="tracking.bankSms.recordingPermission"
-                  subtext="tracking.bankSms.recordingScope"
-                  value={enabled}
-                  disabled={busy || typeof status !== 'object'}
-                  onValueChange={(value) => void setConsent(value)}
+                ) : null}
+              </SurfaceCard>
+              {typeof status === 'object' && status.enabled ? (
+                <BankSmsSetupFields
+                  setup={status}
+                  value={configuration}
+                  disabled={busy}
+                  onChange={setConfiguration}
                 />
-              </View>
-              {typeof status === 'object' && status.enabled && status.accounts ? (
-                <BankSmsSetupFields setup={status} value={configuration}
-                  disabled={busy} onChange={setConfiguration} />
               ) : null}
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={translate('tracking.bankSms.how')}
+                onPress={() => setHelpOpen(true)}
+                style={styles.link}
+              >
+                <StyledText
+                  variant="subtitle"
+                  style={{ color: colors.content.link }}
+                >
+                  tracking.bankSms.how
+                </StyledText>
+              </Pressable>
+              {helpOpen && (
+                <AppSheet
+                  visible
+                  appearance="menu"
+                  animationType={reducedMotion ? 'none' : 'slide'}
+                  title={translate('tracking.bankSms.how')}
+                  onDismiss={() => setHelpOpen(false)}
+                >
+                  <ScrollView
+                    style={styles.helpScroll}
+                    contentContainerStyle={styles.helpText}
+                  >
+                    <StyledText>tracking.bankSms.helpLink</StyledText>
+                    <StyledText>tracking.bankSms.helpAutomation</StyledText>
+                    <StyledText>tracking.bankSms.helpMatch</StyledText>
+                    <StyledText style={muted}>
+                      tracking.bankSms.helpSync
+                    </StyledText>
+                  </ScrollView>
+                  <ActionButton
+                    label="tracking.bankSms.understood"
+                    onPress={() => setHelpOpen(false)}
+                  />
+                </AppSheet>
+              )}
               {status === 'loading' ? (
                 <StyledText variant="caption" style={muted}>
                   {translate('tracking.bankSms.checking')}
@@ -436,7 +507,10 @@ function ShortcutSetup() {
                 else void next();
               }}
               loading={busy}
-              disabled={status !== 'unavailable' && (!enabled || (step === 0 && incompleteEnding))}
+              disabled={
+                status !== 'unavailable' &&
+                (!enabled || (step === 0 && incompleteEnding))
+              }
             />
           </View>
         </View>
@@ -454,9 +528,10 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: spacing.sm },
   segment: { flex: 1, height: 4, borderRadius: radius.pill },
   preparation: { gap: spacing.lg },
-  notifications: { gap: spacing.sm },
+  recordingCard: { gap: spacing.md },
+  helpScroll: { flexGrow: 0 },
+  helpText: { gap: spacing.md, paddingVertical: spacing.lg },
   link: { minHeight: 44, justifyContent: 'center' },
-  consent: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md },
   instructions: { gap: spacing.xl },
   instruction: {
     flexDirection: 'row',

@@ -1,10 +1,21 @@
 import { useState } from 'react';
-import { ActionSheetIOS, View } from 'react-native';
+import {
+  ActionSheetIOS,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { FormField } from '@/design-system/components/forms/FormField';
 import { PickerField } from '@/design-system/components/forms/PickerField';
-import { spacing } from '@/design-system/tokens';
+import { ActionButton } from '@/design-system/components/ActionButton';
+import { SurfaceCard } from '@/design-system/components/SurfaceCard';
+import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { DesignIcon } from '@/design-system/icons';
+import { useTheme } from '@/state/theme-context';
+import { minTouchTarget, spacing } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import type {
   BankSmsAccountChoice,
@@ -15,17 +26,6 @@ import type { readBankSmsSetup } from '@/services/platform/bank-sms-setup.ios';
 import { usePreferenceStore } from '@/state/preferences';
 
 type Setup = Awaited<ReturnType<typeof readBankSmsSetup>>;
-const defaults = [
-  {
-    key: 'expenseId',
-    kind: 'expense',
-    label: 'tracking.bankSms.expenseDefault'
-  },
-  { key: 'incomeId', kind: 'income', label: 'tracking.bankSms.incomeDefault' },
-  { key: 'feeId', kind: 'expense', label: 'tracking.bankSms.feeDefault' },
-  { key: 'salaryId', kind: 'income', label: 'tracking.bankSms.salaryDefault' }
-] as const;
-
 export function BankSmsSetupFields({
   setup,
   value,
@@ -37,16 +37,17 @@ export function BankSmsSetupFields({
   onChange: (configuration: BankSmsConfiguration) => void;
   disabled: boolean;
 }) {
-  const locale = usePreferenceStore((state) => state.locale);
+  const direction = usePreferenceStore((state) => state.direction);
+  const reducedMotion = usePreferenceStore((state) => state.reducedMotion);
+  const { colors } = useTheme();
+  const [choosing, setChoosing] = useState(false);
   const [editing, setEditing] = useState<string>();
   const accounts = setup.accounts ?? [];
   const linked = accounts.filter((account) => account.automaticRouting);
   const account = linked.find((choice) => choice.id === editing);
-  const choices = setup.categories ?? [];
   const draft = value ?? {
-    ...setup.preferences,
     links: Object.fromEntries(
-      linked.map(({ id, accountEnding, issuer, cashAccountId }) => [
+      accounts.map(({ id, accountEnding, issuer, cashAccountId }) => [
         id,
         { accountEnding, issuer, cashAccountId }
       ])
@@ -75,8 +76,6 @@ export function BankSmsSetupFields({
       }
     );
   };
-  const categoryName = (choice: (typeof choices)[number]) =>
-    (locale === 'ar' ? choice.nameAr : choice.nameEn) ?? choice.name;
   const link = account && draft.links?.[account.id];
   const incomplete = linked.filter(({ id }) => {
     const length = draft.links?.[id]?.accountEnding?.length;
@@ -86,31 +85,90 @@ export function BankSmsSetupFields({
     (choice) => choice.type === 'cash' && choice.currency === account?.currency
   );
   return (
-    <View style={{ gap: spacing.md }}>
-      <StyledText variant="subtitle">
-        {translate('tracking.bankSms.destinations')}
-      </StyledText>
-      <StyledText>{translate('tracking.bankSms.destinationsHelp')}</StyledText>
+    <SurfaceCard style={styles.card}>
       {linked.length ? (
-        <PickerField
-          label={translate('tracking.bankSms.linkAccount')}
-          placeholder={translate('tracking.bankSms.chooseAccount')}
-          value={account?.name}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${translate('tracking.bankSms.linkAccount')}, ${account?.name ?? translate('tracking.bankSms.chooseAccount')}`}
+          accessibilityState={{ disabled, expanded: choosing }}
           disabled={disabled}
-          onPress={() =>
-            pick(
-              linked.map((choice) => choice.name),
-              (index) => setEditing(linked[index].id)
-            )
-          }
-        />
+          onPress={() => setChoosing(true)}
+          style={styles.accountRow}
+        >
+          <StyledText variant="subtitle">
+            {translate('tracking.bankSms.linkAccount')}
+          </StyledText>
+          <View style={styles.value}>
+            <StyledText
+              variant="subtitle"
+              style={{ color: colors.content.link }}
+            >
+              {account?.name ?? translate('tracking.bankSms.chooseAccount')}
+            </StyledText>
+            <DesignIcon
+              name="chevronEnd"
+              direction={direction}
+              size="sm"
+              decorative
+              color={colors.content.link}
+            />
+          </View>
+        </Pressable>
       ) : (
-        <StyledText>
-          {translate('tracking.bankSms.noTrackingAccounts')}
-        </StyledText>
+        <>
+          <StyledText variant="subtitle">
+            tracking.bankSms.linkAccount
+          </StyledText>
+          <StyledText>tracking.bankSms.noTrackingAccounts</StyledText>
+        </>
+      )}
+      {choosing && (
+        <AppSheet
+          visible
+          appearance="menu"
+          animationType={reducedMotion ? 'none' : 'slide'}
+          title={translate('tracking.bankSms.pickDestination')}
+          onDismiss={() => setChoosing(false)}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            style={styles.sheetList}
+          >
+            {linked.map((choice) => (
+              <Pressable
+                key={choice.id}
+                accessibilityRole="button"
+                accessibilityLabel={choice.name}
+                accessibilityState={{ selected: choice.id === editing }}
+                style={[
+                  styles.choice,
+                  { borderBottomColor: colors.borders.default }
+                ]}
+                onPress={() => {
+                  setEditing(choice.id);
+                  setChoosing(false);
+                }}
+              >
+                <StyledText
+                  variant="subtitle"
+                  style={{ color: colors.content.link }}
+                >
+                  {choice.name}
+                </StyledText>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <ActionButton
+            label="designSystem.action.cancel"
+            variant="secondary"
+            onPress={() => setChoosing(false)}
+          />
+        </AppSheet>
       )}
       {account && (
-        <View style={{ gap: spacing.sm }}>
+        <View
+          style={[styles.fields, { borderTopColor: colors.borders.default }]}
+        >
           {account.lastFour && (
             <StyledText>
               {translate('tracking.bankSms.savedCardDigits')} {account.lastFour}
@@ -119,8 +177,11 @@ export function BankSmsSetupFields({
           <FormField
             label={translate('tracking.bankSms.accountDigits')}
             value={link?.accountEnding ?? ''}
-            errorText={incomplete.some((choice) => choice.id === account.id)
-              ? 'tracking.bankSms.fourDigitsRequired' : undefined}
+            errorText={
+              incomplete.some((choice) => choice.id === account.id)
+                ? 'tracking.bankSms.fourDigitsRequired'
+                : undefined
+            }
             keyboardType="number-pad"
             maxLength={4}
             editable={!disabled}
@@ -164,28 +225,42 @@ export function BankSmsSetupFields({
           )}
         </View>
       )}
-      {incomplete.filter((choice) => choice.id !== account?.id).map((choice) => (
-        <StyledText key={choice.id} accessibilityRole="alert">
-          {choice.name} · {translate('tracking.bankSms.fourDigitsRequired')}
-        </StyledText>
-      ))}
-      {defaults.map(({ key, kind, label }) => {
-        const matching = choices.filter((choice) => choice.kind === kind);
-        const active = matching.find((choice) => choice.id === draft[key]);
-        return (
-          <PickerField
-            key={key}
-            label={translate(label)}
-            value={active && categoryName(active)}
-            disabled={disabled || !matching.length}
-            onPress={() =>
-              pick(matching.map(categoryName), (index) =>
-                onChange({ ...draft, [key]: matching[index].id })
-              )
-            }
-          />
-        );
-      })}
-    </View>
+      {incomplete
+        .filter((choice) => choice.id !== account?.id)
+        .map((choice) => (
+          <StyledText key={choice.id} accessibilityRole="alert">
+            {choice.name} · {translate('tracking.bankSms.fourDigitsRequired')}
+          </StyledText>
+        ))}
+    </SurfaceCard>
   );
 }
+
+const styles = StyleSheet.create({
+  card: { gap: spacing.sm },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    minHeight: minTouchTarget
+  },
+  value: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: spacing.xs
+  },
+  fields: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.md,
+    gap: spacing.sm
+  },
+  sheetList: { flexGrow: 0, marginBottom: spacing.md },
+  choice: {
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    padding: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth
+  }
+});

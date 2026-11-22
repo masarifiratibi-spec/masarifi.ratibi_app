@@ -192,7 +192,8 @@ async function publishBankSms(
   const activeAccounts = accountRows.filter(
     (account) => account.status === 'active'
   );
-  const defaults = configuration ?? previous.preferences;
+  // A link-only edit keeps the classification choices from the latest native snapshot.
+  const defaults = { ...previous.preferences, ...configuration };
   const links =
     configuration?.links ??
     Object.fromEntries(

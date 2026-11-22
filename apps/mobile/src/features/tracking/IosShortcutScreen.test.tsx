@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { ActionSheetIOS, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 import IosShortcutScreen from './IosShortcutScreen.ios';
 import { resolveTheme } from '@/design-system/theme';
@@ -26,7 +26,9 @@ const disable = jest.mocked(disableBankSms);
 
 beforeEach(() => {
   jest.mocked(completeBankSmsSetup).mockReset().mockResolvedValue(undefined);
-  readStatus.mockReset().mockResolvedValue({ enabled: false, pending: 0, setupCompleted: false });
+  readStatus
+    .mockReset()
+    .mockResolvedValue({ enabled: false, pending: 0, setupCompleted: false });
   enable.mockReset().mockResolvedValue(undefined);
   disable.mockReset().mockResolvedValue(undefined);
   jest.replaceProperty(Platform, 'OS', 'ios');
@@ -43,7 +45,7 @@ afterEach(() => {
   usePreferenceStore.setState({ theme: 'system' });
 });
 
-it('puts notifications first and guides four stages without the status dashboard', async () => {
+it('requests notifications independently of recording and guides all four stages', async () => {
   const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   const done = jest
     .spyOn(router, 'replace')
@@ -53,18 +55,18 @@ it('puts notifications first and guides four stages without the status dashboard
     .mockResolvedValue('granted');
   renderWithProviders(<IosShortcutScreen />);
   fireEvent.press(
-    await screen.findByRole('link', { name: 'Enable notifications' })
+    await screen.findByRole('button', { name: 'Enable notifications' })
   );
-  expect(
-    screen.getByText(/Get a confirmation after a transaction is saved/)
-  ).toBeOnTheScreen();
-  await screen.findByText('Notifications are on.');
+  await screen.findByRole('button', { name: 'Notifications are on.' });
+  expect(enable).not.toHaveBeenCalled();
   expect(allowAlerts).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
-  fireEvent.press(
-    screen.getByRole('switch', { name: /Allow transaction recording/ })
-  );
+  readStatus.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    setupCompleted: false
+  });
+  fireEvent.press(screen.getByRole('switch', { name: /Record transactions/ }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
   );
@@ -111,16 +113,34 @@ it('puts notifications first and guides four stages without the status dashboard
 
 it('identifies a partial account suffix before submitting settings', async () => {
   readStatus.mockResolvedValue({
-    enabled: true, pending: 0, setupCompleted: false,
-    accounts: [{ id: 'bank', name: 'QA Bank', kind: 'account', type: 'bank', currency: 'SAR', automaticRouting: true }]
+    enabled: true,
+    pending: 0,
+    setupCompleted: false,
+    accounts: [
+      {
+        id: 'bank',
+        name: 'QA Bank',
+        kind: 'account',
+        type: 'bank',
+        currency: 'SAR',
+        automaticRouting: true
+      }
+    ]
   });
-  jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-    .mockImplementation((_options, selected) => selected(0));
   renderWithProviders(<IosShortcutScreen />);
-  fireEvent.press(await screen.findByRole('button', { name: /Link a bank account/ }));
-  const field = screen.getByLabelText('Last four bank account digits (optional)');
+  fireEvent.press(
+    await screen.findByRole('button', { name: /Account or card/ })
+  );
+  fireEvent.press(screen.getByRole('button', { name: 'QA Bank' }));
+  const field = screen.getByLabelText(
+    'Last four bank account digits (optional)'
+  );
   fireEvent.changeText(field, '١٢٣');
-  expect(screen.getByText('Enter the last four account digits or leave this field empty.')).toBeOnTheScreen();
+  expect(
+    screen.getByText(
+      'Enter the last four account digits or leave this field empty.'
+    )
+  ).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   expect(enable).not.toHaveBeenCalled();
   fireEvent.changeText(field, '١٢٣٤');
@@ -128,7 +148,11 @@ it('identifies a partial account suffix before submitting settings', async () =>
 });
 
 it('opens Settings after permanent denial without blocking capture setup', async () => {
-  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
+  readStatus.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    setupCompleted: false
+  });
   jest
     .mocked(phoneNotificationService.getPermission)
     .mockResolvedValue('permanently_denied');
@@ -137,7 +161,7 @@ it('opens Settings after permanent denial without blocking capture setup', async
     .mockResolvedValue(undefined);
   renderWithProviders(<IosShortcutScreen />);
   fireEvent.press(
-    await screen.findByRole('link', { name: 'Notification settings' })
+    await screen.findByRole('button', { name: 'Notification settings' })
   );
   await waitFor(() => expect(openSettings).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
@@ -157,15 +181,15 @@ it('starts from stage one for returning users and keeps consent reversible there
       checked: true
     })
   );
-  expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
-    now: 1,
-    min: 1,
-    max: 4
-  });
+  expect(screen.queryByRole('progressbar')).toBeNull();
   expect(
     screen.queryByText('A transaction from Shortcuts was saved.')
   ).toBeNull();
-  readStatus.mockResolvedValue({ enabled: false, pending: 0, setupCompleted: false });
+  readStatus.mockResolvedValue({
+    enabled: false,
+    pending: 0,
+    setupCompleted: false
+  });
   fireEvent.press(screen.getByRole('switch'));
   await waitFor(() =>
     expect(screen.getByRole('switch')).toHaveAccessibilityState({
@@ -176,28 +200,32 @@ it('starts from stage one for returning users and keeps consent reversible there
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
 });
 
-it('retries a failed setup read without hiding the notification link or granting consent', async () => {
+it('retries a failed setup read without hiding the notification button or granting consent', async () => {
   readStatus
     .mockRejectedValueOnce(new Error('unavailable'))
     .mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
   renderWithProviders(<IosShortcutScreen />);
   const retry = await screen.findByRole('button', { name: 'Try again' });
   expect(
-    screen.getByRole('link', { name: 'Enable notifications' })
+    screen.getByRole('button', { name: 'Enable notifications' })
   ).toBeOnTheScreen();
   fireEvent.press(retry);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
   );
   expect(
-    screen.getByRole('link', { name: 'Enable notifications' })
+    screen.getByRole('button', { name: 'Enable notifications' })
   ).toBeOnTheScreen();
   expect(enable).not.toHaveBeenCalled();
 });
 
 it('keeps the older iOS Automation-tab instructions and Run Immediately option', async () => {
   jest.spyOn(Platform, 'Version', 'get').mockReturnValue('18.0');
-  readStatus.mockResolvedValue({ enabled: true, pending: 0, setupCompleted: false });
+  readStatus.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    setupCompleted: false
+  });
   renderWithProviders(<IosShortcutScreen />);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
@@ -218,7 +246,7 @@ it.each([
   ['en', 'light'],
   ['en', 'dark']
 ] as const)(
-  'supports the %s notification link on the %s surface',
+  'supports the %s notification button on the %s surface',
   async (locale, theme) => {
     changeLocale(locale);
     usePreferenceStore.setState({ theme });
@@ -226,13 +254,113 @@ it.each([
     expect(screen.getByTestId('shortcut-setup')).toHaveStyle({
       backgroundColor: resolveTheme(theme).colors.surfaces.page
     });
-    await screen.findByRole('link', {
+    await screen.findByRole('button', {
       name: locale === 'ar' ? 'تفعيل الإشعارات' : 'Enable notifications'
     });
-    expect(screen.getByRole('progressbar')).toHaveAccessibilityValue({
-      min: 1,
-      max: 4,
-      now: 1
-    });
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    fireEvent.press(
+      screen.getByRole('link', {
+        name: locale === 'ar' ? 'كيف يعمل التتبّع؟' : 'How does tracking work?'
+      })
+    );
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: locale === 'ar' ? 'فهمت' : 'Got it'
+      })
+    );
+    expect(screen.queryByTestId('app-sheet-modal')).toBeNull();
   }
 );
+
+it('lists only eligible destinations, cancels without changing the draft and preserves routing defaults', async () => {
+  const preferences = {
+    expenseId: 'personal-expense',
+    incomeId: 'personal-income',
+    feeId: 'fee',
+    salaryId: 'pay'
+  };
+  const bank = {
+    id: 'bank',
+    name: 'My bank',
+    kind: 'account',
+    type: 'bank',
+    currency: 'SAR',
+    automaticRouting: true
+  };
+  readStatus.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    setupCompleted: false,
+    preferences,
+    accounts: [
+      bank,
+      {
+        ...bank,
+        id: 'card',
+        name: 'My card',
+        type: 'credit_card',
+        lastFour: '8765'
+      },
+      {
+        ...bank,
+        id: 'cash',
+        name: 'My cash',
+        type: 'cash',
+        automaticRouting: false
+      }
+    ]
+  });
+  renderWithProviders(<IosShortcutScreen />);
+  const open = () =>
+    fireEvent.press(screen.getByRole('button', { name: /^Account or card/ }));
+  await screen.findByRole('button', { name: /^Account or card/ });
+  open();
+  expect(screen.queryByRole('button', { name: 'My cash' })).toBeNull();
+  fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+  expect(
+    screen.queryByLabelText('Last four bank account digits (optional)')
+  ).toBeNull();
+  open();
+  fireEvent.press(screen.getByRole('button', { name: 'My card' }));
+  expect(screen.getByText(/8765/)).toBeOnTheScreen();
+  expect(
+    screen.getByRole('button', { name: /Cash account for withdrawals/ })
+  ).toBeEnabled();
+  fireEvent.changeText(
+    screen.getByLabelText('Last four bank account digits (optional)'),
+    '1234'
+  );
+  open();
+  fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.getByDisplayValue('1234')).toBeOnTheScreen();
+  for (const label of [
+    'Expense category for unknown merchants',
+    'Income category',
+    'Fee category',
+    'Salary category'
+  ])
+    expect(screen.queryByText(label)).toBeNull();
+  fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+  await waitFor(() =>
+    expect(enable).toHaveBeenCalledWith({
+      links: expect.objectContaining({
+        card: expect.objectContaining({ accountEnding: '1234' })
+      })
+    })
+  );
+});
+
+it('explains how to add an eligible destination when none can be selected', async () => {
+  readStatus.mockResolvedValue({
+    enabled: true,
+    pending: 0,
+    setupCompleted: false,
+    accounts: []
+  });
+  renderWithProviders(<IosShortcutScreen />);
+  await screen.findByText(
+    'Turn on automatic tracking for a bank or card account in Accounts.'
+  );
+  expect(screen.queryByRole('button', { name: /^Account or card/ })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+});

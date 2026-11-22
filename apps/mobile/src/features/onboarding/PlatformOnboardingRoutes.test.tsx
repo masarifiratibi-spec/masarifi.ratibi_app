@@ -85,6 +85,12 @@ describe('platform onboarding routes', () => {
     expect(screen.getByText('إضافة صوتية')).toBeOnTheScreen();
   });
 
+  it('opens the bank message setup from the optional iOS Shortcuts guide', () => {
+    renderWithProviders(<IosAutomationRoute />);
+    fireEvent.press(screen.getByLabelText(translate('tracking.shortcut.title')));
+    expect(router.push).toHaveBeenCalledWith('/capture/ios');
+  });
+
   it('routes iOS manual and voice fallbacks safely', () => {
     renderWithProviders(<IosOptionsRoute />);
 
