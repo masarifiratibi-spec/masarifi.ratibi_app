@@ -21,7 +21,7 @@ describe('same-image process commands', () => {
       assert.equal(report.header.glibcVersionRuntime, '2.41');
       assert.ok(report.sharedObjects.some(path => path.endsWith('/libc.so.6')));
       const prefix = '/var/lib/dpkg/status.d/libc6';
-      assert.match(fs.readFileSync(prefix, 'utf8'), /^Version: 2\\.41-12\\+deb13u4$/m);
+      assert.match(fs.readFileSync(prefix, 'utf8'), /^Version: 2\\.41-12\\+deb13u5$/m);
       const checksums = fs.readFileSync(prefix + '.md5sums', 'utf8').trim().split('\\n');
       const libraryPaths = [];
       for (const line of checksums) {
