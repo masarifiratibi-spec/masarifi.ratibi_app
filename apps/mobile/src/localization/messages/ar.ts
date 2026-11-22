@@ -523,7 +523,7 @@ const ar: MessageCatalog = {
     'رسائل البنوك، \u2068Apple Pay\u2069، \u2068mada\u2069، \u2068STC Pay\u2069\nكلها محفوظة تلقائيًا.',
   'firstLaunch.cta': 'ابدأ الحين',
   'firstLaunch.savedAutomatically': 'تسجيل تلقائيًا',
-  'firstLaunch.ios.headline': 'سجّل مصاريفك\nيدويًا أو بصوتك.',
+  'firstLaunch.ios.headline': 'سجّل مصاريفك يدويًا أو بصوتك.',
   'firstLaunch.ios.supporting':
     'تابع حساباتك وميزانيتك وأهدافك.\nالصوت والمساعد الذكي اختياريان.',
   'firstLaunch.ios.source.manual': 'إدخال يدوي',

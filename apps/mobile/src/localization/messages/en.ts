@@ -570,7 +570,7 @@ const en = {
     'Bank SMS, Apple Pay, mada, and STC Pay are saved for you.',
   'firstLaunch.cta': 'Start now',
   'firstLaunch.savedAutomatically': 'Auto-saved',
-  'firstLaunch.ios.headline': 'Track spending\nmanually or by voice.',
+  'firstLaunch.ios.headline': 'Track spending manually or by voice.',
   'firstLaunch.ios.supporting':
     'Manage accounts, budgets, and goals.\nVoice and AI features are optional.',
   'firstLaunch.ios.source.manual': 'Manual entry',

@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View
 } from 'react-native';
 
@@ -12,6 +13,10 @@ import { layoutDirectionStyle } from '@/design-system/direction';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
 import { AppIcon, IconBadge, type AppIconName } from '@/design-system/icons';
+import {
+  editorialFontFamilyForLocale,
+  fontFamilyForLocale
+} from '@/design-system/typography';
 import { colorTokens } from '@/design-system/tokens';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
@@ -86,6 +91,9 @@ export function FirstLaunchOnboardingScreen({
 }) {
   const theme = useTheme();
   const isIos = Platform.OS === 'ios';
+  const { width, fontScale } = useWindowDimensions();
+  // At larger text sizes or on narrow phones the title can grow onto more lines.
+  const fitIosHeadline = isIos && width >= 390 && fontScale <= 1;
   const visibleExamples = isIos ? iosExamples : examples;
   const savedLabel = translate(
     isIos ? 'firstLaunch.ios.example' : 'firstLaunch.savedAutomatically'
@@ -292,6 +300,7 @@ export function FirstLaunchOnboardingScreen({
         testID="first-launch-copy"
         style={[
           styles.copy,
+          isIos && styles.iosCopy,
           styles.physicalLtr,
           {
             alignItems: direction === 'rtl' ? 'flex-end' : 'flex-start',
@@ -301,7 +310,19 @@ export function FirstLaunchOnboardingScreen({
       >
         <StyledText
           variant="headline"
-          style={{ textAlign, writingDirection: direction }}
+          numberOfLines={fitIosHeadline ? 1 : undefined}
+          adjustsFontSizeToFit={fitIosHeadline || undefined}
+          minimumFontScale={fitIosHeadline ? 0.62 : undefined}
+          style={[
+            { textAlign, writingDirection: direction },
+            isIos && styles.iosHeadline,
+            isIos && {
+              fontFamily:
+                locale === 'ar'
+                  ? editorialFontFamilyForLocale(locale, 700)
+                  : fontFamilyForLocale(locale, 700)
+            }
+          ]}
         >
           {translate(
             isIos ? 'firstLaunch.ios.headline' : 'firstLaunch.headline'
@@ -309,11 +330,18 @@ export function FirstLaunchOnboardingScreen({
         </StyledText>
         <StyledText
           variant="body"
-          style={{
-            color: theme.colors.content.secondary,
-            textAlign,
-            writingDirection: direction
-          }}
+          style={[
+            {
+              color: theme.colors.content.secondary,
+              textAlign,
+              writingDirection: direction
+            },
+            isIos && {
+              alignSelf: 'stretch',
+              fontSize: locale === 'ar' ? 22 : 19,
+              lineHeight: 32
+            }
+          ]}
         >
           {translate(
             isIos ? 'firstLaunch.ios.supporting' : 'firstLaunch.supporting'
@@ -411,5 +439,16 @@ const styles = StyleSheet.create({
   },
   copy: {
     marginBottom: 24
+  },
+  iosCopy: {
+    alignSelf: 'center',
+    width: '90%',
+    marginTop: 24,
+    marginBottom: 8
+  },
+  iosHeadline: {
+    alignSelf: 'stretch',
+    fontSize: 30,
+    lineHeight: 40
   }
 });
