@@ -26,7 +26,7 @@ import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { translate } from '@/localization/i18n';
 import {
   beginTrackingAdmission,
-  admitTrackingOwner,
+  useTrackingAdmission,
   isolateTrackingForOwner
 } from '@/state/tracking-admission';
 import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
@@ -187,6 +187,32 @@ describe('AppShellProvider', () => {
     async (isolated) => {
       process.env.EXPO_PUBLIC_CLIENT_MODE = 'live';
       mockLiveClerkSessionKey = 'session-tracking-recovery';
+      const controller = jest.requireActual<
+        typeof import('@/features/auth/session-controller')
+      >('@/features/auth/session-controller');
+      const session = {
+        ...authenticatedSession,
+        userId: 'user_tracking_recovery',
+        restoration: 'restored' as const,
+        expiresAt: Date.now() + 60_000
+      };
+      mockRestoreSession.mockResolvedValue(session);
+      const getProfileSetup = jest.fn().mockResolvedValue({
+        complete: true,
+        profile: { currency: 'SAR' },
+        preferences: {},
+        onboarding: {}
+      });
+      mockRestoreAppShellSession.mockImplementation(
+        async (service, isCurrent) => {
+          await controller.restoreAppShellSession(
+            service as never,
+            isCurrent as never,
+            { getProfileSetup }
+          );
+          return undefined;
+        }
+      );
       useAppShellStore.setState({
         hydrated: true,
         session: {
@@ -203,33 +229,24 @@ describe('AppShellProvider', () => {
         </AppShellHydrationProvider>
       );
       try {
-        await waitFor(() =>
-          expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(1)
-        );
+        await waitFor(() => expect(getProfileSetup).toHaveBeenCalledTimes(1));
         await act(async () => {});
-        mockRestoreAppShellSession.mockClear();
+        getProfileSetup.mockClear();
         act(() => {
           if (isolated) isolateTrackingForOwner('user_tracking_recovery');
           else beginTrackingAdmission();
         });
         await act(async () => {});
-        expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(
-          isolated ? 0 : 1
-        );
+        expect(getProfileSetup).toHaveBeenCalledTimes(isolated ? 0 : 1);
         expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+        expect(useTrackingAdmission.getState().ready).toBe(!isolated);
         await act(async () => {});
-        expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(
-          isolated ? 0 : 1
-        );
+        expect(getProfileSetup).toHaveBeenCalledTimes(isolated ? 0 : 1);
         expect(mockSyncAutomaticTracking).not.toHaveBeenCalled();
         expect(screen.getByText('Current screen')).toBeOnTheScreen();
         if (!isolated) {
-          act(() => admitTrackingOwner('user_tracking_recovery'));
-          await act(async () => {});
           act(() => beginTrackingAdmission());
-          await waitFor(() =>
-            expect(mockRestoreAppShellSession).toHaveBeenCalledTimes(2)
-          );
+          await waitFor(() => expect(getProfileSetup).toHaveBeenCalledTimes(2));
         }
       } finally {
         view.unmount();
