@@ -78,7 +78,10 @@ it.each(['sms', 'notification'] as const)(
     });
     fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
     fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
-    const completed = screen.getByRole('button', { name: 'Enabled' });
+    const completed = within(screen.getByTestId('app-sheet-modal')).getByRole(
+      'button',
+      { name: 'Enabled' }
+    );
     expect(completed).toBeDisabled();
     fireEvent.press(completed);
     expect(enableSms).not.toHaveBeenCalled();
@@ -347,7 +350,9 @@ it('requires an explicit autostart acknowledgement and retains it on reopening',
   });
   expect(screen.queryByText('Enabled · confirmed by you')).toBeNull();
   fireEvent.press(confirm);
-  await screen.findByRole('button', { name: 'Enabled · confirmed by you' });
+  await within(screen.getByTestId('app-sheet-modal')).findByRole('button', {
+    name: 'Enabled · confirmed by you'
+  });
   first.unmount();
   renderGuide();
   fireEvent.press(screen.getByTestId('tracking-setup-toggle'));

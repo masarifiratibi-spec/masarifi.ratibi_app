@@ -1,6 +1,12 @@
 import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import {
+  within,
+  act,
+  fireEvent,
+  screen,
+  waitFor
+} from '@testing-library/react-native';
 import {
   AppState,
   type AppStateStatus,
@@ -1007,15 +1013,21 @@ describe('TrackingStatusScreen', () => {
         else expect(save).not.toHaveBeenCalledWith(source, true);
         if (wantEnabled) {
           expect(
-            await screen.findByRole('button', {
-              name: translate('tracking.setup.enabled')
-            })
+            await within(screen.getByTestId('app-sheet-modal')).findByRole(
+              'button',
+              {
+                name: translate('tracking.setup.enabled')
+              }
+            )
           ).toBeDisabled();
         } else {
           expect(
-            screen.queryByRole('button', {
-              name: translate('tracking.setup.enabled')
-            })
+            within(screen.getByTestId('app-sheet-modal')).queryByRole(
+              'button',
+              {
+                name: translate('tracking.setup.enabled')
+              }
+            )
           ).toBeNull();
         }
         fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
@@ -1112,9 +1124,12 @@ describe('TrackingStatusScreen', () => {
         fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
         fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
         expect(
-          await screen.findByRole('button', {
-            name: translate('tracking.setup.enabled')
-          })
+          await within(screen.getByTestId('app-sheet-modal')).findByRole(
+            'button',
+            {
+              name: translate('tracking.setup.enabled')
+            }
+          )
         ).toBeDisabled();
         fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
         await waitFor(() => expect(screen.queryByTestId(card)).toBeNull());
@@ -1123,7 +1138,7 @@ describe('TrackingStatusScreen', () => {
         expect(await screen.findByTestId(card)).toBeOnTheScreen();
         fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
         expect(
-          screen.queryByRole('button', {
+          within(screen.getByTestId('app-sheet-modal')).queryByRole('button', {
             name: translate('tracking.setup.enabled')
           })
         ).toBeNull();
