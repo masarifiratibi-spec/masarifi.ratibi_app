@@ -52,6 +52,7 @@ test('iPhone native generation admits the installed Clerk pod without changing A
     process.env.EAS_BUILD_PLATFORM = 'android';
     assert.deepEqual(configure({ config: JSON.parse(JSON.stringify(app)) }), {
       ...app,
+      android: { ...app.android, googleServicesFile: './google-services.production.json' },
       version: '1.0.0'
     });
   } finally {

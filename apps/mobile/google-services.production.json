@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "94844783049",
+    "project_id": "masarifi-production",
+    "storage_bucket": "masarifi-production.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94844783049:android:07e51d1b29c74a5ce00018",
+        "android_client_info": {
+          "package_name": "com.masarifi.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwaPQPQBhRL95KNfUU1bjgmIv_x8Nz7vw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

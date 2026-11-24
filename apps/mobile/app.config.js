@@ -72,6 +72,15 @@ module.exports = ({ config }) => {
       'Privacy development requires its isolated Staging API, test key, variant and build profile'
     );
   if (!variant) {
+    const profile = process.env.EAS_BUILD_PROFILE;
+    const production = profile === 'production' ||
+      (!profile && process.env.EXPO_PUBLIC_RELEASE_CHANNEL === 'production');
+    if (production && !iosAdHoc && process.env.EAS_BUILD_PLATFORM !== 'ios') {
+      config = {
+        ...config,
+        android: { ...config.android, googleServicesFile: './google-services.production.json' }
+      };
+    }
     if (
       iosAdHoc ||
       ['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)
