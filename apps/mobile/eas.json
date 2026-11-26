@@ -42,6 +42,13 @@
         "EXPO_PUBLIC_FINANCE_DIAGNOSTICS_ENABLED": "true"
       }
     },
+    "staging-report-files": {
+      "extends": "staging-client",
+      "env": {
+        "EXPO_PUBLIC_STAGING_REPORT_FILES": "true",
+        "EXPO_PUBLIC_API_URL": "https://api.staging.masarifiratibi.com/qa-reports"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "environment": "production",

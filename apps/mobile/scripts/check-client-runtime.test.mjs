@@ -318,3 +318,16 @@ test('binds the production Clerk key to its approved retained instance', () => {
       /approved production Clerk instance/
     );
 });
+
+test('Android customer releases enforce the selected automatic voice posting policy', () => {
+  const android = { ...live, EAS_BUILD_PLATFORM: 'android' };
+  for (const flag of [undefined, 'false']) {
+    assert.throws(
+      () => validateClientBuildEnvironment({ ...android, EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING: flag }),
+      /requires automatic voice posting/
+    );
+  }
+  assert.doesNotThrow(() =>
+    validateClientBuildEnvironment({ ...android, EXPO_PUBLIC_VOICE_AUTOMATIC_POSTING: 'true' })
+  );
+});

@@ -35,6 +35,8 @@ Thumbs.db
 
 # Test artifacts
 coverage/
+/.device-smoke/
+/new_Desinge/
 
 # SPEC-010 transient evidence captures
 specs/010-frontend-quality/evidence/**/*.raw.log

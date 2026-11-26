@@ -54,7 +54,12 @@ export async function resetLocalUserData(
           for (const { name } of tables) {
             if (
               partitionOwner &&
-              ['sms_import_queue', 'sms_import_queue_v3'].includes(name)
+              [
+                'sms_import_queue',
+                'sms_import_queue_v3',
+                'sms_diagnostic_archive',
+                'sms_diagnostic_archive_v3'
+              ].includes(name)
             )
               continue;
             if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))

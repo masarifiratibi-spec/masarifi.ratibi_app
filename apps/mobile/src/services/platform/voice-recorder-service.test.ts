@@ -287,6 +287,25 @@ it('uses the Expo 55 audio recorder contract', async () => {
   expect(mockRecord).toHaveBeenCalledWith({ forDuration: 60 });
 });
 
+it('keeps the full Android recording when the native one-minute timer finishes before JS samples duration', async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  mockGetRecordingPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
+  const service = createVoiceRecorderService();
+  const recording = await service.start();
+  jest.spyOn(Date, 'now').mockReturnValue(recording.startedAt + 60_000);
+  mockNativeRecording = false;
+  for (const listener of mockListeners) {
+    listener({ id: 'native-recorder', isFinished: true, hasError: false,
+      url: 'private://voice.m4a', error: null });
+  }
+  await recording.finished;
+  await expect(service.stop(recording.id)).resolves.toMatchObject({
+    uri: 'private://voice.m4a', durationMs: 60_000, contentType: 'audio/m4a'
+  });
+  expect(mockAudioStop).not.toHaveBeenCalled();
+  expect(mockDelete).not.toHaveBeenCalled();
+});
+
 it('maps permission, records once, and deletes temporary audio', async () => {
   const service = createVoiceRecorderService();
   expect(await service.getPermission()).toBe('denied');

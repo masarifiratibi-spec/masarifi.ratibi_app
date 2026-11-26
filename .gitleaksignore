@@ -160,4 +160,5 @@ acd3baa84e2a5e577f90746b9314df1dd7b1f208:ops/releases/2026-11-07-dashboard-brand
 2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/linux-ci-manifest.json:generic-api-key:16
 2c1fe4cdd02a4f3255791cac0f9ff9b2d9b363be:ops/releases/2026-11-07-dashboard-ui/host-baseline.json:generic-api-key:118
 0389dff3936211b968c1128471cc313af3b2aef2:apps/mobile/eas.json:generic-api-key:73
+# Reviewed release environment file checksum.
 152be06588229715dd1fb6669a2d01e0c48f8fdb:ops/releases/2026-11-05-voice-review-recovery/manifest.json:generic-api-key:14

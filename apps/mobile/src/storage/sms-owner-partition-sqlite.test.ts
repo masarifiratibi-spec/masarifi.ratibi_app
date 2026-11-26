@@ -103,17 +103,24 @@ const storage = {
     values.delete(key);
   }
 };
-beforeEach(() => {
-  mockSqlite = new DatabaseSync(':memory:');
-  mockSqlite.exec(
+function openV17Database() {
+  const database = new DatabaseSync(':memory:');
+  database.exec(
     "CREATE TABLE sms_import_queue(id TEXT PRIMARY KEY CHECK(id='singleton'),payload TEXT NOT NULL)"
   );
-  // Exercise the actual additive migration, not a fake SQL interpreter.
+  applyMigration(database, 17);
+  return database;
+}
+
+function applyMigration(database: NativeSqlite, version: number) {
   const source = readFileSync(join(__dirname, 'database.ts'), 'utf8');
-  const sql = source.match(
-    /-- migration:17\s*([\s\S]*?)(?=-- migration:|`\);)/
-  )?.[1];
-  if (sql) mockSqlite.exec(sql);
+  const sql = source.split('-- migration:' + version)[1]!.split('-- migration:')[0]!;
+  database.exec(sql);
+}
+
+beforeEach(() => {
+  mockSqlite = openV17Database();
+  applyMigration(mockSqlite, 18);
   values = new Map();
   beginTrackingAdmission();
   admitTrackingOwner(
@@ -170,6 +177,36 @@ it('copies proven same-owner pending work exactly once and never resurrects term
     mockSqlite.prepare('SELECT payload FROM sms_import_queue').get()
   ).toEqual({ payload: raw });
   expect(values.get(legacyKey)).toBe(raw);
+});
+
+it('preserves partitioned diagnostic evidence across overflow, rollback, replay and financial reset', async () => {
+  const queue = new SmsImportQueue(storage);
+  const records = Array.from({ length: 1000 }, (_, i) => ({
+    sourceItemKey: 'record-' + i, sourceChannel: 'android_sms' as const,
+    receivedAt: i, sourceText: 'unparsed', reasonCodes: ['amount_missing']
+  }));
+  mockSqlite.close();
+  mockSqlite = openV17Database();
+  const original = { ...saved(), diagnostics: records };
+  mockSqlite.prepare('INSERT INTO sms_import_queue_v3 VALUES(?,?)').run('singleton', JSON.stringify(original));
+  applyMigration(mockSqlite, 18);
+  expect(await queue.load(owner)).toEqual(original);
+  const next = { ...records[0]!, sourceItemKey: 'record-1000' };
+  mockSqlite.exec("CREATE TRIGGER stop_write BEFORE INSERT ON sms_diagnostic_archive_v3 BEGIN SELECT RAISE(ABORT, 'archive unavailable'); END");
+  await expect(queue.retainDiagnostics(owner, [next])).rejects.toThrow('archive unavailable');
+  expect((await queue.load(owner)).diagnostics?.[0]).toEqual(records[0]);
+  mockSqlite.exec('DROP TRIGGER stop_write');
+  await queue.retainDiagnostics(owner, [next]);
+  await new SmsImportQueue(storage).retainDiagnostics(owner, [records[0]!]);
+  expect(mockSqlite.prepare('SELECT id FROM sms_diagnostic_archive_v3').all()).toEqual([{ id: 'record-1' }]);
+  const restored = await new SmsImportQueue(storage).load(owner);
+  expect(restored.diagnostics?.at(-1)).toEqual(records[0]);
+  expect(restored.pending).toEqual(original.pending);
+  expect(restored.cursor).toBe(original.cursor);
+  expect(mockSqlite.prepare('SELECT id FROM sms_diagnostic_archive').all()).toEqual([]);
+  await queue.resetFinancialHistory(owner, 2000);
+  expect(mockSqlite.prepare('SELECT id FROM sms_diagnostic_archive_v3').all()).toEqual([]);
+  expect((await queue.load(owner)).diagnostics).toEqual([]);
 });
 
 it('rejects a mismatched partition row without replacing its bytes', async () => {

@@ -1,6 +1,12 @@
 import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import {
+  within,
+  act,
+  fireEvent,
+  screen,
+  waitFor
+} from '@testing-library/react-native';
 import {
   AppState,
   type AppStateStatus,
@@ -127,6 +133,58 @@ async function readyControl(testID: string) {
 }
 
 describe('TrackingStatusScreen', () => {
+  it('shows the normal tracking layout and browsable steps before account admission without starting reads or capture', async () => {
+    const previousPlatform = Platform.OS;
+    Platform.OS = 'android';
+    const read = jest.spyOn(automaticTrackingService, 'getStatus');
+    const keywords = jest.spyOn(automaticTrackingService, 'listKeywordRules');
+    act(() => beginTrackingAdmission());
+    const view = renderWithQueryData(<TrackingStatusScreen />, []);
+    try {
+      expect(screen.getByTestId('tracking-status-screen')).toBeOnTheScreen();
+      expect(
+        screen.getByText(translate('tracking.source.smsTracking'))
+      ).toBeOnTheScreen();
+      expect(
+        screen.getByText(translate('tracking.source.notificationTracking'))
+      ).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-sms-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-notification-switch')).toBeDisabled();
+      expect(
+        screen.queryByText(translate('tracking.unverified.title'))
+      ).toBeNull();
+      fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+      fireEvent.press(screen.getByTestId('tracking-guide-sms'));
+      expect(screen.getByTestId('tracking-guide-open-settings')).toBeDisabled();
+      expect(read).not.toHaveBeenCalled();
+      expect(keywords).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      Platform.OS = previousPlatform;
+      act(() => clearTrackingIsolation());
+    }
+  });
+
+  it('shows the complete tracking layout and setup guide while the first status request is pending', async () => {
+    const previousPlatform = Platform.OS;
+    Platform.OS = 'android';
+    jest
+      .spyOn(automaticTrackingService, 'getStatus')
+      .mockReturnValue(new Promise(() => {}));
+    const view = renderWithQueryData(<TrackingStatusScreen />, []);
+    try {
+      expect(screen.getByTestId('tracking-status-screen')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-sms-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-notification-switch')).toBeDisabled();
+      expect(screen.getByTestId('tracking-setup-guide')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-alert-settings')).toBeOnTheScreen();
+      expect(screen.getByTestId('tracking-keywords-card')).toBeOnTheScreen();
+    } finally {
+      view.unmount();
+      Platform.OS = previousPlatform;
+    }
+  });
+
   it.each(['dark', 'light'] as const)(
     'uses matching page, card and text colors in %s mode',
     async (mode) => {
@@ -955,15 +1013,21 @@ describe('TrackingStatusScreen', () => {
         else expect(save).not.toHaveBeenCalledWith(source, true);
         if (wantEnabled) {
           expect(
-            await screen.findByRole('button', {
-              name: translate('tracking.setup.enabled')
-            })
+            await within(screen.getByTestId('app-sheet-modal')).findByRole(
+              'button',
+              {
+                name: translate('tracking.setup.enabled')
+              }
+            )
           ).toBeDisabled();
         } else {
           expect(
-            screen.queryByRole('button', {
-              name: translate('tracking.setup.enabled')
-            })
+            within(screen.getByTestId('app-sheet-modal')).queryByRole(
+              'button',
+              {
+                name: translate('tracking.setup.enabled')
+              }
+            )
           ).toBeNull();
         }
         fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
@@ -1060,9 +1124,12 @@ describe('TrackingStatusScreen', () => {
         fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
         fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
         expect(
-          await screen.findByRole('button', {
-            name: translate('tracking.setup.enabled')
-          })
+          await within(screen.getByTestId('app-sheet-modal')).findByRole(
+            'button',
+            {
+              name: translate('tracking.setup.enabled')
+            }
+          )
         ).toBeDisabled();
         fireEvent(screen.getByTestId('app-sheet-modal'), 'requestClose');
         await waitFor(() => expect(screen.queryByTestId(card)).toBeNull());
@@ -1071,7 +1138,7 @@ describe('TrackingStatusScreen', () => {
         expect(await screen.findByTestId(card)).toBeOnTheScreen();
         fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
         expect(
-          screen.queryByRole('button', {
+          within(screen.getByTestId('app-sheet-modal')).queryByRole('button', {
             name: translate('tracking.setup.enabled')
           })
         ).toBeNull();

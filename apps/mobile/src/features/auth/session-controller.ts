@@ -157,11 +157,10 @@ async function restoreCurrentSession(
     }
     bindOwner(session.userId!);
     if (!(await admitted())) return;
-    // Revalidate an already admitted local owner without withdrawing their
-    // complete saved shell. New owners still wait for authoritative bootstrap.
+    // Keep the verified same-owner screen visible during revalidation.
+    // New owners still wait for authoritative bootstrap.
     const canReadSavedShell =
       currentSession?.status === 'authenticated' &&
-      currentSession.restoration === 'local' &&
       currentSession.userId === session.userId &&
       useAppShellStore.getState().profileSetupStatus === 'complete';
     if (!canReadSavedShell)

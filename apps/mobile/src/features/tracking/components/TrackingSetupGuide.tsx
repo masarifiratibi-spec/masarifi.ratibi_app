@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  AppState,
   Platform,
   Pressable,
   ScrollView,
@@ -7,6 +8,9 @@ import {
   View
 } from 'react-native';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { readTrackingAlertEnabled } from '@/services/platform/tracking-alert-status';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
@@ -16,19 +20,30 @@ import { radius, spacing } from '@/design-system/tokens';
 import { translate, type MessageKey } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
+import type { TrackingAutostartDestination } from '@/services/platform/tracking-autostart-settings';
 
-type GuideTopic = 'sms' | 'notification' | 'alerts';
-const topics: readonly GuideTopic[] = ['sms', 'notification', 'alerts'];
+type GuideTopic = 'sms' | 'notification' | 'alerts' | 'autostart';
+// Autostart is an installation setting. This records only the user's acknowledgement.
+const autostartConfirmationKey = 'masarifi.tracking.autostart-confirmed.v1';
+const topics: readonly GuideTopic[] = [
+  'sms',
+  'notification',
+  'alerts',
+  'autostart'
+];
 
 export function TrackingSetupGuide({
+  actionsDisabled = false,
   smsAvailable,
   notificationAvailable,
   smsEnabled,
   notificationEnabled,
   onEnableSmsTracking,
   onEnableNotificationTracking,
-  onOpenAlertSettings
+  onOpenAlertSettings,
+  onOpenAutostartSettings
 }: {
+  actionsDisabled?: boolean;
   smsAvailable: boolean;
   notificationAvailable: boolean;
   smsEnabled: boolean;
@@ -36,6 +51,7 @@ export function TrackingSetupGuide({
   onEnableSmsTracking: () => Promise<void>;
   onEnableNotificationTracking: () => Promise<void>;
   onOpenAlertSettings: () => Promise<boolean>;
+  onOpenAutostartSettings: () => Promise<TrackingAutostartDestination>;
 }) {
   const { colors } = useTheme();
   const direction = usePreferenceStore((state) => state.direction);
@@ -45,6 +61,36 @@ export function TrackingSetupGuide({
   const [restrictedHelp, setRestrictedHelp] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  const [autostartFallback, setAutostartFallback] = useState(false);
+  const [alertEnabled, setAlertEnabled] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [reviewedAutostart, setReviewedAutostart] = useState(false);
+  const acknowledgementVersion = useRef(0);
+  useEffect(() => {
+    if (!expanded || actionsDisabled || Platform.OS !== 'android') return;
+    let active = true;
+    let request = 0;
+    const revision = acknowledgementVersion.current;
+    void AsyncStorage.getItem(autostartConfirmationKey)
+      .then((value) => {
+        if (active && revision === acknowledgementVersion.current)
+          setConfirmed(value === 'yes');
+      })
+      .catch(() => {});
+    const refresh = async () => {
+      const current = ++request;
+      const enabled = await readTrackingAlertEnabled();
+      if (active && current === request) setAlertEnabled(enabled);
+    };
+    void refresh();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [expanded, actionsDisabled]);
   const actionVersion = useRef(0);
   useEffect(
     () => () => {
@@ -63,32 +109,65 @@ export function TrackingSetupGuide({
   };
   const titleStyle = [styles.title, text, { color: colors.content.primary }];
   const bodyStyle = [styles.body, text, { color: colors.content.secondary }];
-  const selectedEnabled =
-    selected === 'sms'
-      ? smsEnabled
-      : selected === 'notification'
-        ? notificationEnabled
-        : false;
+  const complete = {
+    sms: smsEnabled && smsAvailable,
+    notification: notificationEnabled && notificationAvailable,
+    alerts: alertEnabled,
+    autostart: confirmed
+  };
+  const selectedEnabled = selected !== null && complete[selected];
+  const success = colors.iconBadges.success;
+  const successLabel = (topic: GuideTopic) =>
+    topic === 'autostart'
+      ? translate('tracking.setup.autostart.confirmedLabel')
+      : translate('tracking.setup.enabled');
+  const canReview = selected === 'alerts' || selected === 'autostart';
   const unavailableMessage: MessageKey | null =
-    Platform.OS === 'web'
-      ? 'tracking.setup.webUnavailable'
-      : selected !== 'alerts' && Platform.OS !== 'android'
-        ? 'tracking.setup.androidOnly'
-        : (selected === 'sms' && !smsAvailable) ||
-            (selected === 'notification' && !notificationAvailable)
-          ? 'tracking.setup.sourceUnavailable'
-          : null;
+    selected === 'autostart' && Platform.OS !== 'android'
+      ? 'tracking.setup.autostart.androidOnly'
+      : Platform.OS === 'web'
+        ? 'tracking.setup.webUnavailable'
+        : selected !== 'alerts' && Platform.OS !== 'android'
+          ? 'tracking.setup.androidOnly'
+          : (selected === 'sms' && !smsAvailable) ||
+              (selected === 'notification' && !notificationAvailable)
+            ? 'tracking.setup.sourceUnavailable'
+            : null;
 
   function dismiss() {
     actionVersion.current += 1;
     setSelected(null);
+    setReviewedAutostart(false);
     setRestrictedHelp(false);
     setError(null);
+    setAutostartFallback(false);
     setOpening(false);
   }
 
+  async function acknowledgeAutostart(value: boolean) {
+    if (opening || actionsDisabled) return;
+    const version = ++actionVersion.current;
+    ++acknowledgementVersion.current;
+    setOpening(true);
+    setError(null);
+    try {
+      await AsyncStorage.setItem(
+        autostartConfirmationKey,
+        value ? 'yes' : 'no'
+      );
+      // The write survives dismissal, as should the status on the underlying row.
+      setConfirmed(value);
+      if (actionVersion.current === version) setReviewedAutostart(false);
+    } catch {
+      if (actionVersion.current === version)
+        setError('tracking.setup.autostart.saveFailed');
+    } finally {
+      if (actionVersion.current === version) setOpening(false);
+    }
+  }
+
   async function runSetupAction(topic: GuideTopic) {
-    if (opening) return;
+    if (opening || actionsDisabled) return;
     if (
       (topic === 'sms' && smsEnabled) ||
       (topic === 'notification' && notificationEnabled)
@@ -97,20 +176,31 @@ export function TrackingSetupGuide({
     const version = ++actionVersion.current;
     setOpening(true);
     setError(null);
+    setAutostartFallback(false);
     try {
       const opened =
         topic === 'sms'
           ? await onEnableSmsTracking()
           : topic === 'notification'
             ? await onEnableNotificationTracking()
-            : await onOpenAlertSettings();
+            : topic === 'autostart'
+              ? await onOpenAutostartSettings()
+              : await onOpenAlertSettings();
+      if (version !== actionVersion.current) return;
+      if (topic === 'autostart') {
+        setReviewedAutostart(
+          opened === 'autostart' || opened === 'app_settings'
+        );
+        setAutostartFallback(opened === 'app_settings');
+        if (opened === 'unavailable') setError('tracking.setup.openFailed');
+      }
       if (version === actionVersion.current && opened === false) {
         setError('tracking.setup.webUnavailable');
       }
     } catch {
       if (version === actionVersion.current)
         setError(
-          topic === 'alerts'
+          topic === 'alerts' || topic === 'autostart'
             ? 'tracking.setup.openFailed'
             : 'tracking.setup.enableFailed'
         );
@@ -139,8 +229,11 @@ export function TrackingSetupGuide({
           accessibilityHint={translate(
             'tracking.setup.alertSettingsDescription'
           )}
-          accessibilityState={{ disabled: opening, busy: opening }}
-          disabled={opening}
+          accessibilityState={{
+            disabled: opening || actionsDisabled,
+            busy: opening
+          }}
+          disabled={opening || actionsDisabled}
           onPress={() => void runSetupAction('alerts')}
           style={({ pressed }) => [
             styles.header,
@@ -229,18 +322,27 @@ export function TrackingSetupGuide({
                 key={topic}
                 testID={`tracking-guide-${topic}`}
                 accessibilityRole="button"
-                accessibilityLabel={`${translate(`tracking.setup.${topic}.title`)}، ${translate('tracking.setup.viewSteps')}`}
+                accessibilityLabel={`${translate(`tracking.setup.${topic}.title`)}، ${complete[topic] ? successLabel(topic) : translate('tracking.setup.viewSteps')}`}
                 onPress={() => {
                   actionVersion.current += 1;
                   setOpening(false);
                   setError(null);
                   setRestrictedHelp(false);
+                  setAutostartFallback(false);
+                  setReviewedAutostart(false);
                   setSelected(topic);
                 }}
                 style={({ pressed }) => [
                   styles.guideRow,
                   row,
                   { borderTopColor: colors.borders.default },
+                  complete[topic] && [
+                    styles.completedRow,
+                    {
+                      backgroundColor: success.background,
+                      borderTopColor: success.border
+                    }
+                  ],
                   pressed && styles.pressed
                 ]}
               >
@@ -253,30 +355,52 @@ export function TrackingSetupGuide({
                     }
                   ]}
                 >
-                  <StyledText
-                    accessible={false}
-                    style={[styles.body, { color: colors.content.link }]}
-                  >
-                    {index + 1}
-                  </StyledText>
+                  {complete[topic] ? (
+                    <DesignIcon
+                      name="check"
+                      decorative
+                      color={success.foreground}
+                      size="sm"
+                    />
+                  ) : (
+                    <StyledText
+                      accessible={false}
+                      style={[styles.body, { color: colors.content.link }]}
+                    >
+                      {index + 1}
+                    </StyledText>
+                  )}
                 </View>
                 <View style={styles.copy}>
                   <StyledText style={titleStyle}>
                     {translate(`tracking.setup.${topic}.title`)}
                   </StyledText>
-                  <StyledText style={bodyStyle}>
-                    {translate(`tracking.setup.${topic}.description`)}
-                  </StyledText>
                   <StyledText
-                    style={[
-                      styles.stepsLink,
-                      text,
-                      { color: colors.content.link }
-                    ]}
+                    style={
+                      complete[topic]
+                        ? [styles.title, text, { color: success.foreground }]
+                        : bodyStyle
+                    }
                   >
-                    {translate('tracking.setup.viewSteps')}
+                    {complete[topic]
+                      ? successLabel(topic)
+                      : translate(`tracking.setup.${topic}.description`)}
                   </StyledText>
                 </View>
+                <StyledText
+                  style={[
+                    styles.stepsLink,
+                    styles.guideLink,
+                    text,
+                    { color: colors.content.link }
+                  ]}
+                >
+                  {translate(
+                    complete[topic]
+                      ? 'tracking.setup.details'
+                      : 'tracking.setup.viewSteps'
+                  )}
+                </StyledText>
               </Pressable>
             ))}
             <StyledText style={bodyStyle}>
@@ -302,91 +426,198 @@ export function TrackingSetupGuide({
               </StyledText>
             ) : (
               <>
-                {[1, 2, 3].map((step) => {
-                  const key =
-                    selected === 'alerts' && Platform.OS === 'ios' && step > 1
-                      ? `tracking.setup.alerts.iosStep${step}`
-                      : `tracking.setup.${selected}.step${step}`;
-                  return (
-                    <View key={step} style={[styles.sheetStep, row]}>
+                {selectedEnabled && !reviewedAutostart ? (
+                  <View accessibilityLiveRegion="polite">
+                    <ActionButton
+                      label={
+                        selected === 'autostart'
+                          ? 'tracking.setup.autostart.confirmedLabel'
+                          : 'tracking.setup.enabled'
+                      }
+                      disabled
+                      icon={
+                        <DesignIcon
+                          name="check"
+                          decorative
+                          color={success.foreground}
+                          size="sm"
+                        />
+                      }
+                      style={{
+                        opacity: 1,
+                        backgroundColor: success.background,
+                        borderColor: success.border
+                      }}
+                      labelStyle={{ color: success.foreground }}
+                    />
+                  </View>
+                ) : reviewedAutostart ? (
+                  <View style={styles.copy}>
+                    <StyledText style={titleStyle}>
+                      {translate('tracking.setup.autostart.reviewTitle')}
+                    </StyledText>
+                    <StyledText style={bodyStyle}>
+                      {translate('tracking.setup.autostart.reviewBody')}
+                    </StyledText>
+                  </View>
+                ) : (
+                  <>
+                    {selected === 'autostart' ? (
+                      <StyledText style={bodyStyle}>
+                        {translate('tracking.setup.autostart.intro')}
+                      </StyledText>
+                    ) : null}
+                    {[1, 2, 3].map((step) => {
+                      const key =
+                        selected === 'alerts' &&
+                        Platform.OS === 'ios' &&
+                        step > 1
+                          ? `tracking.setup.alerts.iosStep${step}`
+                          : `tracking.setup.${selected}.step${step}`;
+                      return (
+                        <View key={step} style={[styles.sheetStep, row]}>
+                          <View
+                            style={[
+                              styles.number,
+                              {
+                                backgroundColor: colors.surfaces.brandSubtle,
+                                borderColor: colors.borders.default
+                              }
+                            ]}
+                          >
+                            <StyledText
+                              accessible={false}
+                              style={[
+                                styles.body,
+                                { color: colors.content.link }
+                              ]}
+                            >
+                              {step}
+                            </StyledText>
+                          </View>
+                          <StyledText
+                            style={[
+                              styles.copy,
+                              styles.stepText,
+                              text,
+                              { color: colors.content.primary }
+                            ]}
+                          >
+                            {translate(key as MessageKey)}
+                          </StyledText>
+                        </View>
+                      );
+                    })}
+                    {selected !== 'autostart' ? (
+                      <StyledText style={bodyStyle}>
+                        {translate(`tracking.setup.${selected}.note`)}
+                      </StyledText>
+                    ) : null}
+                    {selected === 'autostart' ? (
                       <View
                         style={[
-                          styles.number,
-                          {
-                            backgroundColor: colors.surfaces.brandSubtle,
-                            borderColor: colors.borders.default
-                          }
+                          styles.restricted,
+                          styles.restartNote,
+                          { backgroundColor: colors.surfaces.brandSubtle }
                         ]}
                       >
                         <StyledText
-                          accessible={false}
-                          style={[styles.body, { color: colors.content.link }]}
+                          style={[
+                            styles.body,
+                            text,
+                            { color: colors.content.primary }
+                          ]}
                         >
-                          {step}
+                          {translate('tracking.setup.autostart.restartNote')}
                         </StyledText>
                       </View>
-                      <StyledText
-                        style={[
-                          styles.copy,
-                          styles.stepText,
-                          text,
-                          { color: colors.content.primary }
-                        ]}
-                      >
-                        {translate(key as MessageKey)}
-                      </StyledText>
-                    </View>
-                  );
-                })}
-                <StyledText style={bodyStyle}>
-                  {translate(`tracking.setup.${selected}.note`)}
-                </StyledText>
-                {selected === 'sms' ? (
-                  <View
-                    style={[
-                      styles.restricted,
-                      { backgroundColor: colors.surfaces.brandSubtle }
-                    ]}
-                  >
-                    <Pressable
-                      testID="tracking-restricted-help"
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: restrictedHelp }}
-                      onPress={() => setRestrictedHelp((value) => !value)}
-                      style={styles.helpToggle}
-                    >
-                      <StyledText
-                        style={[
-                          styles.stepsLink,
-                          text,
-                          { color: colors.content.link }
-                        ]}
-                      >
-                        {translate('tracking.setup.restricted.title')}
-                      </StyledText>
-                    </Pressable>
-                    {restrictedHelp ? (
+                    ) : null}
+                    {selected === 'autostart' ? (
                       <StyledText style={bodyStyle}>
-                        {translate('tracking.setup.restricted.body')}
+                        {translate('tracking.setup.autostart.note')}
                       </StyledText>
                     ) : null}
-                  </View>
+                    {selected === 'sms' ? (
+                      <View
+                        style={[
+                          styles.restricted,
+                          { backgroundColor: colors.surfaces.brandSubtle }
+                        ]}
+                      >
+                        <Pressable
+                          testID="tracking-restricted-help"
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: restrictedHelp }}
+                          onPress={() => setRestrictedHelp((value) => !value)}
+                          style={styles.helpToggle}
+                        >
+                          <StyledText
+                            style={[
+                              styles.stepsLink,
+                              text,
+                              { color: colors.content.link }
+                            ]}
+                          >
+                            {translate('tracking.setup.restricted.title')}
+                          </StyledText>
+                        </Pressable>
+                        {restrictedHelp ? (
+                          <StyledText style={bodyStyle}>
+                            {translate('tracking.setup.restricted.body')}
+                          </StyledText>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </>
+                )}
+                {selected === 'autostart' && autostartFallback ? (
+                  <StyledText
+                    accessibilityLiveRegion="polite"
+                    style={bodyStyle}
+                  >
+                    {translate('tracking.setup.autostart.fallback')}
+                  </StyledText>
                 ) : null}
                 {errorMessage}
-                <ActionButton
-                  testID="tracking-guide-open-settings"
-                  label={
-                    selectedEnabled
-                      ? 'tracking.setup.enabled'
-                      : selected === 'alerts'
-                        ? 'tracking.setup.alerts.open'
-                        : `tracking.setup.${selected}.enable`
-                  }
-                  disabled={selectedEnabled}
-                  style={selectedEnabled ? styles.completedAction : undefined}
-                  loading={opening}
-                  onPress={() => void runSetupAction(selected)}
-                />
+                {reviewedAutostart ? (
+                  <>
+                    <ActionButton
+                      label="tracking.setup.autostart.confirm"
+                      disabled={actionsDisabled || opening}
+                      onPress={() => void acknowledgeAutostart(true)}
+                    />
+                    {confirmed && (
+                      <ActionButton
+                        label="tracking.setup.autostart.clear"
+                        variant="quiet"
+                        disabled={actionsDisabled || opening}
+                        onPress={() => void acknowledgeAutostart(false)}
+                      />
+                    )}
+                  </>
+                ) : null}
+                {(!selectedEnabled || canReview) && (
+                  <ActionButton
+                    testID="tracking-guide-open-settings"
+                    label={
+                      opening && !canReview
+                        ? 'tracking.setup.activating'
+                        : selected === 'alerts'
+                          ? 'tracking.setup.alerts.open'
+                          : selected === 'autostart'
+                            ? 'tracking.setup.autostart.open'
+                            : `tracking.setup.${selected}.enable`
+                    }
+                    variant={
+                      selectedEnabled || reviewedAutostart
+                        ? 'secondary'
+                        : 'primary'
+                    }
+                    disabled={actionsDisabled}
+                    loading={opening}
+                    onPress={() => void runSetupAction(selected)}
+                  />
+                )}
               </>
             )}
             <ActionButton
@@ -402,7 +633,7 @@ export function TrackingSetupGuide({
 }
 
 const styles = StyleSheet.create({
-  completedAction: { opacity: 1 },
+  completedRow: { paddingHorizontal: spacing.sm, borderRadius: radius.control },
   shortcutCard: { padding: 0 },
   header: {
     alignItems: 'center',
@@ -449,6 +680,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline'
   },
+  guideLink: { alignSelf: 'center', flexShrink: 0 },
   sheetScroll: { flexShrink: 1 },
   sheetContent: { gap: spacing.md, paddingBottom: spacing.sm },
   sheetStep: { gap: spacing.sm, alignItems: 'flex-start' },
@@ -458,6 +690,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     borderRadius: radius.control
   },
+  restartNote: { paddingTop: spacing.sm },
   helpToggle: { minHeight: 48, justifyContent: 'center' },
   flipped: { transform: [{ rotate: '180deg' }] },
   pressed: { opacity: 0.7 }

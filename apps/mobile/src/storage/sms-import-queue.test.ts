@@ -196,6 +196,38 @@ describe('SMS import queue', () => {
     expect(restored.diagnostics?.[0]?.sourceText).toBe('تم دفع مبلغ غير واضح');
     expect(restored.pending).toEqual([]);
   });
+  it('advances beyond a full diagnostic window without losing evidence or queued work on retry', async () => {
+    const storage = memoryStorage();
+    const queue = new SmsImportQueue(storage);
+    const records = Array.from({ length: 1000 }, (_, i) => ({
+      sourceItemKey: 'diagnostic-' + i,
+      sourceChannel: 'android_sms' as const,
+      receivedAt: i,
+      sourceText: 'unparsed financial message',
+      reasonCodes: ['amount_missing']
+    }));
+    await queue.enqueue('owner-1', {
+      idempotencyKey: 'pending', submission, cursor: 42, fingerprints: ['seen']
+    });
+    await queue.retainDiagnostics('owner-1', records);
+    const next = { ...records[0]!, sourceItemKey: 'diagnostic-1000', receivedAt: 1000 };
+    const restarted = new SmsImportQueue(storage);
+    await restarted.retainDiagnostics('owner-1', [next]);
+    await restarted.retainDiagnostics('owner-1', [next]);
+    const state = await restarted.load('owner-1');
+    expect(state.diagnostics).toHaveLength(1000);
+    expect(state.diagnostics?.at(-1)).toEqual(next);
+    expect(mockDatabase.read('sms_diagnostic_archive')).toEqual([
+      { id: records[0]!.sourceItemKey, payload: JSON.stringify(records[0]) }
+    ]);
+    expect(state).toMatchObject({
+      pending: [{ idempotencyKey: 'pending' }], cursor: 42, fingerprints: ['seen']
+    });
+    await restarted.checkpoint('owner-1', 1000, ['diagnostic-1000']);
+    expect((await restarted.load('owner-1')).cursor).toBe(1000);
+    await restarted.clear('owner-1');
+    expect(mockDatabase.read('sms_diagnostic_archive')).toEqual([]);
+  });
   it.each(['cash_card', 'cash_account'] as const)(
     'retains %s bindings and pending work through configuration refresh',
     async (role) => {

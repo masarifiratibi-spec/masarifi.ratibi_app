@@ -40,6 +40,7 @@ export function SavingsGoalsScreen() {
   const goals = query.data ?? [];
   const summaries = useSavingsListProgress(goals);
   const [filter, setFilter] = useState<Filter>('all');
+  const direction = usePreferenceStore((s) => s.direction);
   const hideBalances = usePreferenceStore((s) => s.hideBalances);
   const { revealed } = useSensitiveVisibility();
   const theme = useTheme();
@@ -158,7 +159,11 @@ export function SavingsGoalsScreen() {
                         {savingsDate(goal.targetDate)}
                       </StyledText>
                     </View>
-                    <DesignIcon name="chevronEnd" decorative />
+                    <DesignIcon
+                      name="chevronEnd"
+                      direction={direction}
+                      decorative
+                    />
                   </View>
                 </Pressable>
                 <StyledText>

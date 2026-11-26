@@ -29,6 +29,13 @@ internal class FinancialDiscoveryPolicy private constructor(
   private val providers: List<JSONObject>, private val marketing: Regex,
   val nominal: Boolean = false, val contentAdmission: Boolean = false
 ) {
+  private val balanceNotice by lazy {
+    val currency = currencies.flatMap { strings(it.getJSONArray("aliases")) }
+      .map { Regex.escape(normalize(it)) }.sortedByDescending { it.length }.joinToString("|")
+    val label = """(?:\b(?:avl\.?\s*(?:cr\.?\s*)?(?:bal(?:ance)?\.?|limit)|available\s+(?:balance|credit(?:\s+limit)?|limit)|credit\s+limit|balance)|(?:ال)?رصيد(?:ك)?(?:\s+المتاح)?|الحد\s+الائتماني|حد\s+الائتمان)"""
+    val amount = """[+-]?[0-9][0-9,]*(?:\.[0-9]+)?"""
+    Regex("""(?<![\p{L}])$label\s*(?:is|هو)?\s*[:=-]?\s*(?:(?:$currency)\s*$amount|$amount\s*(?:$currency))(?![\p{L}0-9])""")
+  }
   fun knownPackage(source:String):Boolean = providers.any {source in strings(it.optJSONArray("packages"))}
   fun isStrong(raw:String,sender:String,channel:String="android_notification"): Boolean = inspect(raw,sender,true,channel)
   fun isFinancial(raw:String,sender:String,channel:String="android_notification"): Boolean = inspect(raw,sender,false,channel)
@@ -52,8 +59,16 @@ internal class FinancialDiscoveryPolicy private constructor(
     if (Regex("\\b(?:use|enter|verification|security|one[ -]time)\\s+(?:the\\s+)?(?:code|password)\\b[^\\n]{0,40}[0-9]{4,8}\\b").containsMatchIn(text) || marketing.containsMatchIn(text) || matched.any {
       it.optString("family") == "exclusion" || it.getJSONObject("effects").optString("disposition") == "ignore"
     }) return false
+    // Balance notices enter the nominal parser for local evidence only.
+    if (nominal && !requireMoney && balanceNotice.containsMatchIn(text)) return true
     val actions = matched.filter { it.optString("family") == "action" }
-    val evidence = actions.isNotEmpty() || custom.any { phrase(text, it) } && contexts.any { phrase(text, it) }
+    // Native admission retains possible repayments for the shared parser, which
+    // checks the payment object and determines lifecycle and posting eligibility.
+    val repayment = (Regex("\\b(?:repaid|repayment)\\b").containsMatchIn(text) &&
+      Regex("\\bcredit[ -]card\\b").containsMatchIn(text)) ||
+      (text.contains("تسديد") && Regex("بطاق(?:ة|تك|تي)").containsMatchIn(text))
+    val evidence = actions.isNotEmpty() || repayment ||
+      custom.any { phrase(text, it) } && contexts.any { phrase(text, it) }
     return evidence && (!requireMoney || money(text, actions.maxByOrNull { it.optInt("priority") }
       ?.getJSONObject("effects")?.optString("subtype") == "fee"))
   }
@@ -70,7 +85,7 @@ internal class FinancialDiscoveryPolicy private constructor(
       val amount = match.groups[2]?.value ?: match.groups[3]!!.value
       val before = text.substring(maxOf(0, match.range.first - 60), match.range.first)
       val after = text.substring(match.range.last + 1, minOf(text.length, match.range.last + 33))
-      val balance = Regex("(?:avl\\.?\\s*(?:cr\\.?\\s*)?(?:bal(?:ance)?\\.?|limit)|available\\s+(?:balance|credit(?:\\s+limit)?)|credit\\s+limit|balance|الرصيد|رصيد|الحد\\s+الائتماني|حد\\s+الائتمان)[^.;:،,]*[: ]*$").containsMatchIn(before)
+      val balance = Regex("(?:avl\\.?\\s*(?:cr\\.?\\s*)?(?:bal(?:ance)?\\.?|limit)|available\\s+(?:balance|limit|credit(?:\\s+limit)?)|credit\\s+limit|balance|الرصيد|رصيد|الحد\\s+الائتماني|حد\\s+الائتمان)[^.;:،,]*[: ]*$").containsMatchIn(before)
       val feeRole = Regex("(?:fee|fees|charge|commission|رسوم|عمولة)\\s*[: ]*$").containsMatchIn(before)
       val fx = Regex("(?:equivalent|exchange rate|converted|ما يعادل)\\s*[: ]*$").containsMatchIn(before) ||
         Regex("^\\s*(?:equivalent|ما يعادل)").containsMatchIn(after)
@@ -80,6 +95,7 @@ internal class FinancialDiscoveryPolicy private constructor(
   }
 
   companion object {
+
     private fun normalize(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
       .replace(Regex("[\\u064b-\\u065f\\u0670\\u0640]"), "")
       .map { when (it) {

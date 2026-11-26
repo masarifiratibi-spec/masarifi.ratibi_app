@@ -12,6 +12,7 @@ import { translate } from '@/localization/i18n';
 import { parseDeepLinkDestination } from '@/features/shell/deep-link-controller';
 import { resolveEntryRoute } from '@/features/shell/resolve-entry-route';
 import { useAppShellStore } from '@/state/app-shell';
+import { useTrackingAdmission } from '@/state/tracking-admission';
 import { usePreferenceStore } from '@/state/preferences';
 import {
   isAccountDeletionCompletionEnabled,
@@ -159,6 +160,36 @@ function useLiveShellRestoration(localHydration: {
   return completed?.generation === generation ? completed : null;
 }
 
+function useTrackingAdmissionRecovery(completed: LiveRestoreCompletion | null) {
+  const sessionKey = useLiveClerkSessionKey();
+  const ready = useTrackingAdmission((state) => state.ready);
+  const isolatedOwner = useTrackingAdmission(
+    (state) => state.isolatedForOwnerId
+  );
+  const session = useAppShellStore((state) => state.session);
+  const profileStatus = useAppShellStore((state) => state.profileSetupStatus);
+  const recoveredSession = useRef<string | null>(null);
+  useEffect(() => {
+    if (ready) {
+      recoveredSession.current = null;
+      return;
+    }
+    if (
+      !completed ||
+      !sessionKey ||
+      completed.sessionKey !== sessionKey ||
+      isolatedOwner ||
+      session?.status !== 'authenticated' ||
+      profileStatus !== 'complete' ||
+      recoveredSession.current === sessionKey
+    )
+      return;
+    // Reuse authenticated bootstrap once, after its current flight has settled.
+    recoveredSession.current = sessionKey;
+    useAppShellStore.getState().retryBootstrap();
+  }, [completed, sessionKey, ready, isolatedOwner, session, profileStatus]);
+}
+
 /** Restore identity alongside fonts; navigation and foreground writers stay below. */
 export function AppShellHydrationProvider({
   children
@@ -167,6 +198,7 @@ export function AppShellHydrationProvider({
 }) {
   const flight = useLocalShellHydrationFlight();
   const restored = useLiveShellRestoration(flight);
+  useTrackingAdmissionRecovery(restored);
   return (
     <LocalShellHydration.Provider value={flight}>
       <LiveShellRestoration.Provider value={restored}>

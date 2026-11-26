@@ -5,7 +5,7 @@ import { requireOptionalNativeModule } from 'expo';
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 export interface SavedReportPdf {
   uri: string;
@@ -32,13 +32,13 @@ export async function clearOwnerReportPdfCache(owner: string) {
 const maxBytes = 52_428_800;
 const mimeType = 'application/pdf';
 
-/** Saves the existing server-generated PDF; it does not generate a report or share it. */
-export async function saveReportPdf(
-  attempt: { id: string; downloadUrl?: string; downloadUrlExpiresAt?: number },
-  assertCurrent: () => void,
-  signal?: AbortSignal
-): Promise<SavedReportPdf> {
-  assertCurrent();
+type DownloadableReport = {
+  id: string;
+  downloadUrl?: string;
+  downloadUrlExpiresAt?: number;
+};
+
+function validDownloadUrl(attempt: DownloadableReport): string {
   if (
     !attempt.downloadUrl ||
     new URL(attempt.downloadUrl).protocol !== 'https:' ||
@@ -47,6 +47,37 @@ export async function saveReportPdf(
     !/^[A-Za-z0-9-]{1,64}$/.test(attempt.id)
   )
     throw new Error('REPORT_DOWNLOAD_INVALID');
+  return attempt.downloadUrl;
+}
+
+export async function downloadReportPdf(
+  attempt: DownloadableReport,
+  assertCurrent: () => void,
+  signal: AbortSignal
+): Promise<SavedReportPdf | null> {
+  assertCurrent();
+  if (signal.aborted) throw new Error('REPORT_SAVE_CANCELLED');
+  if (Platform.OS !== 'android') {
+    await Linking.openURL(validDownloadUrl(attempt));
+    return null;
+  }
+  const file = await saveReportPdf(attempt, assertCurrent, signal);
+  try {
+    assertCurrent();
+    return file;
+  } finally {
+    await removeReportPdfCache(file);
+  }
+}
+
+/** Saves the existing server-generated PDF; it does not generate a report or share it. */
+export async function saveReportPdf(
+  attempt: DownloadableReport,
+  assertCurrent: () => void,
+  signal?: AbortSignal
+): Promise<SavedReportPdf> {
+  assertCurrent();
+  const url = validDownloadUrl(attempt);
   if (Platform.OS !== 'android' || !FileSystem.cacheDirectory)
     throw new Error('REPORT_SAVE_UNAVAILABLE');
   const owner = useAppShellStore.getState().session;
@@ -58,7 +89,7 @@ export async function saveReportPdf(
   let completed = false;
   let tooLarge = false;
   const transfer = FileSystem.createDownloadResumable(
-    attempt.downloadUrl,
+    url,
     cacheUri,
     {},
     (progress) => {

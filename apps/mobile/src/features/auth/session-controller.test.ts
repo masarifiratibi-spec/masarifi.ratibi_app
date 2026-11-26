@@ -130,39 +130,42 @@ describe('session-controller', () => {
     }
   );
 
-  it('keeps the already authorized same-owner local shell readable while profile revalidation is pending', async () => {
-    const auth = createMockAuthService();
-    await auth.signInWithGoogle();
-    const remote = await auth.restoreSession();
-    useAppShellStore.setState({
-      session: { ...remote, restoration: 'local' },
-      profileSetupStatus: 'complete',
-      profileSetupSnapshot: aedProfileSetup
-    });
-    let requested!: () => void;
-    const started = new Promise<void>((resolve) => {
-      requested = resolve;
-    });
-    let finish!: (value: ProfileSetupSnapshot) => void;
-    const restoration = restoreAppShellSession(auth, () => true, {
-      getProfileSetup: () => {
-        requested();
-        return new Promise((resolve) => {
-          finish = resolve;
-        });
+  it.each(['local', 'restored'] as const)(
+    'keeps the already authorized same-owner %s shell readable while profile revalidation is pending',
+    async (restorationState) => {
+      const auth = createMockAuthService();
+      await auth.signInWithGoogle();
+      const remote = await auth.restoreSession();
+      useAppShellStore.setState({
+        session: { ...remote, restoration: restorationState },
+        profileSetupStatus: 'complete',
+        profileSetupSnapshot: aedProfileSetup
+      });
+      let requested!: () => void;
+      const started = new Promise<void>((resolve) => {
+        requested = resolve;
+      });
+      let finish!: (value: ProfileSetupSnapshot) => void;
+      const restoration = restoreAppShellSession(auth, () => true, {
+        getProfileSetup: () => {
+          requested();
+          return new Promise((resolve) => {
+            finish = resolve;
+          });
+        }
+      });
+      try {
+        await started;
+        expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
+        expect(useAppShellStore.getState().profileSetupSnapshot).toBe(
+          aedProfileSetup
+        );
+      } finally {
+        finish(aedProfileSetup);
+        await restoration;
       }
-    });
-    try {
-      await started;
-      expect(useAppShellStore.getState().profileSetupStatus).toBe('complete');
-      expect(useAppShellStore.getState().profileSetupSnapshot).toBe(
-        aedProfileSetup
-      );
-    } finally {
-      finish(aedProfileSetup);
-      await restoration;
     }
-  });
+  );
   it.each(['server', 'network'] as const)(
     'keeps a complete local shell after a %s refresh failure without treating it as freshly synchronized',
     async (kind) => {

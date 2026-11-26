@@ -4,6 +4,29 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class FinancialDiscoveryPolicyTest {
+  @Test fun nominalBalanceNoticesRequireMoneyAndRespectExclusions() {
+    val nominal = FinancialDiscoveryPolicy.parse(org.json.JSONObject(javaClass.getResource("/financial-discovery-policy.json")!!.readText())
+      .put("nominal",true).put("sourceAdmissionPolicy","financial_content_v1").toString())!!
+    for (channel in listOf("android_sms", "android_notification")) {
+      for (text in listOf("Avl limit: USD 17.95", "الرصيد المتاح: ١٧٫٩٥ ريال")) {
+        assertTrue(nominal.isFinancial(text, "BANK", channel))
+        assertFalse(nominal.isFinancial("OTP 123456 $text", "BANK", channel))
+        assertFalse(nominal.isStrong(text, "BANK", channel))
+      }
+      assertFalse(nominal.isFinancial("Avl limit: 12 items", "BANK", channel))
+    }
+  }
+  @Test fun cardRepaymentsReachTheSharedClassifierInBothChannels() {
+    val policy = policy()
+    for (channel in listOf("android_sms", "android_notification")) {
+      listOf("Credit card bill payment SAR 100", "سداد فاتورة البطاقة بمبلغ SAR 100",
+        "Credit card repayment SAR 100", "تسديد البطاقة SAR 100", "Repaid your credit card bill SAR 100",
+        "Repaid my credit card balance SAR 100", "تسديد مستحقات بطاقتك SAR 100").forEach {
+        assertTrue(it, policy.isFinancial(it, "BANK", channel))
+        assertFalse(it, policy.isFinancial("OTP 123456 $it", "BANK", channel))
+      }
+    }
+  }
   @Test fun abbreviatedAvailableBalanceIsNotPurchaseMoneyForDiscovery() {
     val policy=policy()
     assertFalse(policy.isStrong("Purchase. Avl. Bal. is AED 9000","BANK","android_sms"))

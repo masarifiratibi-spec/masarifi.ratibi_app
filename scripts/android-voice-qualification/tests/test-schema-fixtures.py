@@ -18,7 +18,7 @@ class SchemaFixtureProvenanceTest(unittest.TestCase):
     def test_reviewed_migration_history_and_marker_templates_remain_exact(self):
         source = schemas.pinned_source()
         templates = [
-            (r"const migrations = parseMigrations\(`(.*?)`\);", 1, "d9c4a4ca9a35a0f95b7b27cca58d9ca343bbef8b29f9d1d43bcd6bdfedce7a64"),
+            (r"const migrations = parseMigrations\(`(.*?)`\);", 1, "f846cf39955bc6c28b4982885c28f092235b5ff80f5e07023cb08605f6a7e6d2"),
             (r"CREATE TABLE IF NOT EXISTS schema_migrations \(.*?\);", 0, "fee924110e4ed5f82e984b893a246fd83c5605048568174a5932973ac2fb1602"),
             (r"CREATE TABLE IF NOT EXISTS \$\{LEGACY_MIGRATION_TABLE\} \(.*?\);", 0, "f6c4b1d94505fc815182e3bd2d9e40f30d1182f92f791cd976c94d92e5436144"),
         ]
@@ -32,7 +32,7 @@ class SchemaFixtureProvenanceTest(unittest.TestCase):
     def test_supported_prefix16_preserves_legacy_schema_and_adds_only_the_read_cache(self):
         source = schemas.pinned_source()
         migrations = schemas.migration_sql(source)
-        self.assertEqual(set(migrations), set(range(1, 18)))
+        self.assertEqual(set(migrations), set(range(1, 19)))
         history, _ = schemas.schema_parts(source)
         with sqlite3.connect(":memory:") as database:
             database.executescript(history)
@@ -57,7 +57,7 @@ class SchemaFixtureProvenanceTest(unittest.TestCase):
 
     def test_a_future_migration_is_not_silently_admitted(self):
         source = schemas.pinned_source()
-        changed = source.replace("-- migration:17", "-- migration:18")
+        changed = source.replace("-- migration:18", "-- migration:19")
         with self.assertRaisesRegex(AssertionError, "MIGRATION_PREFIX_CHANGED"):
             schemas.migration_sql(changed)
 

@@ -37,6 +37,10 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { pdfFailureMessage } from './report-state';
+import {
+  StagingReportFiles,
+  stagingReportFilesEnabled
+} from './StagingReportFiles';
 
 type Pending = { operationId: string; previewId?: string; attemptId?: string };
 type Feedback =
@@ -128,7 +132,12 @@ function OwnedReportPdfExport({
     return observeReportEmailIdentity(invalidate);
   }, [identity]);
 
+  const fileMode = stagingReportFilesEnabled();
   const review = () => {
+    if (fileMode) {
+      setVisible(true);
+      return;
+    }
     if (flight.current) return;
     const next = readReportEmailIdentity();
     if (!identity || !isReportEmailIdentityCurrent(identity))
@@ -238,7 +247,9 @@ function OwnedReportPdfExport({
         <Pressable
           testID="reports-pdf-fab"
           accessibilityRole="button"
-          accessibilityLabel={translate('reports.pdf.download')}
+          accessibilityLabel={translate(
+            fileMode ? 'reports.pdf.files' : 'reports.pdf.download'
+          )}
           accessibilityState={{ busy, disabled: busy || !owner }}
           disabled={busy || !owner}
           onPress={review}
@@ -299,50 +310,56 @@ function OwnedReportPdfExport({
                   size="lg"
                 />
               </View>
-              <StyledText variant="title" style={styles.copy}>
-                {title}
-              </StyledText>
-              {period && identity ? (
-                <>
-                  <StyledText style={styles.copy}>
-                    {translateDynamic('reports.pdf.confirmDetails', {
-                      type: translate(`reports.period.${input.kind}`),
-                      period: formatDaySpan(
-                        period.startInstant,
-                        period.endExclusiveInstant - 1,
-                        locale,
-                        period.timeZone
-                      )
-                    })}
-                  </StyledText>
-                  <StyledText style={styles.copy}>
-                    reports.pdf.confirmRecipient
-                  </StyledText>
-                  <StyledText
-                    style={[styles.copy, { writingDirection: 'ltr' }]}
-                  >
-                    {identity.email}
-                  </StyledText>
-                  <ActionButton
-                    label="reports.pdf.confirmSend"
-                    onPress={() => void start()}
-                  />
-                </>
+              {fileMode && owner ? (
+                visible && <StagingReportFiles owner={owner} input={input} />
               ) : (
-                <StyledText style={styles.copy}>
-                  {error ??
-                    (feedback === 'queued'
-                      ? 'reports.pdf.emailQueued'
-                      : 'reports.pdf.emailPreparing')}
-                </StyledText>
+                <>
+                  <StyledText variant="title" style={styles.copy}>
+                    {title}
+                  </StyledText>
+                  {period && identity ? (
+                    <>
+                      <StyledText style={styles.copy}>
+                        {translateDynamic('reports.pdf.confirmDetails', {
+                          type: translate(`reports.period.${input.kind}`),
+                          period: formatDaySpan(
+                            period.startInstant,
+                            period.endExclusiveInstant - 1,
+                            locale,
+                            period.timeZone
+                          )
+                        })}
+                      </StyledText>
+                      <StyledText style={styles.copy}>
+                        reports.pdf.confirmRecipient
+                      </StyledText>
+                      <StyledText
+                        style={[styles.copy, { writingDirection: 'ltr' }]}
+                      >
+                        {identity.email}
+                      </StyledText>
+                      <ActionButton
+                        label="reports.pdf.confirmSend"
+                        onPress={() => void start()}
+                      />
+                    </>
+                  ) : (
+                    <StyledText style={styles.copy}>
+                      {error ??
+                        (feedback === 'queued'
+                          ? 'reports.pdf.emailQueued'
+                          : 'reports.pdf.emailPreparing')}
+                    </StyledText>
+                  )}
+                  {error ? (
+                    <ActionButton
+                      label="reports.pdf.retry"
+                      disabled={busy}
+                      onPress={review}
+                    />
+                  ) : null}
+                </>
               )}
-              {error ? (
-                <ActionButton
-                  label="reports.pdf.retry"
-                  disabled={busy}
-                  onPress={review}
-                />
-              ) : null}
               <ActionButton
                 label={
                   feedback === 'review'

@@ -1,11 +1,13 @@
 import React from 'react';
 import {
+  act,
   fireEvent,
   screen,
   waitFor,
   within
 } from '@testing-library/react-native';
-import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, Platform } from 'react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
@@ -13,10 +15,19 @@ import { usePreferenceStore } from '@/state/preferences';
 import { TrackingSetupGuide } from './TrackingSetupGuide';
 import { resolveTheme } from '@/design-system/theme';
 
+import { readTrackingAlertEnabled } from '@/services/platform/tracking-alert-status';
+
+jest.mock('@/services/platform/tracking-alert-status', () => ({
+  readTrackingAlertEnabled: jest.fn()
+}));
 const originalOS = Platform.OS;
 const enableSms = jest.fn(async () => undefined);
 const enableNotifications = jest.fn(async () => undefined);
 const openAlerts = jest.fn(async () => true);
+const openAutostart = jest.fn<
+  Promise<'autostart' | 'app_settings' | 'unavailable'>,
+  []
+>(async () => 'autostart');
 const renderGuide = (
   enabled: { smsEnabled?: boolean; notificationEnabled?: boolean } = {}
 ) =>
@@ -29,14 +40,18 @@ const renderGuide = (
       onEnableSmsTracking={enableSms}
       onEnableNotificationTracking={enableNotifications}
       onOpenAlertSettings={openAlerts}
+      onOpenAutostartSettings={openAutostart}
     />
   );
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  jest.mocked(readTrackingAlertEnabled).mockResolvedValue(false);
   Platform.OS = 'android';
   changeLocale('en');
   enableSms.mockReset().mockResolvedValue(undefined);
   enableNotifications.mockReset().mockResolvedValue(undefined);
   openAlerts.mockReset().mockResolvedValue(true);
+  openAutostart.mockReset().mockResolvedValue('autostart');
 });
 afterEach(() => {
   Platform.OS = originalOS;
@@ -63,7 +78,10 @@ it.each(['sms', 'notification'] as const)(
     });
     fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
     fireEvent.press(screen.getByTestId(`tracking-guide-${source}`));
-    const completed = screen.getByRole('button', { name: 'Enabled' });
+    const completed = within(screen.getByTestId('app-sheet-modal')).getByRole(
+      'button',
+      { name: 'Enabled' }
+    );
     expect(completed).toBeDisabled();
     fireEvent.press(completed);
     expect(enableSms).not.toHaveBeenCalled();
@@ -212,6 +230,7 @@ it.each(['sms', 'notification'] as const)(
         onEnableSmsTracking={enableSms}
         onEnableNotificationTracking={enableNotifications}
         onOpenAlertSettings={openAlerts}
+        onOpenAutostartSettings={openAutostart}
       />
     );
     fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
@@ -226,3 +245,151 @@ it.each(['sms', 'notification'] as const)(
     expect(enableNotifications).not.toHaveBeenCalled();
   }
 );
+
+it('offers autostart as the fourth help topic without making it a tracking prerequisite', async () => {
+  renderGuide({ smsEnabled: true, notificationEnabled: true });
+  expect(screen.queryByTestId('tracking-guide-autostart')).toBeNull();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  const topics = screen.getAllByTestId(
+    /^tracking-guide-(sms|notification|alerts|autostart)$/
+  );
+  expect(topics.map((topic) => topic.props.testID)).toEqual([
+    'tracking-guide-sms',
+    'tracking-guide-notification',
+    'tracking-guide-alerts',
+    'tracking-guide-autostart'
+  ]);
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  expect(
+    screen.getByText(
+      'After restarting your phone, unlock the screen once so tracking can start.'
+    )
+  ).toBeOnTheScreen();
+  expect(openAutostart).not.toHaveBeenCalled();
+  fireEvent.press(
+    screen.getByRole('button', { name: 'Open autostart settings' })
+  );
+  await waitFor(() => expect(openAutostart).toHaveBeenCalledTimes(1));
+  expect(enableSms).not.toHaveBeenCalled();
+  expect(enableNotifications).not.toHaveBeenCalled();
+});
+
+it('keeps autostart help browseable while pending admission disables its action', () => {
+  renderWithProviders(
+    <TrackingSetupGuide
+      actionsDisabled
+      smsAvailable
+      notificationAvailable
+      smsEnabled={false}
+      notificationEnabled={false}
+      onEnableSmsTracking={enableSms}
+      onEnableNotificationTracking={enableNotifications}
+      onOpenAlertSettings={openAlerts}
+      onOpenAutostartSettings={openAutostart}
+    />
+  );
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  const action = screen.getByTestId('tracking-guide-open-settings');
+  expect(action).toBeDisabled();
+  fireEvent.press(action);
+  expect(openAutostart).not.toHaveBeenCalled();
+});
+
+it('reports an autostart settings failure as an opening error and permits retry', async () => {
+  openAutostart.mockRejectedValueOnce(new Error('Settings unavailable'));
+  renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  expect(
+    await screen.findByText('Could not open settings. Try again.')
+  ).toBeOnTheScreen();
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  await waitFor(() =>
+    expect(screen.queryByText('Could not open settings. Try again.')).toBeNull()
+  );
+  expect(openAutostart).toHaveBeenCalledTimes(2);
+});
+
+it('explains the manual route when only app settings can open', async () => {
+  openAutostart.mockResolvedValueOnce('app_settings');
+  renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  expect(
+    await screen.findByText(
+      'App settings opened. Look for Autostart or Background activity; your phone may not have a separate autostart switch.'
+    )
+  ).toBeOnTheScreen();
+});
+
+it.each(['ios', 'web'] as const)(
+  'does not offer an Android autostart action on %s',
+  (os) => {
+    Platform.OS = os;
+    renderGuide();
+    fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+    fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+    expect(
+      screen.getByText('Autostart settings are available on Android only.')
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('tracking-guide-open-settings')).toBeNull();
+    expect(openAutostart).not.toHaveBeenCalled();
+  }
+);
+
+it('requires an explicit autostart acknowledgement and retains it on reopening', async () => {
+  const first = renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  fireEvent.press(screen.getByTestId('tracking-guide-autostart'));
+  fireEvent.press(screen.getByTestId('tracking-guide-open-settings'));
+  const confirm = await screen.findByRole('button', {
+    name: 'Yes, I enabled it'
+  });
+  expect(screen.queryByText('Enabled · confirmed by you')).toBeNull();
+  fireEvent.press(confirm);
+  await within(screen.getByTestId('app-sheet-modal')).findByRole('button', {
+    name: 'Enabled · confirmed by you'
+  });
+  first.unmount();
+  renderGuide();
+  fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+  await waitFor(() =>
+    expect(
+      within(screen.getByTestId('tracking-guide-autostart')).getByText(
+        'Enabled · confirmed by you'
+      )
+    ).toBeOnTheScreen()
+  );
+  expect(enableSms).not.toHaveBeenCalled();
+  expect(enableNotifications).not.toHaveBeenCalled();
+});
+
+it('refreshes the alert row after system settings change independently of capture', async () => {
+  const listener = jest.spyOn(AppState, 'addEventListener');
+  try {
+    jest.mocked(readTrackingAlertEnabled).mockResolvedValue(true);
+    renderGuide({ smsEnabled: true });
+    fireEvent.press(screen.getByTestId('tracking-setup-toggle'));
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('tracking-guide-alerts')).getByText('Enabled')
+      ).toBeOnTheScreen()
+    );
+    jest.mocked(readTrackingAlertEnabled).mockResolvedValue(false);
+    await act(async () => {
+      for (const [event, callback] of listener.mock.calls)
+        if (event === 'change') callback('active');
+    });
+    expect(
+      within(screen.getByTestId('tracking-guide-alerts')).queryByText('Enabled')
+    ).toBeNull();
+    expect(
+      within(screen.getByTestId('tracking-guide-sms')).getByText('Enabled')
+    ).toBeOnTheScreen();
+  } finally {
+    listener.mockRestore();
+  }
+});

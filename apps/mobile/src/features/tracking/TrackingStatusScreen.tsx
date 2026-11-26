@@ -1,3 +1,7 @@
+import {
+  measurePerformance,
+  recordPerformanceTiming
+} from '@/services/platform/performance-timing';
 import React, {
   useCallback,
   useEffect,
@@ -65,6 +69,7 @@ import { TrackingKeywordChips } from './components/TrackingKeywordChips';
 import { TrackingDemoNotice } from './components/TrackingDemoNotice';
 import { TrackingSetupGuide } from './components/TrackingSetupGuide';
 import { openTrackingAlertSettings } from '@/services/platform/tracking-alert-settings';
+import { openTrackingAutostartSettings } from '@/services/platform/tracking-autostart-settings';
 import {
   setTrackingSourceFailure,
   setTrackingSourceIntent,
@@ -79,6 +84,8 @@ import {
 export function TrackingStatusScreen() {
   const ownerId = useAppShellStore((state) => state.session?.userId ?? null);
   const admission = useTrackingAdmission();
+  if (!admission.ready && !admission.isolatedForOwnerId)
+    return <TrackingStatusPending />;
   if (!admission.ready)
     return (
       <StateView
@@ -96,6 +103,94 @@ export function TrackingStatusScreen() {
       />
     );
   return <TrackingStatusContent key={ownerId} />;
+}
+
+async function trackingPendingAction(): Promise<never> {
+  throw new Error('tracking_not_ready');
+}
+
+function TrackingStatusPending({ onRetry }: { onRetry?: () => void }) {
+  const { mode } = useTheme();
+  const styles = themedStyles[mode];
+  const direction = usePreferenceStore((state) => state.direction);
+  const isRtl = direction === 'rtl';
+  return (
+    <View testID="tracking-status-screen" style={[styles.root, { direction }]}>
+      <AppBar
+        title={translate('tracking.header.title')}
+        direction={direction}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace('/home')
+        }
+      />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <SurfaceCard style={styles.card}>
+          {Platform.OS === 'android' ? (
+            <View style={styles.sourceList}>
+              <TrackingSourceToggleRow
+                testID="tracking-sms-switch"
+                isRtl={isRtl}
+                label={translate('tracking.source.smsTracking')}
+                description={translate(
+                  'tracking.source.smsTrackingDescription'
+                )}
+                disabled
+              />
+              <View style={styles.sourceDivider} />
+              <TrackingSourceToggleRow
+                testID="tracking-notification-switch"
+                isRtl={isRtl}
+                label={translate('tracking.source.notificationTracking')}
+                description={translate(
+                  'tracking.source.notificationTrackingDescription'
+                )}
+                disabled
+              />
+            </View>
+          ) : (
+            <StyledText>{translate('tracking.status.label')} · —</StyledText>
+          )}
+          <StyledText
+            accessibilityLiveRegion="polite"
+            style={styles.sourceDescription}
+          >
+            {translate(
+              onRetry ? 'tracking.state.error' : 'tracking.state.loading'
+            )}
+          </StyledText>
+          {onRetry ? (
+            <ActionButton
+              label="coreFinance.action.retry"
+              variant="secondary"
+              onPress={onRetry}
+            />
+          ) : null}
+        </SurfaceCard>
+        <TrackingSetupGuide
+          actionsDisabled
+          smsAvailable={Platform.OS === 'android'}
+          notificationAvailable={Platform.OS === 'android'}
+          smsEnabled={false}
+          notificationEnabled={false}
+          onEnableSmsTracking={trackingPendingAction}
+          onEnableNotificationTracking={trackingPendingAction}
+          onOpenAlertSettings={trackingPendingAction}
+          onOpenAutostartSettings={trackingPendingAction}
+        />
+        <SurfaceCard
+          testID="tracking-keywords-card"
+          style={[styles.card, styles.keywordCard]}
+        >
+          <StyledText variant="subtitle">
+            {translate('tracking.keywords.sectionTitle')} (—)
+          </StyledText>
+          <StyledText style={styles.sourceDescription}>
+            {translate('tracking.keywords.explanation')}
+          </StyledText>
+        </SurfaceCard>
+      </ScrollView>
+    </View>
+  );
 }
 
 function TrackingStatusContent() {
@@ -302,6 +397,7 @@ function TrackingStatusContent() {
 
   function queueSourceChange(source: 'sms' | 'notification', enabled: boolean) {
     if (updating) return;
+    const started = performance.now();
     const request = ++sourceCommands.requests[source];
     const configurationRequest = ++sourceCommands.configurationRequest;
     const admissionRevision = sourceCommands.admissionRevision;
@@ -424,6 +520,11 @@ function TrackingStatusContent() {
         }
         assertIntent();
         await showSavedSources(sources, mode, assertIntent);
+        if (enabled)
+          recordPerformanceTiming(
+            'tracking.confirmed',
+            performance.now() - started
+          );
         if (configurationRequest === sourceCommands.configurationRequest)
           void resyncAutomaticTracking()
             .then(() => {
@@ -517,82 +618,11 @@ function TrackingStatusContent() {
     }
   };
 
-  if (query.isLoading && !hasReadableSnapshot(query)) {
-    return (
-      <View
-        testID="tracking-status-screen"
-        style={[styles.root, { direction }]}
-      >
-        <AppBar
-          title={translate('tracking.header.title')}
-          onBack={handleBack}
-          direction={direction}
-        />
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          accessibilityState={{ busy: true }}
-        >
-          <SurfaceCard style={styles.card}>
-            {Platform.OS === 'android' ? (
-              (['sms', 'notification'] as const).map((source) => (
-                <View
-                  key={source}
-                  style={[
-                    styles.sourceRow,
-                    styles.physicalLtr,
-                    { flexDirection: isRtl ? 'row-reverse' : 'row' }
-                  ]}
-                >
-                  <View style={styles.sourceText}>
-                    <StyledText style={styles.sourceTitle}>
-                      {translate(
-                        source === 'sms'
-                          ? 'tracking.source.smsTracking'
-                          : 'tracking.source.notificationTracking'
-                      )}
-                    </StyledText>
-                    <StyledText style={styles.sourceDescription}>
-                      {translate(
-                        source === 'sms'
-                          ? 'tracking.source.smsTrackingDescription'
-                          : 'tracking.source.notificationTrackingDescription'
-                      )}
-                    </StyledText>
-                  </View>
-                  <View style={styles.pendingSwitch} />
-                </View>
-              ))
-            ) : (
-              <StyledText>{translate('tracking.status.label')} · —</StyledText>
-            )}
-          </SurfaceCard>
-          <SurfaceCard style={[styles.card, styles.keywordCard]}>
-            <StyledText variant="subtitle">
-              {translate('tracking.keywords.sectionTitle')} (
-              {hasReadableSnapshot(keywords)
-                ? keywordRules.filter((rule) => rule.enabled).length
-                : '—'}
-              )
-            </StyledText>
-            <StyledText style={styles.sourceDescription}>
-              {translate('tracking.keywords.explanation')}
-            </StyledText>
-          </SurfaceCard>
-        </ScrollView>
-      </View>
-    );
-  }
+  if (query.isLoading && !hasReadableSnapshot(query))
+    return <TrackingStatusPending />;
 
-  if (!hasReadableSnapshot(query) || !query.data) {
-    return (
-      <StateView
-        state="error"
-        title={translate('tracking.state.error')}
-        actionLabel={translate('coreFinance.action.retry')}
-        onAction={() => void query.refetch()}
-      />
-    );
-  }
+  if (!hasReadableSnapshot(query) || !query.data)
+    return <TrackingStatusPending onRetry={() => void query.refetch()} />;
 
   const status = query.data;
   const permissionUnavailable =
@@ -773,6 +803,7 @@ function TrackingStatusContent() {
             enableSourceFromGuide('notification')
           }
           onOpenAlertSettings={openTrackingAlertSettings}
+          onOpenAutostartSettings={openTrackingAutostartSettings}
         />
 
         {/* 4. Keyword Management Card */}
@@ -838,7 +869,9 @@ async function enableTrackingSource(
       source === 'sms' ? 'notification' : 'sms'
     );
     assertIntent();
-    await automaticTrackingService.setMode('automatic_clear');
+    await measurePerformance('tracking.mode', () =>
+      automaticTrackingService.setMode('automatic_clear')
+    );
     assertIntent();
   }
   if (source === 'notification') {
@@ -851,7 +884,9 @@ async function enableTrackingSource(
       throw error;
     }
   }
-  const sources = await trackingSourcePreferences.set(source, true);
+  const sources = await measurePerformance('tracking.sourceSave', () =>
+    trackingSourcePreferences.set(source, true)
+  );
   assertIntent();
   return sources;
 }
@@ -869,9 +904,9 @@ function TrackingSourceToggleRow({
   isRtl: boolean;
   label: string;
   description: string;
-  value: boolean;
+  value?: boolean;
   disabled: boolean;
-  onValueChange: (value: boolean) => void;
+  onValueChange?: (value: boolean) => void;
 }) {
   const styles = themedStyles[useTheme().mode];
   return (
@@ -879,9 +914,13 @@ function TrackingSourceToggleRow({
       accessibilityRole="switch"
       accessibilityLabel={label}
       accessibilityHint={description}
-      accessibilityState={{ checked: value, disabled }}
+      accessibilityState={{
+        checked: value,
+        disabled,
+        busy: value === undefined
+      }}
       disabled={disabled}
-      onPress={() => onValueChange(!value)}
+      onPress={() => onValueChange?.(!value)}
       testID={testID}
     >
       <View
@@ -932,7 +971,7 @@ function TrackingSourceToggleRow({
           <Toggle
             accessibilityLabel={label}
             disabled={disabled}
-            value={value}
+            value={value ?? false}
           />
         </View>
       </View>
@@ -1065,12 +1104,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     sourceList: {
       gap: spacing.sm
-    },
-    pendingSwitch: {
-      width: 52,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.borders.default
     },
     sourceDivider: {
       backgroundColor: colors.borders.default,
