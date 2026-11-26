@@ -375,9 +375,7 @@ export function SalaryProfileForm() {
                 style={[
                   styles.switchCopy,
                   {
-                    alignItems:
-                      Platform.OS !== 'ios' && direction === 'rtl'
-                        ? 'flex-end' : 'flex-start'
+                    alignItems: 'flex-start'
                   }
                 ]}
               >

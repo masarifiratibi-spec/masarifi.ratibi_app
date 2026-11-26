@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
@@ -123,8 +123,7 @@ export function CurrencySelectionScreen({
             style={[
               styles.textContainer,
               {
-                alignItems: Platform.OS !== 'ios' && isRtl
-                  ? 'flex-end' : 'flex-start'
+                alignItems: 'flex-start'
               }
             ]}
           >

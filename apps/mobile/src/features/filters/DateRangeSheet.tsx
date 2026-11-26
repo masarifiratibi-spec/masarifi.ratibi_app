@@ -532,8 +532,7 @@ function BackAction({
       style={[
         styles.back,
         {
-          alignSelf: Platform.OS !== 'ios' && direction === 'rtl'
-            ? 'flex-end' : 'flex-start'
+          alignSelf: 'flex-start'
         }
       ]}
     >
