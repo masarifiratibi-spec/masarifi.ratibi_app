@@ -1,5 +1,7 @@
 # Admin Demo Routes
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 Start at `/admin`, then follow this client walkthrough:
 
 1. Review primary KPIs and the dark-teal attention panel.

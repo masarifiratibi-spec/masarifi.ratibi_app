@@ -1,22 +1,4 @@
-<!--
-Sync Impact Report
-- Version change: 1.0.0 -> 1.1.0
-- Modified principles:
-  - III. Frontend-Only, Backend-Aligned Boundaries — clarified production security deferral
-  - V. Complete States and Evidence-Based Quality — added phase security review
-- Added principles:
-  - VI. Defense-in-Depth Frontend Security and Privacy
-- Added sections: none
-- Removed sections: none
-- Dependent artifacts:
-  - ✅ .specify/templates/plan-template.md — added security and privacy gates
-  - ✅ .specify/templates/spec-template.md — added mandatory security specification fields
-  - ✅ .specify/templates/tasks-template.md — added security implementation and review tasks
-  - ✅ .specify/workflows/speckit/workflow.yml — no change required
-  - ✅ specs/README.md — added security and privacy specification requirement
-  - ✅ .agents/skills/speckit-* — reviewed; no additional change required
-- Deferred items: none
--->
+<!-- Amendment 2.0.0, 2026-11-26: integrated Admin runtime supersedes prototype-only delivery. Aligned templates, scope and specs index. -->
 
 # Masarifi Admin Dashboard Constitution
 
@@ -54,26 +36,9 @@ verified without changing the approved visual identity.
 Rationale: localization, accessibility, and responsive operation are baseline
 product requirements.
 
-### III. Frontend-Only, Backend-Aligned Boundaries
+### III. Typed live and fixture adapters
 
-The current phase is frontend-only. Work MUST NOT implement or initialize
-NestJS, Supabase, Stripe, AI providers, databases, real authentication, or any
-other backend runtime. Permission-aware UI MUST represent planned access rules
-but MUST NOT be treated as a substitute for future backend authorization.
-
-Every frontend feature MUST map to a planned backend capability in the Full
-Product Technical Plan. Data flow MUST follow:
-route or component → feature hook → typed service or repository → mock HTTP
-adapter now → replaceable NestJS API later. Pages and presentation components
-MUST NOT import raw mock arrays directly. Mock APIs MUST implement stable typed
-contracts that can be replaced by the real NestJS API without redesigning the
-page.
-
-Sensitive customer financial data MUST be masked or aggregated by default.
-Destructive or sensitive actions MUST require explicit confirmation.
-
-Rationale: the frontend must remain realistic and integration-ready without
-prematurely building the backend.
+Admin features call typed services or repositories. Production uses Clerk and the configured NestJS API. Use simulated roles and mock data only in explicit demo or test modes. The server must enforce the required permission and owner scope for each operation. Mask sensitive financial data and confirm destructive operations.
 
 ### IV. Fixed Stack and Conservative Extension
 
@@ -148,7 +113,7 @@ temporary-access data, and private identifiers MUST NOT be stored in
 
 Mock authentication and role simulation MUST be isolated and identified as
 development-only behavior. Hidden navigation, disabled controls, client route
-guards, and mock permissions are UX controls only. Every future NestJS
+guards, and mock permissions are UX controls only. Every live NestJS
 operation MUST independently enforce authorization. No frontend-only control
 may be described as sufficient security.
 
@@ -193,47 +158,11 @@ storage, leaked environment values, unsafe errors or logs, dependency risks,
 and broken privacy masking. Limitations and deferred backend protections MUST
 be documented.
 
-Production security belongs to future backend and infrastructure phases.
-Frontend-only work MUST NOT implement penetration testing, backend security
-controls, real authentication, encryption infrastructure, rate limiting,
-database policies, or provider-secret handling. Required future protections in
-NestJS, Supabase, infrastructure, and provider integrations MUST instead be
-recorded as backend expectations.
-
-Rationale: client-side controls improve safety and UX but cannot establish a
-production trust boundary; layered frontend and future backend controls are
-both required.
+Production operations enforce authentication, authorization and privacy on the API. Admin presents actionable denial, expiry and conflict states.
 
 ## Scope, Architecture, and Delivery Constraints
 
-All governed work MUST remain inside
-`D:\MY Work\0Part_Time\MASREFY _Final\apps\admin-web`. Admin Web specifications
-MUST remain inside `apps/admin-web/specs`; API, Mobile, and Marketing
-specifications belong only in their own future application folders.
-
-Delivery MUST follow the approved 10-phase Admin frontend plan:
-
-0. Foundation and contract hardening
-1. Overview dashboard
-2. User management
-3. Financial operations
-4. Subscription management
-5. Analytics and reports
-6. Content and support
-7. AI operations
-8. System health and audit
-9. Final hardening and release readiness
-
-The phases and their ten specifications MUST remain sequential unless an
-explicitly approved plan documents a safe dependency exception. Backend module
-and entity references are alignment inputs only; they do not authorize backend
-implementation.
-
-When sources appear to conflict, use this order within Admin Web: this
-constitution governs non-negotiable rules; the Full Product Technical Plan
-governs product architecture and future backend alignment; the Admin Dashboard
-10-specification plan governs frontend delivery; and Gulf Premium Design System
-Version 2.1 governs visual decisions.
+Admin source and specs live under `apps/admin-web`. Scope shared contract changes with the owning API module. The original ten-phase plan remains a record of prototype delivery. Use the current project guide for release status and the existing design system for visual decisions.
 
 ## Specification and Quality Gates
 
@@ -250,7 +179,7 @@ Before implementation, the plan and tasks MUST pass a Constitution Check that
 confirms:
 
 - the approved design and existing project are preserved;
-- the work is frontend-only and maps to a planned backend capability;
+- the change maps to an implemented API contract or a documented proposed contract;
 - data crosses typed services or repositories rather than raw page fixtures;
 - the fixed stack, strict TypeScript, semantic tokens, and no-`any` rule hold;
 - RTL/LTR, accessibility, all approved viewports, UI states, privacy masking,
@@ -282,4 +211,4 @@ Compliance reviews MUST cite concrete files, requirements, and executed command
 results. Complexity or deviations MUST be documented and justified; convenience
 alone is not sufficient.
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-27
+**Version**: 2.0.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-11-26

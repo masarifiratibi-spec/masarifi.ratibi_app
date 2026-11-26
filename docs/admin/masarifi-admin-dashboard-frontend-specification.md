@@ -1,5 +1,7 @@
 # Masarifi Admin Dashboard — Frontend Product and Screen Specification
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 **Document Type:** Frontend-only Admin Dashboard Plan  
 **Platform:** Masarifi  
 **Primary Language:** Arabic RTL  

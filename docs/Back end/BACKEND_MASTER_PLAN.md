@@ -1,7 +1,9 @@
 # Masarifi Backend Master Plan
 
+> Domain ownership remains applicable. Shared delivery follows the operating base; Play and iOS carry release differences. Provisioning and bucket procedures from the hosted Supabase phase are historical. For deployed PostgreSQL and storage topology see the [Maintained project guide](../project/README.md).
+
 Status: SPEC-BE-001 through SPEC-BE-011, SPEC-BE-013, and the local free-only SPEC-BE-014 scope implemented; external Phase 14 release evidence remains tracked separately
-Target branch: `main`
+Maintained backend source: codex/voice-promoted-operating-2026-10-13. Verify affected clients on Play and iOS.
 Canonical implementation sequence: 14 backend Specs
 Backend state at publication: Free-only MVP through SPEC-BE-013; SPEC-BE-012 is reserved Post-MVP
 
@@ -60,7 +62,7 @@ regrouped into exactly 14 Specs; they are not reduced.
 - Root `supabase` contains the canonical migrations, RLS policies, functions,
   seeds, and database tests through SPEC-BE-011.
 - Clerk is the authentication authority for both customers and administrators.
-- Supabase Postgres is the financial source of truth. OpenRouter is the AI
+- PostgreSQL on the VPS is the financial source of truth per the November 13 cutover record. OpenRouter is the AI
   gateway. Stripe is reserved for a separately approved Post-MVP SPEC-BE-012.
 - Existing Mobile and Admin contracts are the primary behavior reference when
   older documentation conflicts with running code.
@@ -91,12 +93,12 @@ Clerk session JWT ----------------+       |-- OpenAPI contracts
                                           |-- OpenRouter gateway
                                           |-- Email ingress/egress
                                           |
-                                          +--> Supabase Postgres
+                                          +--> VPS PostgreSQL
                                           |       |-- SQL migrations
                                           |       |-- RLS and RPC
                                           |       |-- Outbox and queues
                                           |
-                                          +--> Supabase Storage
+                                          +--> Private VPS file storage
                                           +--> Supabase Realtime (targeted only)
 ```
 

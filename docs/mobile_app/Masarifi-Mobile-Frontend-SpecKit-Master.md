@@ -1,5 +1,7 @@
 # Masarifi Mobile App — Frontend Product and Screen Specification
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 **Document Type:** SpecKit Master Frontend Specification  
 **Platform:** iOS and Android  
 **Application:** `apps/mobile`  

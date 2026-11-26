@@ -1,5 +1,7 @@
 # Masarifi Reorganization Report
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](docs/project/README.md).
+
 ## Outcome
 
 The approved Admin Dashboard now lives at `apps/admin-web`, the governing documents are organized under `docs`, and future application/package/infrastructure boundaries are prepared without implementation. No frontend source, asset, lockfile, or configuration content changed.

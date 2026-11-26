@@ -1,5 +1,7 @@
 # Admin Design Decisions
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 ## Visual system
 
 Neutral admin surfaces keep dense operational information legible. Teal is the

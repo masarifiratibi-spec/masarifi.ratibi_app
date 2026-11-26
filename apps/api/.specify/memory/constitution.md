@@ -1,46 +1,12 @@
-<!--
-Sync Impact Report
-- Version change: 1.1.0 -> 2.0.0
-- Modified principles:
-  - I. One Backend Spec, One Branch, One Owner -> Main-First Backend Delivery,
-    One Spec Owner.
-  - II. Spec Kit Artifacts Before Implementation: replaces the dedicated-branch
-    prerequisite with a synchronized main baseline.
-  - VIII. Evidence-Based Completion and Operational Safety: replaces Draft PR
-    and merge gates with push-to-main remote evidence and fix-forward handling.
-- Modified sections:
-  - Backend Architecture and Change Safety: forbids Backend feature worktrees,
-    force-push, and destructive history rewrites under the main-first workflow.
-  - Spec Workflow and Quality Gates: makes main the only Backend working branch.
-  - Governance: replaces PR/merge gates with local pre-push, pushed-main remote
-    evidence, and final completion gates.
-- Added sections: none
-- Removed sections: none
-- Dependent artifacts:
-  - Updated: apps/api/.specify/templates/spec-template.md
-  - Updated: apps/api/.specify/templates/tasks-template.md
-  - Updated: apps/api/.specify/templates/plan-template.md
-  - Updated: apps/api/specs/002-auth-profiles-preferences-sessions/spec.md
-  - Updated: apps/api/specs/002-auth-profiles-preferences-sessions/plan.md
-  - Updated: apps/api/specs/002-auth-profiles-preferences-sessions/tasks.md
-  - Updated: apps/api/specs/002-auth-profiles-preferences-sessions/quickstart.md
-  - Updated: apps/api/specs/002-auth-profiles-preferences-sessions/research.md
-  - Updated: docs/Back end/BACKEND_MASTER_PLAN.md
-- Follow-up: integrate the pending SPEC-BE-002 artifacts into `main`, then resume
-  implementation with the updated main-first task ledger.
--->
+<!-- Amendment 3.0.0, 2026-11-26: project owner selected the operating base and its Play/iOS release lines. Aligned delivery rules, master-plan guidance and templates. -->
 
 # Masarifi Backend Development Constitution
 
 ## Core Principles
 
-### I. Main-First Backend Delivery, One Spec Owner
+### I. Shared backend, one spec owner
 
-Every Backend Spec MUST be specified, planned, implemented, verified, committed,
-and pushed directly on `main`. Backend feature branches and linked Backend
-worktrees MUST NOT be created or used. Before starting or resuming Backend work,
-the existing checkout MUST be on `main`, synchronized safely with `origin/main`,
-and checked for unrelated user changes that must be preserved.
+Use `codex/voice-promoted-operating-2026-10-13` as the primary source for shared architecture, features, API, Admin, data and agent rules. Use `codex/google-play-release-2026-11-24` for Google Play differences and `iOS` for Apple differences. Record the operating source pin and verify affected release consumers. See the [project guide](../../../../docs/project/README.md).
 
 Only one Backend Spec may have active implementation changes at a time. Its
 artifacts, commits, verification evidence, and owned paths MUST identify the Spec
@@ -54,13 +20,12 @@ contract but MUST NOT duplicate, move, or mutate the other Spec's owned resource
 Ownership changes require an approved Master Plan and Constitution compliance
 review before implementation.
 
-Rationale: a linear main-first workflow removes integration overhead while Spec
-ownership, bounded diffs, commits, and evidence retain accountability.
+Rationale: explicit spec ownership preserves accountability across the operating base and its release lines.
 
 ### II. Spec Kit Artifacts Before Implementation
 
 No Backend Spec implementation may begin until the checkout is synchronized on
-`main` and its Spec Kit package exists under `apps/api/specs/<number-name>/`.
+the shared operating branch and its Spec Kit package exists under `apps/api/specs/<number-name>/`.
 
 Every Spec MUST complete this sequence:
 
@@ -93,8 +58,8 @@ Every Backend Spec MUST comply with all global rules in
 `docs/Back end/BACKEND_MASTER_PLAN.md`, including:
 
 - the NestJS modular-monolith API and separate API/worker process model;
-- Supabase/PostgreSQL schemas, SQL migrations, RLS, functions, Storage, Queue,
-  Cron, outbox, and financial source-of-truth conventions;
+- PostgreSQL schemas, versioned SQL migrations, RLS, functions, private storage, queues,
+  scheduled jobs, outbox, and financial source-of-truth conventions;
 - `/api/v1` and `/api/v1/admin` contracts, DTO allowlists, error envelopes,
   pagination, idempotency, versions, and OpenAPI drift checks;
 - Clerk identity and server-side authorization boundaries;
@@ -250,7 +215,7 @@ A Spec is not complete because code, migrations, or endpoints exist. It is
 complete only when every required artifact and acceptance gate has current,
 reviewable evidence.
 
-A push to `main` is an evidence-collection state, not completion. It MAY occur
+A push to the shared operating branch is an evidence-collection state, not completion. It MAY occur
 only after all locally executable pre-push gates pass and no known local
 Critical/High finding remains. Pushing MUST NOT mark the Spec complete, waive a
 blocker, or authorize production release.
@@ -293,9 +258,9 @@ cutover belongs to SPEC-BE-014; earlier Specs may define and test contracts
 without silently replacing client adapters.
 
 The implementation baseline is a NestJS modular monolith with separate API and
-worker entry points, Supabase PostgreSQL as the durable financial source of
-truth, private Supabase Storage, Postgres outbox/Queue/Cron primitives, Clerk for
-identity, OpenRouter for AI, Stripe for billing, and runtime SMTP for report
+worker entry points, PostgreSQL 17 on the VPS as the durable financial source of
+truth, private filesystem storage, Postgres outbox/queue/scheduling primitives, Clerk for
+identity, OpenRouter for AI, deferred billing, and runtime SMTP for report
 email. Redis, Prisma, microservices, Supabase Edge Functions, or another schema
 system are forbidden unless an approved Master Plan amendment and measured need
 authorize them.
@@ -307,9 +272,7 @@ are forbidden unless the user explicitly authorizes the exact destructive action
 after the affected paths and commits are identified. A Spec MUST work with
 concurrent relevant changes and leave unrelated files untouched.
 
-Backend work MUST remain in the existing checkout on `main`; new Backend
-worktrees are forbidden. Force-push and history rewrites are forbidden. A failed
-remote gate MUST be corrected by a new forward-fix commit on `main`.
+Preserve unrelated work and Git history. Correct failed gates with a reviewed forward fix.
 
 Caching MUST have an owner, key, user/permission scope, TTL, invalidation rule,
 staleness tolerance, fallback, metrics, and security analysis. User financial
@@ -323,15 +286,15 @@ and alerting MUST exist before production traffic, not after an incident.
 
 ## Spec Workflow and Quality Gates
 
-Before work begins, the active Spec MUST record its exact number, `main` base
+Before work begins, the active Spec MUST record its exact number, the shared operating branch base
 revision, dependencies, owned resources, excluded resources, client contract
-inventory, and required evidence. The checkout MUST be on `main`, synchronized
-with the latest verified `origin/main`, and contain no active implementation diff
+inventory, and required evidence. The checkout MUST be on the shared operating branch, synchronized
+with the latest verified upstream tip, and contain no active implementation diff
 for another Backend Spec.
 
 Every `plan.md` Constitution Check MUST confirm:
 
-- the checkout is on synchronized `main` and the active diff belongs to exactly
+- the checkout is on the synchronized maintained branch and the active diff belongs to exactly
   one Backend Spec;
 - `spec.md`, `plan.md`, and `tasks.md` are complete and mutually consistent;
 - every proposed resource is documented and owned by the active Spec;
@@ -353,17 +316,10 @@ be hidden in Complexity Tracking; it requires explicit user approval and a prior
 Constitution or Master Plan amendment when it changes a non-negotiable rule.
 
 After all locally executable pre-push acceptance gates pass, the Spec MUST be
-committed with a clear Spec-identifying message and pushed directly to `main` at:
-
-```text
-https://github.com/abdullah-zordok/MASREFY_Final
-```
-
-The push starts remote-only CI, image scanning, SBOM, signature, and provenance
-gates; it does not mark the Spec complete. The Spec remains incomplete until every
+committed with a clear Spec-identifying message and delivered to the maintained remote branch. Inspect workflow triggers and repository/ref guards for the selected branch. Collect applicable CI, image scan, SBOM, signature and provenance evidence for that commit. The Spec remains incomplete until every
 required local and remote acceptance criterion, release-blocking security gate,
 and Definition of Done item has passing evidence. Remote failures MUST be fixed
-forward on `main` and materially changed work MUST receive fresh verification.
+forward on the shared operating branch and materially changed work MUST receive fresh verification.
 
 ## Governance
 
@@ -373,7 +329,7 @@ govern Admin-only or Mobile-only implementation outside an explicitly owned
 Backend cutover.
 
 Compliance is reviewed at six gates: specification approval, plan approval, task
-approval, local pre-push verification, pushed-main remote evidence, and final
+approval, local pre-push verification, branch-specific remote evidence, and final
 completion. Reviewers MUST cite concrete files, owned resources, acceptance
 criteria, and executed evidence. Any Constitution violation is critical and
 blocks implementation, push, or completion.
@@ -390,4 +346,4 @@ The original ratification date is immutable. `Last Amended` changes only when
 the Constitution content changes. Master Plan ownership or architecture changes
 MUST update the Master Plan before affected Spec artifacts or code proceed.
 
-**Version**: 2.0.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-08-28
+**Version**: 3.0.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-11-26

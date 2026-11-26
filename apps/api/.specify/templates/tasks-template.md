@@ -21,7 +21,7 @@ Every task MUST use:
 
 ## Phase 1: Baseline And Contract Review
 
-[Small review and setup tasks that confirm synchronized `main`, ownership, current repository state, and required commands.]
+[Small review and setup tasks that confirm the shared operating branch is synchronized, ownership, current repository state, and required commands.]
 
 ---
 
@@ -75,6 +75,6 @@ Do not mark a task complete or claim a verification result unless the named
 command/procedure was executed successfully and its evidence was retained.
 
 After all local pre-push gates pass, include separate ordered tasks to commit and
-push directly to `main`, collect CI/image/SBOM/signature/provenance evidence,
-fix failures forward on `main`, and complete the Definition of Done only after
+push directly to the shared operating branch, collect CI/image/SBOM/signature/provenance evidence,
+fix failures forward on the shared operating branch, and complete the Definition of Done only after
 all local and remote gates pass.

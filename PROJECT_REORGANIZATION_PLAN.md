@@ -1,5 +1,7 @@
 # Masarifi Project Reorganization Plan
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](docs/project/README.md).
+
 > **Follow-up:** The original root-level Spec Kit preparation described below was later isolated under `apps/admin-web/.specify` and `apps/admin-web/specs` by explicit user direction. See `PROJECT_STRUCTURE.md` and `REORGANIZATION_REPORT.md` for the current structure.
 
 **Goal:** Reorganize the existing approved Admin Dashboard and project documents into the planned monorepo layout without changing frontend design, behavior, routes, dependencies, or product logic.
