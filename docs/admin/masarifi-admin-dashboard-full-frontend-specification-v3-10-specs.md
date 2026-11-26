@@ -1,5 +1,7 @@
 # Masarifi Admin Dashboard — Full Frontend Product Specification
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 **Document Type:** Full Frontend Product and Feature Specification  
 **Specification Version:** 3.0 — Ten-Spec Delivery Plan  
 **Platform:** Masarifi  

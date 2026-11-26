@@ -1,5 +1,7 @@
 # Admin Review Checklist
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 ## Automated
 
 - [ ] `npm test`

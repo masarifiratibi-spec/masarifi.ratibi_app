@@ -1,5 +1,7 @@
 # Masarifi Admin Prototype
 
+> Historical planning or acceptance reference. Apply dated requirements in the context of the [Maintained project guide](../project/README.md).
+
 ## Delivered routes
 
 - `/admin` — operational overview and attention queue

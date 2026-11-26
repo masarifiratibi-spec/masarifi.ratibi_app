@@ -1,5 +1,7 @@
 # Masarifi Project Structure
 
+> Current branch selection, runtime architecture and release evidence are maintained in the [Maintained project guide](docs/project/README.md).
+
 ## Repository map
 
 ```text
@@ -7,12 +9,13 @@ MASREFY _Final/
 ├── apps/
 │   ├── api/             # NestJS API, worker, migration process, OpenAPI and tests
 │   ├── admin-web/       # Next.js Admin app, Vitest, Playwright and Sites build
-│   ├── mobile/          # Expo/React Native app and local Android tracking module
-│   └── marketing-web/   # reserved public-site boundary
+│   ├── mobile/          # Expo/React Native app and platform-specific native tracking modules
+│   ├── marketing-web/   # reserved public-site boundary
+│   └── public-legal/    # public legal site generation and checks
 ├── supabase/            # configuration, migrations, checksums, seed and pgTAP tests
 ├── docker/              # pinned non-root backend image and local/production support
 ├── ops/                 # operational dashboards, alerts and runbook assets
-├── packages/            # reserved shared-package boundaries
+├── packages/            # shared transaction parser and reserved package boundaries
 ├── docs/                # product, architecture, API, security and deployment material
 └── .github/workflows/   # application, database, security, image and release gates
 ```
@@ -55,7 +58,7 @@ npm run build:sites
 
 ### Mobile
 
-`apps/mobile` is the implemented Expo application. It includes local persistence and sync, finance/planning/reporting/assistant journeys, notifications, voice, and the Android SMS/notification tracking module.
+`apps/mobile` is the implemented Expo application. It includes local persistence and sync, finance/planning/reporting/assistant journeys, notifications, voice, and the Android SMS/notification tracking module. The iOS branch includes user-configured Shortcuts capture.
 
 ```powershell
 cd apps/mobile
@@ -70,7 +73,7 @@ npx jest --forceExit
 ## Deployment boundaries
 
 - API, worker and migration use the same built image with separate entry points.
-- Supabase migrations and checksums are the database source of truth.
+- Versioned SQL and checksums under `supabase/` govern schema changes. The self-hosted VPS PostgreSQL instance is the recorded operational write target.
 - Admin supports the standard Next build and the repository's Sites/Vinext build.
 - Mobile signed builds use `eas.json`; real signing, provider credentials and store approval remain external release gates.
 - `Front_end`, generated build directories, caches and local dependency folders are not application source.

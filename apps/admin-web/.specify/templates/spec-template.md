@@ -1,13 +1,13 @@
 # Admin Web Feature Specification: [FEATURE NAME]
 
-**Phase / Spec**: [Phase N / Spec 00N of 010]  
+**Phase / Spec**: [Milestone and owning specification]
 **Created**: [DATE]  
 **Status**: Draft  
 **Input**: "$ARGUMENTS"
 
 ## Goal
 
-[State the operator outcome. This is a frontend-only, backend-aligned specification.]
+[State the operator outcome. This is a Admin, backend-aligned specification.]
 
 ## Dependencies
 
@@ -18,7 +18,7 @@
 
 - **Planned backend modules**: [Full Product Technical Plan references]
 - **Planned entities**: [entity names only]
-- **Boundary**: Proposed contracts and mocks only; no backend implementation
+- **Boundary**: Live contract and explicit test/demo adapters
 
 ## Roles and Permissions
 
@@ -83,7 +83,7 @@
 
 ## Proposed API Contracts
 
-| Method | Mock path | Request type | Response type | Planned NestJS capability |
+| Method | API path | Request type | Response type | NestJS capability |
 |--------|-----------|--------------|---------------|----------------------------|
 | [verb] | [path] | [type] | [type] | [module/capability] |
 
@@ -118,10 +118,10 @@ MUST NOT import raw mock arrays.
 - **Safe rendering**: [HTML, Markdown, JSON, provider, imported, notification, or AI content and its sanitization/presentation boundary.]
 - **Client storage and environment**: [Values prohibited from storage or browser exposure.]
 - **Files and links**: [Type, size, filename, invalid-file, redirect, and opener-safety requirements.]
-- **Permissions**: [Frontend UX controls and independent future backend authorization.]
+- **Permissions**: [Frontend UX controls and independent server-enforced authorization.]
 - **Dependencies**: [Security review and any explicitly required scoped change.]
 - **Security mock scenarios**: [Denied, expired, invalid, unsafe-input, masking, conflict, and duplicate-submission cases.]
-- **Deferred production controls**: [NestJS, Supabase, infrastructure, and provider protections not implemented now.]
+- **Production controls and gaps**: [Server controls, owner and evidence for remaining gaps.]
 
 Security controls MUST follow defense in depth and remain keyboard and
 screen-reader accessible.
@@ -132,7 +132,7 @@ screen-reader accessible.
 
 ## Out of Scope
 
-- Backend implementation, real authentication, database work, and provider integrations.
+- Server implementation, database migrations and provider credentials belong to the owning API spec.
 - [Feature-specific exclusions.]
 
 ## Acceptance Criteria
