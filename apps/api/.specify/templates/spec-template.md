@@ -1,7 +1,7 @@
 # Backend Feature Specification: [FEATURE NAME]
 
 **Phase / Spec**: [Phase NN / SPEC-BE-NNN of 014]  
-**Working Branch**: `main`
+**Working Branch**: the shared operating branch
 **Feature Directory**: `[apps/api/specs/NNN-name]`  
 **Base Revision**: `[commit]`  
 **Created**: [DATE]  
@@ -127,9 +127,9 @@ container, migration, recovery, and scan evidence required by the Spec.]
 - [ ] All owned scope, tests, security, performance, observability, migration,
       rollback, recovery, and acceptance evidence required by this Spec passes.
 - [ ] After local pre-push gates pass, the verified Spec is committed and pushed
-      directly to `main` so remote-only evidence can run.
+      directly to the shared operating branch so remote-only evidence can run.
 - [ ] The Spec is complete only after all local and remote release blockers pass;
-      remote failures are corrected by forward-fix commits on `main`.
+      remote failures are corrected by forward-fix commits on the shared operating branch.
 
 Verification listed in this document is required evidence, not a claim that it
 has already been executed.

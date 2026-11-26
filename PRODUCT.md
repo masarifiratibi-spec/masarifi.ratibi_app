@@ -1,5 +1,7 @@
 # Product
 
+> This document defines product and design intent. For implemented capabilities and platform acceptance see the [Maintained project guide](docs/project/README.md).
+
 <!-- impeccable:product-schema 1 -->
 
 ## Platform
@@ -27,7 +29,7 @@ People check Masarifi briefly and repeatedly on mobile, often one-handed and whi
 - Preserve the existing real financial data, routes, filters, account scope, privacy masking, and transaction behaviors.
 - Financial amounts must never be visually truncated or separated from their currency.
 - Arabic RTL and English LTR are equal first-class layouts.
-- The application runs through Expo across Android and web, with existing iOS-compatible foundations.
+- The maintained Expo clients target Android and iOS. The iOS branch owns Apple sign-in, Shortcuts integration and the Store build. Web support varies by route.
 - Redesign work must reuse the established Masarifi design tokens and accessible interaction patterns.
 
 ## Brand Commitments

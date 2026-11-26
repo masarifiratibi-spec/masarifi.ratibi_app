@@ -1,5 +1,7 @@
 # Masarifi
 
+> Current branch selection, runtime architecture and release evidence are maintained in the [Maintained project guide](docs/project/README.md).
+
 Masarifi is a multi-application personal-finance platform with a NestJS API and worker, a Next.js Admin application, an Expo mobile application, Supabase migrations and RLS tests, and a non-root production container.
 
 | Component | Location | Primary checks |
@@ -7,7 +9,7 @@ Masarifi is a multi-application personal-finance platform with a NestJS API and 
 | API, worker, migrations | `apps/api` | `npm run verify` |
 | Admin web | `apps/admin-web` | `npm run typecheck && npm run lint && npm test && npm run build` |
 | Mobile | `apps/mobile` | `npm run typecheck && npm run lint && npm run check:frontend-quality && npx jest --forceExit` |
-| Database | `supabase` | Run the `apps/api` Supabase and database scripts with Docker available |
+| Local database tooling, migrations and RLS | `supabase` | Run the `apps/api` Supabase and database scripts with Docker available |
 | Production image | `docker/backend.Dockerfile` | `npm run test:release-image` from `apps/api` |
 
 Each application has its own npm lockfile. Use `npm ci --ignore-scripts` for reproducible verification and copy the relevant `.env.example`; never commit real credentials.

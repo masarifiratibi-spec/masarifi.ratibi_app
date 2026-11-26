@@ -36,8 +36,8 @@ inputs:
     prompt: "Integration to use (e.g. claude, copilot, gemini; 'auto' uses the project's initialized integration)"
   scope:
     type: string
-    default: "frontend-only"
-    enum: ["frontend-only"]
+    default: "admin-client"
+    enum: ["admin-client", "frontend-only"]
 
 steps:
   - id: specify

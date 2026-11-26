@@ -5,7 +5,7 @@ description: "Task list template for Masarifi Admin Web features"
 # Tasks: [FEATURE NAME]
 
 **Input**: `specs/[###-feature-name]/spec.md` and `plan.md`  
-**Scope**: Existing `apps/admin-web` frontend only  
+**Scope**: Existing `apps/admin-web` Admin client
 **Tests**: Required for changed behavior
 
 Every task MUST use:
@@ -16,7 +16,7 @@ Every task MUST use:
 
 - `[P]` is allowed only when tasks touch different files and have no incomplete dependency.
 - `[US1]` labels are required for user-story phases.
-- No task may initialize a project or implement backend, database, provider, or real-authentication code.
+- Extend the existing Admin client. Use Clerk for live authentication and coordinate server-side changes with the owning API spec.
 
 ## Phase 1: Existing Project and Contract Review
 
@@ -33,7 +33,7 @@ Every task MUST use:
 - [ ] T006 Add Mock Service Worker handlers for specified scenarios in `[exact src path]`
 - [ ] T007 Add shared loading, empty, error, success, warning, and permission behavior in `[exact src path]`
 - [ ] T008 Define Zod validation and normalization for all untrusted feature inputs in `[exact src path]`
-- [ ] T009 Record frontend UX controls and deferred production authorization in `specs/[###-feature-name]/plan.md`
+- [ ] T009 Record frontend UX controls and the enforced server permission and its verification in `specs/[###-feature-name]/plan.md`
 
 **Gate**: Pages MUST NOT import raw mock arrays, no backend runtime may be
 introduced, and mock permissions MUST NOT be represented as production security.
@@ -70,7 +70,7 @@ introduced, and mock permissions MUST NOT be represented as production security.
 - [ ] TXXX Verify keyboard navigation, visible focus, semantic HTML, accessible names, contrast, and reduced motion
 - [ ] TXXX Confirm application code contains no `any`, no direct page-level mock arrays, and no avoidable raw colors
 - [ ] TXXX Review sensitive-data exposure, rendering, validation, permissions, storage, public environment values, errors, logs, dependencies, and privacy masking
-- [ ] TXXX Document security limitations and deferred NestJS, Supabase, infrastructure, and provider protections
+- [ ] TXXX Document security limitations and applicable server controls and remaining verification gaps
 - [ ] TXXX Run and record the actual typecheck command and result
 - [ ] TXXX Run and record the actual lint command and result
 - [ ] TXXX Run and record the actual Vitest command and result
@@ -81,7 +81,7 @@ introduced, and mock permissions MUST NOT be represented as production security.
 
 - Phase 1 precedes all other work.
 - Phase 2 blocks user-story implementation.
-- User stories follow the approved 10-phase Admin frontend sequence and their documented dependencies.
+- User stories follow the documented spec dependencies.
 - Final verification runs only after all in-scope stories are complete.
 
 ## Completion Rule
