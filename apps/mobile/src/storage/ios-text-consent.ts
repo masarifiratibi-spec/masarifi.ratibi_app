@@ -3,6 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TextConsentStore } from '@/services/live/assistant-api-service';
 
+// Product decision (2026-11-26): keep the explicit text-assistant opt-in on iOS for now.
+// Revisit whether to remove this extra prompt in a future iOS release.
 // A separate Keychain marker keeps a withdrawal retryable if the receipt store fails.
 export const iosTextConsent: TextConsentStore | undefined =
   Platform.OS === 'ios'
