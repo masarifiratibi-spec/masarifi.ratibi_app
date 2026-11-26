@@ -1,5 +1,7 @@
 # Masarifi maintained project guide
 
+Start with the [current AI handoff and three-branch delivery rules (Arabic)](ai-handoff-ar.md). Consult the [file-by-file release comparison](branch-differences.csv) before propagating changes in divergent mobile paths.
+
 Use `codex/voice-promoted-operating-2026-10-13` as the primary source for shared architecture, features, API, Admin, data and agent rules. Use `codex/google-play-release-2026-11-24` for Google Play differences and `iOS` for Apple differences.
 
 | Role | Source reviewed | What differs |
