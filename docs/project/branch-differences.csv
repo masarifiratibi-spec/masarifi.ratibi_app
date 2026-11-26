@@ -1,0 +1,615 @@
+comparison with operating,repository path,status on release,review area
+Google Play,apps/mobile/app.config.js,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+Google Play,apps/mobile/google-services.production.json,added,Android production sender
+Google Play,apps/mobile/scripts/firebase-config.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+Google Play,apps/mobile/scripts/ios-ad-hoc-config.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+Google Play,apps/mobile/src/design-system/components/overlays/AppSheet.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+Google Play,apps/mobile/src/design-system/direction.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+Google Play,apps/mobile/src/features/tracking/TrackingStatusScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+Google Play,apps/mobile/src/features/tracking/components/TrackingKeywordChips.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+Google Play,apps/mobile/src/features/tracking/components/TrackingSetupGuide.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,.easignore,added,"Build, qualification or repository settings: inspect target"
+iOS,.github/workflows/backend-foundation.yml,changed,"Build, qualification or repository settings: inspect target"
+iOS,.github/workflows/ios-native-qualification.yml,added,"Build, qualification or repository settings: inspect target"
+iOS,.gitleaksignore,changed,"Build, qualification or repository settings: inspect target"
+iOS,apps/mobile/.device-smoke/rtl-audit-ar-large.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.device-smoke/rtl-audit-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.device-smoke/rtl-audit-en-large.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.device-smoke/rtl-audit-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.device-smoke/rtl-home-final-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.device-smoke/rtl-more-final-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/.gitignore,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app.config.js,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/(onboarding)/ios-automation.tsx,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/(tabs)/home.tsx,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/(tabs)/more.tsx,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/+native-intent.tsx,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/_layout.tsx,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/capture/duplicates/[id].tsx,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/capture/ios.tsx,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/capture/review/[id].tsx,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/app/capture/review/index.tsx,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/eas.json,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/eslint.config.js,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/locales/ios-ar.json,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/metro.config.js,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/modules/masarifi-bank-sms/Localizable.xcstrings,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ProcessBankSmsIntent.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/bundle-parser.cjs,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/expo-module.config.json,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/BankSmsLedger.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/BankSmsSavedNotice.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/BankSmsService.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/BankSmsState.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/MasarifiBankSms.podspec,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/MasarifiBankSmsModule.swift,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/ios/classify-bank-sms.cjs,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-bank-sms/package.json,added,Apple Shortcuts capture
+iOS,apps/mobile/modules/masarifi-sms-inbox/android/src/main/java/com/masarifi/smsinbox/FinancialDiscoveryPolicy.kt,changed,Android native tracking
+iOS,apps/mobile/modules/masarifi-sms-inbox/android/src/test/java/com/masarifi/smsinbox/FinancialDiscoveryPolicyTest.kt,changed,Android native tracking
+iOS,apps/mobile/new_Desinge/REFERENCE_APP_UX_UI_ANALYSIS.md,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/foundation-system-board-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/foundation-system-board-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-sheet-modal-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-sheet-modal-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-states-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shared-states-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shell-main-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/00-foundation/shell-main-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/000-home/New Text Document.txt,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/000-home/home-add-menu-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/000-home/home-add-menu-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/000-home/home-main-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/000-home/home-main-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/account-picker-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/account-picker-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-create-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-create-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-edit-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-edit-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-list-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/01-accounts/accounts-list-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-create-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-create-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-list-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/categories-list-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/category-picker-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/02-categories/category-picker-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/sync-conflict-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/sync-conflict-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-edit-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-edit-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-filters-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transaction-filters-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transactions-list-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/03-transactions/transactions-list-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/add-manual-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/add-manual-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/add-transfer-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/add-transfer-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-analysis-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-analysis-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-multiple-low-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-multiple-low-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-proposal-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-proposal-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-ready-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-ready-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-recording-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-recording-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-transcript-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/04-add/voice-transcript-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/automatic-add-feedback-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/automatic-add-feedback-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-duplicate-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-duplicate-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-history-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-history-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-keywords-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-keywords-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-obligation-match-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-obligation-match-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-permission-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-permission-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-queue-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-review-queue-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-senders-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-senders-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-status-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/05-tracking/tracking-status-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-profile-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-profile-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-receipt-review-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/07-salary/salary-receipt-review-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-allocation-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-allocation-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-create-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-create-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-edit-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-edit-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-transactions-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budget-transactions-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budgets-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/08-budgets/budgets-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/installment-timeline-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/installment-timeline-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/match-review-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/match-review-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-form-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-form-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-payment-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligation-payment-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligations-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/09-obligations/obligations-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-form-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-form-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-movement-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-movement-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/10-savings/savings-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/financial-insights-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/financial-insights-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-drilldown-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-drilldown-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-preview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-preview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-schedule-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/report-schedule-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/reports-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/reports-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/spending-breakdown-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/spending-breakdown-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/trend-comparison-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/11-reports/trend-comparison-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-action-preview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-action-preview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-conversation-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-conversation-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-evidence-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-evidence-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-home-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-home-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-limit-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/12-assistant/assistant-limit-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-filters-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-filters-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-preferences-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notification-preferences-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notifications-center-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/13-notifications/notifications-center-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/app-settings-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/app-settings-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/more-hub-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/more-hub-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/profile-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/14-more-settings/profile-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-change-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-change-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-create-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/pin-create-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/privacy-settings-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/privacy-settings-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-events-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-events-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-settings-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/security-settings-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/sessions-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/sessions-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/unlock-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/15-security-privacy/unlock-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-checkout-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-checkout-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-manage-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-manage-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-overview-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/16-subscription/subscription-overview-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-home-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-home-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-new-ticket-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-new-ticket-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-detail-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-detail-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-list-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/17-support/support-ticket-list-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-google-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-google-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-language-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-language-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-legal-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-legal-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-otp-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-otp-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-phone-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-phone-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-in-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-in-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-up-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-sign-up-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-welcome-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/18-auth/auth-welcome-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/android-sms-permission-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/android-sms-permission-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-automation-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-automation-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-capture-options-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/ios-capture-options-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/keyword-setup-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/keyword-setup-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-complete-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-complete-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-intro-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-intro-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-preferences-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/onboarding-tracking-preferences-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/tracking-demo-ar.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/19-onboarding/tracking-demo-en.png,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/README.md,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/generate-final-visual-mockups.mjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/final_visual_mockups/verify-bilingual-mockups.mjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-11-46 (2).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-11-46.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-11-47 (2).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-11-47 (3).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-11-47.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-07-21_17-12-12.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-08.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (2).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (3).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (4).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (5).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09 (6).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-09.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (2).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (3).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (4).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (5).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10 (6).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-10.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (2).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (3).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (4).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (5).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (6).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (7).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11 (8).jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-19-11.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-25-32.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-26-08.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/photo_2026-08-08_09-26-21.jpg,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/new_Desinge/video_2026-08-08_09-28-48.mp4,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/package-lock.json,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/package.json,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/plugins/release-safety.gradle,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/plugins/with-bank-sms-intent.cjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/bank-sms-intent.test.cjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/check-client-runtime.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/check-client-runtime.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/check-frontend-quality-boundaries.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/check-frontend-quality-boundaries.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/deep-link-decoder.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/export-ios-ad-hoc-on-mac.sh,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/fixtures/bank-sms-ledger.swift,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/fixtures/bank-sms-repayment.swift,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/fixtures/bank-sms-saved-notice.swift,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/ios-ad-hoc-config.test.mjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/ios-release-policy.cjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/ios-store-config.test.mjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/load-ios-ad-hoc-build-env.cjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/prepare-ios-distribution-profile.py,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/production-entrypoints.cjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/production-entrypoints.test.cjs,changed,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/test-bank-sms-notification.cjs,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/scripts/test-ios-distribution-profile.py,added,"Mobile asset, configuration, source or evidence: inspect diff"
+iOS,apps/mobile/src/components/StyledText.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/components/StyledText.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/components/ios-direction-review.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/components/ios-text-layout.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/design-system/components/financial/FinancialPulse.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/design-system/components/forms/PickerField.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/design-system/components/selection/SelectionScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/design-system/direction.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/design-system/icons.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/app-shell.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/assistant-action-effect.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/assistant-presentation.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/assistant.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/automatic-tracking.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/core-finance.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/financial-period.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/financial-period.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/notifications.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/domain/support.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountDetailScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountDetailScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountForm.credit-opening.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountForm.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountListScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/AccountScopeSheet.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/accounts/CurrencyRow.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/AssistantHomeScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/AssistantJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/AssistantLanding.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/AssistantQuestionDisclosure.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/AssistantTransitionJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/assistant-queries.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/assistant-queries.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/assistant-recovery-polling.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/components/AssistantConsentCard.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/assistant/components/AssistantSuggestedQuestions.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/AppleAccountSelector.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/AuthPendingRoute.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/GoogleAuthScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/GoogleAuthScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/auth-flow.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/session-controller.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/auth/session-controller.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/categories/CategoryForm.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/categories/CategoryListScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/categories/CategorySelectionScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/filters/DateRangeSheet.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/filters/DateRangeSheet.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/filters/date-period.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/filters/date-period.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/filters/useZonedToday.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/financial-planning/usePlanningDraft.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/home/HomeScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/home/HomeScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/home/HomeSummary.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/legal/legal-documents.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/legal/legal-documents.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/notifications/notification-policy.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/notifications/notification-policy.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/onboarding/FirstLaunchOnboarding.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/onboarding/FirstLaunchOnboardingScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/onboarding/PlatformOnboardingRoutes.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/onboarding/ProfileSetupScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/ReportDrillDownScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/ReportPdfExport.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/ReportPdfExport.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/ReportsJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/ReportsScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/StagingReportFiles.tsx,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/reports/useReportAnchorDate.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/salary/SalaryJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/salary/SalaryProfileForm.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsGoalDetailScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsGoalForm.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsGoalsScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsRedesign.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/savings/SavingsVisuals.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/security/UnlockScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/security/UnlockScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/settings/AccountDeletionPanel.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/settings/CurrencySelectionScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/settings/DevAccountDeletionPanel.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/settings/PrivacySettingsScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/settings/ProfilePhoneScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/NavigationJourney.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/ProtectedRouteGate.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/UnlockRouteNavigation.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/UnlockTransitionLoading.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/navigation-context.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/shell/navigation-context.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/BankSmsForegroundNotice.ios.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/BankSmsForegroundNotice.ios.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/BankSmsNoticeRuntime.ios.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/BankSmsNoticeRuntime.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/BankSmsSetupFields.ios.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/HomeTrackingEntry.ios.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/HomeTrackingEntry.ios.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/HomeTrackingEntry.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/IosShortcutNativeEntry.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/IosShortcutReviewQueue.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/IosShortcutScreen.ios.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/IosShortcutScreen.test.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/IosShortcutScreen.tsx,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/TrackingStatusScreen.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/TrackingStatusScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/components/TrackingSetupGuide.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/components/TrackingSetupGuide.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/ios-shortcut-capture.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/ios-shortcut-capture.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/ios-shortcut-reviews.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/ios-shortcut-reviews.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/tracking-admission-reads.test.tsx,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/tracking/useAutomaticTracking.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/TransactionDateField.native.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/TransactionForm.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/TransactionForm.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/TransactionListScreen.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/transaction-presentation.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/transaction-sections.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/transactions/transaction-sections.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/voice/VoiceProcessingConsentDialog.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/voice/useVoiceProcessingConsent.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/features/voice/voice-processing-consent.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/localization/messages/ar.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/localization/messages/en.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/account-data-erasure.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/apple-deletion-authorization.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/apple-deletion-authorization.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/assistant-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/automatic-tracking-coordinator.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/contracts/app-shell-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/contracts/assistant-notifications-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/contracts/automatic-tracking-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/contracts/reports-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/dev-account-deletion-recovery.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/dev-account-deletion.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/financial-generation.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/financial-reset.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/ios-shortcut-import.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/ios-shortcut-import.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/ios-shortcut-ledger.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/ios-shortcut-ledger.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/account-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/apple-sign-in.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/apple-sign-in.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/assistant-api-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/assistant-api-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/auth-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/auth-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/automatic-tracking-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/automatic-tracking-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/category-lifecycle-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/clerk-auth-method.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/clerk-provider.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/clerk-provider.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/core-finance-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/core-finance-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/engagement-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/financial-planning-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/financial-planning-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/http-client.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/ledger-api-contract.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/planning-offline-read.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/reference-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/reports-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/reports-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/voice-api-contract.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/live/voice-batch-api-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/mocks/auth-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/owner-lifecycle.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/bank-sms-bridge.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/bank-sms-bridge.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/bank-sms-notice-locale.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/bank-sms-setup.ios.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/bank-sms-setup.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/benchmark-observability.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/guest-onboarding-reminder.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-cleanup.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-cleanup.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-ledger-http.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-ledger-http.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-runtime.ios.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-runtime.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/ios-shortcut-runtime.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/phone-notification-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/report-pdf-file.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/tracking-alert-status.test.ts,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/tracking-alert-status.ts,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/tracking-autostart-settings.test.ts,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/tracking-autostart-settings.ts,absent,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/voice-recorder-service.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/platform/voice-recorder-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/production/assistant-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/production/auth-flow.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/tracking-installation-consent.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/tracking-source-preferences.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/tracking-sync-device.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/services/voice-category-service.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/state/AppShellProvider.test.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/state/AppShellProvider.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/state/FoundationProviders.tsx,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/state/app-shell-live.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/state/app-shell.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/app-shell-storage.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/database.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/database.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/deletion-completion-journal.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/ios-shortcut-storage.test.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/ios-shortcut-storage.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/ios-text-consent.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/local-data-reset.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/local-data-reset.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/privacy-export-journal.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/secure-preferences.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/sms-import-queue.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/sms-import-queue.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/sms-owner-partition-sqlite.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/sync-database.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/tracking-installation-contract.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/transaction-edit-journal.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/voice-batch-journal.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/voice-category-preference-repository.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/storage/voice-pending-session.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/test-utils/native-direction.ts,added,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/test-utils/setup.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/utils/format-financial-value.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/utils/format-financial-value.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/utils/intl-formatters.test.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/mobile/src/utils/intl-formatters.ts,changed,Mobile implementation or test: compare shared behavior and native requirements
+iOS,apps/public-legal/README.md,changed,Public or store disclosure: review product and platform promises
+iOS,apps/public-legal/build.py,changed,Public or store disclosure: review product and platform promises
+iOS,docs/handoffs/2026-11-14-ios-continuation-prompt-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-14-ios-current-android-handoff-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-15-ios-android153-status-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-15-ios-continuation-prompt-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-15-ios-store-compliance-audit.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-16-arabic-english-direction-review-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-16-ios-faceid-white-transition-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-16-ios-shortcuts-acceptance-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-16-ios-shortcuts-design.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-16-ios-signed-candidate-10-11-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-17-ios-detailed-save-notice-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-17-ios-shortcuts-build17-device-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-17-ios-tracking-guide-simplified-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/2026-11-19-ios-bank-sms-automation-qa-ar.md,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-first-app-receipt-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-first-balances-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-first-transaction-detail-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-first-transaction-list-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-repeat-balances-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-repeat-cold-home-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-repeat-receipt-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-alert-repeat-transactions-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-ar-transaction-detail-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-build18-launch-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-en-transaction-detail-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-language-restored-ar-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-repeat-balances-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-repeat-tracking-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-repeat-transactions-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-details-shortcut-editor-20261117.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-allow-locked-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-before-build12-accounts-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-build12-native-entry-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-build12-parsed-1234-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-build12-preserved-home-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-message-trigger-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/evidence/ios-shortcuts-qa-bank-zero-20261116.png,added,Historical evidence or documentation
+iOS,docs/handoffs/ios-app-review-sign-in.md,added,Historical evidence or documentation
+iOS,docs/handoffs/ios-privacy-apple-copy.md,added,Historical evidence or documentation
+iOS,docs/operations/2026-11-22-production-release-ledger.md,added,Historical evidence or documentation
+iOS,docs/performance/2026-11-20/redmi-account-picker.md,absent,Historical evidence or documentation
+iOS,docs/performance/2026-11-20/redmi-cold-session-restore.md,absent,Historical evidence or documentation
+iOS,docs/performance/2026-11-20/redmi-startup-assistant.md,absent,Historical evidence or documentation
+iOS,docs/performance/2026-11-20/redmi-voice-entry.md,absent,Historical evidence or documentation
+iOS,docs/releases/2026-11-06-ios-preparation.md,changed,Historical evidence or documentation
+iOS,docs/releases/2026-11-07-ios-android135-sync.md,added,Historical evidence or documentation
+iOS,docs/releases/2026-11-07-ios-android136-sync.md,added,Historical evidence or documentation
+iOS,docs/releases/2026-11-07-ios-ci-test-sync.md,added,Historical evidence or documentation
+iOS,docs/releases/2026-11-22-android-162.md,absent,Historical evidence or documentation
+iOS,docs/reviews/2026-11-19-android-dashboard-acceptance.md,absent,Historical evidence or documentation
+iOS,docs/reviews/2026-11-19-dashboard-functional-acceptance.md,absent,Historical evidence or documentation
+iOS,docs/reviews/2026-11-19-open-items-android.md,absent,Historical evidence or documentation
+iOS,docs/runbooks/STAGING_SETUP_GUIDE.md,changed,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-14-ios-client-ad-hoc-readiness.md,added,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-15-ios-store-and-iphone17-readiness.md,added,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-17-ios-bank-sms.md,added,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-17-ios-save-notification-details.md,added,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-22-dashboard-production-ios-submission.md,added,Historical evidence or documentation
+iOS,docs/superpowers/plans/2026-11-22-tracking-autostart.md,absent,Historical evidence or documentation
+iOS,docs/superpowers/specs/2026-11-17-ios-save-notification-details-design.md,added,Historical evidence or documentation
+iOS,docs/superpowers/specs/2026-11-17-ios-tracking-guide-simplification.md,added,Historical evidence or documentation
+iOS,scripts/android-voice-qualification/tests/schema-fixtures.py,changed,"Build, qualification or repository settings: inspect target"
+iOS,scripts/android-voice-qualification/tests/test-schema-fixtures.py,changed,"Build, qualification or repository settings: inspect target"
+iOS,scripts/integration/complete-secret-scan.test.cjs,changed,"Build, qualification or repository settings: inspect target"
+iOS,scripts/integration/reviewed-secret-findings.json,changed,"Build, qualification or repository settings: inspect target"
+iOS,scripts/integration/verify-android-identity.cjs,changed,"Build, qualification or repository settings: inspect target"
+iOS,scripts/integration/verify-android-identity.test.cjs,changed,"Build, qualification or repository settings: inspect target"

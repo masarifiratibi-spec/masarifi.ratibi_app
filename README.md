@@ -1,5 +1,7 @@
 # Masarifi
 
+[Current AI handoff and platform synchronization rules](docs/project/ai-handoff-ar.md).
+
 > Current branch selection, runtime architecture and release evidence are maintained in the [Maintained project guide](docs/project/README.md).
 
 Masarifi is a multi-application personal-finance platform with a NestJS API and worker, a Next.js Admin application, an Expo mobile application, Supabase migrations and RLS tests, and a non-root production container.
