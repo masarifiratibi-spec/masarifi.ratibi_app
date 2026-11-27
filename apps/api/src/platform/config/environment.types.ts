@@ -99,6 +99,8 @@ export interface PlatformEnvironment {
   MASARIFI_STAGING_SELF_DELETION_ENABLED?: boolean;
   MASARIFI_AI_WORKER_POLL_MS: number;
   MASARIFI_AI_JOB_BATCH_SIZE: number;
+  MASARIFI_AI_TRAFFIC_MODE?: 'off' | 'shadow' | 'enforce';
+  MASARIFI_AI_TRUSTED_PROXY_IP?: string;
   MASARIFI_AI_LEASE_SECONDS: number;
   MASARIFI_AI_MAX_CONCURRENCY: number;
   MASARIFI_AI_SIGNED_UPLOAD_SECONDS: number;

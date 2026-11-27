@@ -177,6 +177,7 @@ const domainErrors: Record<string, { status: number; message: string }> = {
   AI_UNAVAILABLE: { status: 503, message: 'AI is unavailable' },
   VOICE_AUTOMATIC_UNAVAILABLE: { status: 503, message: 'Voice is unavailable' },
   AI_TEMPORARILY_UNAVAILABLE: { status: 503, message: 'AI is temporarily unavailable' },
+  AI_TRAFFIC_LIMITED: { status: 429, message: 'Too many AI requests. Try again shortly' },
   AI_QUOTA_EXCEEDED: { status: 429, message: 'AI request quota is exhausted' },
   IMPORT_QUOTA_EXCEEDED: { status: 429, message: 'Import quota is exhausted' },
   REPORT_QUOTA_EXCEEDED: { status: 429, message: 'Report generation quota is exhausted' },
@@ -365,6 +366,7 @@ export class SafeExceptionFilter implements ExceptionFilter {
           : {}),
       });
     }
+    if (domainCode === 'AI_TRAFFIC_LIMITED') response.setHeader('X-Masarifi-AI-Limit', 'traffic');
     const retryAfter = domainResponse?.retryAfter;
     if (
       status === 429 &&

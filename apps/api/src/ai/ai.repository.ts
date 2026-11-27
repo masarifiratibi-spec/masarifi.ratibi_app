@@ -1,3 +1,4 @@
+import { aiTrafficMode } from './ai-traffic';
 import { bindFinancialClaim } from '../platform/database/financial-worker-generation';
 import { createHash } from 'node:crypto';
 
@@ -97,6 +98,37 @@ function quotaError(quota: Record<string, unknown>): never {
 @Injectable()
 export class AiRepository {
   constructor(private readonly pool: PoolService) {}
+
+  private async checkQueue(client: PoolClient, owner: string) {
+    const mode = aiTrafficMode();
+    if (mode === 'off') return;
+    if (mode === 'shadow') await client.query('savepoint ai_queue_probe');
+    let full: boolean;
+    try {
+      full = (await client.query<{ full: boolean }>('select private.ai_queue_full($1) full', [owner])).rows[0]!.full;
+    } catch {
+      if (mode === 'enforce') throw new HttpException({ code: 'AI_TEMPORARILY_UNAVAILABLE' }, 503);
+      await client.query('rollback to savepoint ai_queue_probe');
+      new PlatformLogger().warn('AI_QUEUE_STORE_UNAVAILABLE', { state: mode });
+      return;
+    }
+    if (full) {
+      new PlatformLogger().warn('AI_QUEUE_LIMITED', { state: mode });
+      if (mode === 'enforce') throw new HttpException({ code: 'AI_TRAFFIC_LIMITED', retryAfter: 2 }, 429);
+    }
+  }
+
+  async startProcessing(token: string, owner: string) {
+    const { rows } = await this.pool.query<{ admitted: boolean }>(
+      'select private.ai_start_processing($1,$2,310) admitted',
+      [token, createHash('sha256').update(owner).digest('hex')],
+    );
+    return rows[0]!.admitted;
+  }
+
+  async endProcessing(token: string) {
+    await this.pool.query('select private.ai_end_processing($1)', [token]);
+  }
 
   async acquireCircuit(workload: string, leaseMs: number): Promise<string | null> {
     const { rows } = await this.pool.query<{ token: string | null }>(
@@ -221,6 +253,7 @@ export class AiRepository {
       input,
       202,
       async (client, operationId) => {
+        await this.checkQueue(client, principal.userId);
         const quota = await this.json(
           client,
           'select private.reserve_ai_quota($1,$2::uuid,$3) result',
@@ -676,6 +709,7 @@ export class AiRepository {
       (input.requestIdentity as Record<string, unknown> | undefined) ?? input,
       202,
       async (client, operationId) => {
+        await this.checkQueue(client, principal.userId);
         const quota = await this.json(
           client,
           'select private.reserve_ai_quota($1,$2::uuid,$3) result',
