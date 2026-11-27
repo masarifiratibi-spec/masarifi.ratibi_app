@@ -99,6 +99,61 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
     });
   });
 
+  it('replays an accepted message even with a full queue and reserves quota only for new work', async () => {
+    const previous = process.env.MASARIFI_AI_TRAFFIC_MODE;
+    process.env.MASARIFI_AI_TRAFFIC_MODE = 'enforce';
+    const actor = { ...principal, userId: 'traffic_replay_' + randomUUID() };
+    try {
+      await pool.query("insert into public.profiles(id,status) values($1,'active')", [
+        actor.userId,
+      ]);
+      await repository.setConsent(actor, 'assistant-privacy-v1', true, 1, 'traffic-consent-key-01');
+      const created = await repository.createConversation(
+        actor,
+        'Fixture',
+        'traffic-conversation-key-01',
+      );
+      const conversation = Reflect.get(created, 'resource') as { id: string };
+      const send = (key: string) =>
+        repository.enqueueMessage(
+          actor,
+          conversation.id,
+          {
+            content: 'How is my budget?',
+            intent: 'budget_status',
+            responseMode: 'async',
+            evidence: [{ alias: 'BUDGETS-1', data: { count: 0 } }],
+          },
+          key,
+        );
+      const first = await send('traffic-message-key-01');
+      await send('traffic-message-key-02');
+      await expect(send('traffic-message-key-03')).rejects.toMatchObject({
+        status: 429,
+        response: { code: 'AI_TRAFFIC_LIMITED' },
+      });
+      await expect(send('traffic-message-key-01')).resolves.toMatchObject({
+        resource: Reflect.get(first, 'resource'),
+        replayed: true,
+      });
+      const count = await pool.query<{ count: number }>(
+        'select count(*)::int as count from private.ai_usage_events where user_id=$1',
+        [actor.userId],
+      );
+      expect(count.rows[0]?.count).toBe(2);
+      await repository.setConsent(
+        actor,
+        'assistant-privacy-v1',
+        false,
+        2,
+        'traffic-consent-revoke-01',
+      );
+    } finally {
+      if (previous === undefined) delete process.env.MASARIFI_AI_TRAFFIC_MODE;
+      else process.env.MASARIFI_AI_TRAFFIC_MODE = previous;
+    }
+  });
+
   it('enforces consent, persists minimized evidence, and cancels queued work on revocation', async () => {
     await expect(repository.getConsent(principal, 'assistant-privacy-v1')).resolves.toMatchObject({
       granted: false,
