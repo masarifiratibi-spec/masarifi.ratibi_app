@@ -4,6 +4,7 @@ import { PlatformConfigService } from '../platform/config/platform-config.servic
 import { PlatformLogger } from '../platform/observability/platform-logger';
 import { workerErrorFields } from '../platform/observability/worker-error';
 import { AiGateway, AiGatewayError } from './ai.gateway';
+import { withProcessingSlot } from './ai-processing-slot';
 import { AiRepository } from './ai.repository';
 import { AssistantAgentData } from './assistant-agent-data';
 import { AssistantAgentRepository } from './assistant-agent.repository';
@@ -118,7 +119,8 @@ export class AssistantAgentWorker implements OnModuleDestroy {
             });
           },
         );
-        const answer = await agent.run(claim, route, this.controller.signal);
+        const signal = this.controller.signal;
+        const answer = await withProcessingSlot(this.routes, claim.userId, signal, () => agent.run(claim, route, signal));
         this.controller.signal.throwIfAborted();
         await this.jobs.finish(claim, answer);
         this.logger.info('ASSISTANT_AGENT_FINISHED', {

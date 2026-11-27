@@ -1,3 +1,4 @@
+import { AiTrafficBackoff, AiTrafficBusy } from './ai-traffic-backoff';
 import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { recordVoiceDiagnostic } from '@/services/platform/voice-diagnostics';
@@ -241,6 +242,7 @@ export function createLiveVoiceApiService(
     }
   };
   const request = options.request ?? fetch;
+  const traffic = new AiTrafficBackoff();
   const sleep =
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
@@ -314,7 +316,7 @@ export function createLiveVoiceApiService(
           await check(binding);
           if (controller.signal.aborted)
             throw new VoiceCaptureError('operation_cancelled');
-          const response = await request(baseUrl + path, {
+          const response = await traffic.request(binding.ownerId, method, path, controller.signal, () => check(binding), () => request(baseUrl + path, {
             method,
             signal: controller.signal,
             headers: {
@@ -331,7 +333,7 @@ export function createLiveVoiceApiService(
             },
             body:
               audio ?? (body === undefined ? undefined : JSON.stringify(body))
-          });
+          }));
           const value: unknown =
             response.status === 204 ? null : await response.json();
           await check(binding);
@@ -350,6 +352,7 @@ export function createLiveVoiceApiService(
       ]);
     } catch (error) {
       await check(binding);
+      if (error instanceof AiTrafficBusy) throw new VoiceCaptureError('traffic_busy');
       if (error instanceof VoiceCaptureError) throw error;
       throw new VoiceCaptureError('offline');
     } finally {

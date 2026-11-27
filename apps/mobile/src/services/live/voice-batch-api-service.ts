@@ -1,3 +1,4 @@
+import { AiTrafficBackoff, AiTrafficBusy } from './ai-traffic-backoff';
 import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import { randomUUID } from 'expo-crypto';
@@ -184,6 +185,7 @@ export function createVoiceBatchApi(options: {
   const mediaExpiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const recoveryFailures = new Set<string>();
   const controllers = new Set<AbortController>();
+  const traffic = new AiTrafficBackoff();
   let epoch = 0;
   let recoveryOwner: string | null = null;
   let discoveryCursor: { createdAt: string; sessionId: string } | null = null;
@@ -259,7 +261,7 @@ export function createVoiceBatchApi(options: {
           requestId,
           phase: 'start'
         });
-        const response = await options.request(options.baseUrl + path, {
+        const response = await traffic.request(b.owner, method, path, signal, () => check(b), () => options.request(options.baseUrl + path, {
           method,
           signal,
           headers: {
@@ -283,7 +285,7 @@ export function createVoiceBatchApi(options: {
           ...(body !== undefined || audio
             ? { body: audio ?? JSON.stringify(body) }
             : {})
-        });
+        }));
         recordVoiceDiagnostic('response', {
           operation,
           captureId: b.captureId,
@@ -385,6 +387,7 @@ export function createVoiceBatchApi(options: {
         phase: 'failure',
         elapsedMs: performance.now() - started
       });
+      if (error instanceof AiTrafficBusy) throw new VoiceCaptureError('traffic_busy');
       throw error;
     });
   };

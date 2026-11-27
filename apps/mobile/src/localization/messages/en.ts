@@ -1708,6 +1708,8 @@ const en = {
     'Voice analysis is not configured or is temporarily unavailable.',
   'voice.error.auth_unavailable':
     'Sign-in verification is temporarily unavailable. Try again later.',
+  'voice.error.traffic_busy': 'Please wait a moment and try again.',
+  'assistant.state.trafficBusy': 'Please wait a moment and try again.',
   'voice.error.quota_exhausted':
     'Voice analysis has reached its current usage limit. Try again later.',
   'voice.error.operation_cancelled':
