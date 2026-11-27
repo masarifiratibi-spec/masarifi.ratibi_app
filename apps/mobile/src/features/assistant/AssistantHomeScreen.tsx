@@ -149,7 +149,7 @@ function AssistantHomeContent({
         availability={availability?.data ?? null}
         isSending={createConversation.isPending || unresolved}
         error={
-          creationFailed ? translateDynamic('assistant.state.error') : undefined
+          creationFailed ? translateDynamic(createError?.code === 'traffic_busy' ? 'assistant.state.trafficBusy' : 'assistant.state.error') : undefined
         }
         functionalStatus={
           unresolved || creationFailed ? (
@@ -176,7 +176,9 @@ function AssistantHomeContent({
     );
 
   let errorMessage: string | null = null;
-  if (createError?.code === 'limit_reached') {
+  if (createError?.code === 'traffic_busy') {
+    errorMessage = translateDynamic('assistant.state.trafficBusy');
+  } else if (createError?.code === 'limit_reached') {
     errorMessage = translateDynamic('assistant.state.limit');
   } else if (createError?.code === 'offline') {
     errorMessage = translateDynamic('assistant.state.offline');
@@ -622,7 +624,7 @@ function AssistantConversationContent({
           (!hasReadableSnapshot(page) && page.isError) ||
           feedback.isError ||
           data?.failureCode
-            ? translateDynamic('assistant.state.error')
+            ? translateDynamic((ask.error as { code?: string } | null)?.code === 'traffic_busy' ? 'assistant.state.trafficBusy' : 'assistant.state.error')
             : null
         }
         onEndReached={() => nextCursor && setCursor(nextCursor)}

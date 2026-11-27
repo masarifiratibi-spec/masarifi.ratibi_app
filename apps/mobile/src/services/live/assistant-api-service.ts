@@ -1,3 +1,4 @@
+import { AiTrafficBackoff, AiTrafficBusy } from './ai-traffic-backoff';
 import { captureWriteGeneration, financialMutation, generationHeaders } from '@/services/financial-generation-gate';
 import { assertBenchmarkRead } from '@/config/client-runtime';
 import Constants from 'expo-constants';
@@ -404,6 +405,7 @@ export function createLiveAssistantApiService(
   const baseUrl = options.baseUrl ?? process.env.EXPO_PUBLIC_API_URL ?? '';
   const token = options.token ?? (() => tokenProvider());
   const request = options.request ?? fetch;
+  const traffic = new AiTrafficBackoff();
   const stagingDevelopment =
     __DEV__ &&
     Constants.expoConfig?.android?.package === 'com.masarifi.mobile.dev' &&
@@ -474,7 +476,7 @@ export function createLiveAssistantApiService(
     let response: Response;
     try {
       response = await Promise.race([
-        request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
+        traffic.request(actor.userId, method, path, controller.signal, () => actor.assertCurrent(), () => request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
           method,
           signal: controller.signal,
           headers: {
@@ -489,11 +491,12 @@ export function createLiveAssistantApiService(
             ...(key ? { 'Idempotency-Key': key } : {})
           },
           body: body === undefined ? undefined : JSON.stringify(body)
-        }),
+        })),
         timeout
       ]);
     } catch (error) {
       if (deadline) clearTimeout(deadline);
+      if (error instanceof AiTrafficBusy) throw new AssistantApiError('traffic_busy');
       throw error instanceof AssistantApiError
         ? error
         : new AssistantApiError(

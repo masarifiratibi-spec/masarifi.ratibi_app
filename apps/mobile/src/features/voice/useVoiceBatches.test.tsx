@@ -50,7 +50,7 @@ function statusFixture(
     cancel: async () => undefined,
     cancelIds: [],
     localFailureCode: undefined,
-    rateLimited: false,
+    trafficBusy: false, rateLimited: false,
     processing: false
   };
 }

@@ -33,7 +33,7 @@ export function VoiceBatchStatus({
   const failure =
     (!saved && result?.status === 'failed') || batches.localFailure;
   const rateLimited = batches.rateLimited;
-  if (!partial && !progress && !empty && !failure && !rateLimited) return null;
+  if (!partial && !progress && !empty && !failure && !rateLimited && !batches.trafficBusy) return null;
   return (
     <View testID="voice-batch-status" accessibilityLiveRegion="polite">
       {partial ? (
@@ -51,6 +51,7 @@ export function VoiceBatchStatus({
       {progress ? (
         <StyledText>{translate('voice.state.processing')}</StyledText>
       ) : null}
+      {batches.trafficBusy ? <StyledText>{translate('voice.error.traffic_busy')}</StyledText> : null}
       {rateLimited ? (
         <StyledText>{translate('voice.batch.rateLimited')}</StyledText>
       ) : null}

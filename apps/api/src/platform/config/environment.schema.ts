@@ -92,6 +92,8 @@ const applicationKeys = new Set([
   'MASARIFI_STAGING_SELF_DELETION_ENABLED',
   'MASARIFI_AI_WORKER_POLL_MS',
   'MASARIFI_AI_JOB_BATCH_SIZE',
+  'MASARIFI_AI_TRAFFIC_MODE',
+  'MASARIFI_AI_TRUSTED_PROXY_IP',
   'MASARIFI_AI_LEASE_SECONDS',
   'MASARIFI_AI_MAX_CONCURRENCY',
   'MASARIFI_AI_SIGNED_UPLOAD_SECONDS',
@@ -407,6 +409,8 @@ const schema = Joi.object<PlatformEnvironment>({
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
   MASARIFI_AI_JOB_BATCH_SIZE: Joi.number().integer().min(1).max(25).default(25),
+  MASARIFI_AI_TRAFFIC_MODE: Joi.string().valid('off','shadow','enforce').default('off'),
+  MASARIFI_AI_TRUSTED_PROXY_IP: Joi.string().ip({ cidr: 'forbidden' }).optional(),
   MASARIFI_AI_LEASE_SECONDS: Joi.number().integer().min(10).max(300).default(120),
   MASARIFI_AI_MAX_CONCURRENCY: Joi.number().integer().min(1).max(16).default(4),
   MASARIFI_AI_SIGNED_UPLOAD_SECONDS: Joi.number().integer().min(60).max(900).default(300),

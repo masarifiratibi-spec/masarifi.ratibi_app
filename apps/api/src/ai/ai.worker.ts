@@ -16,6 +16,7 @@ import { PlatformLogger } from '../platform/observability/platform-logger';
 import { workerErrorFields } from '../platform/observability/worker-error';
 import { isTransientVoiceError } from './voice-transient-error';
 import { recordAiJob, recordAiResult } from './ai.observability';
+import { withProcessingSlot } from './ai-processing-slot';
 import { AiGateway, AiGatewayError, type EffectiveAiRoute } from './ai.gateway';
 import { AiRepository, type AiWorkClaim } from './ai.repository';
 import {
@@ -578,7 +579,7 @@ export class AiWorker implements OnModuleDestroy {
         deadline = setTimeout(() => {
           controller.abort();
         }, 180_000);
-        await withAiAbort(signal, () => this.voice(claim, signal, continuous));
+        await withAiAbort(signal, () => withProcessingSlot(this.repository, claim.user_id!, signal, () => this.voice(claim, signal, continuous)));
       } else if (claim.kind === 'assistant.respond') {
         // No lease extension exists for assistant work. Bound all I/O inside the current fence.
         const leaseMs = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS') * 1000;
@@ -588,7 +589,7 @@ export class AiWorker implements OnModuleDestroy {
           },
           Math.max(1, leaseMs - Math.min(1000, leaseMs / 3)),
         );
-        await withAiAbort(signal, () => this.assistant(claim, signal));
+        await withAiAbort(signal, () => withProcessingSlot(this.repository, claim.user_id!, signal, () => this.assistant(claim, signal)));
       } else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
       outcome = 'success';

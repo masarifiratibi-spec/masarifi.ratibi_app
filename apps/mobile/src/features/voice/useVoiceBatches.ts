@@ -17,6 +17,7 @@ export function useVoiceBatches(owner: string | null) {
   const [results, setResults] = useState<VoiceBatchResult[]>([]);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [rateLimitedIds, setRateLimitedIds] = useState<string[]>([]);
+  const [trafficBusy, setTrafficBusy] = useState(false);
   const [uncertainIds, setUncertainIds] = useState<string[]>([]);
   const [localFailure, setLocalFailure] = useState(false);
   const [localFailureCode, setLocalFailureCode] = useState<
@@ -190,6 +191,7 @@ export function useVoiceBatches(owner: string | null) {
           );
       });
       if (expected !== generation.current || !mounted.current) return;
+      if (!values.uncertain) setTrafficBusy(false);
       Object.assign(localSessions.current, values.localSessions);
       values.results.forEach((value) => publish(value, expected));
       setRateLimitedIds(
@@ -221,6 +223,7 @@ export function useVoiceBatches(owner: string | null) {
     setResults([]);
     setPendingIds([]);
     setRateLimitedIds([]);
+    setTrafficBusy(false);
     setUncertainIds([]);
     setLocalFailure(false);
     setLocalFailureCode(undefined);
@@ -266,6 +269,7 @@ export function useVoiceBatches(owner: string | null) {
       .then((value) => {
         publish(value, expected);
         if (expected === generation.current && mounted.current) {
+          setTrafficBusy(false);
           localSessions.current[id] = value.sessionId;
           active.current.delete(id);
           if (terminal(value.status)) {
@@ -304,6 +308,7 @@ export function useVoiceBatches(owner: string | null) {
             setRateLimitedIds((previous) => [...new Set([...previous, id])]);
             return;
           }
+          if (error instanceof VoiceCaptureError && error.code === 'traffic_busy') setTrafficBusy(true);
           setUncertainIds((previous) => [...new Set([...previous, id])]);
         }
       });
@@ -390,6 +395,7 @@ export function useVoiceBatches(owner: string | null) {
     uncertain: uncertainIds.length > 0,
     localFailure,
     localFailureCode,
+    trafficBusy,
     rateLimited: rateLimitedIds.length > 0,
     // Historical recovery continues silently; it is not a new recording.
     processing:

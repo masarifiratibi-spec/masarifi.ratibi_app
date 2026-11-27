@@ -56,6 +56,7 @@ export type VoiceErrorCode =
   | 'analysis_failed'
   | 'provider_unavailable'
   | 'auth_unavailable'
+  | 'traffic_busy'
   | 'quota_exhausted'
   | 'processing_timed_out'
   | 'operation_cancelled'

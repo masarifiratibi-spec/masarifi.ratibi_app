@@ -24,6 +24,7 @@ import {
   type ClerkPrincipal,
   type ClerkPrincipalRequest,
 } from '../identity/clerk-auth.guard';
+import { AiTrafficGuard } from './ai-traffic';
 import { AiService } from './ai.service';
 import { AiNoStoreInterceptor } from './ai-no-store.interceptor';
 
@@ -38,7 +39,7 @@ export function aiRequestPrincipal(
 
 @Controller('api/v1')
 @ApiBearerAuth('ClerkBearer')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AiTrafficGuard)
 @UseInterceptors(AiNoStoreInterceptor)
 export class AiController {
   constructor(private readonly ai: AiService) {}

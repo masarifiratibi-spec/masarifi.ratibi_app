@@ -1629,6 +1629,8 @@ const ar: MessageCatalog = {
     'التحليل الصوتي غير مهيأ أو غير متاح مؤقتًا.',
   'voice.error.auth_unavailable':
     'التحقق من تسجيل الدخول غير متاح مؤقتًا. حاول لاحقًا.',
+  'voice.error.traffic_busy': 'استنى لحظة وحاول تاني.',
+  'assistant.state.trafficBusy': 'استنى لحظة وحاول تاني.',
   'voice.error.quota_exhausted':
     'وصل التحليل الصوتي إلى حد الاستخدام الحالي. حاول لاحقًا.',
   'voice.error.operation_cancelled':
