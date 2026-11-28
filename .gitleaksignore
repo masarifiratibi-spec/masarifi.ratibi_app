@@ -150,3 +150,7 @@ ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-ap
 # (f00e5de) and existing reviewed Clerk publishable key (21f6836); no admin credentials.
 12f1ccfef50390a994f776df6de776fea336e743:apps/mobile/google-services.production.json:gcp-api-key:18
 12f1ccfef50390a994f776df6de776fea336e743:apps/mobile/eas.json:generic-api-key:99
+
+# Same reviewed Clerk publishable value in immutable approved Apple profile snapshots.
+f28b8c76d4c7349bd69f10d9917daa44efb5fe37:scripts/integration/fixtures/approved-ios-build-profiles.json:generic-api-key:14
+f28b8c76d4c7349bd69f10d9917daa44efb5fe37:scripts/integration/fixtures/approved-ios-build-profiles.json:generic-api-key:32
