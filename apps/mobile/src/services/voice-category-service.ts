@@ -1,7 +1,7 @@
 import { normalizeMerchant } from '@/domain/voice-capture';
 import { VoiceCategoryPreferenceRepository } from '@/storage/voice-category-preference-repository';
 
-const knownMerchants: Record<string, string> = {
+export const knownMerchantCategories: Record<string, string> = {
   netflix: 'subscriptions',
   fuel: 'fuel',
   coffee: 'restaurants',
@@ -27,7 +27,7 @@ export function createVoiceCategoryService(
       const preference = await preferences.get(merchant);
       if (preference)
         return { categoryId: preference.categoryId, source: 'user' as const };
-      const known = knownMerchants[normalizeMerchant(merchant)];
+      const known = knownMerchantCategories[normalizeMerchant(merchant)];
       if (known) return { categoryId: known, source: 'merchant' as const };
       const normalizedTranscript = transcript.toLocaleLowerCase('en');
       const keyword = keywordRules.find(([value]) =>

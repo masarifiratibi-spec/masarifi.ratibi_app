@@ -22,11 +22,11 @@ export const voiceBatchOperationSchema = z
     recordedAt: z.number().int().nonnegative(),
     timezoneOffsetMinutes: z.number().int().min(-840).max(840),
     accountId: z.string().uuid().nullable().optional(),
-    createBody: z.record(z.string(), z.unknown()).nullable(),
+    createBody: z.record(z.unknown()).nullable(),
     sessionId: z.string().uuid().nullable(),
     version: z.number().int().positive().nullable(),
     retryAfterAt: z.number().int().nonnegative().optional(),
-    processBody: z.record(z.string(), z.unknown()).nullable()
+    processBody: z.record(z.unknown()).nullable()
   })
   .strict();
 export type VoiceBatchOperation = z.infer<typeof voiceBatchOperationSchema>;

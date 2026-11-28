@@ -225,7 +225,7 @@ async function recoveryHarness(
       queries: { gcTime: Infinity, retry: false, staleTime: Infinity }
     }
   });
-  client.setQueryData(assistantKeys.conversation(conversationId), {
+  if (conversationOnly) client.setQueryData(assistantKeys.conversation(conversationId, undefined, 'owner-a'), {
     pendingMessageIds: conversationOnly ? [messageId] : [],
     responses: { items: [] }
   });
@@ -305,8 +305,10 @@ async function recoveryHarness(
 }
 
 const previousReducedMotion = usePreferenceStore.getState().reducedMotion;
-beforeEach(() => {
+beforeEach(async () => {
+  await configureAppShellStorageOwner('owner-a');
   jest.useFakeTimers();
+  useAppShellStore.setState({session: {...authenticatedSession, userId: 'owner-a'}});
   // The recovery clock measures polling and publication, independently of native animations.
   usePreferenceStore.setState({ reducedMotion: true });
 });
@@ -322,7 +324,7 @@ afterEach(() => {
 it('shows the validated reply and clears its composer while history and availability refresh are still blocked', async () => {
   const h = await recoveryHarness('empty', false, true);
   h.client.removeQueries({
-    queryKey: assistantKeys.conversation(conversationId)
+    queryKey: assistantKeys.conversation(conversationId, undefined, 'owner-a')
   });
   const chat = renderWithProviders(
     <QueryClientProvider client={h.client}>
@@ -371,7 +373,7 @@ it('shows the validated reply and clears its composer while history and availabi
 it('publishes the reply even when journal recovery has already resolved its acknowledgement', async () => {
   const h = await recoveryHarness('empty', false, true);
   h.client.removeQueries({
-    queryKey: assistantKeys.conversation(conversationId)
+    queryKey: assistantKeys.conversation(conversationId, undefined, 'owner-a')
   });
   const chat = renderWithProviders(
     <QueryClientProvider client={h.client}>
@@ -523,19 +525,19 @@ it('gives a fresh pending question its own polling window in a conversation left
   h.showPending();
   await act(async () => {
     await h.client.invalidateQueries({
-      queryKey: assistantKeys.conversation(conversationId)
+      queryKey: assistantKeys.conversation(conversationId, undefined, 'owner-a')
     });
   });
   expect(
     h.client.getQueryData<ConversationData>(
-      assistantKeys.conversation(conversationId)
+      assistantKeys.conversation(conversationId, undefined, 'owner-a')
     )?.pendingMessageIds
   ).toEqual([messageId]);
   h.setStatus('completed');
   await h.tick(2100);
   expect(
     h.client.getQueryData<ConversationData>(
-      assistantKeys.conversation(conversationId)
+      assistantKeys.conversation(conversationId, undefined, 'owner-a')
     )?.responses.items[0]?.blocks[0].key
   ).toBe('Spend 13 SAR');
   expect(h.calls.every((call) => call.method === 'GET')).toBe(true);
@@ -620,7 +622,7 @@ it('acknowledges the actual reused durable operation after a cold-screen send ti
   const existingConsent = await mockLiveService.getConsent();
   const chat = renderWithQueryData(
     <AssistantConversationScreen conversationId={conversationId} />,
-    [[assistantKeys.consent(), existingConsent]]
+    [[[...assistantKeys.consent(), {ownerId: 'owner-a'}], existingConsent]]
   );
   fireEvent.changeText(
     screen.getByTestId('assistant-composer-input'),
@@ -654,7 +656,7 @@ it.each(['completed', 'failed'])(
     expect(h.hook.result.current.data?.phase).toBe(status);
     if (status === 'completed')
       expect(
-        h.client.getQueryData<any>(assistantKeys.conversation(conversationId))
+        h.client.getQueryData<any>(assistantKeys.conversation(conversationId, undefined, 'owner-a'))
           .responses.items[0].blocks[0].key
       ).toBe('Spend 13 SAR');
     expect(h.calls.length).toBeGreaterThan(0);

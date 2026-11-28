@@ -1,15 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { providerScanSource } from './provider-scan-source.mjs';
 
 const files = ['app', 'src'].flatMap(collect);
 const findings = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
-  // Policy TODO comments are documentation, not provider dependencies. Preserve line offsets.
-  const executableSource = source.replace(/^[ \t]*\/\/[^\r\n]*/gm, (comment) =>
-    ' '.repeat(comment.length)
-  );
+  const executableSource = providerScanSource(source, file);
   const normalized = file.replaceAll('\\', '/');
   const isTest = /\.(test|spec)\.(ts|tsx)$/.test(normalized);
   const isStorage = normalized.startsWith('src/storage/');

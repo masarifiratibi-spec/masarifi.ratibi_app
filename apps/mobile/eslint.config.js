@@ -28,7 +28,8 @@ module.exports = [
     }
   },
   {
-    files: ['scripts/*.cjs'],
+    files: ['scripts/*.cjs', 'modules/**/*.cjs', 'plugins/*.cjs'],
+    languageOptions: { globals: { __dirname: 'readonly' } },
     rules: {
       '@typescript-eslint/no-var-requires': 'off'
     }

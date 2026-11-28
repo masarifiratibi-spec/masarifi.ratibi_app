@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import {
   colorTokens,
@@ -167,7 +167,8 @@ export function DateRangeSheet({
                 color: theme.colors.content.secondary,
                 textAlign: direction === 'rtl' ? 'right' : 'left',
                 writingDirection: direction
-              }
+              },
+              iosTextLayoutStyle(direction, styles.sheetInstruction)
             ]}
           >
             {translate(
@@ -341,7 +342,8 @@ export function DateRangeSheet({
                   color: theme.colors.content.secondary,
                   textAlign: direction === 'rtl' ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.duration)
               ]}
             >
               {formatDaySpan(
@@ -359,7 +361,8 @@ export function DateRangeSheet({
                   color: theme.colors.content.secondary,
                   textAlign: direction === 'rtl' ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.duration)
               ]}
             >
               {translateDynamic('coreFinance.home.period.duration', {
@@ -374,7 +377,8 @@ export function DateRangeSheet({
                   color: theme.colors.status.danger,
                   textAlign: direction === 'rtl' ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                iosTextLayoutStyle(direction, styles.duration)
               ]}
             >
               {translate('coreFinance.filters.dateRangeInvalid')}
@@ -525,7 +529,12 @@ function BackAction({
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.back, { alignSelf: 'flex-start' }]}
+      style={[
+        styles.back,
+        {
+          alignSelf: 'flex-start'
+        }
+      ]}
     >
       <DesignIcon
         name="back"

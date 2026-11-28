@@ -7,6 +7,8 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  type StyleProp,
+  type TextStyle,
   View
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
@@ -20,6 +22,7 @@ import { colorTokens } from '@/design-system/tokens';
 
 export function AppSheet({
   title,
+  titleStyle,
   visible,
   onDismiss,
   animationType = 'slide',
@@ -27,6 +30,7 @@ export function AppSheet({
   children
 }: {
   title: string;
+  titleStyle?: StyleProp<TextStyle>;
   visible: boolean;
   onDismiss: () => void;
   animationType?: 'none' | 'slide' | 'fade';
@@ -125,7 +129,8 @@ export function AppSheet({
                   color: menu ? theme.colors.horizon.ink : theme.colors.textPrimary,
                   textAlign: direction === 'rtl' ? 'right' : 'left',
                   writingDirection: direction
-                }
+                },
+                titleStyle
               ]}
             >
               {title}

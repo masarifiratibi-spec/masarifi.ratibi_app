@@ -14,7 +14,7 @@ import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { router } from 'expo-router';
-import { BackHandler, Keyboard } from 'react-native';
+import { BackHandler, Keyboard, Platform } from 'react-native';
 
 const mockAssistantQueries = jest.requireMock<Record<string, jest.Mock>>(
   './assistant-queries'
@@ -402,7 +402,8 @@ describe('Assistant Transition & Chat Journey', () => {
     }
   );
 
-  it('allows asking directly when legacy consent capabilities are disabled', () => {
+  it('allows asking directly on Android when legacy consent capabilities are disabled', () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
     const enable = jest.fn();
     const create = jest.fn();
     mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create });
@@ -426,6 +427,7 @@ describe('Assistant Transition & Chat Journey', () => {
     fireEvent.press(screen.getByTestId('suggestion-card-spending'));
     expect(create).toHaveBeenCalledTimes(1);
     expect(enable).not.toHaveBeenCalled();
+    platform.restore();
   });
 
   it('shows the first typed question in the original chat before creation is acknowledged', () => {

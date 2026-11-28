@@ -948,8 +948,11 @@ describe('live financial-planning service contract', () => {
                 operationId
               )
             );
-          if (method !== 'GET')
-            return response(mutation(savingsGoalWireFixture, operationId));
+          if (method !== 'GET') {
+            // save_savings_goal returns the amounts; only reads include progressBps.
+            const { progressBps: _readOnly, ...savedGoal } = savingsGoalWireFixture;
+            return response(mutation(savedGoal, operationId));
+          }
           return url.includes(`/${savingsGoalWireFixture.id}`)
             ? response({ ...savingsGoalWireFixture, movements: [movement] })
             : response({ items: [savingsGoalWireFixture], nextCursor: null });

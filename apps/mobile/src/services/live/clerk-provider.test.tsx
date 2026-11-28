@@ -7,7 +7,8 @@ import {
   screen,
   fireEvent
 } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -18,6 +19,7 @@ import {
   useLiveIdentityStatus
 } from './clerk-provider';
 import { getClerkInstance } from '@clerk/expo';
+import { rememberAppleDeletionGrant } from '../apple-deletion-authorization';
 import type { LiveClerkBridge } from './auth-service';
 import { assertTrackingAvailable } from '@/state/tracking-admission';
 
@@ -33,6 +35,7 @@ let authState = {
 const mockUseAuth = jest.fn(() => authState);
 const mockRegisterLiveClerkBridge = jest.fn();
 const mockStartSSOFlow = jest.fn();
+const mockStartAppleAuthenticationFlow = jest.fn();
 const mockProviderInitialize = jest.fn();
 const mockProviderMounted = { current: false };
 const mockIsBenchmarkReadOnly = jest.fn(() => false);
@@ -78,6 +81,12 @@ jest.mock('@clerk/expo', () => ({
 jest.mock('@clerk/expo/experimental', () => ({
   useSSO: () => ({ startSSOFlow: mockStartSSOFlow })
 }));
+jest.mock('./apple-sign-in', () => ({
+  useAppleSignIn: () => mockStartAppleAuthenticationFlow
+}));
+jest.mock('../apple-deletion-authorization', () => ({
+  rememberAppleDeletionGrant: jest.fn().mockResolvedValue(0)
+}));
 jest.mock('@/config/client-runtime', () => ({
   isBenchmarkReadOnly: () => mockIsBenchmarkReadOnly?.() ?? false,
   resolveClientMode: () => 'live',
@@ -95,6 +104,210 @@ function SessionProbe() {
   useLiveClerkSessionKey();
   return null;
 }
+
+describe('native Apple sign-in', () => {
+  const originalPlatform = Platform.OS;
+  const storedMethods = new Map<string, string>();
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+    authState.isSignedIn = false;
+    storedMethods.clear();
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => storedMethods.get(key) ?? null);
+    jest.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => { storedMethods.set(key, value); });
+  });
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async () => null);
+    jest.mocked(SecureStore.setItemAsync).mockImplementation(async () => undefined);
+    jest.mocked(SecureStore.deleteItemAsync).mockReset().mockResolvedValue(undefined);
+  });
+  function appleBridge() {
+    const view = render(<MobileIdentityProvider><StatusProbe /><AppleSessionKeyProbe /></MobileIdentityProvider>);
+    return { view, bridge: mockRegisterLiveClerkBridge.mock.calls.at(-1)![0] as LiveClerkBridge & Required<Pick<LiveClerkBridge, 'signInWithApple'>> };
+  }
+  function AppleSessionKeyProbe() {
+    return <Text testID="apple-session-key">{useLiveClerkSessionKey() ?? 'none'}</Text>;
+  }
+  function activeAppleSession(id = 'apple-session', ownerId = 'apple-owner') {
+    return {
+      status: 'ready', user: { id: ownerId },
+      session: { id, status: 'active', lastActiveAt: new Date(1000), expireAt: new Date(4_000_000_000_000) }
+    };
+  }
+
+  it('activates the Apple session before admission and restores its method after remount', async () => {
+    mockStartAppleAuthenticationFlow.mockResolvedValue({
+      authorizationCode: 'one-time-fixture',
+      createdSessionId: 'apple-session',
+      setActive: async ({ session }: { session: string }) => {
+        if (session !== 'apple-session') throw new Error('wrong activated session');
+        jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never);
+      }
+    });
+    const first = appleBridge();
+    await act(async () => {
+      await expect(first.bridge.signInWithApple()).resolves.toMatchObject({
+        id: 'apple-session', userId: 'apple-owner', method: 'apple'
+      });
+    });
+    expect(screen.getByText('ready')).toBeOnTheScreen();
+    expect(rememberAppleDeletionGrant).toHaveBeenCalledWith('apple-session', 'apple-owner', 'one-time-fixture');
+    first.view.unmount();
+    const second = appleBridge();
+    await act(async () => {
+      await expect(second.bridge.getSession()).resolves.toMatchObject({ userId: 'apple-owner', method: 'apple' });
+    });
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession('other-session', 'other-owner') as never);
+    await expect(second.bridge.getSession()).resolves.toMatchObject({ userId: 'other-owner', method: 'google' });
+  });
+
+  it('returns cancellation without a session or error state', async () => {
+    mockStartAppleAuthenticationFlow.mockResolvedValue({ createdSessionId: null });
+    const { bridge } = appleBridge();
+    await act(async () => { await expect(bridge.signInWithApple()).resolves.toBeNull(); });
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+    await expect(bridge.getSession()).resolves.toBeNull();
+  });
+
+  it.each(['provider error', 'wrong active session'])(
+    'rejects %s without admitting an Apple identity', async (scenario) => {
+      if (scenario === 'provider error') mockStartAppleAuthenticationFlow.mockRejectedValue(new Error('provider unavailable'));
+      else mockStartAppleAuthenticationFlow.mockResolvedValue({
+        createdSessionId: 'apple-session',
+        signUp: { status: 'missing_requirements' },
+        setActive: async () => { jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession('unrelated-session') as never); }
+      });
+      const { bridge } = appleBridge();
+      await act(async () => { await expect(bridge.signInWithApple()).rejects.toThrow(); });
+      expect(screen.getByText(scenario === 'wrong active session' ? 'ready' : 'error')).toBeOnTheScreen();
+      if (scenario === 'wrong active session') {
+        expect(screen.getByTestId('apple-session-key')).toHaveTextContent('unrelated-session');
+        await expect(bridge.getSession()).resolves.toMatchObject({ id: 'unrelated-session', method: 'google' });
+      }
+    }
+  );
+
+  it.each([
+    { signUp: { id: 'previous-signup', status: 'missing_requirements' } },
+    { signUp: { status: 'complete' }, signIn: { status: 'needs_first_factor' } },
+    { signIn: undefined, signUp: undefined }
+  ])('does not classify an ambiguous null SDK result using stale resources: %j', async resources => {
+    mockStartAppleAuthenticationFlow.mockResolvedValue({ createdSessionId: null, ...resources });
+    const { bridge } = appleBridge();
+    await act(async () => { await expect(bridge.signInWithApple()).resolves.toBeNull(); });
+    expect(screen.getByText('cancelled')).toBeOnTheScreen();
+    expect(screen.getByTestId('apple-session-key')).toHaveTextContent('none');
+  });
+
+  it.each(['owner changed', 'installer replaced'] as const)('does not activate a native result after %s', async scenario => {
+    let completeNative!: (value: unknown) => void;
+    const setActive = jest.fn(async () => { jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never); });
+    mockStartAppleAuthenticationFlow.mockImplementation(() => new Promise(resolve => { completeNative = resolve; }));
+    const first = appleBridge();
+    let pending!: Promise<unknown>;
+    act(() => { pending = first.bridge.signInWithApple(); });
+    if (scenario === 'owner changed')
+      jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession('new-session', 'new-owner') as never);
+    else { first.view.unmount(); appleBridge(); }
+    await act(async () => { completeNative({ createdSessionId: 'apple-session', setActive }); await expect(pending).resolves.toBeNull(); });
+    expect(setActive).not.toHaveBeenCalled();
+    if (scenario === 'owner changed') {
+      expect(screen.getByTestId('apple-session-key')).toHaveTextContent('new-session');
+      await expect(first.bridge.getSession()).resolves.toMatchObject({ id: 'new-session', userId: 'new-owner' });
+    }
+  });
+
+  it('persists the session method before activation and rejects an owner change during that write', async () => {
+    let finishWrite!: () => void;
+    jest.mocked(SecureStore.setItemAsync).mockImplementationOnce(() => new Promise<void>(resolve => { finishWrite = resolve; }));
+    const setActive = jest.fn(async () => { jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never); });
+    mockStartAppleAuthenticationFlow.mockResolvedValue({ createdSessionId: 'apple-session', setActive });
+    const { bridge } = appleBridge();
+    let pending!: Promise<unknown>;
+    await act(async () => { pending = bridge.signInWithApple(); });
+    expect(setActive).not.toHaveBeenCalled();
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession('new-session', 'new-owner') as never);
+    await act(async () => { finishWrite(); await expect(pending).resolves.toBeNull(); });
+    expect(setActive).not.toHaveBeenCalled();
+    expect(screen.getByTestId('apple-session-key')).toHaveTextContent('new-session');
+  });
+
+  it('does not activate when method persistence fails', async () => {
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error('metadata write unavailable'));
+    const setActive = jest.fn(async () => { jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never); });
+    mockStartAppleAuthenticationFlow.mockResolvedValue({ createdSessionId: 'apple-session', setActive });
+    const { bridge } = appleBridge();
+    await act(async () => { await expect(bridge.signInWithApple()).rejects.toThrow(); });
+    expect(setActive).not.toHaveBeenCalled();
+    expect(screen.getByTestId('apple-session-key')).toHaveTextContent('none');
+  });
+
+  it('invalidates an outstanding Apple request as soon as sign-out starts', async () => {
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never);
+    authState.sessionId = 'apple-session';
+    let completeNative!: (value: unknown) => void;
+    let finishLogout!: () => void;
+    mockStartAppleAuthenticationFlow.mockImplementation(() => new Promise(resolve => { completeNative = resolve; }));
+    authState.signOut.mockImplementation(() => new Promise<void>(resolve => { finishLogout = resolve; }));
+    const setActive = jest.fn();
+    const { bridge } = appleBridge();
+    let pending!: Promise<unknown>;
+    let logout!: Promise<void>;
+    act(() => { pending = bridge.signInWithApple(); logout = bridge.signOut({ scope: 'current', sessionId: 'apple-session' }); });
+    await act(async () => { completeNative({ createdSessionId: 'replacement-session', setActive }); await expect(pending).resolves.toBeNull(); });
+    expect(setActive).not.toHaveBeenCalled();
+    await act(async () => { finishLogout(); await logout; });
+  });
+
+  it('does not restore a method after the SDK owner changes during its read', async () => {
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never);
+    let completeRead!: (value: string | null) => void;
+    jest.mocked(SecureStore.getItemAsync).mockImplementationOnce(() => new Promise(resolve => { completeRead = resolve; }));
+    const { bridge } = appleBridge();
+    const pending = bridge.getSession();
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession('new-session', 'new-owner') as never);
+    completeRead(JSON.stringify({ sessionId: 'apple-session', method: 'apple' }));
+    await expect(pending).resolves.toBeNull();
+    await expect(bridge.getSession()).resolves.toMatchObject({ userId: 'new-owner', method: 'google' });
+  });
+
+  it.each(['ios', 'android'] as const)('keeps valid %s SDK sessions usable when method storage cannot be read', async platform => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never);
+    jest.mocked(SecureStore.getItemAsync).mockRejectedValue(new Error('metadata read unavailable'));
+    const { bridge } = appleBridge();
+    await expect(bridge.getSession()).resolves.toMatchObject({ id: 'apple-session', userId: 'apple-owner', method: platform === 'ios' ? 'unknown' : 'google' });
+    if (platform === 'android') expect(SecureStore.getItemAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(['ios', 'android'] as const)('does not turn completed %s sign-out into a metadata-cleanup failure', async platform => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+    jest.mocked(getClerkInstance).mockReturnValue(activeAppleSession() as never);
+    jest.mocked(SecureStore.deleteItemAsync).mockRejectedValueOnce(new Error('metadata cleanup unavailable'));
+    const { bridge } = appleBridge();
+    await expect(bridge.signOut({ scope: 'current', sessionId: authState.sessionId })).resolves.toBeUndefined();
+    expect(authState.signOut).toHaveBeenCalledTimes(1);
+    if (platform === 'android') expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not launch a second Apple request while authentication is pending', async () => {
+    let finish!: (value: { createdSessionId: null }) => void;
+    mockStartAppleAuthenticationFlow.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const { bridge } = appleBridge();
+    await act(async () => {
+      const pending = bridge.signInWithApple();
+      await expect(bridge.signInWithApple()).rejects.toThrow('appShell.auth.unavailable');
+      finish({ createdSessionId: null });
+      await expect(pending).resolves.toBeNull();
+    });
+  });
+
+  it('refuses native Apple authentication on Android', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    const { bridge } = appleBridge();
+    await expect(bridge.signInWithApple()).rejects.toThrow('appShell.auth.unavailable');
+  });
+});
 
 beforeEach(() => {
   clearTrackingIsolation();

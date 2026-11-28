@@ -1,0 +1,183 @@
+name: iOS Native Qualification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      compile_app:
+        description: Compile the full iOS app for a physical device without signing
+        type: boolean
+        default: false
+      export_ad_hoc:
+        description: Export one signed Ad Hoc build from the protected signing environment
+        type: boolean
+        default: false
+      export_app_store:
+        description: Export an encrypted App Store IPA from the reviewed source
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: Full reviewed main commit required for either signed export
+        type: string
+        required: false
+      ios_build_number:
+        description: Build number for the signed export
+        type: string
+        required: false
+      recipient_certificate:
+        description: Base64 public certificate for encrypting the IPA
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  notice:
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+      - name: Verify distribution profile compatibility without signing
+        run: python3 apps/mobile/scripts/test-ios-distribution-profile.py
+      - name: Check native notice formatting and text direction
+        env:
+          EAS_BUILD_PLATFORM: ios
+        run: node apps/mobile/scripts/test-bank-sms-notification.cjs
+      - name: Check native ledger request and receipt contracts
+        run: |
+          root=apps/mobile/modules/masarifi-bank-sms/ios
+          xcrun swiftc "$root/BankSmsState.swift" "$root/BankSmsLedger.swift" \
+            apps/mobile/scripts/fixtures/bank-sms-ledger.swift -o "$RUNNER_TEMP/bank-sms-ledger-tests"
+          "$RUNNER_TEMP/bank-sms-ledger-tests"
+
+  device-compile:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.compile_app && !inputs.export_ad_hoc && !inputs.export_app_store)
+    runs-on: macos-15
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/mobile
+        shell: bash
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      EAS_BUILD_PLATFORM: ios
+      EAS_BUILD_PROFILE: ios-ad-hoc
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+      - name: Load the existing Ad Hoc build configuration
+        run: |
+          xcodebuild -version
+          node scripts/load-ios-ad-hoc-build-env.cjs
+      - name: Install the locked dependencies
+        run: |
+          npm run eas-build-pre-install
+          npm ci --no-audit --no-fund
+      - name: Generate the iOS project and install CocoaPods
+        run: |
+          npx --no-install expo prebuild --platform ios --no-install
+          pod install --project-directory=ios
+      - name: Compile the Release app for iPhone
+        run: |
+          shopt -s nullglob
+          workspaces=(ios/*.xcworkspace)
+          [[ "${#workspaces[@]}" -eq 1 ]]
+          scheme="$(basename "${workspaces[0]}" .xcworkspace)"
+          output="$RUNNER_TEMP/masarifi-ios-build"
+          started="$SECONDS"
+          if ! xcodebuild -workspace "${workspaces[0]}" -scheme "$scheme" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$output" CODE_SIGNING_ALLOWED=NO build \
+            > "$RUNNER_TEMP/masarifi-xcodebuild.log" 2>&1; then
+            grep -En 'error:|\*\* BUILD FAILED \*\*' "$RUNNER_TEMP/masarifi-xcodebuild.log" | tail -n 60 || true
+            tail -n 30 "$RUNNER_TEMP/masarifi-xcodebuild.log"
+            exit 1
+          fi
+          apps=("$output"/Build/Products/Release-iphoneos/*.app)
+          [[ "${#apps[@]}" -eq 1 ]]
+          app="${apps[0]}"
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" == 'com.masarifi.mobile' ]]
+          test -s "$app/MasarifiBankSmsParser.js"
+          test -s "$app/ar.lproj/Localizable.strings"
+          plutil -extract 'Income Category' raw -o - "$app/ar.lproj/Localizable.strings" | grep -Fxq 'تصنيف الدخل'
+          test -s "$app/main.jsbundle"
+          test -d "$app/Metadata.appintents"
+          xcrun swift scripts/fixtures/bank-sms-repayment.swift "$app/MasarifiBankSmsParser.js"
+          printf 'iPhone Release compiled in %s seconds from %s. App Intent metadata and JavaScript bundles verified.\n' "$(( SECONDS - started ))" "$GITHUB_SHA"
+
+  ad-hoc-export:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.export_ad_hoc || inputs.export_app_store)
+    name: Signed iPhone distribution export
+    needs: notice
+    environment: ios-ad-hoc-signing
+    concurrency:
+      group: ios-ad-hoc-signing
+      cancel-in-progress: false
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+        shell: bash
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      EAS_BUILD_PLATFORM: ios
+      EAS_BUILD_PROFILE: ${{ inputs.export_app_store && 'ios-app-store' || 'ios-ad-hoc' }}
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+      - name: Verify the reviewed main source
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          ALSO_AD_HOC: ${{ inputs.export_ad_hoc }}
+          ALSO_APP_STORE: ${{ inputs.export_app_store }}
+        run: |
+          [[ "$ALSO_AD_HOC" != "$ALSO_APP_STORE" ]]
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_SOURCE_SHA" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]]
+      - name: Load the selected distribution configuration
+        run: |
+          xcodebuild -version
+          node scripts/load-ios-ad-hoc-build-env.cjs
+      - name: Generate the iOS project from locked dependencies
+        run: |
+          npm run eas-build-pre-install
+          npm ci --no-audit --no-fund
+          npx --no-install expo prebuild --platform ios --no-install
+          pod install --project-directory=ios
+      - name: Sign, verify and encrypt the IPA
+        env:
+          IOS_CERT_P12_B64: ${{ secrets.IOS_CERT_P12_B64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROFILE_B64: ${{ secrets[inputs.export_app_store && 'IOS_APP_STORE_PROFILE_B64' || 'IOS_PROFILE_B64'] }}
+          IOS_BUILD_NUMBER: ${{ inputs.ios_build_number }}
+          RECIPIENT_CERT_B64: ${{ inputs.recipient_certificate }}
+        run: bash scripts/export-ios-ad-hoc-on-mac.sh
+      - name: Save the encrypted IPA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-masarifi-${{ env.EAS_BUILD_PROFILE }}
+          path: ${{ runner.temp }}/Masarifi.ipa.p7m
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

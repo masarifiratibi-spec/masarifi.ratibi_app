@@ -1,4 +1,6 @@
 import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
+import { useZonedToday } from '@/features/filters/useZonedToday';
+import { localDateTimeInstant } from '@/domain/financial-period';
 import React, { useEffect, useMemo, useState } from 'react';
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
@@ -125,7 +127,8 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
   const firstDayOfWeek = usePreferenceStore((state) => state.firstDayOfWeek);
   const timeZone = usePreferenceStore((state) => state.timeZone);
   const monthStartDay = usePreferenceStore((state) => state.monthStartDay);
-  const now = useMemo(() => Date.now(), []);
+  const today = useZonedToday(timeZone);
+  const now = useMemo(() => localDateTimeInstant(today, timeZone), [today, timeZone]);
   const [searchOpen, setSearchOpen] = useState(Boolean(filters.search));
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [quickCategoryOpen, setQuickCategoryOpen] = useState(false);
@@ -168,17 +171,18 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
     ? accountById.get(selectedAccountId)?.currencyCode
     : baseCurrencyCode;
   const locale = currentLocale();
-  const appliedPeriod = periodFromRange(
-    filters.periodStart,
-    filters.periodEnd,
-    now,
-    { timeZone, monthStartDay }
+  const appliedPeriod = useMemo(
+    () => periodFromRange(filters.periodStart, filters.periodEnd, now, { timeZone, monthStartDay }),
+    [filters.periodStart, filters.periodEnd, now, timeZone, monthStartDay]
   );
-  const draftPeriod = periodFromRange(draft.periodStart, draft.periodEnd, now, {
-    timeZone,
-    monthStartDay
-  });
-  const periodLabel = formatPeriodLabel(appliedPeriod, locale, timeZone);
+  const draftPeriod = useMemo(
+    () => periodFromRange(draft.periodStart, draft.periodEnd, now, { timeZone, monthStartDay }),
+    [draft.periodStart, draft.periodEnd, now, timeZone, monthStartDay]
+  );
+  const periodLabel = useMemo(
+    () => formatPeriodLabel(appliedPeriod, locale, timeZone),
+    [appliedPeriod, locale, timeZone]
+  );
   const transactions = useMemo(() => {
     const byId = new Map<string, Transaction>();
     query.data?.pages.forEach((page) =>
@@ -187,7 +191,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
     return [...byId.values()];
   }, [query.data?.pages]);
   const rows = useMemo<LedgerRow[]>(() => {
-    return buildTransactionSections(transactions, now, firstDayOfWeek).flatMap(
+    return buildTransactionSections(transactions, now, firstDayOfWeek, timeZone).flatMap(
       (group) => [
         {
           kind: 'header' as const,
@@ -205,7 +209,7 @@ export const TransactionListScreen = React.memo(function TransactionListScreen({
         }))
       ]
     );
-  }, [firstDayOfWeek, locale, now, transactions]);
+  }, [firstDayOfWeek, locale, now, timeZone, transactions]);
   const activeFilters = useMemo(() => {
     const values: { key: keyof TransactionFilterSet; label: string }[] = [];
     const addCount = (

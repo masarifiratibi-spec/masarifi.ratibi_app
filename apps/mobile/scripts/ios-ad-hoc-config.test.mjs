@@ -52,6 +52,7 @@ test('iPhone native generation admits the installed Clerk pod without changing A
     process.env.EAS_BUILD_PLATFORM = 'android';
     assert.deepEqual(configure({ config: JSON.parse(JSON.stringify(app)) }), {
       ...app,
+      android: { ...app.android, googleServicesFile: './google-services.production.json' },
       version: '1.0.0'
     });
   } finally {
@@ -63,7 +64,7 @@ test('iPhone native generation admits the installed Clerk pod without changing A
   }
 });
 
-test('the resolved iPhone profile supplies approved production bindings without shared cloud variables', () => {
+test('the resolved iPhone profile supplies Production receipt identity and approved bindings without cloud variables', () => {
   const builds = JSON.parse(
     readFileSync(new URL('../eas.json', import.meta.url))
   ).build;
@@ -75,6 +76,8 @@ test('the resolved iPhone profile supplies approved production bindings without 
     EAS_BUILD_PROFILE: 'ios-ad-hoc',
     EAS_BUILD_PLATFORM: 'ios'
   };
+  // Production deletion receipt admission must not depend on an undeclared cloud marker.
+  assert.equal(environment.EXPO_PUBLIC_APP_VARIANT, 'production');
   assert.doesNotThrow(() => validateClientBuildEnvironment(environment));
 });
 

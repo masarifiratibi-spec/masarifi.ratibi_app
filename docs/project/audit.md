@@ -1,3 +1,5 @@
+> **تحديث توحيد الفروع — 28 نوفمبر 2026:** المرجع المستهدف للكود هو `main` مع فروع عمل مؤقتة. نسخة التوحيد قيد التأهيل في `codex/unify-platforms-on-main`؛ لا تعتبرها منشورة أو مدمجة قبل مراجعة [سجل القبول](single-main-acceptance.md). تعليمات الفروع الثلاثة والأرقام أدناه سجل تاريخي، وتُستبدل للعمل الجديد بـ[طريقة العمل والإصدار](release-workflow.md). [النسخ المنشورة المرصودة](deployed-versions.md) مستقلة عن حالة الكود.
+
 # Project audit and outstanding decisions, 26 November 2026
 
 Use `codex/voice-promoted-operating-2026-10-13` as the primary source for shared architecture, features, API, Admin, data and agent rules. Use `codex/google-play-release-2026-11-24` for Google Play differences and `iOS` for Apple differences.

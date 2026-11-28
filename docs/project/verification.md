@@ -1,3 +1,5 @@
+> **تحديث توحيد الفروع — 28 نوفمبر 2026:** المرجع المستهدف للكود هو `main` مع فروع عمل مؤقتة. نسخة التوحيد قيد التأهيل في `codex/unify-platforms-on-main`؛ لا تعتبرها منشورة أو مدمجة قبل مراجعة [سجل القبول](single-main-acceptance.md). تعليمات الفروع الثلاثة والأرقام أدناه سجل تاريخي، وتُستبدل للعمل الجديد بـ[طريقة العمل والإصدار](release-workflow.md). [النسخ المنشورة المرصودة](deployed-versions.md) مستقلة عن حالة الكود.
+
 # Verification record, 26 November 2026
 
 Shared source was compared against operating commit `3a2b30c3`. Play `dd6dd687` and iOS `844c960f` have the same API, Admin, packages, ops and database trees. The shared application checks below ran in the Play checkout. Mobile checks apply to the named branch.

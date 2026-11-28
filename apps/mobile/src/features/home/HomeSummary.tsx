@@ -1,6 +1,6 @@
 import { VoiceBatchStatus } from '@/features/voice/VoiceBatchStatus';
 import { VoiceAnalysisResults } from '@/features/voice/VoiceAnalysisResults';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -45,13 +45,15 @@ import { useHomeActivityOffset } from './HomeActivityViewport';
 import { HomeActivityRows } from './HomeActivityRows';
 import type { HomeBalanceSummary } from '@/domain/home-balance';
 
+const emptyActivity: HomeTodayActivity[] = [];
+
 export const HomeSummary = React.memo(function HomeSummary({
   accounts,
   categories,
   notice,
   selectedAccount = null,
   summary,
-  todayActivity = [],
+  todayActivity = emptyActivity,
   activityStatus,
   activityPending = false
 }: {
@@ -120,8 +122,14 @@ export const HomeSummary = React.memo(function HomeSummary({
             : 'confirmed'
       })
     : null;
-  const expenses = todayActivity.filter(({ group }) => group === 'expense');
-  const income = todayActivity.filter(({ group }) => group === 'income');
+  const { expense: expenses, income } = useMemo(() => {
+    const groups: Record<HomeTodayActivity['group'], HomeTodayActivity[]> = {
+      expense: [],
+      income: []
+    };
+    for (const item of todayActivity) groups[item.group].push(item);
+    return groups;
+  }, [todayActivity]);
   const compactEmptyState =
     summary !== undefined &&
     !activityPending &&
@@ -884,7 +892,7 @@ function formatVoiceDuration(durationMs: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function ActivitySection({
+const ActivitySection = React.memo(function ActivitySection({
   offset,
   accounts,
   categories,
@@ -959,7 +967,7 @@ function ActivitySection({
       </View>
     </View>
   );
-}
+});
 
 function SectionHeading({ testID, title }: { testID: string; title: string }) {
   const theme = useTheme();

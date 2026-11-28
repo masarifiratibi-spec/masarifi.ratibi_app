@@ -113,11 +113,13 @@ type CategoryOwner = {
 export function createLiveCategoryLifecycleService({
   baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '',
   token,
-  request = fetch
+  request = fetch,
+  assertActor
 }: {
   baseUrl?: string;
   token?: TokenProvider;
   request?: typeof fetch;
+  assertActor?: (actor: Awaited<ReturnType<typeof captureLiveClerkIdentity>>) => Promise<void>;
 } = {}) {
   if (token) configureMobileApiTokenProvider(token);
   const serverToLocal = new Map<string, string>();
@@ -193,7 +195,11 @@ export function createLiveCategoryLifecycleService({
     await identity.assertCurrent();
     const result = await requestJson(path, schema, {
       baseUrl,
-      request,
+      request: assertActor ? async (url, init) => {
+        await identity.assertCurrent();
+        await assertActor(identity);
+        return request(url, init);
+      } : request,
       method,
       headers:
         method === 'GET' ? undefined : { 'Idempotency-Key': operationId },

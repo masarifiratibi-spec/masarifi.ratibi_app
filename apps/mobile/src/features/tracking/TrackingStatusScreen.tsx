@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { layoutDirectionStyle, leadingTextStyle } from '@/design-system/direction';
 import { AppBar } from '@/design-system/components/navigation/AppNavigation';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { StateView } from '@/design-system/components/feedback/StateView';
@@ -184,7 +184,7 @@ function TrackingStatusPending({ onRetry }: { onRetry?: () => void }) {
           <StyledText variant="subtitle">
             {translate('tracking.keywords.sectionTitle')} (—)
           </StyledText>
-          <StyledText style={styles.sourceDescription}>
+          <StyledText style={[styles.sourceDescription, leadingTextStyle(direction)]}>
             {translate('tracking.keywords.explanation')}
           </StyledText>
         </SurfaceCard>

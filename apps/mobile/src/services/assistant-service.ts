@@ -6,6 +6,7 @@ import {
 import { isFixtureModeEnabled } from '@/config/demo-mode';
 import { createLiveAssistantApiService } from './live/assistant-api-service';
 import { captureLiveAssistantClerkIdentity } from './live/auth-service';
+import { iosTextConsent } from '@/storage/ios-text-consent';
 import { assistantSecureJournal } from '@/storage/assistant-secure-journal';
 
 const unavailable: CapabilityProviderHandle<AssistantService> = {
@@ -55,6 +56,7 @@ export const assistantService = selectAssistantService(
   isFixtureModeEnabled(),
   createLiveAssistantApiService({
     identity: captureLiveAssistantClerkIdentity,
+    consentStore: iosTextConsent,
     journal: assistantSecureJournal
   })
 );

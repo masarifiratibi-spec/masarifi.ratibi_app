@@ -12,6 +12,54 @@ const basePreferences = {
   permissionState: 'granted' as const
 };
 
+it('preserves quiet hours and weekday selection without iOS DateTimeFormat.formatToParts', () => {
+  const original = Object.getOwnPropertyDescriptor(
+    Intl.DateTimeFormat.prototype,
+    'formatToParts'
+  )!;
+  Object.defineProperty(Intl.DateTimeFormat.prototype, 'formatToParts', {
+    configurable: true,
+    writable: true,
+    value: undefined
+  });
+  try {
+    const preferences = {
+      ...basePreferences,
+      quietHours: {
+        enabled: true,
+        start: '22:00',
+        end: '07:00',
+        weekdays: [4],
+        timeZone: 'Asia/Riyadh'
+      }
+    };
+    expect(
+      decideNotificationPolicy({
+        event: event(),
+        preferences,
+        permission: 'granted',
+        now: Date.UTC(2026, 0, 1, 22, 30),
+        hideBalances: false
+      }).outcome
+    ).toBe('defer_quiet_hours');
+    expect(
+      decideNotificationPolicy({
+        event: event(),
+        preferences,
+        permission: 'granted',
+        now: Date.UTC(2026, 0, 2, 22, 30),
+        hideBalances: false
+      }).outcome
+    ).toBe('present_local');
+  } finally {
+    Object.defineProperty(
+      Intl.DateTimeFormat.prototype,
+      'formatToParts',
+      original
+    );
+  }
+});
+
 function event(patch: Partial<NotificationEvent> = {}): NotificationEvent {
   return {
     id: 'notification-1',

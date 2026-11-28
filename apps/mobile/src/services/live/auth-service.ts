@@ -5,6 +5,8 @@ import {
 import { privacyExportStatusSchema } from '@/domain/settings';
 import { resolveEffectiveTimeZone } from '@/domain/effective-time-zone';
 import { z } from 'zod';
+import { Platform } from 'react-native';
+import { disableBankSmsForOwner } from '../platform/bank-sms-bridge';
 import { measurePerformance } from '@/services/platform/performance-timing';
 import { useAppShellStore } from '@/state/app-shell';
 import { isLogoutOwnerFenced, loadLogoutDisposition, type LogoutDisposition } from '@/storage/app-shell-storage';
@@ -59,10 +61,10 @@ import {
   configureVoiceApiTokenProvider
 } from './voice-api-service';
 
-type ClerkSession = {
+export type ClerkSession = {
   id: string;
   userId: string;
-  method: 'phone' | 'google';
+  method: NonNullable<AuthenticationSession['method']>;
   issuedAt: number;
   expiresAt: number;
 };
@@ -74,6 +76,7 @@ export interface LiveClerkBridge {
   verifyPhone(input: VerificationInput): Promise<AuthResult>;
   resendPhone(sessionId: string): Promise<PhoneVerificationAttempt>;
   signInWithGoogle(): Promise<ClerkSession | null>;
+  signInWithApple?(): Promise<ClerkSession | null>;
   reverifyConflict(input: ReverificationInput): Promise<ClerkSession | null>;
   signOut(options: {
     scope: 'current' | 'all';
@@ -271,6 +274,8 @@ async function signOutClerkSession(
     expectedOwner !== currentSession.userId
   )
     throw new HttpError('session_expired', 401);
+  if (Platform.OS === 'ios' && currentSession)
+    await disableBankSmsForOwner(currentSession.userId);
   const automation = isMobileAutomationEnabled();
   if (!automation && !cleanup) {
     await bridge.signOut({ scope: scope === 'all' ? 'all' : 'current' });
@@ -502,12 +507,12 @@ export async function captureLiveClerkOwner() {
   return { userId: session.userId, assertCurrent };
 }
 
-interface CapturedClerkIdentity {
+export type CapturedClerkIdentity = {
   userId: string;
   token: string;
-  assertCurrent: () => Promise<void>;
   sessionId?: string;
-}
+  assertCurrent(): Promise<void>;
+};
 
 export async function captureLiveClerkIdentity(): Promise<CapturedClerkIdentity> {
   const bridge = registeredBridge;
@@ -545,7 +550,7 @@ let assistantTokenFlight:
 async function captureCachedClerkIdentity(
   allowSameSessionBridgeRefresh: boolean,
   expectedOwnerId?: string
-) {
+): Promise<CapturedClerkIdentity> {
   const bridge = registeredBridge;
   const session = await bridge?.getSession();
   if (
@@ -665,6 +670,14 @@ export function createLiveAuthService(
     resendPhone: (sessionId) => bridge.resendPhone(sessionId),
     async signInWithGoogle() {
       const session = await bridge.signInWithGoogle();
+      return session
+        ? { status: 'authenticated', session: authenticated(session) }
+        : { status: 'cancelled' };
+    },
+    async signInWithApple() {
+      if (!bridge.signInWithApple)
+        return { status: 'failed', errorCode: 'appShell.auth.unavailable' };
+      const session = await bridge.signInWithApple();
       return session
         ? { status: 'authenticated', session: authenticated(session) }
         : { status: 'cancelled' };

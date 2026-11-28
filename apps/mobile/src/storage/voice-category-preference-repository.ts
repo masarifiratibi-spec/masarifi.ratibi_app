@@ -3,6 +3,16 @@ import { normalizeMerchant } from '@/domain/voice-capture';
 import { openDatabase } from './database';
 
 export class VoiceCategoryPreferenceRepository {
+  async listActiveForOwner(owner: string) {
+    const database = await openDatabase(owner);
+    return database.getAllAsync<{ merchantKey: string; categoryId: string }>(
+      `SELECT p.merchant_key AS merchantKey, p.category_id AS categoryId
+       FROM voice_category_preferences p
+       JOIN finance_categories c ON c.id = p.category_id
+       WHERE c.status = 'active'`
+    );
+  }
+
   async get(merchant: string): Promise<VoiceCategoryPreference | null> {
     const row = await (await openDatabase()).getFirstAsync<{
       id: string;

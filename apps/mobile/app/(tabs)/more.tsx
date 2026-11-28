@@ -1,6 +1,6 @@
 import { beginScreenNavigation } from '@/services/platform/screen-performance';
 import React, { useCallback, useRef } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -214,7 +214,9 @@ export default function MoreRoute() {
             iconColor={colorTokens.raw['68469C']}
             showChevron
             hideBorder
-            onPress={() => router.push('/tracking')}
+            onPress={() =>
+              router.push(Platform.OS === 'ios' ? '/capture/ios' : '/tracking')
+            }
           />
         </View>
       </View>

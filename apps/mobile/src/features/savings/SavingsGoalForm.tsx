@@ -1,5 +1,6 @@
 import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import React, { useEffect, useRef, useState } from 'react';
+import { randomUUID } from 'expo-crypto';
 import { Pressable, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
@@ -59,16 +60,26 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
   const [emergencyFund, setEmergencyFund] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
+  const [creationId, setCreationId] = useState(() =>
+    goalId ? undefined : randomUUID()
+  );
   const save = usePlanningMutation(
-    (input: Parameters<typeof financialPlanningService.createGoal>[0]) =>
-      existing.data
-        ? financialPlanningService.updateGoal(
-            goalId,
-            editVersion.current ?? existing.data.goal.version,
-            input,
-            `goal:${goalId}:${Date.now()}`
-          )
-        : financialPlanningService.createGoal(input, `goal:new:${Date.now()}`)
+    async (
+      input: Parameters<typeof financialPlanningService.createGoal>[0]
+    ) => {
+      if (goalId) {
+        if (!existing.data) throw new Error('Savings goal is unavailable');
+        return financialPlanningService.updateGoal(
+          goalId,
+          editVersion.current ?? existing.data.goal.version,
+          input,
+          `goal:${goalId}:${Date.now()}`
+        );
+      }
+      if (!creationId) throw new Error('Missing savings goal creation ID');
+      await persistDraftNow();
+      return financialPlanningService.createGoal(input, creationId);
+    }
   );
 
   useEffect(() => {
@@ -86,14 +97,29 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
     setEmergencyFund(goal.emergencyFund);
   }, [existing.data]);
   const draftEnabled = !goalId || Boolean(existing.data);
-  const { draftReady, discardDraft } = usePlanningFormDraft({
+  const {
+    draftReady,
+    draftReadFailed,
+    retryDraftRead,
+    discardDraft,
+    persistDraftNow
+  } = usePlanningFormDraft({
     id: `planning-form-goal:${goalId || 'new'}`,
     kind: 'goal',
     entityId: goalId || null,
-    payload: { title, target, opening, targetDate, accountId, emergencyFund },
+    payload: {
+      title,
+      target,
+      opening,
+      targetDate,
+      accountId,
+      emergencyFund,
+      creationId
+    },
     meaningful:
       !saved && !save.isPending && Boolean(title || target || accountId),
     enabled: draftEnabled,
+    requireSuccessfulRead: !goalId,
     restore: (payload) => {
       const draft = payload as Partial<{
         title: string;
@@ -102,10 +128,14 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
         targetDate: LocalDate;
         accountId: string;
         emergencyFund: boolean;
+        creationId: string;
       }>;
       if (typeof draft.title === 'string') setTitle(draft.title);
+      if (!goalId && typeof draft.creationId === 'string' && draft.creationId)
+        setCreationId(draft.creationId);
       if (typeof draft.target === 'string') setTarget(draft.target);
-      if (typeof draft.opening === 'string') setOpening(draft.opening);
+      if (!goalId && typeof draft.opening === 'string')
+        setOpening(draft.opening);
       if (typeof draft.targetDate === 'string') setTargetDate(draft.targetDate);
       if (typeof draft.accountId === 'string') setAccountId(draft.accountId);
       if (typeof draft.emergencyFund === 'boolean')
@@ -150,6 +180,7 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
         currencyCode: owningCurrencyCode,
         targetDate,
         linkedAccountId: accountId || null,
+        iconKey: existing.data?.goal.iconKey,
         emergencyFund
       },
       {
@@ -168,6 +199,7 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
   };
 
   if (
+    draftReadFailed ||
     (existing.isError && !hasReadableSnapshot(existing)) ||
     (accounts.isError && !hasReadableSnapshot(accounts))
   )
@@ -178,6 +210,11 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
         <PlanningState
           state="error"
           onRetry={() => {
+            if (draftReadFailed) {
+              setError(undefined);
+              retryDraftRead();
+              return;
+            }
             void existing.refetch();
             void accounts.refetch();
           }}
@@ -261,7 +298,7 @@ export function SavingsGoalForm({ goalId = '' }: { goalId?: string }) {
               value={opening}
               variant="amount"
               helperText={owningCurrencyCode}
-              editable={!disabled}
+              editable={!goalId && !disabled}
             />
             <PickerField
               label={translate('planning.savings.linkedAccount')}

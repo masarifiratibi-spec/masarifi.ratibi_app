@@ -1,3 +1,4 @@
+import { getDateFormatter } from '@/utils/intl-formatters';
 import { useScreenPerformance } from '@/features/shell/useScreenPerformance';
 import { getCurrencyMinorUnitScale } from '@/domain/currencies';
 import { useReportAnchorDate } from './useReportAnchorDate';
@@ -740,7 +741,7 @@ function ChartDateLabels({
   const theme = useTheme();
   const locale = usePreferenceStore((state) => state.locale);
   const timeZone = usePreferenceStore((state) => state.timeZone);
-  const formatter = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, {
+  const formatter = getDateFormatter(`${locale}-u-nu-latn`, {
     day: 'numeric',
     month: 'short',
     timeZone
@@ -1371,7 +1372,7 @@ function formatMonthLabel(
   locale: 'ar' | 'en',
   timeZone: string
 ) {
-  return new Intl.DateTimeFormat(locale, {
+  return getDateFormatter(locale, {
     month: 'long',
     timeZone,
     year: 'numeric'

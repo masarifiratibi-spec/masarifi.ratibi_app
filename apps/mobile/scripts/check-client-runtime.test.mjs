@@ -43,7 +43,8 @@ test('the pre-install CLI enforces release checks from an absolute path containi
     for (const name of [
       'check-client-runtime.mjs',
       'benchmark-build-policy.cjs',
-      'performance-qa-exclusion.cjs'
+      'performance-qa-exclusion.cjs',
+      'ios-release-policy.cjs'
     ]) {
       copyFileSync(new URL(name, import.meta.url), join(scripts, name));
     }

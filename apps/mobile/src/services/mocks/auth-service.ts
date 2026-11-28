@@ -27,7 +27,7 @@ export function createMockAuthService(options: MockAuthOptions = {}): Capability
   let session: AuthenticationSession | null = null;
   let nextAttempt = 0;
 
-  function authenticated(method: 'phone' | 'google'): AuthenticationSession {
+  function authenticated(method: 'phone' | 'google' | 'apple'): AuthenticationSession {
     return {
       status: 'authenticated',
       userId: 'mock-user',
@@ -95,6 +95,11 @@ export function createMockAuthService(options: MockAuthOptions = {}): Capability
         };
       }
       session = authenticated('google');
+      return { status: 'authenticated', session };
+    },
+
+    async signInWithApple(): Promise<AuthResult> {
+      session = authenticated('apple');
       return { status: 'authenticated', session };
     },
 

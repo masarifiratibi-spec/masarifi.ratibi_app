@@ -41,8 +41,8 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
       mounted.current = false;
       attempt.current += 1;
     };
-    // A single automatic OS prompt belongs to this mounted owner-scoped screen.
-  }, []);
+    // Refreshing the session may make this mounted screen eligible for its first prompt.
+  }, [sessionExpired]);
 
   async function unlockWithDevice() {
     if (active.current || expired.current) return;
@@ -69,7 +69,8 @@ export function UnlockScreen({ biometricService, onUnlock, sessionExpired = fals
       if (current()) setStatus(translate('appShell.security.biometricUnavailable'));
     } finally {
       active.current = false;
-      if (current()) setPending(false);
+      // An expired attempt can finish after the session recovers. Let the user retry.
+      if (mounted.current && !expired.current) setPending(false);
     }
   }
 

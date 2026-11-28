@@ -29,6 +29,7 @@ import {
 } from '@/state/tracking-admission';
 import { TrackingError } from '@/services/contracts/automatic-tracking-service';
 import { withReadContext } from '@/services/live/read-context';
+import { listPendingIosShortcutReviews } from './ios-shortcut-reviews';
 
 function assertTrackingReadOwner(ownerId: string | null) {
   if ((useAppShellStore.getState().session?.userId ?? null) !== ownerId)
@@ -147,6 +148,27 @@ export function useReviewItems() {
   return useTrackingRead({
     queryKey: automaticTrackingKeys.review(),
     queryFn: () => automaticTrackingService.listReviewItems()
+  });
+}
+
+export function useIosPendingReviewItems() {
+  return useTrackingRead({
+    queryKey: automaticTrackingKeys.review({
+      status: 'pending',
+      pageScope: 'all'
+    }),
+    refetchOnMount: 'always',
+    queryFn: () => {
+      const owner = useAppShellStore.getState().session?.userId ?? null;
+      const assertAdmission = captureTrackingAdmission(owner ?? undefined);
+      return listPendingIosShortcutReviews({
+        list: (query) => automaticTrackingService.listReviewItems(query),
+        assertCurrent: () => {
+          assertAdmission();
+          assertTrackingReadOwner(owner);
+        }
+      });
+    }
   });
 }
 

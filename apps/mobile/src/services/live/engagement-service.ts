@@ -453,7 +453,7 @@ const notificationApiSchema = z
     type: z.string().min(1).max(96),
     title: z.string().min(1).max(120),
     body: z.string().min(1).max(240),
-    dataSafe: z.record(z.string(), scalarSchema),
+    dataSafe: z.record(scalarSchema),
     readAt: nullableIsoDateSchema,
     actedAt: nullableIsoDateSchema,
     expiresAt: nullableIsoDateSchema,

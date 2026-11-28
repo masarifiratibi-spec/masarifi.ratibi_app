@@ -1,9 +1,15 @@
 import React from 'react';
+import { Platform } from 'react-native';
 
 import { changeLocale } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders } from '@/test-utils/render';
 import { StyledText } from './StyledText';
+
+const originalPlatform = Platform.OS;
+afterEach(() => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+});
 
 describe('StyledText SPEC-002 typography parity', () => {
   beforeEach(() => {
@@ -11,7 +17,8 @@ describe('StyledText SPEC-002 typography parity', () => {
     usePreferenceStore.setState({ locale: 'ar', direction: 'rtl' });
   });
 
-  it('applies approved font, wrapping, mixed-value direction, scaling, and tabular numbers', () => {
+  it('preserves Android font, wrapping, mixed-value direction, scaling, and tabular numbers', () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
     const screen = renderWithProviders(
       <>
         <StyledText variant="body">Long Arabic and English value ABC 123</StyledText>

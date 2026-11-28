@@ -4,6 +4,7 @@ import { FinancialRefreshStatus } from '@/features/core-finance/FinancialRefresh
 import { hasReadableSnapshot } from '@/services/read-snapshot';
 import {
   PixelRatio,
+  Platform,
   Pressable,
   SectionList,
   StyleSheet,
@@ -258,6 +259,7 @@ export function AccountListScreen() {
             <View
               style={[
                 styles.searchShell,
+                Platform.OS === 'ios' && layoutDirectionStyle('ltr'),
                 {
                   backgroundColor: theme.colors.surfaces.card,
                   borderColor: theme.colors.borders.subtle,

@@ -24,7 +24,7 @@ on:
         ".github/workflows/backend-foundation.yml",
       ]
   push:
-    branches: [main, codex/masarifi-complete-integration-2026-10-10]
+    branches: [main]
     tags: ["backend-v*"]
 
 concurrency:
@@ -145,6 +145,7 @@ jobs:
       - run: npm --prefix ../api ci --ignore-scripts
       - run: |
           node --test scripts/check-client-runtime.test.mjs scripts/production-entrypoints.test.cjs scripts/performance-qa-exclusion.test.mjs
+          node --test scripts/single-main-config.test.cjs scripts/ios-store-config.test.mjs scripts/ios-ad-hoc-config.test.mjs scripts/bank-sms-intent.test.cjs ../../scripts/integration/single-main-workflow-policy.test.cjs
           node --test ../../scripts/qa/performance/*.test.cjs
       - run: node --test --test-concurrency=1 ../../packages/transaction-parser/*.test.js
       - run: npm run typecheck

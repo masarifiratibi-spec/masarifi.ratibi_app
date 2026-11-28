@@ -4,6 +4,7 @@ import { resetRuntimeUserData } from './runtime-user-data-reset';
 import { clearPersistedPreferences } from './secure-preferences';
 import { clearLegacySmsImportQueue, SmsImportQueue } from './sms-import-queue';
 import { withTransactionDraftWrite } from './transaction-draft-snapshots';
+import { purgeIosShortcutOwner } from '@/services/platform/ios-shortcut-cleanup';
 
 import {
   captureTrackingAdmission,
@@ -22,12 +23,15 @@ export async function resetLocalUserData(
   operationId: string
 ): Promise<LocalDataDeletionResult> {
   const assertCurrent = captureTrackingAdmission();
+  const ownerId = useTrackingAdmission.getState().admittedOwnerId;
   const partitionOwner = useTrackingAdmission.getState().nativeLease
     ? useTrackingAdmission.getState().admittedOwnerId
     : null;
   const replay = completed.get(operationId);
   if (replay) return replay;
   return withTransactionDraftWrite(async () => {
+    assertCurrent();
+    if (ownerId) await purgeIosShortcutOwner(ownerId, assertCurrent);
     assertCurrent();
     // Validate attribution before owner cleanup; legacy Tracking stays outside its scope.
     if (partitionOwner) await new SmsImportQueue().load(partitionOwner);

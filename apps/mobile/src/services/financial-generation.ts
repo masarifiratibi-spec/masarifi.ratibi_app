@@ -9,6 +9,7 @@ import { clearFinancialAssistantDrafts } from '@/storage/app-shell-storage';
 import { clearPendingVoiceSession } from '@/storage/voice-pending-session';
 import { SmsImportQueue } from '@/storage/sms-import-queue';
 import { useAppShellStore } from '@/state/app-shell';
+import { resetIosShortcutReceipt } from './platform/ios-shortcut-cleanup';
 import { HttpError, requestJson } from './live/http-client';
 import { captureLiveReadClerkIdentity } from './live/auth-service';
 import { resetFinancialProjections } from '../storage/runtime-user-data-reset';
@@ -94,6 +95,10 @@ async function reconcile(owner: string) {
     await eraseFinancialProjections(tx);
   });
   resetFinancialProjections(owner);
+  await resetIosShortcutReceipt(owner, async () => {
+    await actor.assertCurrent();
+    assertOwner(owner);
+  });
   for (const listener of listeners) await listener(owner);
   assertOwner(owner);
   await db.runAsync(

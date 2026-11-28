@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyledText } from '@/components/StyledText';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
+import { AppleAccountSelector } from './AppleAccountSelector';
 import { authService } from './auth-flow';
 import { completeAuthenticatedSession } from './session-controller';
 import { router } from 'expo-router';
@@ -23,6 +25,7 @@ import { getLegalDocument } from '@/features/legal/legal-documents';
 import { editorialFontFamilyForLocale } from '@/design-system/typography';
 import { colorTokens } from '@/design-system/tokens';
 import { layoutDirectionStyle } from '@/design-system/direction';
+import type { AuthResult } from '@/services/contracts/app-shell-service';
 
 export function GoogleAuthScreen({
   mode = 'welcome'
@@ -31,6 +34,11 @@ export function GoogleAuthScreen({
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const { height } = useWindowDimensions();
+  async function finishAuthentication(result: AuthResult) {
+    if (result.status !== 'authenticated') return;
+    await usePreferenceStore.getState().completeFirstLaunchOnboarding();
+    router.replace(await completeAuthenticatedSession(result.session));
+  }
   return (
     <SafeAreaView
       edges={['left', 'right', 'bottom']}
@@ -38,7 +46,10 @@ export function GoogleAuthScreen({
     >
       <ScrollView
         style={styles.fill}
-        contentContainerStyle={[styles.content, layoutDirectionStyle(direction)]}
+        contentContainerStyle={[
+          styles.content,
+          layoutDirectionStyle(direction)
+        ]}
       >
         <LogoutRecoveryPanel />
         <Image
@@ -78,7 +89,11 @@ export function GoogleAuthScreen({
                 }
               ]}
             >
-              {translate('googleAuth.supporting')}
+              {translate(
+                Platform.OS === 'ios'
+                  ? 'appleAuth.supporting'
+                  : 'googleAuth.supporting'
+              )}
             </StyledText>
           </View>
           <View style={styles.actions}>
@@ -106,22 +121,24 @@ export function GoogleAuthScreen({
               }}
               lifecycleMessage={
                 identity.status === 'cancelled'
-                  ? 'appShell.auth.google.cancelled'
+                  ? Platform.OS === 'ios'
+                    ? 'appleAuth.notCompleted'
+                    : 'appShell.auth.google.cancelled'
                   : identity.status === 'incomplete'
-                    ? 'googleAuth.incomplete'
+                    ? Platform.OS === 'ios'
+                      ? 'auth.incomplete'
+                      : 'googleAuth.incomplete'
                     : identity.status === 'error'
                       ? 'appShell.error.unknown'
                       : undefined
               }
-              onResult={async (result) => {
-                if (result.status !== 'authenticated') return;
-                await usePreferenceStore
-                  .getState()
-                  .completeFirstLaunchOnboarding();
-                router.replace(
-                  await completeAuthenticatedSession(result.session)
-                );
-              }}
+              onResult={finishAuthentication}
+            />
+            <AppleAccountSelector
+              onResult={finishAuthentication}
+              disabled={
+                identity.status === 'loading' || identity.status === 'sso'
+              }
             />
             {identity.status === 'loading' ? (
               <StyledText

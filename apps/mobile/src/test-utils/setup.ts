@@ -38,6 +38,23 @@ jest.mock('@clerk/expo/experimental', () => ({
     })
   })
 }));
+jest.mock('@clerk/expo/legacy', () => ({
+  useSignIn: () => jest.requireMock('@clerk/expo').useSignIn(),
+  useSignUp: () => jest.requireMock('@clerk/expo').useSignUp()
+}));
+jest.mock('@clerk/expo/apple', () => ({
+  useSignInWithApple: () => ({
+    startAppleAuthenticationFlow: jest.fn(async () => {
+      throw new Error('Clerk Apple authentication unavailable in offline tests');
+    })
+  })
+}));
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn(async () => false),
+  AppleAuthenticationButtonType: { CONTINUE: 1 },
+  AppleAuthenticationButtonStyle: { BLACK: 2 },
+  AppleAuthenticationButton: () => null
+}));
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: jest.fn(() => ({ dispatch: jest.fn() })),

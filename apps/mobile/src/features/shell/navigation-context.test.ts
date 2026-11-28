@@ -8,11 +8,30 @@ import {
 } from './navigation-context';
 
 describe('navigation context', () => {
-  it.each(['/categories', '/salary', '/obligations'])('retains the active More destination %s across a lock', route => {
-    expect(sanitizeReturnRoute(route)).toBe(route);
+  it('retains only bounded iOS review destinations across unlock without capture payloads', () => {
+    expect(sanitizeReturnRoute('/capture/ios')).toBe('/capture/ios');
+    expect(sanitizeReturnRoute('/capture/review')).toBe('/capture/review');
+    expect(
+      sanitizeReturnRoute(
+        '/capture/review/11111111-1111-4111-8111-111111111111'
+      )
+    ).toBe('/capture/review/11111111-1111-4111-8111-111111111111');
+    expect(sanitizeReturnRoute('/capture/review/token')).toBeNull();
+    expect(sanitizeReturnRoute('/capture/ios?payload=private')).toBeNull();
   });
+  it.each(['/categories', '/salary', '/obligations'])(
+    'retains the active More destination %s across a lock',
+    (route) => {
+      expect(sanitizeReturnRoute(route)).toBe(route);
+    }
+  );
   it('accepts approved Accounts and assistant origins and rejects sensitive query data', () => {
-    for (const origin of ['/(tabs)/home', '/(tabs)/more', '/(tabs)/transactions', '/(tabs)/reports']) {
+    for (const origin of [
+      '/(tabs)/home',
+      '/(tabs)/more',
+      '/(tabs)/transactions',
+      '/(tabs)/reports'
+    ]) {
       expect(createReturnContext('/accounts', origin)).toEqual({
         destination: '/accounts',
         returnTo: origin
@@ -48,11 +67,15 @@ describe('navigation context', () => {
       expect(shellDestinations).toContain(route);
     }
 
-    expect(assistantConversationDestination('conversation_1')).toBe('/assistant/conversation_1');
+    expect(assistantConversationDestination('conversation_1')).toBe(
+      '/assistant/conversation_1'
+    );
     expect(assistantActionDestination('conversation_1', 'preview-1')).toBe(
       '/assistant/conversation_1/actions/preview-1'
     );
-    expect(supportTicketDestination('ticket-1')).toBe('/support/tickets/ticket-1');
+    expect(supportTicketDestination('ticket-1')).toBe(
+      '/support/tickets/ticket-1'
+    );
   });
 
   it('rejects raw URLs, queries, unsafe parameters, and sensitive destinations', () => {
@@ -68,7 +91,9 @@ describe('navigation context', () => {
       expect(sanitizeReturnRoute(route)).toBeNull();
     }
     expect(assistantConversationDestination('../conversation')).toBeNull();
-    expect(assistantActionDestination('conversation-1', 'preview?token=secret')).toBeNull();
+    expect(
+      assistantActionDestination('conversation-1', 'preview?token=secret')
+    ).toBeNull();
     expect(supportTicketDestination('ticket/1')).toBeNull();
   });
 

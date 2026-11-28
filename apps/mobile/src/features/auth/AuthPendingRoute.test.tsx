@@ -133,6 +133,7 @@ function createAuth(): jest.Mocked<AuthService> {
     verifyPhone: jest.fn(),
     resendPhone: jest.fn(),
     signInWithGoogle: jest.fn(),
+    signInWithApple: jest.fn(),
     reverifyConflict: jest.fn(),
     restoreSession: jest.fn(),
     touchActivity: jest.fn(),

@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Dimensions, Platform } from 'react-native';
 
 import WelcomeRoute from '@app/(public)/welcome';
 import { colorTokens } from '@/design-system/tokens';
@@ -22,6 +23,7 @@ const mockSavePreferences = jest.mocked(savePreferences);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.replaceProperty(Platform, 'OS', 'android');
   changeLocale('ar');
   usePreferenceStore.setState({
     ...buildPreferences({ firstLaunchOnboardingCompleted: false }),
@@ -29,6 +31,116 @@ beforeEach(() => {
   });
   useAppShellStore.getState().reset();
 });
+
+afterEach(() => jest.restoreAllMocks());
+
+it.each([
+  [
+    'ar',
+    'سجّل مصاريفك يدويًا أو بصوتك.',
+    'إدخال يدوي',
+    'إدخال صوتي',
+    'بيانات توضيحية'
+  ],
+  [
+    'en',
+    'Track spending manually or by voice.',
+    'Manual entry',
+    'Voice entry',
+    'Example data'
+  ]
+] as const)(
+  'shows only supported entry methods on iOS in %s',
+  async (locale, headline, manual, voice, example) => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    jest
+      .spyOn(Dimensions, 'get')
+      .mockReturnValue({ width: 402, height: 874, scale: 3, fontScale: 1 });
+    renderWithProviders(<WelcomeRoute />);
+    if (locale === 'en') {
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: 'English' }));
+      });
+    }
+    const title = screen.getByText(headline);
+    expect(title.props.children).toBe(headline);
+    const description = screen.getByText(
+      locale === 'ar'
+        ? 'تابع حساباتك وميزانيتك وأهدافك.\nالصوت والمساعد الذكي اختياريان.'
+        : 'Manage accounts, budgets, and goals.\nVoice and AI features are optional.'
+    );
+    const textAlign = locale === 'ar' ? 'right' : 'left';
+    expect(screen.getByTestId('first-launch-copy')).toHaveStyle({
+      width: '90%',
+      alignSelf: 'center',
+      marginTop: 24,
+      marginBottom: 8
+    });
+    expect(screen.getByTestId('transaction-example-1')).toHaveStyle({
+      width: '90%'
+    });
+    expect(title).toHaveStyle({
+      textAlign,
+      fontSize: 30,
+      alignSelf: 'stretch'
+    });
+    expect(title.props).toMatchObject({
+      adjustsFontSizeToFit: true,
+      numberOfLines: 1
+    });
+    expect(description).toHaveStyle({
+      textAlign,
+      fontSize: locale === 'ar' ? 22 : 19
+    });
+    expect(description.props.numberOfLines).toBeUndefined();
+    expect(screen.getByText(manual)).toBeOnTheScreen();
+    expect(screen.getByText(voice)).toBeOnTheScreen();
+    expect(screen.getAllByLabelText(example)).toHaveLength(3);
+    for (const unsupported of [
+      'BANK SMS',
+      'APPLE PAY',
+      'STC PAY',
+      'تسجيل تلقائيًا',
+      'Auto-saved'
+    ]) {
+      expect(screen.queryByText(unsupported)).toBeNull();
+    }
+  }
+);
+
+it.each([
+  ['ar', 320, 1],
+  ['en', 320, 1],
+  ['ar', 402, 1.6],
+  ['en', 402, 1.6]
+] as const)(
+  'allows free wrapping in %s at %d pt and font scale %s',
+  async (locale, width, fontScale) => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    jest
+      .spyOn(Dimensions, 'get')
+      .mockReturnValue({ width, height: 874, scale: 3, fontScale });
+    renderWithProviders(<WelcomeRoute />);
+    if (locale === 'en') {
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: 'English' }));
+      });
+    }
+    const title = screen.getByText(
+      locale === 'ar'
+        ? 'سجّل مصاريفك يدويًا أو بصوتك.'
+        : 'Track spending manually or by voice.'
+    );
+    expect(title.props.numberOfLines).toBeUndefined();
+    expect(title.props.adjustsFontSizeToFit).not.toBe(true);
+    expect(title.props.allowFontScaling).not.toBe(false);
+    expect(
+      screen.getByRole('button', {
+        name: locale === 'ar' ? 'ابدأ الحين' : 'Start now'
+      })
+    ).toBeEnabled();
+  }
+);
 
 it('renders the Arabic first-launch experience in RTL', () => {
   renderWithProviders(<WelcomeRoute />);

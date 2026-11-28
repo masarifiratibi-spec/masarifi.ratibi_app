@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import { DesignIcon, type DesignIconName } from '@/design-system/icons';
 import {
   minTouchTarget,
@@ -95,7 +96,8 @@ export function FinancialPulse({
           {
             color: theme.colors.content.onFinancialHero,
             textAlign: direction === 'rtl' ? 'right' : 'left'
-          }
+          },
+          iosTextLayoutStyle(direction, styles.statement)
         ]}
       >
         {statement}
@@ -108,7 +110,8 @@ export function FinancialPulse({
               color: theme.colors.content.onFinancialHero,
               textAlign: direction === 'rtl' ? 'right' : 'left',
               writingDirection: direction
-            }
+            },
+            iosTextLayoutStyle(direction, styles.support)
           ]}
         >
           {supportingValue}

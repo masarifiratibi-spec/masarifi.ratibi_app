@@ -10,6 +10,11 @@ import { SavingsGoalForm } from './SavingsGoalForm';
 import { SavingsGoalsScreen } from './SavingsGoalsScreen';
 import { SavingsMovementForm } from './SavingsMovementForm';
 
+jest.mock('expo-crypto', () => ({
+  ...jest.requireActual('expo-crypto'),
+  randomUUID: jest.requireActual<typeof import('node:crypto')>('node:crypto').randomUUID
+}));
+
 it('creates, pauses, and records progress for savings goals', async () => {
   changeLocale('en');
   usePreferenceStore.setState({ hideBalances: false });

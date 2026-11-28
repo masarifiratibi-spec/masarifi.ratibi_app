@@ -1,7 +1,7 @@
 import React from 'react';
 import { PixelRatio, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { layoutDirectionStyle } from '@/design-system/direction';
+import { iosTextLayoutStyle, layoutDirectionStyle } from '@/design-system/direction';
 import { CurrencyFlagIcon } from '@/design-system/components/currency/CurrencyFlagIcon';
 import { DesignIcon } from '@/design-system/icons';
 import { spacing } from '@/design-system/tokens';
@@ -38,7 +38,8 @@ export function CurrencyRow({
             color: theme.colors.textSecondary,
             textAlign: isRtl ? 'right' : 'left',
             writingDirection: direction
-          }
+          },
+          iosTextLayoutStyle(direction)
         ]}
       >
         {t('coreFinance.accounts.currency')}

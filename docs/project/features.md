@@ -1,3 +1,5 @@
+> **تحديث توحيد الفروع — 28 نوفمبر 2026:** المرجع المستهدف للكود هو `main` مع فروع عمل مؤقتة. نسخة التوحيد قيد التأهيل في `codex/unify-platforms-on-main`؛ لا تعتبرها منشورة أو مدمجة قبل مراجعة [سجل القبول](single-main-acceptance.md). تعليمات الفروع الثلاثة والأرقام أدناه سجل تاريخي، وتُستبدل للعمل الجديد بـ[طريقة العمل والإصدار](release-workflow.md). [النسخ المنشورة المرصودة](deployed-versions.md) مستقلة عن حالة الكود.
+
 # Feature and acceptance matrix
 
 Shared features follow operating source 3a2b30c3. Release-specific evidence is pinned to Play dd6dd687 and iOS 844c960f. Each row names the implementation boundary. Dated acceptance applies to the scenario and artifact shown. For rows with source evidence only, deployed behavior is unverified in this review.

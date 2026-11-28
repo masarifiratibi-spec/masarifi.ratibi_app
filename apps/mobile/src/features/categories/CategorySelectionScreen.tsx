@@ -9,6 +9,7 @@ import {
   View
 } from 'react-native';
 
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import { StateView } from '@/design-system/components/feedback/StateView';
 import { CategoryIcon } from '@/design-system/components/financial/FinancialPrimitives';
 import { DesignIcon } from '@/design-system/icons';
@@ -254,7 +255,8 @@ function CategorySection({
             color: theme.colors.content.secondary,
             textAlign: direction === 'rtl' ? 'right' : 'left',
             writingDirection: direction
-          }
+          },
+          iosTextLayoutStyle(direction, styles.sectionTitle)
         ]}
       >
         {title}

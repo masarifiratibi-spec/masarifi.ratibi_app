@@ -6,19 +6,14 @@ const {
 const {
   assertNormalBuildComposition
 } = require('./scripts/performance-qa-exclusion.cjs');
+const { iosReleaseProfile } = require('./scripts/ios-release-policy.cjs');
 
 module.exports = ({ config }) => {
   assertNormalBuildComposition(process.env, config);
   // EAS CLI resolves profile env locally before setting EAS_BUILD_PROFILE.
-  const iosAdHoc = process.env.MASARIFI_IOS_AD_HOC === 'true';
-  if (
-    iosAdHoc &&
-    ((process.env.EAS_BUILD_PROFILE &&
-      process.env.EAS_BUILD_PROFILE !== 'ios-ad-hoc') ||
-      (process.env.EAS_BUILD_PLATFORM &&
-        process.env.EAS_BUILD_PLATFORM !== 'ios'))
-  )
-    throw new Error('iPhone Ad Hoc marker requires its own iOS profile');
+  const releaseProfile = iosReleaseProfile(process.env);
+  const iosAdHoc = releaseProfile === 'ios-ad-hoc';
+  const iosAppStore = releaseProfile === 'ios-app-store';
   if (validateBenchmarkBuildEnvironment(process.env)) {
     return {
       ...config,
@@ -72,9 +67,21 @@ module.exports = ({ config }) => {
       'Privacy development requires its isolated Staging API, test key, variant and build profile'
     );
   if (!variant) {
+    const profile = process.env.EAS_BUILD_PROFILE;
+    const production = profile === 'production' ||
+      (!profile && process.env.EXPO_PUBLIC_RELEASE_CHANNEL === 'production');
+    if (production && !iosAdHoc && !iosAppStore && process.env.EAS_BUILD_PLATFORM !== 'ios') {
+      config = {
+        ...config,
+        android: { ...config.android, googleServicesFile: './google-services.production.json' }
+      };
+    }
     if (
       iosAdHoc ||
-      ['production', 'ios-ad-hoc'].includes(process.env.EAS_BUILD_PROFILE)
+      iosAppStore ||
+      ['production', 'ios-ad-hoc', 'ios-app-store'].includes(
+        process.env.EAS_BUILD_PROFILE
+      )
     ) {
       const version = process.env.MASARIFI_RELEASE_VERSION_NAME;
       if (!/^\d+\.\d+\.\d+$/.test(version ?? ''))
@@ -83,9 +90,47 @@ module.exports = ({ config }) => {
         ...config,
         version,
         plugins:
-          iosAdHoc || process.env.EAS_BUILD_PROFILE === 'ios-ad-hoc'
-            ? [...config.plugins, ['@clerk/expo', { appleSignIn: false }]]
-            : config.plugins
+          iosAdHoc ||
+          iosAppStore ||
+          ['ios-ad-hoc', 'ios-app-store'].includes(
+            process.env.EAS_BUILD_PROFILE
+          )
+            ? [
+                ...config.plugins,
+                './plugins/with-bank-sms-intent.cjs',
+                'expo-apple-authentication',
+                ['@clerk/expo', { appleSignIn: true }],
+                [
+                  'expo-splash-screen',
+                  {
+                    ios: {
+                      image: config.splash.image,
+                      backgroundColor: config.splash.backgroundColor,
+                      imageWidth: 144,
+                      resizeMode: 'contain',
+                      enableFullScreenImage_legacy: false
+                    }
+                  }
+                ]
+              ]
+            : config.plugins,
+        ...(iosAdHoc ||
+        iosAppStore ||
+        ['ios-ad-hoc', 'ios-app-store'].includes(process.env.EAS_BUILD_PROFILE)
+          ? {
+              ios: {
+                ...config.ios,
+                usesAppleSignIn: true,
+                ...(iosAppStore && {
+                  infoPlist: {
+                    ...config.ios.infoPlist,
+                    CFBundleDisplayName: 'Masrifi Ratibi'
+                  }
+                })
+              },
+              locales: { ...config.locales, ar: './locales/ios-ar.json' }
+            }
+          : {})
       };
     }
     return config;

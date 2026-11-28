@@ -8,6 +8,7 @@ import {
   useWindowDimensions
 } from 'react-native';
 
+import { leadingTextStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { DesignIcon } from '@/design-system/icons';
 import type { KeywordRule } from '@/domain/app-shell';
@@ -189,10 +190,7 @@ export const TrackingKeywordChips = React.memo(function TrackingKeywordChips({
         variant="caption"
         style={[
           styles.explanationText,
-          {
-            textAlign: isRtl ? 'right' : 'left',
-            writingDirection: direction
-          }
+          leadingTextStyle(direction)
         ]}
       >
         {translate('tracking.keywords.explanation')}

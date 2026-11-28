@@ -5,6 +5,11 @@ import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
 import { DevAccountDeletionPanel } from '@/features/settings/DevAccountDeletionPanel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// These fixtures exercise deletion/recovery after provider authorization.
+// The Apple grant protocol has its own real-service tests.
+jest.mock('./apple-deletion-authorization', () => ({
+  prepareAppleDeletion: jest.fn(async () => undefined)
+}));
 import {
   deletionNative,
   resetDeletionNative,

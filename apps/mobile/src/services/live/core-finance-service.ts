@@ -260,10 +260,12 @@ export function createLiveLedgerService({
   request = fetch,
   drafts = new CoreFinanceRepository(),
   categoryIds,
-  offlineUpdate
+  offlineUpdate,
+  assertActor
 }: {
   baseUrl?: string;
   request?: typeof fetch;
+  assertActor?: (actor: Awaited<ReturnType<typeof captureLiveClerkIdentity>>) => Promise<void>;
   drafts?: CoreFinanceRepository;
   categoryIds?: {
     prepare(): Promise<void>;
@@ -348,7 +350,11 @@ export function createLiveLedgerService({
     const perform = (activeSignal?: AbortSignal) =>
       requestJson(path, schema, {
         baseUrl,
-        request,
+        request: assertActor ? async (url, init) => {
+          await identity.assertCurrent();
+          await assertActor(identity);
+          return request(url, init);
+        } : request,
         method,
         signal: activeSignal,
         body: serverBody,

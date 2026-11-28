@@ -30,6 +30,7 @@ import {
 import { usePreferenceStore } from '@/state/preferences';
 import { NetworkConnectionNotice } from '@/features/shell/NetworkConnectionNotice';
 import { AppUpdateNotice } from '@/features/app-update/AppUpdateNotice';
+import { BankSmsNoticeRuntime } from '@/features/tracking/BankSmsNoticeRuntime';
 import { StartupLoading } from '@/design-system/components/feedback/StartupLoading';
 
 recordBenchmarkEvent({ kind: 'startup_boundary', stage: 'module' });
@@ -61,6 +62,7 @@ export default function RootLayout() {
                 <VoiceCaptureProvider>
                   <RoutePrivacyGate>
                     <NotificationResponseRuntime />
+                    <BankSmsNoticeRuntime />
                     <AppUpdateNotice />
                     <RootStack />
                   </RoutePrivacyGate>

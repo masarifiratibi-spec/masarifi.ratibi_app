@@ -1,3 +1,5 @@
+> **تحديث توحيد الفروع — 28 نوفمبر 2026:** المرجع المستهدف للكود هو `main` مع فروع عمل مؤقتة. نسخة التوحيد قيد التأهيل في `codex/unify-platforms-on-main`؛ لا تعتبرها منشورة أو مدمجة قبل مراجعة [سجل القبول](single-main-acceptance.md). تعليمات الفروع الثلاثة والأرقام أدناه سجل تاريخي، وتُستبدل للعمل الجديد بـ[طريقة العمل والإصدار](release-workflow.md). [النسخ المنشورة المرصودة](deployed-versions.md) مستقلة عن حالة الكود.
+
 # Masarifi maintained project guide
 
 Start with the [current AI handoff and three-branch delivery rules (Arabic)](ai-handoff-ar.md). Consult the [file-by-file release comparison](branch-differences.csv) before propagating changes in divergent mobile paths.

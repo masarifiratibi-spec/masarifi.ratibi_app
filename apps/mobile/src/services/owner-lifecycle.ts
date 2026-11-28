@@ -37,6 +37,7 @@ import {
   clearDatabaseOwner
 } from '@/storage/database';
 import { resetRuntimeIdentityData } from '@/storage/runtime-user-data-reset';
+import { purgeIosShortcutOwner } from './platform/ios-shortcut-cleanup';
 import { preserveLegacySmsImportQueue } from '@/storage/sms-import-queue';
 import {
   readLogoutSessionAnchor,
@@ -290,6 +291,8 @@ async function purgeLogoutOwner(
     await assertOwner();
     record = await markLogoutDatabasePurgeReady(record);
   }
+  await assertOwner();
+  await purgeIosShortcutOwner(ownerId, assertOwner);
   await assertOwner();
   await purgeAccountDatabase(ownerId);
   await assertOwner();

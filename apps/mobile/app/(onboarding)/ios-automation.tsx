@@ -9,7 +9,9 @@ import { translate } from '@/localization/i18n';
 import { useAppShellStore } from '@/state/app-shell';
 
 export default function IosAutomationRoute() {
-  const advanceOnboarding = useAppShellStore((state) => state.advanceOnboarding);
+  const advanceOnboarding = useAppShellStore(
+    (state) => state.advanceOnboarding
+  );
 
   async function next(result: 'completed' | 'skipped') {
     const progress = await advanceOnboarding(['optional_automation'], result);
@@ -24,6 +26,11 @@ export default function IosAutomationRoute() {
     >
       <StyledText>{translate('tracking.ios.recovery')}</StyledText>
       <StyledText>{translate('tracking.ios.alternatives')}</StyledText>
+      <ActionButton
+        label={translate('tracking.shortcut.title')}
+        onPress={() => router.push('/capture/ios')}
+        variant="secondary"
+      />
       <ActionButton
         label={translate('capture.ios.alternatives')}
         onPress={() => router.push('/(tabs)/add')}

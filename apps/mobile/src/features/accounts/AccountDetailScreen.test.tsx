@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
-import { PixelRatio } from 'react-native';
+import { PixelRatio, Platform } from 'react-native';
 import { router } from 'expo-router';
 
 import { emptyTransactionFilters } from '@/domain/core-finance';
@@ -9,7 +9,8 @@ import { translate, translateDynamic } from '@/localization/i18n';
 import {
   fixtureAccounts,
   fixtureCategories,
-  fixtureTransactions
+  fixtureTransactions,
+  makeTransaction
 } from '@/test-utils/core-finance-fixtures';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
 import { AccountDetailScreen } from './AccountDetailScreen';
@@ -22,7 +23,12 @@ jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn(), replace: jest.fn() }
 }));
 
-afterEach(() => jest.restoreAllMocks());
+const originalPlatform = Platform.OS;
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+});
 
 it('shows the account shell before its first record read without editable invented data', () => {
   jest
@@ -238,6 +244,34 @@ it('opens account activity in transaction details', () => {
 
   fireEvent.press(screen.getByText(transaction.title));
   expect(router.push).toHaveBeenCalledWith(`/transactions/${transaction.id}`);
+});
+
+// Build8 showed +100 for an outgoing transfer while the account balance fell by 100.
+it.each([
+  ['ios', 0, '-100.00 SAR'],
+  ['ios', 1, '+100.00 SAR'],
+  ['android', 0, '+100.00 SAR']
+] as const)('shows the transfer from the %s account %i perspective', (platform, accountIndex, amount) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+  const source = fixtureAccounts[0];
+  const destination = fixtureAccounts[1];
+  const account = fixtureAccounts[accountIndex];
+  const transaction = makeTransaction(1, {
+    type: 'transfer',
+    title: 'QA transfer',
+    amountMinor: 10_000,
+    accountId: source.id,
+    destinationAccountId: destination.id,
+    categoryId: null
+  });
+  renderWithQueryData(<AccountDetailScreen id={account.id} />, [
+    [coreFinanceKeys.account(account.id), account],
+    [coreFinanceKeys.accountBalances(true), []],
+    [coreFinanceKeys.transactions({ ...emptyTransactionFilters, accountIds: [account.id] }),
+      { items: [transaction], nextCursor: null, total: 1 }]
+  ]);
+
+  expect(screen.getByTestId(`account-transaction-amount-${transaction.id}`)).toHaveTextContent(amount);
 });
 
 it('reuses the RTL transaction card for recent account activity', () => {

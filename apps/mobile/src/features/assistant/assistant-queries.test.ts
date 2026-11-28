@@ -1,6 +1,7 @@
 import React, { type PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import {
+  onlineManager,
   notifyManager,
   QueryClient,
   QueryClientProvider
@@ -28,6 +29,26 @@ const previousSession = useAppShellStore.getState().session;
 afterEach(() => {
   jest.restoreAllMocks();
   useAppShellStore.setState({ session: previousSession });
+});
+
+test('keeps the submitting owner on an offline first question after an account switch', async () => {
+  const { client, wrapper } = queryHarness();
+  const create = jest.spyOn(assistantService, 'createConversation').mockResolvedValue({value: {}, affectedScopes: []});
+  useAppShellStore.setState({session: {...authenticatedSession, userId: 'first-owner'}});
+  const hook = renderHook(() => queries.useCreateAssistantConversation(), {wrapper});
+  try {
+    onlineManager.setOnline(false);
+    let done!: Promise<unknown>;
+    act(() => { done = hook.result.current.mutateAsync({question: 'draft', operationId: 'scheduled-first-question', ownerId: 'first-owner'}); });
+    await waitFor(() => expect(hook.result.current.isPaused).toBe(true));
+    act(() => useAppShellStore.setState({session: {...authenticatedSession, userId: 'second-owner'}}));
+    await act(async () => { onlineManager.setOnline(true); await done; });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({question:'draft'}), 'scheduled-first-question', 'first-owner');
+  } finally {
+    onlineManager.setOnline(true);
+    hook.unmount();
+    client.clear();
+  }
 });
 
 test('a reused action preview cannot show another owner cached financial disclosure', async () => {
@@ -356,12 +377,13 @@ test('wires consent, conversation pages, ask, rename, delete, and feedback to ex
     await consentHook.result.current.mutateAsync({
       enabled: false,
       expectedVersion: 2,
-      operationId: 'consent-off'
+      operationId: 'consent-off',
+      ownerId: 'owner-consent'
     });
     await askHook.result.current.mutateAsync({
       conversationId: 'c1',
       question: 'Q',
-      operationId: 'ask-1'
+      operationId: 'ask-1', ownerId: 'owner-consent'
     });
     await renameHook.result.current.mutateAsync({
       id: 'c1',
@@ -396,8 +418,8 @@ test('wires consent, conversation pages, ask, rename, delete, and feedback to ex
     });
   });
 
-  expect(setConsent).toHaveBeenCalledWith(false, 2, 'consent-off');
-  expect(ask).toHaveBeenCalledWith('c1', 'Q', 'ask-1');
+  expect(setConsent).toHaveBeenCalledWith(false, 2, 'consent-off', 'owner-consent');
+  expect(ask).toHaveBeenCalledWith('c1', 'Q', 'ask-1', undefined, 'owner-consent');
   expect(rename).toHaveBeenCalledWith('c1', 'New', 1, 'rename-1');
   expect(remove).toHaveBeenCalledWith('c1', 2, 'delete-1');
   expect(feedback).toHaveBeenCalledWith('r1', 'helpful', 'feedback-1');

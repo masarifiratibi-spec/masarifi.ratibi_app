@@ -5,6 +5,7 @@ import { financialPlanningKeys } from '@/features/financial-planning/financial-p
 import { localDateInTimeZone } from '@/domain/financial-period';
 import { formatMinorAmount } from '@/utils/format-financial-value';
 import { changeLocale, translate } from '@/localization/i18n';
+import { colorTokens } from '@/design-system/tokens';
 import { financialPlanningService } from '@/services/mocks/financial-planning-service';
 import { usePreferenceStore } from '@/state/preferences';
 import { renderWithProviders, renderWithQueryData } from '@/test-utils/render';
@@ -12,6 +13,12 @@ import { SavingsGoalsScreen } from './SavingsGoalsScreen';
 import { SavingsGoalDetailScreen } from './SavingsGoalDetailScreen';
 import { SavingsGoalForm } from './SavingsGoalForm';
 import { SavingsMovementForm } from './SavingsMovementForm';
+
+jest.mock('expo-crypto', () => ({
+  ...jest.requireActual('expo-crypto'),
+  randomUUID:
+    jest.requireActual<typeof import('node:crypto')>('node:crypto').randomUUID
+}));
 
 jest.mock('@/services/mocks/core-finance-service', () => {
   const actual = jest.requireActual('@/services/mocks/core-finance-service');
@@ -37,6 +44,23 @@ beforeEach(async () => {
   await financialPlanningService.discardDraft(
     'planning-form-goal-movement:goal-emergency'
   );
+});
+
+it('keeps the savings totals readable on the dark green header', async () => {
+  const previousTheme = usePreferenceStore.getState().theme;
+  usePreferenceStore.setState({ theme: 'dark' });
+  const screen = renderWithProviders(<SavingsGoalsScreen />);
+  try {
+    expect(await screen.findByText(/^Active goals ·/)).toHaveStyle({
+      color: colorTokens.surface.white
+    });
+    expect(screen.getByText(/^Remaining for goals ·/)).toHaveStyle({
+      color: colorTokens.surface.white
+    });
+  } finally {
+    screen.unmount();
+    usePreferenceStore.setState({ theme: previousTheme });
+  }
 });
 
 it('shows real progress and keeps completed goals reachable through filters', async () => {
@@ -99,6 +123,45 @@ it('saves a localized goal with optional fields and removes the draft', async ()
   );
 });
 
+it.each([false, true])(
+  'saves once after a lost response (reopen draft: %s)',
+  async (reopen) => {
+    const title = `Lost receipt ${reopen}`;
+    const create = financialPlanningService.createGoal.bind(
+      financialPlanningService
+    );
+    const attempts = jest
+      .spyOn(financialPlanningService, 'createGoal')
+      .mockImplementationOnce(async (input, operationId) => {
+        await create(input, operationId);
+        throw new Error('response lost after commit');
+      });
+    let form = renderWithProviders(<SavingsGoalForm />);
+    try {
+      fireEvent.changeText(await form.findByLabelText('Goal name'), title);
+      fireEvent.changeText(form.getByLabelText('Target amount'), '50');
+      fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+      await form.findByText(translate('planning.state.error'));
+      if (reopen) {
+        form.unmount();
+        form = renderWithProviders(<SavingsGoalForm />);
+        await form.findByDisplayValue(title);
+      }
+      fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+      await form.findByText(translate('planning.state.saved'));
+      expect(
+        (await financialPlanningService.listGoals({})).filter(
+          (goal) => goal.title === title
+        )
+      ).toHaveLength(1);
+      expect(attempts.mock.calls[1][1]).toBe(attempts.mock.calls[0][1]);
+    } finally {
+      attempts.mockRestore();
+      form.unmount();
+    }
+  }
+);
+
 it('reviews an Arabic contribution without committing it before confirmation', async () => {
   changeLocale('ar');
   const before = await financialPlanningService.getGoal('goal-emergency');
@@ -137,6 +200,104 @@ it('keeps missing progress unavailable rather than assuming an opening balance o
   expect(await screen.findByText('Total saved')).toBeTruthy();
   expect(screen.getAllByText(/Unavailable/).length).toBeGreaterThan(0);
   expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+it('preserves the icon when renaming an existing goal', async () => {
+  const { value: goal } = await financialPlanningService.createGoal(
+    {
+      title: 'Goal with an icon',
+      targetMinor: 10000,
+      openingTrackedMinor: 2500,
+      currencyCode: 'SAR',
+      targetDate: '2027-01-01',
+      iconKey: 'shield'
+    },
+    'goal-icon-setup'
+  );
+  const form = renderWithProviders(<SavingsGoalForm goalId={goal.id} />);
+  fireEvent.changeText(
+    await form.findByDisplayValue(goal.title),
+    'Renamed goal'
+  );
+  fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+  await form.findByText(translate('planning.state.saved'));
+  expect((await financialPlanningService.getGoal(goal.id)).goal).toMatchObject({
+    title: 'Renamed goal',
+    iconKey: 'shield'
+  });
+});
+
+it('restores a legacy draft and waits for its creation ID to be saved before posting', async () => {
+  const draftId = 'planning-form-goal:new';
+  await financialPlanningService.saveDraft({
+    id: draftId,
+    kind: 'goal',
+    entityId: null,
+    status: 'editing',
+    updatedAt: 1,
+    payload: { title: 'Restored goal', target: '50' }
+  });
+  const write = jest
+    .spyOn(financialPlanningService, 'saveDraft')
+    .mockRejectedValue(new Error('disk unavailable'));
+  const create = jest.spyOn(financialPlanningService, 'createGoal');
+  const form = renderWithProviders(<SavingsGoalForm />);
+  try {
+    await form.findByDisplayValue('Restored goal');
+    fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+    await form.findByText(translate('planning.state.error'));
+    expect(create).not.toHaveBeenCalled();
+    write.mockRestore();
+    fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+    await form.findByText(translate('planning.state.saved'));
+    expect(create).toHaveBeenCalledTimes(1);
+  } finally {
+    form.unmount();
+    write.mockRestore();
+    create.mockRestore();
+  }
+});
+
+it('retries a failed draft read before it can issue a new creation ID', async () => {
+  const creationId = 'b7da8cf6-645f-4c24-8bd7-f724fcee8501';
+  await financialPlanningService.saveDraft({
+    id: 'planning-form-goal:new',
+    kind: 'goal',
+    entityId: null,
+    status: 'editing',
+    updatedAt: 1,
+    payload: { creationId, title: 'Pending save', target: '50' }
+  });
+  const read = jest
+    .spyOn(financialPlanningService, 'loadDraft')
+    .mockRejectedValueOnce(new Error('busy'));
+  const create = jest.spyOn(financialPlanningService, 'createGoal');
+  const form = renderWithProviders(<SavingsGoalForm />);
+  try {
+    const retry = await form.findByRole('button', {
+      name: translate('planning.action.retry')
+    });
+    expect(form.queryByRole('button', { name: 'Save goal' })).toBeNull();
+    fireEvent.press(retry);
+    await form.findByDisplayValue('Pending save');
+    fireEvent.press(form.getByRole('button', { name: 'Save goal' }));
+    await form.findByText(translate('planning.state.saved'));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Pending save' }),
+      creationId
+    );
+  } finally {
+    form.unmount();
+    read.mockRestore();
+    create.mockRestore();
+  }
+});
+
+it('shows the original opening amount as read-only when editing', async () => {
+  const form = renderWithProviders(<SavingsGoalForm goalId="goal-emergency" />);
+  expect(
+    await form.findByLabelText(translate('planning.savings.openingAmount'))
+  ).toHaveProp('editable', false);
 });
 
 it('does not overwrite another edit after a background goal refresh', async () => {

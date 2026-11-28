@@ -1,11 +1,23 @@
 import { extractExpoPathFromURL } from 'expo-router/build/fork/extractPathFromURL';
+import { Platform } from 'react-native';
 
 export function redirectSystemPath({
   path
 }: {
   path: string;
   initial: boolean;
-}): string {
+}): string | Promise<string> {
+  if (
+    Platform.OS === 'ios' &&
+    /^masarifi:[^?#]*capture-ios(?:[/?#]|$)/iu.test(path)
+  ) {
+    return import('@/services/platform/ios-shortcut-runtime')
+      .then((runtime) => runtime.receiveIosShortcut(path))
+      .then(
+        () => '/capture/ios',
+        () => '/capture/ios'
+      );
+  }
   // Router owns navigation only; WebBrowser/Clerk still receive the original event.
   try {
     const url = new URL(path, 'masarifi://app');

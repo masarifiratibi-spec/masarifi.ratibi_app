@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -239,6 +240,7 @@ function OwnedReportPdfExport({
         pointerEvents="box-none"
         style={[
           styles.export,
+          Platform.OS === 'ios' && locale === 'ar' && styles.iosRtlExport,
           { bottom: Math.max(insets?.bottom ?? 0, spacing.sm) }
         ]}
       >
@@ -383,6 +385,7 @@ const styles = StyleSheet.create({
     right: spacing.lg,
     alignItems: 'flex-end'
   },
+  iosRtlExport: { alignItems: 'flex-start' },
   fab: {
     width: 56,
     height: 56,

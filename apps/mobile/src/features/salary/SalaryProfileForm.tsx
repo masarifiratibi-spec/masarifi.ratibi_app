@@ -1,7 +1,7 @@
 import { parseUserAmountToMinor as parseAmountToMinor } from '@/domain/user-amount';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
@@ -250,7 +250,8 @@ export function SalaryProfileForm() {
                 styles.subtitle,
                 {
                   color: theme.colors.content.secondary,
-                  textAlign: 'left',
+                  textAlign:
+                    Platform.OS === 'ios' && direction === 'rtl' ? 'right' : 'left',
                   writingDirection: direction
                 }
               ]}
@@ -381,7 +382,11 @@ export function SalaryProfileForm() {
                 <StyledText
                   style={[
                     styles.switchLabel,
-                    { textAlign: 'left', writingDirection: direction }
+                    {
+                      textAlign:
+                        Platform.OS === 'ios' && direction === 'rtl' ? 'right' : 'left',
+                      writingDirection: direction
+                    }
                   ]}
                   variant="subtitle"
                 >
@@ -390,7 +395,8 @@ export function SalaryProfileForm() {
                 <StyledText
                   style={{
                     color: theme.colors.content.secondary,
-                    textAlign: 'left',
+                    textAlign:
+                      Platform.OS === 'ios' && direction === 'rtl' ? 'right' : 'left',
                     writingDirection: direction
                   }}
                   variant="caption"
@@ -489,7 +495,8 @@ function SalarySettingRow({
             style={[
               styles.rowLabel,
               {
-                textAlign: 'left',
+                textAlign:
+                  Platform.OS === 'ios' && direction === 'rtl' ? 'right' : 'left',
                 writingDirection: direction
               }
             ]}
@@ -570,7 +577,11 @@ function InlineAccountOptions({
             >
               <View style={styles.accountOptionCopy}>
                 <StyledText
-                  style={{ textAlign: 'left', writingDirection: direction }}
+                  style={{
+                    textAlign:
+                      Platform.OS === 'ios' && direction === 'rtl' ? 'right' : 'left',
+                    writingDirection: direction
+                  }}
                   variant="subtitle"
                 >
                   {account.name}

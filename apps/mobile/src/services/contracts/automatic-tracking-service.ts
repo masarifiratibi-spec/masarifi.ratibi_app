@@ -85,7 +85,8 @@ export type PreparedImportSubmission =
 
 export interface AutomaticTrackingService {
   prepareImportSubmission?(
-    expectedOwnerId: string
+    expectedOwnerId: string,
+    assertCaptureIntent?: () => Promise<void>
   ): Promise<PreparedImportSubmission>;
   submitImport(
     input: TrackingImportSubmission,

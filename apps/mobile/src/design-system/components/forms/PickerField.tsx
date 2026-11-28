@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import { minTouchTarget, radius } from '@/design-system/tokens';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
@@ -24,7 +25,11 @@ export function PickerField({
 
   return (
     <View style={styles.stack}>
-      <Text style={[styles.label, { color: theme.colors.textPrimary }]}>{label}</Text>
+      <Text style={[
+        styles.label,
+        { color: theme.colors.textPrimary },
+        iosTextLayoutStyle(direction)
+      ]}>{label}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label} ${display}`.trim()}
@@ -45,7 +50,8 @@ export function PickerField({
               ? theme.colors.textPrimary
               : theme.colors.textSecondary,
             textAlign: direction === 'rtl' ? 'right' : 'left',
-            writingDirection: direction
+            writingDirection: direction,
+            ...iosTextLayoutStyle(direction)
           }}
         >
           {display}

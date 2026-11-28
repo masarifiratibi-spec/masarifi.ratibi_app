@@ -1,5 +1,6 @@
 /* global __dirname */
 const path = require('node:path');
+const { iosReleaseProfile } = require('./ios-release-policy.cjs');
 const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'src');
 const production = path.join(source, 'services', 'production');
@@ -55,7 +56,14 @@ const escaped = root
 exports.developmentRoutes = new RegExp(
   `${escaped}[\\\\/]app[\\\\/](?:(?:foundation|design-system)[\\\\/]|tracking[\\\\/]demo\\.tsx$)`
 );
-exports.isLiveProduction = (environment) =>
-  environment.EXPO_PUBLIC_CLIENT_MODE === 'live' &&
-  (environment.NODE_ENV === 'production' ||
-    ['production', 'ios-ad-hoc'].includes(environment.EAS_BUILD_PROFILE));
+exports.isLiveProduction = (environment) => {
+  const iosRelease = iosReleaseProfile(environment);
+  return (
+    environment.EXPO_PUBLIC_CLIENT_MODE === 'live' &&
+    (Boolean(iosRelease) ||
+      environment.NODE_ENV === 'production' ||
+      ['production', 'ios-ad-hoc', 'ios-app-store'].includes(
+        environment.EAS_BUILD_PROFILE
+      ))
+  );
+};

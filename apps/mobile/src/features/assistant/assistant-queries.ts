@@ -6,7 +6,7 @@ import {
   type QueryClient
 } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { assistantService } from '@/services/assistant-service';
 import type { AssistantResponse } from '@/domain/assistant';
@@ -48,9 +48,11 @@ export const assistantKeys = {
 };
 
 export function useAssistantConsent() {
+  const owner = useAppShellStore((state) => state.session?.userId);
   return useQuery({
-    queryKey: assistantKeys.consent(),
-    queryFn: () => assistantService.getConsent()
+    queryKey: ownedReadKey(assistantKeys.consent(), owner),
+    networkMode: Platform.OS === 'ios' ? 'always' : 'online',
+    queryFn: () => assistantService.getConsent(owner ?? undefined)
   });
 }
 
@@ -133,18 +135,18 @@ export function useAssistantQuestionOperation() {
 }
 
 export function useResumeAssistantQuestion() {
-  return useAssistantMutation(async () => {
+  return useAssistantMutation(async (ownerId: string | null) => {
     if (!assistantService.resumeQuestion)
       throw new Error('assistant_unavailable');
-    return assistantService.resumeQuestion();
+    return assistantService.resumeQuestion(ownerId ?? null);
   });
 }
 
 export function useRetryAssistantQuestion() {
-  return useAssistantMutation(async () => {
+  return useAssistantMutation(async (ownerId: string | null) => {
     if (!assistantService.retryQuestionOperation)
       throw new Error('assistant_unavailable');
-    return assistantService.retryQuestionOperation();
+    return assistantService.retryQuestionOperation(ownerId ?? null);
   });
 }
 
@@ -236,16 +238,22 @@ export function useSetAssistantConsent() {
     ({
       enabled,
       expectedVersion,
+      ownerId,
       operationId
     }: {
       enabled: boolean;
+      ownerId?: string;
       expectedVersion: number;
       operationId: string;
-    }) => assistantService.setConsent(enabled, expectedVersion, operationId)
+    }) => assistantService.setConsent(enabled, expectedVersion, operationId, ownerId),
+    Platform.OS === 'ios' ? 'background' : 'complete',
+    undefined,
+    Platform.OS === 'ios' ? 'always' : 'online'
   );
 }
 
 type AssistantQuestionInput = {
+  ownerId: string | null;
   conversationId: string;
   question: string;
   operationId: string;
@@ -263,11 +271,10 @@ export function useAskAssistant(
       conversationId,
       question,
       operationId,
-      intent
+      intent,
+      ownerId
     }: AssistantQuestionInput) =>
-      intent
-        ? assistantService.ask(conversationId, question, operationId, intent)
-        : assistantService.ask(conversationId, question, operationId),
+      assistantService.ask(conversationId, question, operationId, intent, ownerId ?? null),
     'background',
     publishResponse
   );
@@ -287,13 +294,15 @@ export function useCreateAssistantConversation() {
     ({
       question,
       operationId,
-      intent
+      intent,
+      ownerId
     }: {
+      ownerId: string | null;
       question: string;
       operationId: string;
       intent?: AssistantQuestionIntent;
     }) =>
-      assistantService.createConversation({ question, intent }, operationId),
+      assistantService.createConversation({ question, intent }, operationId, ownerId ?? null),
     'background'
   );
 }
@@ -404,11 +413,13 @@ function useAssistantMutation<TVariables, TValue>(
     variables: TVariables
   ) => Promise<{ value: TValue; affectedScopes: readonly string[] }>,
   refreshMode: 'complete' | 'background' = 'complete',
-  publishResult?: (value: TValue, variables: TVariables) => void
+  publishResult?: (value: TValue, variables: TVariables) => void,
+  networkMode: 'always' | 'online' = 'online'
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn,
+    networkMode,
     onSuccess: async (result, variables) => {
       const refresh = invalidateAssistantScopes(client, result.affectedScopes);
       // Accepted conversations and validated answers do not wait for optional background reads.

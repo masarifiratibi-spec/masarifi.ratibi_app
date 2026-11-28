@@ -1,5 +1,7 @@
 import React from 'react';
-import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
+import {
+  Platform, StyleSheet, type StyleProp, View, type ViewStyle
+} from 'react-native';
 import {
   SymbolView,
   type SymbolViewProps,
@@ -9,6 +11,7 @@ import medium from 'expo-symbols/androidWeights/medium';
 import regular from 'expo-symbols/androidWeights/regular';
 
 import type { LayoutDirection } from '@/domain/foundation';
+import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { iconSize } from './tokens';
 
@@ -314,12 +317,18 @@ export function AppIcon({
   tone = 'default',
   weight = 'regular',
   color,
-  direction = 'ltr',
+  direction: requestedDirection,
   testID,
   style,
   decorative = false
 }: AppIconProps) {
   const theme = useTheme();
+  const iosDirection = usePreferenceStore((state) =>
+    Platform.OS === 'ios' ? state.direction : 'ltr'
+  );
+  const direction = requestedDirection ?? iosDirection;
+  // Semantic SF arrows follow app language even inside physical LTR rows.
+  const directional = directionalIconNames.some((icon) => icon === name);
   const resolvedSize = iconSize[size];
   const toneColors: Record<AppIconTone, string> = {
     default: theme.colors.content.primary,
@@ -347,6 +356,7 @@ export function AppIcon({
       <SymbolView
         testID={testID ? `${testID}-symbol` : undefined}
         name={iconName(name, direction)}
+        style={Platform.OS === 'ios' && directional ? { direction } : undefined}
         size={resolvedSize}
         tintColor={color ?? toneColors[tone]}
         type="monochrome"

@@ -15,7 +15,7 @@ import { recordBenchmarkEvent } from '@/services/platform/benchmark-observabilit
 import React, { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { usePathname } from 'expo-router';
 import { Platform, View, useColorScheme } from 'react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { matchQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
@@ -281,10 +281,16 @@ export function FoundationProviders({
   useEffect(() => {
     changeLocale(locale);
     if (previousLocale.current !== locale) {
-      // Voice receipts are owner-scoped data, not locale-dependent query results.
+      // Keep the visible ledger while translated labels update and the read refreshes.
+      const visibleLedger = {
+        queryKey: ['core-finance', 'transactions', 'pages'],
+        type: 'active' as const
+      };
       client.removeQueries({
-        predicate: (query) => query.queryKey[0] !== 'voice-analysis'
+        predicate: (query) =>
+          query.queryKey[0] !== 'voice-analysis' && !matchQuery(visibleLedger, query)
       });
+      void client.invalidateQueries(visibleLedger).catch(() => undefined);
       client.getMutationCache().clear();
     }
     previousLocale.current = locale;

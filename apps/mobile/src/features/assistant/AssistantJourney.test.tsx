@@ -3,11 +3,12 @@ import {
   AssistantConversationScreen
 } from './AssistantHomeScreen';
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
-import { FlatList } from 'react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { FlatList, Platform } from 'react-native';
 
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translateDynamic as t } from '@/localization/i18n';
+import { assistantDraftService } from '@/services/assistant-draft-service';
 import { useAppShellStore } from '@/state/app-shell';
 import AssistantRoute from '@app/assistant/index';
 
@@ -37,6 +38,8 @@ jest.mock('./assistant-queries', () => ({
   useDeleteAssistantConversation: jest.fn(),
   useAssistantFeedback: jest.fn()
 }));
+
+afterEach(() => jest.restoreAllMocks());
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -123,6 +126,7 @@ test('does not fetch an unused conversation index on the approved landing design
 });
 
 test('keeps existing-conversation questions available without activation controls', async () => {
+  jest.replaceProperty(Platform, 'OS', 'android');
   const ask = jest.fn((_input, options) => options?.onSuccess?.());
   const enable = jest.fn();
   mockAssistantQueries.useAskAssistant.mockReturnValue({ mutate: ask });
@@ -137,6 +141,7 @@ test('keeps existing-conversation questions available without activation control
 });
 
 test.each(['not_requested', 'disabled'])('opens ready to ask when the legacy setting is %s', async status => {
+  jest.replaceProperty(Platform, 'OS', 'android');
   const create = jest.fn();
   mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status, version: 2 }, isPending: false });
   mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create });
@@ -538,3 +543,54 @@ function serviceWithOwners(
     }))
   });
 }
+
+test.each(['first', 'suggestion', 'follow-up'])('requires explicit iPhone consent for %s questions', async entry => {
+  jest.replaceProperty(Platform, 'OS', 'ios');
+  const create = jest.fn();
+  const ask = jest.fn();
+  const enable = jest.fn();
+  mockAssistantQueries.useAssistantConsent.mockReturnValue({ data: { status: 'not_requested', version: 3 } });
+  mockAssistantQueries.useSetAssistantConsent.mockReturnValue({ mutate: enable });
+  mockAssistantQueries.useCreateAssistantConversation.mockReturnValue({ mutate: create });
+  mockAssistantQueries.useAskAssistant.mockReturnValue({ mutate: ask });
+  jest.spyOn(assistantDraftService, 'load').mockResolvedValue(null);
+  jest.spyOn(assistantDraftService, 'save').mockResolvedValue(undefined);
+  const previousSession = useAppShellStore.getState().session;
+  useAppShellStore.setState({session: {...previousSession, userId: 'user_test'} as NonNullable<typeof previousSession>});
+  try {
+    if (entry === 'follow-up') {
+      renderWithProviders(<AssistantConversationScreen conversationId="conversation-1" />);
+      await waitFor(() => expect(screen.getByTestId('assistant-composer-input')).toBeEnabled());
+      fireEvent.changeText(screen.getByTestId('assistant-composer-input'), 'Private draft');
+      await act(async () => { fireEvent.press(screen.getByTestId('assistant-composer-send-button')); });
+    } else {
+      renderWithProviders(<AssistantHomeScreen />);
+      await waitFor(() => expect(screen.getByTestId('suggestion-card-spending')).toBeEnabled());
+      if (entry === 'first') {
+        fireEvent.changeText(screen.getByTestId('assistant-ask-input'), 'Private draft');
+        await act(async () => { fireEvent.press(screen.getByTestId('assistant-ask-submit-button')); });
+      } else await act(async () => { fireEvent.press(screen.getByTestId('suggestion-card-spending')); });
+    }
+    expect(create).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
+    expect(enable).not.toHaveBeenCalled();
+    if (entry === 'first') {
+      fireEvent.press(screen.getByRole('button', {name: t('designSystem.action.cancel')}));
+      expect(screen.queryByTestId('assistant-consent-enable-button')).toBeNull();
+      expect(screen.getByTestId('assistant-ask-input')).toHaveProp('value', 'Private draft');
+      expect(enable).not.toHaveBeenCalled();
+      await act(async () => { fireEvent.press(screen.getByTestId('assistant-ask-submit-button')); });
+    }
+    fireEvent.press(screen.getByTestId('assistant-consent-enable-button'));
+    const cancel = screen.getByRole('button', {name: t('designSystem.action.cancel')});
+    expect(cancel).toBeDisabled();
+    fireEvent.press(cancel);
+    expect(screen.getByTestId('assistant-consent-card')).toBeOnTheScreen();
+    act(() => enable.mock.calls[0][1].onSuccess());
+    expect(screen.queryByTestId('assistant-consent-card')).toBeNull();
+    expect(enable).toHaveBeenCalledWith(expect.objectContaining({enabled:true,expectedVersion:3, ownerId:'user_test'}), expect.any(Object));
+  } finally {
+    useAppShellStore.setState({session: previousSession});
+    jest.restoreAllMocks();
+  }
+});

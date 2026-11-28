@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { notifyManager } from '@tanstack/react-query';
+import { Platform } from 'react-native';
 
 import HomeRoute from '@app/(tabs)/home';
 import TransactionsRoute from '@app/(tabs)/transactions';
@@ -56,7 +57,7 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: () => mockSearchParams,
   useFocusEffect: (callback: () => void) =>
-    require('react').useEffect(callback, [callback]),
+    jest.requireActual<typeof React>('react').useEffect(callback, [callback]),
   Tabs: Object.assign(() => null, { Screen: () => null }),
   Stack: () => null
 }));
@@ -222,6 +223,26 @@ describe('navigation journey', () => {
     }
   );
 
+  it.each([
+    ['ios', '/capture/ios'],
+    ['android', '/tracking']
+  ] as const)(
+    'opens the tracking screen for %s from More',
+    (platform, route) => {
+      const platformOverride = jest.replaceProperty(Platform, 'OS', platform);
+      const view = renderWithProviders(<MoreRoute />);
+      try {
+        fireEvent.press(
+          screen.getByLabelText(translate('tracking.action.openTracking'))
+        );
+        expect(router.push).toHaveBeenLastCalledWith(route);
+      } finally {
+        view.unmount();
+        platformOverride.restore();
+      }
+    }
+  );
+
   it('keeps public fallbacks during a delayed profile read and after its failure', async () => {
     changeLocale('en');
     useAppShellStore.setState({
@@ -373,7 +394,10 @@ describe('navigation journey', () => {
       [translate('appShell.shell.profile'), '/profile'],
       [translate('appShell.shell.security'), '/security/settings'],
       [translate('settings.profile.applicationOwner'), '/profile/application'],
-      [translate('tracking.action.openTracking'), '/tracking'],
+      [
+        translate('tracking.action.openTracking'),
+        Platform.OS === 'ios' ? '/capture/ios' : '/tracking'
+      ],
       [translate('appShell.shell.support'), '/support']
     ] as const) {
       const link = screen.getByLabelText(label);

@@ -108,6 +108,8 @@ function stripComments(source) {
 function hasIosSmsString(source) {
   return [...source.matchAll(/['"]([^'"\r\n]*)['"]/g)].some((match) => {
     const value = match[1];
+    // Platform-specific module specifiers are code paths, not user-facing claims.
+    if (/^(?:@\/|\.{1,2}\/)[\w./-]+$/.test(value) && /\b(?:from|import)\s*$/.test(source.slice(0, match.index))) return false;
     return iosSmsPattern.test(value) && !/^[a-z][\w-]*(?:\.[\w-]+)+$/.test(value);
   });
 }

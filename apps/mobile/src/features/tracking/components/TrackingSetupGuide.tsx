@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { readTrackingAlertEnabled } from '@/services/platform/tracking-alert-status';
+import { leadingTextStyle } from '@/design-system/direction';
 import { StyledText } from '@/components/StyledText';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { SurfaceCard } from '@/design-system/components/SurfaceCard';
@@ -403,7 +404,7 @@ export function TrackingSetupGuide({
                 </StyledText>
               </Pressable>
             ))}
-            <StyledText style={bodyStyle}>
+            <StyledText style={[bodyStyle, leadingTextStyle(direction)]}>
               {translate('tracking.setup.footer')}
             </StyledText>
           </View>
@@ -412,6 +413,7 @@ export function TrackingSetupGuide({
       {selected ? (
         <AppSheet
           title={translate(`tracking.setup.${selected}.sheetTitle`)}
+          titleStyle={leadingTextStyle(direction)}
           visible
           animationType={reducedMotion ? 'none' : 'slide'}
           onDismiss={dismiss}

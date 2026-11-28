@@ -11,20 +11,34 @@ const root = path.resolve(__dirname, '..');
 
 function runtimeCacheVersion(bindings) {
   const { execFileSync } = require('node:child_process');
-  const profileNames = ['NODE_ENV', 'EAS_BUILD_PROFILE', 'MASARIFI_APP_VARIANT'];
+  const profileNames = [
+    'NODE_ENV',
+    'EAS_BUILD_PROFILE',
+    'MASARIFI_APP_VARIANT'
+  ];
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
-      ([name]) => !name.startsWith('EXPO_PUBLIC_') && !profileNames.includes(name)
+      ([name]) =>
+        !name.startsWith('EXPO_PUBLIC_') && !profileNames.includes(name)
     )
   );
-  return JSON.parse(execFileSync(process.execPath, [
-    '-e',
-    "console.log(JSON.stringify(require('./metro.config.js').cacheVersion))"
-  ], {
-    cwd: root,
-    env: { ...inherited, EXPO_NO_DOTENV: '1', ...bindings },
-    encoding: 'utf8'
-  }).trim().split(/\r?\n/).at(-1));
+  return JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        '-e',
+        "console.log(JSON.stringify(require('./metro.config.js').cacheVersion))"
+      ],
+      {
+        cwd: root,
+        env: { ...inherited, EXPO_NO_DOTENV: '1', ...bindings },
+        encoding: 'utf8'
+      }
+    )
+      .trim()
+      .split(/\r?\n/)
+      .at(-1)
+  );
 }
 
 const liveCacheBindings = {
@@ -34,6 +48,24 @@ const liveCacheBindings = {
   EXPO_PUBLIC_API_URL: 'https://api.staging.masarifiratibi.com',
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_cacheFixture123456789'
 };
+
+test('early iOS release markers have distinct Metro cache identities', () => {
+  const {
+    NODE_ENV: _node,
+    EAS_BUILD_PROFILE: _profile,
+    ...bindings
+  } = liveCacheBindings;
+  const early = { ...bindings, EXPO_PUBLIC_APP_VARIANT: 'production' };
+  const ordinary = runtimeCacheVersion(early);
+  const adhoc = runtimeCacheVersion({ ...early, MASARIFI_IOS_AD_HOC: 'true' });
+  const store = runtimeCacheVersion({
+    ...early,
+    MASARIFI_IOS_APP_STORE: 'true'
+  });
+  assert.notEqual(ordinary, adhoc);
+  assert.notEqual(ordinary, store);
+  assert.notEqual(adhoc, store);
+});
 
 test('Release transforms cannot reuse a Benchmark cache or a different owner binding', () => {
   const { benchmarkProfile } = require('./benchmark-build-policy.cjs');
@@ -46,23 +78,35 @@ test('Release transforms cannot reuse a Benchmark cache or a different owner bin
   const ordinaryKey = runtimeCacheVersion(liveCacheBindings);
   const benchmarkKey = runtimeCacheVersion(benchmark);
   assert.notEqual(ordinaryKey, benchmarkKey);
-  assert.notEqual(benchmarkKey, runtimeCacheVersion({
-    ...benchmark, EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_cacheownertwo'
-  }));
+  assert.notEqual(
+    benchmarkKey,
+    runtimeCacheVersion({
+      ...benchmark,
+      EXPO_PUBLIC_BENCHMARK_OWNER_ID: 'user_cacheownertwo'
+    })
+  );
   assert.ok(!benchmarkKey.includes('user_cacheownerone'));
 });
 
 test('runtime cache bindings are stable but distinguish absent, empty and false values', () => {
   const ordinaryKey = runtimeCacheVersion(liveCacheBindings);
-  const reordered = Object.fromEntries(Object.entries(liveCacheBindings).reverse());
-  assert.equal(ordinaryKey, runtimeCacheVersion({
-    ...reordered, TASK_UNRELATED_SECRET: 'inert-test-value'
-  }));
+  const reordered = Object.fromEntries(
+    Object.entries(liveCacheBindings).reverse()
+  );
+  assert.equal(
+    ordinaryKey,
+    runtimeCacheVersion({
+      ...reordered,
+      TASK_UNRELATED_SECRET: 'inert-test-value'
+    })
+  );
   const emptyKey = runtimeCacheVersion({
-    ...liveCacheBindings, EXPO_PUBLIC_APP_LOCK_ENABLED: ''
+    ...liveCacheBindings,
+    EXPO_PUBLIC_APP_LOCK_ENABLED: ''
   });
   const falseKey = runtimeCacheVersion({
-    ...liveCacheBindings, EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
+    ...liveCacheBindings,
+    EXPO_PUBLIC_APP_LOCK_ENABLED: 'false'
   });
   assert.equal(new Set([ordinaryKey, emptyKey, falseKey]).size, 3);
 });

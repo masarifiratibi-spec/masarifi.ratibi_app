@@ -1,0 +1,2 @@
+# Keep the reviewed decoder byte-identical to its frozen npm archive on Windows.
+apps/mobile/vendor/decode-uri-component/index.js text eol=lf

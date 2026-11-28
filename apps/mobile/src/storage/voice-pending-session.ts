@@ -58,7 +58,7 @@ export const voiceOperationSchema = z
     proposalId: z.string().uuid().nullable(),
     proposalVersion: z.number().int().positive().nullable(),
     confirmationKey: z.string().uuid().nullable(),
-    confirmationBody: z.record(z.string(), z.unknown()).nullable(),
+    confirmationBody: z.record(z.unknown()).nullable(),
     transactionId: z.string().uuid().nullable(),
     audioReference: z.string().min(1).max(2048).nullable(),
     createdAt: z.number().int().nonnegative()

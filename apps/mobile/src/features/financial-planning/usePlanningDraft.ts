@@ -54,6 +54,7 @@ export function usePlanningFormDraft(input: {
   restore: (payload: unknown) => void;
   onError: () => void;
   enabled?: boolean;
+  requireSuccessfulRead?: boolean;
 }) {
   const enabled = input.enabled ?? true;
   const ownerId = useAppShellStore((state) => state.session?.userId);
@@ -63,6 +64,8 @@ export function usePlanningFormDraft(input: {
     string | null
   >(null);
   const initializedDraft = useRef<string | null>(null);
+  const [failedRead, setFailedRead] = useState<string | null>(null);
+  const [readAttempt, setReadAttempt] = useState(0);
   const persistedPayload = useRef<{ identity: string; payload: string } | null>(
     null
   );
@@ -100,6 +103,7 @@ export function usePlanningFormDraft(input: {
     void financialPlanningService
       .loadDraft(input.id)
       .then((draft) => {
+        if (active) setFailedRead(null);
         if (active && draft) {
           persistedPayload.current = {
             identity,
@@ -110,7 +114,10 @@ export function usePlanningFormDraft(input: {
         }
       })
       .catch(() => {
-        if (active) onError.current();
+        if (active) {
+          setFailedRead(identity);
+          onError.current();
+        }
       })
       .finally(() => {
         if (active) {
@@ -121,12 +128,53 @@ export function usePlanningFormDraft(input: {
     return () => {
       active = false;
     };
-  }, [enabled, input.id, identity]);
+  }, [enabled, input.id, identity, readAttempt]);
+
+  const draftReadFailed =
+    input.requireSuccessfulRead && failedRead === identity;
+  const persistDraftNow = useCallback(() => {
+    clearTimeout(autosaveTimer.current);
+    const write = pendingWrite.current.then(async () => {
+      const assertOwner = () => {
+        if (useAppShellStore.getState().session?.userId !== ownerId)
+          throw new Error('Planning draft owner changed');
+      };
+      assertOwner();
+      if (draftReadFailed)
+        throw new Error('Planning draft could not be restored');
+      if (
+        persistedPayload.current?.identity !== identity ||
+        persistedPayload.current.payload !== payload
+      ) {
+        await financialPlanningService.saveDraft({
+          id: input.id,
+          kind: input.kind,
+          entityId: input.entityId,
+          payload: JSON.parse(payload),
+          status: 'editing',
+          updatedAt: Date.now()
+        });
+        assertOwner();
+        persistedPayload.current = { identity, payload };
+      }
+    });
+    pendingWrite.current = write.catch(() => undefined);
+    return write;
+  }, [
+    draftReadFailed,
+    identity,
+    input.entityId,
+    input.id,
+    input.kind,
+    ownerId,
+    payload
+  ]);
 
   useEffect(() => {
     if (
       !enabled ||
       !draftReady ||
+      draftReadFailed ||
       !input.meaningful ||
       (persistedPayload.current?.identity === identity &&
         persistedPayload.current.payload === payload) ||
@@ -136,30 +184,13 @@ export function usePlanningFormDraft(input: {
       return;
     discarded.current = undefined;
     const timeout = setTimeout(() => {
-      pendingWrite.current = pendingWrite.current
-        .then(async () => {
-          if (useAppShellStore.getState().session?.userId !== ownerId) return;
-          await financialPlanningService.saveDraft({
-            id: input.id,
-            kind: input.kind,
-            entityId: input.entityId,
-            payload: JSON.parse(payload),
-            status: 'editing',
-            updatedAt: Date.now()
-          });
-          if (
-            useAppShellStore.getState().session?.userId === ownerId &&
-            initializedDraft.current === identity
-          )
-            persistedPayload.current = { identity, payload };
-        })
-        .then(() => undefined)
-        .catch(() => onError.current());
+      void persistDraftNow().catch(() => onError.current());
     }, 250);
     autosaveTimer.current = timeout;
     return () => clearTimeout(timeout);
   }, [
     draftReady,
+    draftReadFailed,
     enabled,
     input.entityId,
     input.id,
@@ -167,7 +198,8 @@ export function usePlanningFormDraft(input: {
     input.meaningful,
     identity,
     ownerId,
-    payload
+    payload,
+    persistDraftNow
   ]);
 
   const discardDraft = useCallback(() => {
@@ -187,6 +219,13 @@ export function usePlanningFormDraft(input: {
   }, [input.id, ownerId, identity]);
   return {
     draftReady,
+    draftReadFailed,
+    retryDraftRead: () => {
+      initializedDraft.current = null;
+      setDraftReady(false);
+      setReadAttempt((attempt) => attempt + 1);
+    },
+    persistDraftNow,
     discardDraft,
     hasRestoredDraft: restoredDraftIdentity === identity
   };

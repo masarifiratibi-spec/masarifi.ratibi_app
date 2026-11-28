@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 
 import { StyledText } from '@/components/StyledText';
@@ -19,9 +19,12 @@ import {
   saveAccountDeletionRequestId
 } from '@/services/account-deletion-journal';
 import { startAccountDeletionVerification } from './account-deletion-auth';
+import { prepareAppleDeletion } from '@/services/apple-deletion-authorization';
+import { captureLiveClerkIdentity } from '@/services/live/auth-service';
 import {
   isAccountDeletionCompletionEnabled,
-  isDevPrivacyDeletionEnabled
+  isDevPrivacyDeletionEnabled,
+  resolveClientRuntime
 } from '@/config/client-runtime';
 import { DevAccountDeletionPanel } from './DevAccountDeletionPanel';
 import { useTheme } from '@/state/theme-context';
@@ -76,6 +79,10 @@ function OwnedAccountDeletionPanel({
 
   function showError(failure: unknown) {
     if (!current()) return;
+    if (failure instanceof HttpError && failure.domainCode === 'APPLE_AUTHORIZATION_REQUIRED') {
+      setError('settings.deletion.appleAuthorization');
+      return;
+    }
     if (failure instanceof HttpError && failure.code === 'rate_limited') {
       setError('settings.deletion.rateLimited');
       return;
@@ -160,6 +167,13 @@ function OwnedAccountDeletionPanel({
   }
 
   async function submit() {
+    if (Platform.OS === 'ios' && resolveClientRuntime().mode === 'live') {
+      const actor = await captureLiveClerkIdentity();
+      if (actor.userId !== ownerId || !current()) throw new HttpError('session_expired', 401);
+      await prepareAppleDeletion(actor);
+      await actor.assertCurrent();
+      if (!current()) return;
+    }
     operation.current ??= randomUUID();
     await saveAccountDeletionOperationId(ownerId, operation.current);
     if (!current()) return;

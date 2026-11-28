@@ -1,15 +1,49 @@
 import React from 'react';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { Platform } from 'react-native';
 import AuthPendingRoute from '@app/(public)/auth-pending';
 import WelcomeRoute from '@app/(public)/welcome';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale } from '@/localization/i18n';
 import { getLegalDocument } from '@/features/legal/legal-documents';
 
+const mockAppleAvailability = jest.fn(async () => false);
+beforeEach(() => { mockAppleAvailability.mockResolvedValue(false); });
+
 jest.mock('expo-router', () => ({
   router: { replace: jest.fn(), push: jest.fn() }
 }));
+
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: () => mockAppleAvailability(),
+  AppleAuthenticationButtonType: { CONTINUE: 1 },
+  AppleAuthenticationButtonStyle: { BLACK: 2 },
+  AppleAuthenticationButton: (props: Record<string, unknown>) => {
+    const React = jest.requireActual('react');
+    const { Pressable } = jest.requireActual('react-native');
+    return React.createElement(Pressable, { ...props, accessibilityRole: 'button' });
+  }
+}));
+
+test.each([
+  ['ios', 'ar', 'المتابعة باستخدام Apple'],
+  ['ios', 'en', 'Continue with Apple'],
+  ['android', 'en', null]
+] as const)('authentication on %s in %s offers Apple only on iOS', async (platform, locale, appleLabel) => {
+  const previousPlatform = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+  try {
+    mockAppleAvailability.mockResolvedValue(true);
+    changeLocale(locale);
+    renderWithProviders(<AuthPendingRoute />);
+    if (appleLabel) expect(await screen.findByRole('button', { name: appleLabel })).toBeOnTheScreen();
+    else expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
+    expect(screen.getByRole('button', { name: locale === 'ar' ? 'المتابعة باستخدام Google' : 'Continue with Google' })).toBeOnTheScreen();
+  } finally {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: previousPlatform });
+  }
+});
 
 test.each([
   ['ar', 'المتابعة باستخدام Google'],

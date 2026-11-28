@@ -6,6 +6,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 
 import { AppSheet } from '@/design-system/components/overlays/AppSheet';
+import { iosTextLayoutStyle } from '@/design-system/direction';
 import { DesignIcon } from '@/design-system/icons';
 import { minTouchTarget, radius, spacing } from '@/design-system/tokens';
 import { currentLocale, translate } from '@/localization/i18n';
@@ -61,7 +62,13 @@ export function TransactionDateField({
 
   return (
     <View style={styles.stack}>
-      <Text style={[styles.label, { color: theme.colors.content.primary }]}>
+      <Text
+        style={[
+          styles.label,
+          { color: theme.colors.content.primary },
+          iosTextLayoutStyle(direction)
+        ]}
+      >
         {label}
       </Text>
       <Pressable
@@ -89,7 +96,13 @@ export function TransactionDateField({
           color={theme.colors.content.link}
           decorative
         />
-        <Text style={[styles.value, { color: theme.colors.content.primary }]}>
+        <Text
+          style={[
+            styles.value,
+            { color: theme.colors.content.primary },
+            iosTextLayoutStyle(direction)
+          ]}
+        >
           {dateLabel}
         </Text>
         <DesignIcon

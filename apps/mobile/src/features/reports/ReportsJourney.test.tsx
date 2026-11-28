@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, ScrollView, StyleSheet } from 'react-native';
+import { Dimensions, Platform, ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { notifyManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -21,8 +21,45 @@ jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn() }
 }));
 
+const originalPlatform = Platform.OS;
+afterEach(() => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+});
+
 beforeAll(() => {
   notifyManager.setNotifyFunction((callback) => act(callback));
+});
+
+// The live API omits budget insights even when a saved budget exists.
+test.each([
+  ['ios', 'ar'], ['ios', 'en'], ['android', 'ar'], ['android', 'en']
+] as const)('opens the scoped budgets destination when report insights and budget data are unavailable on %s in %s', async (platform, locale) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+  changeLocale(locale);
+  const report = buildFinancialReport({
+    period: resolveReportPeriod({
+      kind: 'monthly', anchorDate: '2026-11-15', timeZone: 'Asia/Riyadh', now: Date.now()
+    }),
+    transactions: [], categories: [], currencyCode: 'SAR'
+  });
+  const read = jest.spyOn(reportsService, 'getReport').mockResolvedValue({
+    ...report,
+    breakdowns: report.breakdowns.filter((breakdown) => breakdown.dimension === 'category'),
+    insights: []
+  });
+  const budgets = jest.spyOn(financialPlanningService, 'listBudgets').mockRejectedValue(new Error('unavailable'));
+  const view = renderWithProviders(<ReportsScreen />);
+  try {
+    const card = await view.findByTestId('reports-budget-card');
+    await within(card).findByText(translate('reports.state.unavailable'));
+    expect(within(card).queryByText(translate('reports.analytics.setBudgetHint'))).toBeNull();
+    fireEvent.press(card);
+    expect(router.push).toHaveBeenLastCalledWith(expect.objectContaining({ pathname: '/budgets' }));
+  } finally {
+    view.unmount();
+    read.mockRestore();
+    budgets.mockRestore();
+  }
 });
 
 test.each(['ar', 'en'] as const)(
@@ -48,7 +85,7 @@ afterAll(() => {
 });
 
 test.each(['ar', 'en'] as const)(
-  'keeps the original circular PDF action above clear scroll space during report failure in %s',
+  'keeps the circular PDF action above clear scroll space during report failure in %s',
   async (locale) => {
     changeLocale(locale);
     const summary = jest
@@ -77,7 +114,7 @@ test.each(['ar', 'en'] as const)(
         position: 'absolute',
         right: 16,
         direction: 'ltr',
-        alignItems: 'flex-end'
+        alignItems: Platform.OS === 'ios' && locale === 'ar' ? 'flex-start' : 'flex-end'
       });
       const bottomClearance = (StyleSheet.flatten(scroll.props.style).marginBottom ?? 0)
         + StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom;
@@ -259,7 +296,9 @@ test('2026-08-23 approved analytics screen exposes the reference hierarchy in Ar
   expect(screen.getByText('التدفق المالي')).toBeTruthy();
   expect(screen.getByText('نسبة التوفير')).toBeTruthy();
   expect(screen.getByText('الميزانية')).toBeTruthy();
-  expect(await screen.findByText('تعيين الميزانية الشهرية')).toBeTruthy();
+  expect(await screen.findByText(
+    'تعيين الميزانية الشهرية'
+  )).toBeTruthy();
   expect(screen.getByTestId('reports-assistant-card')).toBeTruthy();
   expect(screen.getByText('المساعد الذكي')).toBeTruthy();
   expect(

@@ -6,6 +6,9 @@ import { clearPersistedPreferences } from './secure-preferences';
 import { registerRuntimeUserDataReset } from './runtime-user-data-reset';
 import { readTransactionDraftSnapshot } from './transaction-draft-snapshots';
 import { runExclusiveDatabaseTransaction } from './database';
+import * as SecureStore from 'expo-secure-store';
+import { admitTrackingOwner } from '@/state/tracking-admission';
+import { clearTrackingIsolation } from '@/test-utils/tracking-admission';
 
 let mockDatabase: StatefulSqlite;
 
@@ -18,6 +21,11 @@ jest.mock('./app-shell-storage', () => ({
 }));
 jest.mock('./secure-preferences', () => ({
   clearPersistedPreferences: jest.fn(async () => undefined)
+}));
+jest.mock('@/services/platform/ios-shortcut-cleanup', () => ({
+  ...jest.requireActual('@/services/platform/ios-shortcut-cleanup'),
+  purgeIosShortcutOwner: (owner: string, guard: () => void) =>
+    jest.requireActual('./ios-shortcut-storage').purgeIosShortcutOwner(owner, guard)
 }));
 
 const clearShellData = jest.mocked(clearAppShellUserData);
@@ -49,6 +57,19 @@ beforeEach(async () => {
   }
 });
 
+test('cold iOS local-data deletion purges owned shortcut records without loading its runtime', async () => {
+  const slots = new Map([
+    ['masarifi.iosShortcut.enrollment.v1', JSON.stringify({ ownerId: 'local-owner', enabled: true })],
+    ['masarifi.iosShortcut.receipt.v1', JSON.stringify({ ownerId: 'local-owner', lastTransactionId: 'old-money' })]
+  ]);
+  jest.spyOn(SecureStore, 'getItemAsync').mockImplementation(async slot => slots.get(slot) ?? null);
+  jest.spyOn(SecureStore, 'deleteItemAsync').mockImplementation(async slot => { slots.delete(slot); });
+  admitTrackingOwner('local-owner');
+  try {
+    await resetLocalUserData('ios-cold-local-delete');
+    expect(slots.size).toBe(0);
+  } finally { clearTrackingIsolation(); jest.restoreAllMocks(); }
+});
 test('deletes every user-data table discovered from the authoritative schema', async () => {
   await AsyncStorage.setItem('masarifi.tracking.smsImportQueue.v1', 'private SMS');
   const runtimeReset = jest.fn();

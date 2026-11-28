@@ -23,7 +23,7 @@ Sync Impact Report
 
 # Masarifi Mobile Constitution
 
-> Use the platform branch for authentication, tracking and signed-build evidence. For delivery instructions read the [Maintained project guide](../../../../docs/project/README.md).
+> Use main with platform files/profiles for authentication and tracking; signed-build evidence is pinned to the exact artifact, not a branch name. For delivery instructions read the [Maintained project guide](../../../../docs/project/README.md).
 
 ## Core Principles
 

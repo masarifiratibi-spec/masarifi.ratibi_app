@@ -38,3 +38,28 @@ test('still rejects the native export outside its explicit platform facade', () 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /SMS behavior outside Android boundary/);
 });
+
+test('allows provider disclosure text in the two static translation catalogs', () => {
+  for (const locale of ['ar', 'en']) {
+    const result = checkFixture("const catalog = { 'privacy': 'OpenAI through OpenRouter' };\n", `src/localization/messages/${locale}.ts`);
+    assert.equal(result.status, 0, result.stderr);
+  }
+});
+
+test('still rejects provider imports, requires and executable expressions inside catalogs', () => {
+  for (const source of [
+    "import OpenAI from 'openai';\n",
+    "const catalog = { 'privacy': require('openai') };\n",
+    "const catalog = { 'privacy': import('openai') };\n"
+  ]) {
+    const result = checkFixture(source, 'src/localization/messages/en.ts');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /provider SDK or production-provider import/);
+  }
+});
+
+test('static catalog copy does not bypass production secret checks', () => {
+  const result = checkFixture("const catalog = { 'privacy': 'sk-fixture_for_secret_detection_123456' };\n", 'src/localization/messages/en.ts');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /production secret/);
+});
