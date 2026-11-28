@@ -2,9 +2,13 @@
 
 # Masarifi maintained project guide
 
-Start with the [current AI handoff and three-branch delivery rules (Arabic)](ai-handoff-ar.md). Consult the [file-by-file release comparison](branch-differences.csv) before propagating changes in divergent mobile paths.
+Start with the [release workflow](release-workflow.md), [acceptance gates](single-main-acceptance.md), [approved source inputs](single-main-inputs.md), and [candidate path decisions](single-main-decisions.csv). The approved target is one permanent `main` source branch for API, Admin, Android and iOS, with temporary feature branches.
 
-Use `codex/voice-promoted-operating-2026-10-13` as the primary source for shared architecture, features, API, Admin, data and agent rules. Use `codex/google-play-release-2026-11-24` for Google Play differences and `iOS` for Apple differences.
+Consolidation is being qualified in [draft PR 10](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/10), from `codex/unify-platforms-on-main`. Until its acceptance gates pass and its tree is promoted, main remains the qualified baseline `81736959`. Do not infer a deployment from this PR or a successful source check. Historical operating, Play and iOS refs are preserved recovery references, not default destinations for new work after consolidation.
+
+The candidate preserves current API, Admin, packages, SQL, ops and Docker content. Mobile combines Android production Firebase configuration with Apple authentication, consent and Shortcuts. Zod stays on major 3. Android keeps its existing assistant and deletion flow; Apple-only consent keeps its future-review comment.
+
+The following table records the earlier November 26 audit only. It is not the current branch instruction or a current store/runtime receipt.
 
 | Role | Source reviewed | What differs |
 |---|---|---|
