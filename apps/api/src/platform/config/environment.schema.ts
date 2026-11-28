@@ -409,7 +409,7 @@ const schema = Joi.object<PlatformEnvironment>({
     .pattern(/^user_[A-Za-z0-9]+$/)
     .optional(),
   MASARIFI_AI_JOB_BATCH_SIZE: Joi.number().integer().min(1).max(25).default(25),
-  MASARIFI_AI_TRAFFIC_MODE: Joi.string().valid('off','shadow','enforce').default('off'),
+  MASARIFI_AI_TRAFFIC_MODE: Joi.string().valid('off', 'shadow', 'enforce').default('off'),
   MASARIFI_AI_TRUSTED_PROXY_IP: Joi.string().ip({ cidr: 'forbidden' }).optional(),
   MASARIFI_AI_LEASE_SECONDS: Joi.number().integer().min(10).max(300).default(120),
   MASARIFI_AI_MAX_CONCURRENCY: Joi.number().integer().min(1).max(16).default(4),

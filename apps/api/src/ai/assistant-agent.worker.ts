@@ -120,7 +120,9 @@ export class AssistantAgentWorker implements OnModuleDestroy {
           },
         );
         const signal = this.controller.signal;
-        const answer = await withProcessingSlot(this.routes, claim.userId, signal, () => agent.run(claim, route, signal));
+        const answer = await withProcessingSlot(this.routes, claim.userId, signal, () =>
+          agent.run(claim, route, signal),
+        );
         this.controller.signal.throwIfAborted();
         await this.jobs.finish(claim, answer);
         this.logger.info('ASSISTANT_AGENT_FINISHED', {
