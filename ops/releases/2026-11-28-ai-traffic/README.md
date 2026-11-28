@@ -1,0 +1,15 @@
+# Production reconciliation, 28 November 2026
+
+The public API reported release `97e66588b2b516ae8c67e285f8439be591439dd6`. The core container used image `sha256:fce60acbee2681331afcf3d0f563fe1511c360bcb2b1214ae46f8f541d198198` with mounted code. The maintained application sources entering this sync were operating `5e33c478`, Play `97569662` and iOS `13703e5d`.
+
+| Component | Production observation |
+| --- | --- |
+| HTTP edge | NGINX enforces 60 requests/s per IP with a burst of 12, 60 connections and 10 concurrent audio uploads for the configured routes. The request and connection dry-run flags were off. See the [HTTP zones and scoped log](../../ai-traffic/nginx-http.conf) and [TLS server rules](../../ai-traffic/nginx-server.conf). |
+| API and workers | Account and processing limits were in shadow mode on the core API, public assistant worker and voice worker. The 28 November release applied nine compiled-file deltas to each effective runtime. The voice worker served the source-matched spoken-amount and voice-batch modules. |
+| Database | Migration `20261128120000` was recorded. At 08:49 UTC the ledger contained 195 entries. Of 23 migration paths changed since the advertised API revision, 21 had ledger entries. The support-denial constraint already allowed denied requests without approval despite the missing `20261107140100` entry. The `20261119090300` shared provider-circuit table and acquisition function were absent. |
+| Readiness and isolated reports | Core readiness returned 200 with database and queue up. The new shared readiness dependency module was absent from core. The QA report file controller matched the branch build in the isolated QA API. |
+| Usage alerts | The systemd timer was active and enabled. The installation check reported a successful service run and an accepted test email. The observer uses its own SQLite cursor and the production mail worker. [Release sources and private recipient configuration](../../ai-traffic/usage-alerts/README.md). |
+
+The retained [qualification bundle](qualify-bundle.py) contains the nine reviewed JavaScript deltas and the two context adaptations for older runtime modules. It is the historical input for the mounted release. Ongoing development uses TypeScript under `apps/api/src`. The original per-container before/after hashes, activation record and rollback configuration are on the VPS under `/opt/masarifi/selfhost/releases/ai-traffic-shadow-20261127T234314Z/`. Preserve those inputs when recreating the services. The bundle writes qualification artifacts and starts disposable containers when executed. Reading this record requires no execution.
+
+At 08:49 UTC the core comparison covered 97 changed application source paths against the retained local build. After normalizing line endings and source-map trailers, 33 matched, 56 differed and eight candidate modules were absent on core. Worker and QA deployments have distinct contents. The recorded diffs describe those specific builds and services. The code in Git retains reviewed updates that have not yet shipped.
