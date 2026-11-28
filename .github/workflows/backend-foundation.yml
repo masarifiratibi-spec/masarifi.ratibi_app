@@ -221,6 +221,8 @@ jobs:
           native=android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib
           for abi in arm64-v8a armeabi-v7a x86 x86_64; do
             test -s "$native/$abi/libappmodules.so"
+            test -s "$native/$abi/libexpo-sqlite.so"
+            test -s "$native/$abi/libcrypto.so"
           done
           sha256sum android-diagnostic-resources.ap_ "$native"/*/libappmodules.so > android-diagnostic-sha256.txt
       - name: Record source identity for the diagnostic build

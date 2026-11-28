@@ -1,4 +1,22 @@
 // Approved upload credentials come from the release environment or EAS injection.
+// expo-sqlite links this Prefab library at compile time. SQLCipher also needs
+// the matching shared object in the installed APK for every packaged ABI.
+if (project.findProperty('expo.sqlite.useSQLCipher') == 'true') {
+    def cryptoArchive = configurations.create('sqlcipherCryptoArchive')
+    dependencies.add(cryptoArchive.name, 'io.github.ronickg:openssl:3.3.2-1@aar')
+    def cryptoDirectory = layout.buildDirectory.dir('generated/sqlcipher-jni')
+    def prepareCrypto = tasks.register('prepareSqlcipherRuntime', Sync) {
+        from({ zipTree(cryptoArchive.singleFile) }) {
+            include 'prefab/modules/crypto/libs/android.*/libcrypto.so'
+            eachFile { f -> f.path = f.path.split('/')[-2].substring('android.'.length()) + '/libcrypto.so' }
+            includeEmptyDirs = false
+        }
+        into cryptoDirectory
+    }
+    android.sourceSets.main.jniLibs.srcDir(cryptoDirectory)
+    tasks.named('preBuild').configure { dependsOn prepareCrypto }
+}
+
 def closureStore = System.getenv('MASARIFI_UPLOAD_STORE_FILE')
 def closurePassword = System.getenv('MASARIFI_UPLOAD_STORE_PASSWORD')
 def closureAlias = System.getenv('MASARIFI_UPLOAD_KEY_ALIAS')
