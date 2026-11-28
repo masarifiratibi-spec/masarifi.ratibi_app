@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Masarifi AI account usage every 30 seconds
+[Timer]
+OnActiveSec=2s
+OnUnitInactiveSec=30s
+AccuracySec=2s
+[Install]
+WantedBy=timers.target
