@@ -17,9 +17,6 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: () => ({ document: mockDocument })
 }));
-jest.mock('@/services/live/clerk-context', () => ({
-  useLiveIdentityStatus: () => ({ status: 'ready' })
-}));
 afterEach(() => jest.restoreAllMocks());
 
 it.each([
