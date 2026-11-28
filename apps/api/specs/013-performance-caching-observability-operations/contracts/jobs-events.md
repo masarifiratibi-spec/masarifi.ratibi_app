@@ -87,10 +87,16 @@ notification only when completion succeeds and the validated result summary has
 `outcome: "succeeded"` and numeric `processed: 0`. The job run, attempt, terminal
 timestamps, version, result summary and metrics remain authoritative and retained.
 Zero executable claims can still reject blocked dependencies; it does not mean
-that the handler made no database changes. Nonzero successes, other job keys,
-missing or differently typed summary fields, failures and dead letters keep their
-existing event behavior. This exception neither retires old pending events nor
-enables an unrestricted dispatcher or queue consumer.
+that the handler made no database changes.
+
+On the first successful attempt of a run with no retry parent, `import.parse` and
+`privacy.financial-reset-cleanup` also omit this notification when the summary
+reports a successful outcome and numeric zero processed. Under the same conditions
+`platform.outbox.dispatch` omits the notification for every nonnegative integer
+processed count, so publishing a batch does not produce another success message
+for the publisher itself. Its run and attempt still record when it finished and
+how many events it processed. Missing or unexpected summaries, other job keys,
+failures, and dead letters retain their existing event behavior.
 
 ```json
 {

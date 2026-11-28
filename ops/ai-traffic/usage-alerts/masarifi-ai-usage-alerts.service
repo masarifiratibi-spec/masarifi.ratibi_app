@@ -1,0 +1,14 @@
+[Unit]
+Description=Masarifi account usage alert observer
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/masarifi/selfhost/releases/ai-usage-alerts-20261128/usage_monitor.py
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/masarifi-ai-usage-alerts
+ProtectHome=true
+PrivateTmp=true
+TimeoutStartSec=65

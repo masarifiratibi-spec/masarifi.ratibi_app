@@ -1,0 +1,27 @@
+const fs = require('node:fs');
+const {createRequire} = require('node:module');
+const loader = createRequire('/app/dist/src/reports/reports.smtp.js');
+const mailer = loader('nodemailer');
+const to = '__MASARIFI_ALERT_RECIPIENT__';
+async function send() {
+  const msg = JSON.parse(fs.readFileSync(0,'utf8'));
+  const env = process.env;
+  const host = env.EMAIL_SMTP_HOST;
+  const port = Number(env.EMAIL_SMTP_PORT);
+  const from = env.EMAIL_FROM;
+  const transport = mailer.createTransport({
+    host, port, secure: port === 465, requireTLS: true,
+    auth: {user: env.EMAIL_SMTP_USERNAME, pass: env.EMAIL_SMTP_PASSWORD},
+    tls: {servername: host, minVersion: 'TLSv1.2', rejectUnauthorized: true},
+    connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 15000,
+    disableFileAccess: true, disableUrlAccess: true
+  });
+  const domain = from.match(/@([a-z0-9.-]+)/i)[1];
+  const result = await transport.sendMail({from, to, subject: msg.subject, text: msg.text,
+    messageId: '<masarifi-monitor-' + msg.id + '@' + domain + '>'});
+  if (!result.accepted.some(value => String(value).toLowerCase() === to)) throw Error('not accepted');
+}
+send().then(() => console.log('SMTP_ACCEPTED')).catch(error => {
+  console.error('SMTP_FAILED', error.code || 'delivery', error.responseCode || '');
+  process.exitCode = 1;
+});
