@@ -1,9 +1,9 @@
 # Masarifi Backend Master Plan
 
-> Domain ownership remains applicable. Shared delivery follows the operating base; Play and iOS carry release differences. Provisioning and bucket procedures from the hosted Supabase phase are historical. For deployed PostgreSQL and storage topology see the [Maintained project guide](../project/README.md).
+> Domain ownership remains applicable. Shared delivery follows qualified main through temporary PR branches; platform files/profiles carry Apple and Android differences. PR 10 is the consolidation candidate until acceptance and promotion. Provisioning and bucket procedures from the hosted Supabase phase are historical. For deployed PostgreSQL and storage topology see the [Maintained project guide](../project/README.md).
 
 Status: SPEC-BE-001 through SPEC-BE-011, SPEC-BE-013, and the local free-only SPEC-BE-014 scope implemented; external Phase 14 release evidence remains tracked separately
-Maintained backend source: codex/voice-promoted-operating-2026-10-13. Verify affected clients on Play and iOS.
+Maintained backend source: qualified main. Verify affected Android and iOS clients from the same shared source.
 Canonical implementation sequence: 14 backend Specs
 Backend state at publication: Free-only MVP through SPEC-BE-013; SPEC-BE-012 is reserved Post-MVP
 

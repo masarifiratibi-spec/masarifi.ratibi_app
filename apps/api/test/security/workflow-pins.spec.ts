@@ -135,17 +135,15 @@ describe('isolated consolidation candidate verification policy', () => {
         'utf8',
       ),
     ) as {
-      on: { push: { branches: string[] } };
+      on: { push: { branches: string[] }; pull_request: { paths: string[] } };
       jobs: Record<string, Job>;
     };
   }
 
-  it('runs the full candidate push gates without publishing or deploying', () => {
+  it('qualifies main pushes and mobile PRs without publishing or deploying', () => {
     const workflow = policy();
-    expect(workflow.on.push.branches).toEqual([
-      'main',
-      'codex/masarifi-complete-integration-2026-10-10',
-    ]);
+    expect(workflow.on.push.branches).toEqual(['main']);
+    expect(workflow.on.pull_request.paths).toContain('apps/mobile/**');
     const publication = requireJob(workflow.jobs, 'image').steps.filter((step) =>
       step.run?.includes('docker push '),
     );

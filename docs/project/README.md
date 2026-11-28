@@ -6,7 +6,7 @@ Start with the [release workflow](release-workflow.md), [acceptance gates](singl
 
 Consolidation is being qualified in [draft PR 10](https://github.com/masarifiratibi-spec/masarifi.ratibi_app/pull/10), from `codex/unify-platforms-on-main`. Until its acceptance gates pass and its tree is promoted, main remains the qualified baseline `81736959`. Do not infer a deployment from this PR or a successful source check. Historical operating, Play and iOS refs are preserved recovery references, not default destinations for new work after consolidation.
 
-The candidate preserves current API, Admin, packages, SQL, ops and Docker content. Mobile combines Android production Firebase configuration with Apple authentication, consent and Shortcuts. Zod stays on major 3. Android keeps its existing assistant and deletion flow; Apple-only consent keeps its future-review comment.
+The candidate preserves current API runtime, Admin, packages, SQL, ops and Docker content. The API workflow-policy test and branch-governance document are updated for main. Mobile combines Android production Firebase configuration with Apple authentication, consent and Shortcuts. Zod stays on major 3. Android keeps its existing assistant and deletion flow; Apple-only consent keeps its future-review comment.
 
 The following table records the earlier November 26 audit only. It is not the current branch instruction or a current store/runtime receipt.
 

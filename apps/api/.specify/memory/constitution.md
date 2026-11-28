@@ -1,4 +1,4 @@
-<!-- Amendment 3.0.0, 2026-11-26: project owner selected the operating base and its Play/iOS release lines. Aligned delivery rules, master-plan guidance and templates. -->
+<!-- Amendment 3.1.0, 2026-11-28: project owner approved one main source and temporary feature branches. Consolidation remains gated by PR 10 acceptance; source promotion does not deploy production. -->
 
 # Masarifi Backend Development Constitution
 
@@ -6,12 +6,12 @@
 
 ### I. Shared backend, one spec owner
 
-Use `codex/voice-promoted-operating-2026-10-13` as the primary source for shared architecture, features, API, Admin, data and agent rules. Use `codex/google-play-release-2026-11-24` for Google Play differences and `iOS` for Apple differences. Record the operating source pin and verify affected release consumers. See the [project guide](../../../../docs/project/README.md).
+Use the latest qualified `main` as the source for shared architecture, features, API, Admin, data and agent rules. Implement each change on a temporary `codex/<task>` branch from that exact main SHA. Keep Apple/Android differences in platform files and build profiles, and verify affected clients. During consolidation, PR 10 is a candidate, not delivered main. See the [project guide](../../../../docs/project/README.md).
 
 Only one Backend Spec may have active implementation changes at a time. Its
 artifacts, commits, verification evidence, and owned paths MUST identify the Spec
-explicitly so scope, rollback, and delivery remain attributable without a feature
-branch.
+explicitly so scope, rollback, and delivery remain attributable across temporary feature
+branches.
 
 Every table, view, API, RPC, function, trigger, queue, job, event, cache, and
 business rule MUST have exactly one owning Spec as defined by
@@ -20,12 +20,12 @@ contract but MUST NOT duplicate, move, or mutate the other Spec's owned resource
 Ownership changes require an approved Master Plan and Constitution compliance
 review before implementation.
 
-Rationale: explicit spec ownership preserves accountability across the operating base and its release lines.
+Rationale: explicit spec ownership preserves accountability across main, temporary branches and independently released artifacts.
 
 ### II. Spec Kit Artifacts Before Implementation
 
 No Backend Spec implementation may begin until the checkout is synchronized on
-the shared operating branch and its Spec Kit package exists under `apps/api/specs/<number-name>/`.
+a temporary branch from qualified main and its Spec Kit package exists under `apps/api/specs/<number-name>/`.
 
 Every Spec MUST complete this sequence:
 
@@ -215,7 +215,7 @@ A Spec is not complete because code, migrations, or endpoints exist. It is
 complete only when every required artifact and acceptance gate has current,
 reviewable evidence.
 
-A push to the shared operating branch is an evidence-collection state, not completion. It MAY occur
+A push to a temporary implementation branch is an evidence-collection state, not completion. It MAY occur
 only after all locally executable pre-push gates pass and no known local
 Critical/High finding remains. Pushing MUST NOT mark the Spec complete, waive a
 blocker, or authorize production release.
@@ -286,15 +286,15 @@ and alerting MUST exist before production traffic, not after an incident.
 
 ## Spec Workflow and Quality Gates
 
-Before work begins, the active Spec MUST record its exact number, the shared operating branch base
+Before work begins, the active Spec MUST record its exact number, the qualified main base
 revision, dependencies, owned resources, excluded resources, client contract
-inventory, and required evidence. The checkout MUST be on the shared operating branch, synchronized
-with the latest verified upstream tip, and contain no active implementation diff
+inventory, and required evidence. The checkout MUST be on its temporary implementation branch, synchronized
+with the latest qualified main, and contain no active implementation diff
 for another Backend Spec.
 
 Every `plan.md` Constitution Check MUST confirm:
 
-- the checkout is on the synchronized maintained branch and the active diff belongs to exactly
+- the checkout is on a temporary branch synchronized with qualified main and the active diff belongs to exactly
   one Backend Spec;
 - `spec.md`, `plan.md`, and `tasks.md` are complete and mutually consistent;
 - every proposed resource is documented and owned by the active Spec;
@@ -316,10 +316,10 @@ be hidden in Complexity Tracking; it requires explicit user approval and a prior
 Constitution or Master Plan amendment when it changes a non-negotiable rule.
 
 After all locally executable pre-push acceptance gates pass, the Spec MUST be
-committed with a clear Spec-identifying message and delivered to the maintained remote branch. Inspect workflow triggers and repository/ref guards for the selected branch. Collect applicable CI, image scan, SBOM, signature and provenance evidence for that commit. The Spec remains incomplete until every
+committed with a clear Spec-identifying message and delivered through a reviewed PR into main. Inspect workflow triggers and repository/ref guards for the selected branch. Collect applicable CI, image scan, SBOM, signature and provenance evidence for that commit. The Spec remains incomplete until every
 required local and remote acceptance criterion, release-blocking security gate,
 and Definition of Done item has passing evidence. Remote failures MUST be fixed
-forward on the shared operating branch and materially changed work MUST receive fresh verification.
+forward on the same temporary PR branch and materially changed work MUST receive fresh verification.
 
 ## Governance
 
@@ -346,4 +346,4 @@ The original ratification date is immutable. `Last Amended` changes only when
 the Constitution content changes. Master Plan ownership or architecture changes
 MUST update the Master Plan before affected Spec artifacts or code proceed.
 
-**Version**: 3.0.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-11-26
+**Version**: 3.1.0 | **Ratified**: 2026-08-27 | **Last Amended**: 2026-11-28

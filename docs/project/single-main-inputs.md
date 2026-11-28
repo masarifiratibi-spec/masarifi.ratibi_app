@@ -29,4 +29,4 @@ Main's one pre-existing untracked file was the approved consolidation plan. It w
 
 ## Diff decisions
 
-See `single-main-decisions.csv` for all 343 source/path comparisons (22 Play and 321 Apple). Counts include documentation/evidence. The candidate preserves current API, Admin, packages, database, ops and Docker content. Apple mobile additions are reconciled with Play settings and baseline Zod 3. Old release receipts remain historical evidence in the bundle; they do not establish current deployment status.
+See `single-main-decisions.csv` for all 343 source/path comparisons (22 Play and 321 Apple). Counts include documentation/evidence. The candidate preserves current API runtime, Admin, packages, database, ops and Docker content; its API workflow-policy test and branch-governance document reflect the approved main policy. Apple mobile additions are reconciled with Play settings and baseline Zod 3. Old release receipts remain historical evidence in the bundle; they do not establish current deployment status.
