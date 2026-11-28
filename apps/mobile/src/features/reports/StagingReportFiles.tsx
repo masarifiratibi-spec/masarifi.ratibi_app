@@ -14,14 +14,6 @@ import { usePreferenceStore } from '@/state/preferences';
 import type { MessageKey } from '@/localization/i18n';
 import { pdfFailureMessage } from './report-state';
 
-export function stagingReportFilesEnabled() {
-  return (
-    process.env.EXPO_PUBLIC_STAGING_REPORT_FILES === 'true' &&
-    process.env.EXPO_PUBLIC_API_URL ===
-      'https://api.staging.masarifiratibi.com/qa-reports'
-  );
-}
-
 type Props = {
   owner: string;
   input: ReportQuery;

@@ -20,6 +20,7 @@ import {
   captureLiveClerkOwner,
   captureLiveReadClerkIdentity,
   getLiveClerkToken,
+  leaveExpiredReportQaSession,
   createLiveAuthService,
   createLiveIdentityService,
   registerLiveClerkBridge
@@ -112,6 +113,40 @@ it('admits an Apple session through the same live identity service and preserves
 it('returns Apple cancellation without creating an authenticated application session', async () => {
   const auth = createLiveAuthService(clerkBridge({ signInWithApple: async () => null }));
   await expect(auth.signInWithApple()).resolves.toEqual({ status: 'cancelled' });
+});
+
+it('only leaves the selected, expired session in isolated report QA', async () => {
+  const oldFlag = process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  const before = useAppShellStore.getState().session;
+  const bridge = clerkBridge();
+  const expired = { ...liveSession, status: 'expired' as const, restoration: 'restored' as const };
+  try {
+    process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = 'true';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com/qa-reports';
+    registerLiveClerkBridge(bridge);
+    useAppShellStore.setState({ session: expired });
+    await expect(leaveExpiredReportQaSession('other-session')).rejects.toThrow();
+    useAppShellStore.setState({ session: { ...expired, userId: 'other-owner' } });
+    await expect(leaveExpiredReportQaSession(liveSession.id)).rejects.toThrow();
+    useAppShellStore.setState({ session: { ...expired, status: 'authenticated' } });
+    await expect(leaveExpiredReportQaSession(liveSession.id)).rejects.toThrow();
+    useAppShellStore.setState({ session: expired });
+    process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = 'false';
+    await expect(leaveExpiredReportQaSession(liveSession.id)).rejects.toThrow();
+    expect(bridge.signOut).not.toHaveBeenCalled();
+    process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = 'true';
+    await leaveExpiredReportQaSession(liveSession.id);
+    expect(bridge.signOut).toHaveBeenCalledTimes(1);
+    expect(bridge.signOut).toHaveBeenCalledWith({ scope: 'current', sessionId: liveSession.id });
+  } finally {
+    registerLiveClerkBridge(clerkBridge({ getSession: async () => null }));
+    useAppShellStore.setState({ session: before });
+    if (oldFlag === undefined) delete process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+    else process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = oldFlag;
+    if (oldUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = oldUrl;
+  }
 });
 
 describe('DEV authenticated sign-out', () => {

@@ -8,3 +8,9 @@ export const LiveIdentityStatusContext = createContext<{
 }>({ status: 'ready', retry: () => {} });
 export const useLiveIdentityStatus = () =>
   useContext(LiveIdentityStatusContext);
+
+export const LiveClerkSessionContext = createContext<string | null | undefined>(
+  undefined
+);
+
+export const useLiveClerkSessionKey = () => useContext(LiveClerkSessionContext);

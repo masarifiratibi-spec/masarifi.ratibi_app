@@ -1,3 +1,4 @@
+import { stagingReportFilesEnabled } from '@/config/staging-report-files';
 import {
   assertBenchmarkRead,
   isBenchmarkReadOnly
@@ -456,6 +457,17 @@ export async function getLiveClerkToken(): Promise<string> {
   const token = await requestClerkToken(registeredBridge, { skipCache: true });
   if (!token) throw new HttpError('session_expired', 401);
   return token;
+}
+
+export async function leaveExpiredReportQaSession(sessionId: string) {
+  if (!stagingReportFilesEnabled()) throw new Error('appShell.auth.unavailable');
+  const bridge = registeredBridge;
+  const active = await bridge?.getSession();
+  const local = useAppShellStore.getState().session;
+  if (!bridge || bridge !== registeredBridge || !active || active.id !== sessionId ||
+      local?.status !== 'expired' || active.userId !== local.userId)
+    throw new Error('appShell.auth.unavailable');
+  await bridge.signOut({ scope: 'current', sessionId });
 }
 
 export async function signOutDeletedClerkOwner(ownerId: string): Promise<void> {

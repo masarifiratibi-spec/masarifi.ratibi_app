@@ -355,6 +355,8 @@ const en = {
     'Specify an exact purchase price and currency.',
   'assistant.limitation.scope_required': 'Specify a supported financial scope.',
   'googleAuth.brand': 'Masarifi & Ratibi',
+  'googleAuth.reportQaSessionRejected': 'The test server could not verify this session. Sign out here, then choose the Google account assigned to reports QA.',
+  'googleAuth.leaveReportQaSession': 'Sign out of this test session',
   'googleAuth.incomplete':
     'This Google account needs more details. Try another account or contact support.',
   'googleAuth.welcome': 'Welcome to\nMasarifi & Ratibi',

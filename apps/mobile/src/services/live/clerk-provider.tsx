@@ -15,9 +15,7 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -53,6 +51,7 @@ import { beginTrackingAdmission } from '@/state/tracking-admission';
 import { resolveClerkDisplayName } from './clerk-name';
 import { startBenchmarkGoogleSignIn } from './benchmark-google-sign-in';
 import {
+  LiveClerkSessionContext,
   LiveIdentityStatusContext,
   type IdentityStatus
 } from './clerk-context';
@@ -79,11 +78,7 @@ const clerkCache: TokenCache = {
     SecureStore.setItemAsync(`masarifi.clerk.${key}`, token),
   clearToken: (key) => SecureStore.deleteItemAsync(`masarifi.clerk.${key}`)
 };
-const LiveClerkSessionContext = createContext<string | null | undefined>(
-  undefined
-);
-
-export const useLiveClerkSessionKey = () => useContext(LiveClerkSessionContext);
+export { useLiveClerkSessionKey } from './clerk-context';
 
 export function getLiveClerkDisplayName(
   ownerId: string | null | undefined

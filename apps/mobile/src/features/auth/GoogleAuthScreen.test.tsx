@@ -5,6 +5,8 @@ import { Platform } from 'react-native';
 import AuthPendingRoute from '@app/(public)/auth-pending';
 import WelcomeRoute from '@app/(public)/welcome';
 import { renderWithProviders } from '@/test-utils/render';
+import { useAppShellStore } from '@/state/app-shell';
+import { LiveClerkSessionContext } from '@/services/live/clerk-context';
 import { changeLocale } from '@/localization/i18n';
 import { getLegalDocument } from '@/features/legal/legal-documents';
 
@@ -127,3 +129,30 @@ test.each(['ar', 'en'] as const)(
     ).toBeOnTheScreen();
   }
 );
+
+test('reports QA offers recovery for an expired app session before another Google attempt', () => {
+  const oldFlag = process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+  const oldUrl = process.env.EXPO_PUBLIC_API_URL;
+  const previousSession = useAppShellStore.getState().session;
+  try {
+    process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = 'true';
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.staging.masarifiratibi.com/qa-reports';
+    changeLocale('en');
+    useAppShellStore.setState({ session: { status: 'expired', userId: 'qa-owner',
+      method: 'google', issuedAt: 1, expiresAt: 2, restoration: 'restored' } });
+    const { unmount } = renderWithProviders(
+      <LiveClerkSessionContext.Provider value="qa-session">
+        <AuthPendingRoute />
+      </LiveClerkSessionContext.Provider>
+    );
+    expect(screen.getByRole('button', { name: 'Sign out of this test session' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    unmount();
+  } finally {
+    if (oldFlag === undefined) delete process.env.EXPO_PUBLIC_STAGING_REPORT_FILES;
+    else process.env.EXPO_PUBLIC_STAGING_REPORT_FILES = oldFlag;
+    if (oldUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = oldUrl;
+    useAppShellStore.setState({ session: previousSession });
+  }
+});

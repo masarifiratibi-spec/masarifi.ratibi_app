@@ -320,6 +320,8 @@ const ar: MessageCatalog = {
   'assistant.limitation.price_required': 'حدد سعر الشراء الدقيق وعملته.',
   'assistant.limitation.scope_required': 'حدد نطاقًا ماليًا مدعومًا.',
   'googleAuth.brand': 'مصاريفي وراتبي',
+  'googleAuth.reportQaSessionRejected': 'تعذّر التحقق من جلسة الاختبار. اخرج من الجلسة الحالية، ثم اختر حساب Google المخصّص لاختبار التقارير.',
+  'googleAuth.leaveReportQaSession': 'الخروج من جلسة الاختبار',
   'googleAuth.incomplete':
     'حساب Google يحتاج معلومات إضافية. جرّب حسابًا آخر أو الدعم.',
   'googleAuth.welcome': 'حيّاك في\nمصاريفي وراتبي',

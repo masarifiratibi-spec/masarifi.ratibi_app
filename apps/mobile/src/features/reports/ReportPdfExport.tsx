@@ -37,10 +37,8 @@ import { useAppShellStore } from '@/state/app-shell';
 import { usePreferenceStore } from '@/state/preferences';
 import { useTheme } from '@/state/theme-context';
 import { pdfFailureMessage } from './report-state';
-import {
-  StagingReportFiles,
-  stagingReportFilesEnabled
-} from './StagingReportFiles';
+import { StagingReportFiles } from './StagingReportFiles';
+import { stagingReportFilesEnabled } from '@/config/staging-report-files';
 
 type Pending = { operationId: string; previewId?: string; attemptId?: string };
 type Feedback =

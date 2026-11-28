@@ -17,7 +17,10 @@ import { completeAuthenticatedSession } from './session-controller';
 import { router } from 'expo-router';
 import { translate } from '@/localization/i18n';
 import { usePreferenceStore } from '@/state/preferences';
-import { useLiveIdentityStatus } from '@/services/live/clerk-context';
+import { useAppShellStore } from '@/state/app-shell';
+import { stagingReportFilesEnabled } from '@/config/staging-report-files';
+import { leaveExpiredReportQaSession } from '@/services/live/auth-service';
+import { useLiveClerkSessionKey, useLiveIdentityStatus } from '@/services/live/clerk-context';
 import { ActionButton } from '@/design-system/components/ActionButton';
 import { LogoutRecoveryPanel } from './LogoutRecoveryPanel';
 import { RegistrationLegalPreview } from '@/features/legal/RegistrationLegalPreview';
@@ -31,6 +34,23 @@ export function GoogleAuthScreen({
   mode = 'welcome'
 }: { mode?: 'welcome' | 'sign-in' } = {}) {
   const identity = useLiveIdentityStatus();
+  const sessionKey = useLiveClerkSessionKey();
+  const expired = useAppShellStore((state) => state.session?.status === 'expired');
+  const recoverQaSession = stagingReportFilesEnabled() && expired && sessionKey;
+  const [leaving, setLeaving] = React.useState(false);
+  const [leaveFailed, setLeaveFailed] = React.useState(false);
+  async function leaveQaSession() {
+    if (!recoverQaSession || leaving) return;
+    setLeaving(true);
+    setLeaveFailed(false);
+    try {
+      await leaveExpiredReportQaSession(recoverQaSession);
+    } catch {
+      setLeaveFailed(true);
+    } finally {
+      setLeaving(false);
+    }
+  }
   const locale = usePreferenceStore((state) => state.locale);
   const direction = usePreferenceStore((state) => state.direction);
   const { height } = useWindowDimensions();
@@ -98,42 +118,55 @@ export function GoogleAuthScreen({
           </View>
           <View style={styles.actions}>
             {mode === 'welcome' ? <RegistrationLegalPreview /> : null}
-            <GoogleAccountSelector
-              label={translate('googleAuth.continue')}
-              signIn={() => authService.signInWithGoogle()}
-              loading={identity.status === 'sso'}
-              disabled={identity.status === 'loading'}
-              buttonStyle={[
-                styles.googleButton,
-                { borderColor: colorTokens.auth.content }
-              ]}
-              labelStyle={{
-                color: colorTokens.auth.content,
-                fontFamily: editorialFontFamilyForLocale(locale, 600),
-                writingDirection: direction,
-                textAlign: 'center',
-                fontSize: 16
-              }}
-              messageStyle={{
-                color: colorTokens.auth.content,
-                writingDirection: direction,
-                textAlign: 'auto'
-              }}
-              lifecycleMessage={
-                identity.status === 'cancelled'
-                  ? Platform.OS === 'ios'
-                    ? 'appleAuth.notCompleted'
-                    : 'appShell.auth.google.cancelled'
-                  : identity.status === 'incomplete'
+            {recoverQaSession ? (
+              <>
+                <StyledText accessibilityRole="alert">
+                  {translate(leaveFailed ? 'appShell.error.unknown' : 'googleAuth.reportQaSessionRejected')}
+                </StyledText>
+                <ActionButton
+                  label={translate('googleAuth.leaveReportQaSession')}
+                  loading={leaving}
+                  onPress={leaveQaSession}
+                />
+              </>
+            ) : (
+              <GoogleAccountSelector
+                label={translate('googleAuth.continue')}
+                signIn={() => authService.signInWithGoogle()}
+                loading={identity.status === 'sso'}
+                disabled={identity.status === 'loading'}
+                buttonStyle={[
+                  styles.googleButton,
+                  { borderColor: colorTokens.auth.content }
+                ]}
+                labelStyle={{
+                  color: colorTokens.auth.content,
+                  fontFamily: editorialFontFamilyForLocale(locale, 600),
+                  writingDirection: direction,
+                  textAlign: 'center',
+                  fontSize: 16
+                }}
+                messageStyle={{
+                  color: colorTokens.auth.content,
+                  writingDirection: direction,
+                  textAlign: 'auto'
+                }}
+                lifecycleMessage={
+                  identity.status === 'cancelled'
                     ? Platform.OS === 'ios'
-                      ? 'auth.incomplete'
-                      : 'googleAuth.incomplete'
-                    : identity.status === 'error'
-                      ? 'appShell.error.unknown'
-                      : undefined
-              }
-              onResult={finishAuthentication}
-            />
+                      ? 'appleAuth.notCompleted'
+                      : 'appShell.auth.google.cancelled'
+                    : identity.status === 'incomplete'
+                      ? Platform.OS === 'ios'
+                        ? 'auth.incomplete'
+                        : 'googleAuth.incomplete'
+                      : identity.status === 'error'
+                        ? 'appShell.error.unknown'
+                        : undefined
+                }
+                onResult={finishAuthentication}
+              />
+            )}
             <AppleAccountSelector
               onResult={finishAuthentication}
               disabled={
