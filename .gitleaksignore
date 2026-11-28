@@ -145,3 +145,8 @@ ecfba4d7de40555c122bd3b5e53e7e7fd71f6294:apps/mobile/google-services.json:gcp-ap
 
 # Reviewed release environment file checksum.
 152be06588229715dd1fb6669a2d01e0c48f8fdb:ops/releases/2026-11-05-voice-review-recovery/manifest.json:generic-api-key:14
+
+# Consolidation copies the exact approved Play Firebase Android public-client config
+# (f00e5de) and existing reviewed Clerk publishable key (21f6836); no admin credentials.
+12f1ccfef50390a994f776df6de776fea336e743:apps/mobile/google-services.production.json:gcp-api-key:18
+12f1ccfef50390a994f776df6de776fea336e743:apps/mobile/eas.json:generic-api-key:99

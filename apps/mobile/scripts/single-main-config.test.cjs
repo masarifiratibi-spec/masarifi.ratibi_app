@@ -39,3 +39,14 @@ test('consolidation preserves the Android validation major and does not add an O
   assert.match(lock.packages['node_modules/zod'].version, /^3\./);
   assert.equal(pkg.dependencies['expo-updates'], undefined);
 });
+
+
+test('Apple additions do not change Android native autolinking', () => {
+  const command = require.resolve('expo-modules-autolinking/bin/expo-modules-autolinking.js');
+  const result = spawnSync(process.execPath, [command, 'resolve', '--platform', 'android', '--json'], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const names = JSON.parse(result.stdout).modules.map(module => module.packageName);
+  for (const appleOnly of ['expo-splash-screen', 'expo-apple-authentication', 'masarifi-bank-sms'])
+    assert.ok(!names.includes(appleOnly), `${appleOnly} must not enter the Android native build`);
+  assert.ok(names.includes('masarifi-sms-inbox'));
+});

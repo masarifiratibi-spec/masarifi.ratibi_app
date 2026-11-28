@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/render';
@@ -755,5 +755,21 @@ test('honors Retry-After on a valid processing receipt even for a forced refresh
     expect(http).toHaveBeenCalledTimes(2);
   } finally {
     jest.useRealTimers();
+  }
+});
+
+
+test('Android deletion uses its original fresh token even if another token request would fail', async () => {
+  const platform = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  jest.mocked(bridge.getToken).mockResolvedValueOnce('original_fresh_token').mockRejectedValue(new Error('token transport unavailable'));
+  http.mockResolvedValueOnce(response({ code: 'FORBIDDEN' }, 403));
+  try {
+    await submitDevAccountDeletion(OWNER);
+    expect(bridge.getToken).toHaveBeenCalledTimes(1);
+    expect(http).toHaveBeenCalledTimes(1);
+    expect(http.mock.calls[0][1].headers.Authorization).toBe('Bearer original_fresh_token');
+  } finally {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
   }
 });

@@ -812,9 +812,8 @@ test.each(['native', 'sdk'] as const)(
       expect(screen.queryByRole('button', { name: t('settings.deletion.refresh') })).toBeNull();
       await waitFor(async () => expect(await loadDeletionCompletion(owner)).toBeNull(), { timeout: 4500 });
       expect(fetchBoundary).toHaveBeenCalledTimes(1);
-      // iOS captures identity for provider authorization, then for the deletion POST.
-    // Receipt recovery must not request a third token after SDK revocation.
-    expect(sdkToken).toHaveBeenCalledTimes(2);
+      // Android retains one token; receipt recovery works after SDK revocation.
+      expect(sdkToken).toHaveBeenCalledTimes(1);
       expect(deletionNative.files.has(file)).toBe(false);
       expect(deletionNative.files.has(otherFile)).toBe(true);
       expect(getAccountDeletionSnapshots().find((entry) => entry.ownerId === owner)?.phase).toBe('completed');

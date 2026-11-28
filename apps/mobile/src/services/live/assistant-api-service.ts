@@ -511,7 +511,14 @@ export function createLiveAssistantApiService(
     let response: Response;
     try {
       response = await Promise.race([
-        traffic.request(actor.userId, method, path, controller.signal, () => actor.assertCurrent(), () => request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
+        traffic.request(actor.userId, method, path, controller.signal, () => actor.assertCurrent(), async () => {
+          await actor.assertCurrent();
+          // Backoff may delay or retry a question after the owner withdraws.
+          // Recheck immediately before every POST; Android has no disclosure store.
+          if (consentStore && questionRequest && (
+            questionRevision !== consentRevision || consentChanges.has(actor.userId) || pendingWithdrawals.has(actor.userId)
+          )) throw consentRequired();
+          return request(`${baseUrl.replace(/\/$/u, '')}${path}`, {
           method,
           signal: controller.signal,
           headers: {
@@ -526,7 +533,8 @@ export function createLiveAssistantApiService(
             ...(key ? { 'Idempotency-Key': key } : {})
           },
           body: body === undefined ? undefined : JSON.stringify(body)
-        })),
+          });
+        }),
         timeout
       ]);
     } catch (error) {

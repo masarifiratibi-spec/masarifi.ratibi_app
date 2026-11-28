@@ -121,9 +121,7 @@ function reviewedFixture({
     return typeof value === "string" ? value : JSON.stringify(value);
   }, isAncestor);
   candidate.app.expo.name = displayName;
-  candidate.eas.build["ios-ad-hoc"] = structuredClone(
-    withRuntimeMarker ? runtimeEas.build["ios-ad-hoc"] : profile,
-  );
+  Object.assign(candidate.eas.build, structuredClone(require("./fixtures/approved-ios-build-profiles.json").profiles));
   if (isAncestor("e4c814b2e274318f54b66171f8636202067bb432"))
     candidate.eas.build["staging-report-files"] = structuredClone(reportProfile);
   return { expected, candidate };
@@ -145,13 +143,13 @@ test("inherits the exact reviewed iOS production marker only on its approved lin
   validateIdentity(candidate, expected);
 });
 
-test("rejects the iOS production marker when its reviewed commit is outside ancestry", () => {
+test("accepts the pinned Apple profiles without reading Apple-only ancestors", () => {
   const { expected, candidate } = reviewedFixture({
     withRuntimeMarker: true,
     isAncestor: (revision) =>
       revision !== "5482885f8cc4fb629b95bb2d7734981eb02985d3",
   });
-  assert.throws(() => validateIdentity(candidate, expected));
+  validateIdentity(candidate, expected);
 });
 
 for (const [name, change] of Object.entries({
@@ -236,3 +234,17 @@ test("rejects production routing in the isolated QA report profile", () => {
   candidate.eas.build["staging-report-files"].env.EXPO_PUBLIC_API_URL = "https://api.masarifiratibi.com";
   assert.throws(() => validateIdentity(candidate, expected));
 });
+
+
+test("the unified checkout validates without Apple-only Git ancestors", () => {
+  const { execFileSync } = require("node:child_process");
+  assert.doesNotThrow(() => execFileSync(process.execPath, [require.resolve("./verify-android-identity.cjs")], { stdio: "pipe" }));
+});
+
+for (const field of ["distribution", "extends", "env", "ios"]) {
+  test(`rejects a changed App Store ${field}`, () => {
+    const { expected, candidate } = reviewedFixture();
+    candidate.eas.build["ios-app-store"][field] = "unapproved";
+    assert.throws(() => validateIdentity(candidate, expected));
+  });
+}

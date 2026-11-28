@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Platform } from 'react-native';
 import { prepareAppleDeletion } from './apple-deletion-authorization';
 
 import {
@@ -538,7 +539,11 @@ export async function submitDevAccountDeletion(ownerId: string): Promise<void> {
     try {
       await saveDeletionCompletion(submitted);
       await actor.assertCurrent();
-      const submittingActor = await captureLiveClerkIdentity();
+      // Apple authorization can rotate the grant; Android retains its original token.
+      const submittingActor = Platform.OS === 'ios' ? await captureLiveClerkIdentity() : actor;
+      if (submittingActor.userId !== actor.userId || submittingActor.sessionId !== actor.sessionId)
+        throw new HttpError('session_expired', 401);
+      await submittingActor.assertCurrent();
       await actor.assertCurrent();
       assertShellOwner(ownerId);
       publish(ownerId, 'deleting');

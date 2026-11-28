@@ -1,0 +1,41 @@
+{
+  "sourceCommit": "837ec4358c8531e8acd062b8a260a60baa3aac93",
+  "profiles": {
+    "ios-ad-hoc": {
+      "extends": "production",
+      "developmentClient": false,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.masarifiratibi.com",
+        "EXPO_PUBLIC_APP_VARIANT": "production",
+        "MASARIFI_IOS_AD_HOC": "true",
+        "MASARIFI_PRODUCTION_API_ORIGIN": "https://api.masarifiratibi.com",
+        "MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN": "clerk.staging.masarifiratibi.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuc3RhZ2luZy5tYXNhcmlmaXJhdGliaS5jb20k",
+        "MASARIFI_RELEASE_VERSION_NAME": "1.0.0"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    },
+    "ios-app-store": {
+      "extends": "production",
+      "developmentClient": false,
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.masarifiratibi.com",
+        "EXPO_PUBLIC_APP_VARIANT": "production",
+        "MASARIFI_IOS_APP_STORE": "true",
+        "MASARIFI_PRODUCTION_API_ORIGIN": "https://api.masarifiratibi.com",
+        "MASARIFI_PRODUCTION_CLERK_INSTANCE_DOMAIN": "clerk.staging.masarifiratibi.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuc3RhZ2luZy5tYXNhcmlmaXJhdGliaS5jb20k",
+        "MASARIFI_RELEASE_VERSION_NAME": "1.0.0"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    }
+  }
+}

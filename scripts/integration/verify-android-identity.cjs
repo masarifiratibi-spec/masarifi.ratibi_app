@@ -12,7 +12,7 @@ const root = resolve(__dirname, "../..");
 const baseline = "7e3bbef0cdccc2ee5509dd332f4e32236af01b90";
 const displayNameBaseline = "0b7c4d3ccecac8ffb6406626cdf84995cb5d035d";
 const iosProfileBaseline = "0389dff3936211b968c1128471cc313af3b2aef2";
-const iosRuntimeProfileBaseline = "5482885f8cc4fb629b95bb2d7734981eb02985d3";
+const { profiles: approvedIosProfiles } = require("./fixtures/approved-ios-build-profiles.json");
 const normalize = (bytes) => bytes.toString("utf8").replace(/\r\n/g, "\n");
 function validateIdentity(actual, expected) {
   for (const key of ["name", "slug", "scheme"])
@@ -104,15 +104,10 @@ function loadApprovedIdentity(readRevision, isAncestor) {
   expected.app.expo.name = JSON.parse(
     readRevision(displayNameBaseline, "apps/mobile/app.json"),
   ).expo.name;
-  // The production marker is approved only on its published iOS lineage.
-  // Android keeps the earlier profile until that reviewed commit is inherited.
-  const approvedIosProfile = isAncestor(iosRuntimeProfileBaseline)
-    ? iosRuntimeProfileBaseline
-    : iosProfileBaseline;
-  // Production and all registered package/project identities retain C0 checks.
-  expected.eas.build["ios-ad-hoc"] = JSON.parse(
-    readRevision(approvedIosProfile, "apps/mobile/eas.json"),
-  ).build["ios-ad-hoc"];
+  // The unified source imports reviewed Apple paths without the old branch ancestry.
+  // Pin those exact profiles independently of the candidate eas.json; retain all
+  // C0 package/project/Firebase and Android production policy checks above.
+  Object.assign(expected.eas.build, structuredClone(approvedIosProfiles));
   const reportRevision = "e4c814b2e274318f54b66171f8636202067bb432";
   if (isAncestor(reportRevision)) {
     expected.eas.build["staging-report-files"] = JSON.parse(

@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Alert, PixelRatio } from 'react-native';
+import * as ReactNative from 'react-native';
+import { Alert, PixelRatio, Platform } from 'react-native';
 import { renderWithProviders } from '@/test-utils/render';
 import { changeLocale, translate } from '@/localization/i18n';
 import { ThemeContext } from '@/state/theme-context';
@@ -205,6 +206,24 @@ describe('AssistantLanding', () => {
     expect(screen.getByText('850.00 SAR')).toBeTruthy();
     expect(screen.queryByText('1,870.00 SAR')).toBeNull();
   });
+
+  it.each([{ width: 320, scale: 1 }, { width: 400, scale: 2 }, { width: 400, scale: 1 }])(
+    'preserves Android Arabic suggestion source order at $width px and $scale font scale',
+    ({ width, scale }) => {
+      const platform = Platform.OS;
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+      jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(scale);
+      jest.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 800, scale: 1, fontScale: scale });
+      try {
+        renderWithProviders(<AssistantLanding onAskQuestion={jest.fn()} />);
+        expect(screen.getAllByTestId(/^suggestion-card-/).map(card => card.props.testID)).toEqual([
+          'suggestion-card-spending', 'suggestion-card-highest', 'suggestion-card-weekly', 'suggestion-card-budget'
+        ]);
+      } finally {
+        Object.defineProperty(Platform, 'OS', { configurable: true, value: platform });
+      }
+    }
+  );
 
   it.each(['ar', 'en'] as const)(
     'allows suggestion labels to wrap at 200%% text in %s',

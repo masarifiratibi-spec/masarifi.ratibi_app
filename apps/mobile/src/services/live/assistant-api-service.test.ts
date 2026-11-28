@@ -87,6 +87,34 @@ describe('iPhone text assistant disclosure', () => {
     });
     return { service, request };
   }
+  it.each(['first', 'follow-up'] as const)('does not retry a %s question after withdrawal during traffic backoff', async kind => {
+    jest.useFakeTimers();
+    try {
+      const { service, request } = adapter({ failWithdraw: true });
+      await service.setConsent(true, setting.version, 'backoff-grant');
+      const original = request.getMockImplementation()!;
+      let posts = 0;
+      request.mockImplementation(async (input, init) => {
+        if (init?.method === 'POST') {
+          posts++;
+          return new Response('{}', { status: 429, headers: { 'x-masarifi-ai-limit': 'traffic', 'Retry-After': '1' } });
+        }
+        return original(input, init);
+      });
+      const pending = (kind === 'first'
+        ? service.createConversation({ question: 'Synthetic private draft' }, 'backoff-first-question-001')
+        : service.ask(id(1), 'Synthetic private draft', 'backoff-followup-question-001')).catch(error => error);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(posts).toBe(1);
+      await expect(service.setConsent(false, setting.version, 'backoff-withdraw', owner)).rejects.toBeDefined();
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(await pending).toMatchObject({ code: 'consent_required' });
+      expect(posts).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('blocks both types of question before transmission with only a historical server grant', async () => {
     const { service, request } = adapter();
     await expect(service.getConsent()).resolves.toMatchObject({ status: 'not_requested' });
