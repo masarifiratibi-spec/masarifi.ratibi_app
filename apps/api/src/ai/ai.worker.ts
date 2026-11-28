@@ -552,7 +552,14 @@ export class AiWorker implements OnModuleDestroy {
     let renewalFailure: unknown;
     let outcome = 'failure';
     try {
-      if (claim.kind === 'voice.transcribe_extract') {
+      const owner = claim.user_id;
+      if (
+        (claim.kind === 'voice.transcribe_extract' || claim.kind === 'assistant.respond') &&
+        !owner
+      ) {
+        throw new Error('AI_OWNER_REQUIRED');
+      }
+      if (claim.kind === 'voice.transcribe_extract' && owner) {
         const lease = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS');
         if (!(await this.repository.renewVoiceWork(claim.id, claim.claim_token, lease)))
           throw new Error('AI_WORK_FENCE_INVALID');
@@ -579,8 +586,12 @@ export class AiWorker implements OnModuleDestroy {
         deadline = setTimeout(() => {
           controller.abort();
         }, 180_000);
-        await withAiAbort(signal, () => withProcessingSlot(this.repository, claim.user_id!, signal, () => this.voice(claim, signal, continuous)));
-      } else if (claim.kind === 'assistant.respond') {
+        await withAiAbort(signal, () =>
+          withProcessingSlot(this.repository, owner, signal, () =>
+            this.voice(claim, signal, continuous),
+          ),
+        );
+      } else if (claim.kind === 'assistant.respond' && owner) {
         // No lease extension exists for assistant work. Bound all I/O inside the current fence.
         const leaseMs = this.config.getRequired('MASARIFI_AI_LEASE_SECONDS') * 1000;
         deadline = setTimeout(
@@ -589,7 +600,9 @@ export class AiWorker implements OnModuleDestroy {
           },
           Math.max(1, leaseMs - Math.min(1000, leaseMs / 3)),
         );
-        await withAiAbort(signal, () => withProcessingSlot(this.repository, claim.user_id!, signal, () => this.assistant(claim, signal)));
+        await withAiAbort(signal, () =>
+          withProcessingSlot(this.repository, owner, signal, () => this.assistant(claim, signal)),
+        );
       } else await this.evaluate(claim);
       recordAiJob(claim.kind, 'success');
       outcome = 'success';

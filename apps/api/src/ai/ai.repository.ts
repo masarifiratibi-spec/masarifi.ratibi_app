@@ -105,7 +105,13 @@ export class AiRepository {
     if (mode === 'shadow') await client.query('savepoint ai_queue_probe');
     let full: boolean;
     try {
-      full = (await client.query<{ full: boolean }>('select private.ai_queue_full($1) full', [owner])).rows[0]!.full;
+      const { rows } = await client.query<{ full: boolean }>(
+        'select private.ai_queue_full($1) full',
+        [owner],
+      );
+      const queue = rows[0];
+      if (!queue) throw new Error('AI_QUEUE_RESULT_MISSING');
+      full = queue.full;
     } catch {
       if (mode === 'enforce') throw new HttpException({ code: 'AI_TEMPORARILY_UNAVAILABLE' }, 503);
       await client.query('rollback to savepoint ai_queue_probe');
@@ -114,7 +120,8 @@ export class AiRepository {
     }
     if (full) {
       new PlatformLogger().warn('AI_QUEUE_LIMITED', { state: mode });
-      if (mode === 'enforce') throw new HttpException({ code: 'AI_TRAFFIC_LIMITED', retryAfter: 2 }, 429);
+      if (mode === 'enforce')
+        throw new HttpException({ code: 'AI_TRAFFIC_LIMITED', retryAfter: 2 }, 429);
     }
   }
 
@@ -123,7 +130,9 @@ export class AiRepository {
       'select private.ai_start_processing($1,$2,310) admitted',
       [token, createHash('sha256').update(owner).digest('hex')],
     );
-    return rows[0]!.admitted;
+    const slot = rows[0];
+    if (!slot) throw new Error('AI_PROCESSING_RESULT_MISSING');
+    return slot.admitted;
   }
 
   async endProcessing(token: string) {

@@ -13,7 +13,9 @@ describeLiveDatabase('shared AI traffic admission', () => {
       'select private.ai_http_admit($1,$2,$3,$4,$5) retry',
       [token, user, address, bucket, lane],
     );
-    return { token, retry: rows[0]!.retry };
+    const row = rows[0];
+    if (!row) throw new Error('Expected an admission result');
+    return { token, retry: row.retry };
   }
   const release = (token: string) => pool.query('select private.ai_http_release($1)', [token]);
 
@@ -65,7 +67,7 @@ describeLiveDatabase('shared AI traffic admission', () => {
           tokens[index],
           user,
         ])
-      ).rows[0]!.ok;
+      ).rows[0]?.ok;
     try {
       expect(await start(0, owner)).toBe(true);
       expect(await start(1, owner)).toBe(true);

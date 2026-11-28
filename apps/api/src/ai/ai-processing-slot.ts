@@ -38,8 +38,8 @@ export async function withProcessingSlot<T>(
     return await run();
   } finally {
     if (acquired)
-      await store
-        .endProcessing(token)
-        .catch(() => new PlatformLogger().warn('AI_PROCESSING_RELEASE_FAILED', { state: mode }));
+      await store.endProcessing(token).catch(() => {
+        new PlatformLogger().warn('AI_PROCESSING_RELEASE_FAILED', { state: mode });
+      });
   }
 }

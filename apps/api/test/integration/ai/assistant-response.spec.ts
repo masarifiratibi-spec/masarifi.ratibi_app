@@ -133,7 +133,7 @@ describeLiveDatabase('assistant consent and response lifecycle', () => {
         response: { code: 'AI_TRAFFIC_LIMITED' },
       });
       await expect(send('traffic-message-key-01')).resolves.toMatchObject({
-        resource: Reflect.get(first, 'resource'),
+        resource: Reflect.get(first, 'resource') as unknown,
         replayed: true,
       });
       const count = await pool.query<{ count: number }>(

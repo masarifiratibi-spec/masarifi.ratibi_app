@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import type { ExecutionContext, INestApplication } from '@nestjs/common';
@@ -16,13 +17,13 @@ describeLiveDatabase('AI limits through the HTTP controller', () => {
     session = randomUUID();
   const pool = createLivePool();
   const ai = {
-    createMessage: jest.fn(async () => ({ id: session })),
-    createVoiceSession: jest.fn(async () => ({ id: session })),
-    uploadVoiceAudio: jest.fn(async () => ({ id: session })),
-    processVoiceSession: jest.fn(async () => ({ id: session })),
-    getMessageResult: jest.fn(async () => ({ status: 'completed' })),
-    getVoiceBatchResult: jest.fn(async () => ({ status: 'completed' })),
-    cancelVoiceSession: jest.fn(async () => ({ status: 'cancelled' })),
+    createMessage: jest.fn().mockResolvedValue({ id: session }),
+    createVoiceSession: jest.fn().mockResolvedValue({ id: session }),
+    uploadVoiceAudio: jest.fn().mockResolvedValue({ id: session }),
+    processVoiceSession: jest.fn().mockResolvedValue({ id: session }),
+    getMessageResult: jest.fn().mockResolvedValue({ status: 'completed' }),
+    getVoiceBatchResult: jest.fn().mockResolvedValue({ status: 'completed' }),
+    cancelVoiceSession: jest.fn().mockResolvedValue({ status: 'cancelled' }),
   };
   const previous = process.env.MASARIFI_AI_TRAFFIC_MODE;
   beforeAll(async () => {
@@ -54,10 +55,10 @@ describeLiveDatabase('AI limits through the HTTP controller', () => {
   afterAll(async () => {
     if (previous === undefined) delete process.env.MASARIFI_AI_TRAFFIC_MODE;
     else process.env.MASARIFI_AI_TRAFFIC_MODE = previous;
-    await app?.close();
+    await app.close();
   });
   it('sends and polls normally, rejects excess work before dispatch, and permits cancellation', async () => {
-    const http = request(app.getHttpServer());
+    const http = request(app.getHttpServer() as Server);
     const messages = '/api/v1/assistant/conversations/' + session + '/messages';
     const voice = '/api/v1/voice/sessions';
     await http.post(messages).send({ content: 'fixture' }).expect(202);
@@ -72,7 +73,7 @@ describeLiveDatabase('AI limits through the HTTP controller', () => {
     await http.post(messages).expect(202);
     await http.post(messages).expect(202);
     const busy = await http.post(messages).expect(429);
-    expect(busy.body.code).toBe('AI_TRAFFIC_LIMITED');
+    expect((busy.body as { code: string }).code).toBe('AI_TRAFFIC_LIMITED');
     expect(Number(busy.headers['retry-after'])).toBeGreaterThan(0);
     expect(busy.headers['x-masarifi-ai-limit']).toBe('traffic');
     expect(ai.createMessage).toHaveBeenCalledTimes(3);

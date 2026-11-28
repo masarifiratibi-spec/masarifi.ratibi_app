@@ -51,7 +51,13 @@ export class AiTrafficGuard implements CanActivate {
         ? realIp
         : peer;
     const bucket = policies[handler] ?? 'other';
-    const stream = bucket === 'chat' && request.body?.responseMode === 'stream';
+    const body: unknown = request.body;
+    const stream =
+      bucket === 'chat' &&
+      typeof body === 'object' &&
+      body !== null &&
+      'responseMode' in body &&
+      body.responseMode === 'stream';
     const longPoll = handler === 'getMessageResult' && Number(request.query.waitMs) > 0;
     const lane = bucket === 'upload' ? 'upload' : stream || longPoll ? 'wait' : 'normal';
     const token = randomUUID();
@@ -61,7 +67,9 @@ export class AiTrafficGuard implements CanActivate {
         'select private.ai_http_admit($1,$2,$3,$4,$5) retry',
         [token, digest(request.clerkPrincipal.userId), digest(ip), bucket, lane],
       );
-      retry = rows[0]!.retry;
+      const admission = rows[0];
+      if (!admission) throw new Error('AI_TRAFFIC_ADMISSION_MISSING');
+      retry = admission.retry;
     } catch {
       this.logger.warn('AI_TRAFFIC_STORE_UNAVAILABLE', { operation: bucket, state: mode });
       if (mode === 'enforce' && request.method !== 'GET')
@@ -82,9 +90,9 @@ export class AiTrafficGuard implements CanActivate {
       response.removeListener('finish', release);
       response.removeListener('close', release);
       clearTimeout(deadline);
-      void this.pool
-        .query('select private.ai_http_release($1)', [token])
-        .catch(() => this.logger.warn('AI_TRAFFIC_RELEASE_FAILED', { operation: bucket }));
+      void this.pool.query('select private.ai_http_release($1)', [token]).catch(() => {
+        this.logger.warn('AI_TRAFFIC_RELEASE_FAILED', { operation: bucket });
+      });
     };
     // Bound enforce-mode sockets before their database lease can expire.
     const deadline =
